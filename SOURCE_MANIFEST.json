@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "upstreamCommit": "08569d889040c108f9c4b940ff8910c63a19c8fb",
+  "upstreamCommit": "a737d5b68026b9ace6614581b5157c0f704056bc",
   "files": {
     ".github/actionlint.yaml": "0c504353abd618e30376593b3198fc1fc9c69641d3eeb681e5c1cf4160dce350",
     ".github/scripts/native-ci-apparmor.py": "454d74d30f66d12f58ee3b8cd75ebf83200b33b5e01d87e9c518b49e826ff32a",
@@ -221,7 +221,7 @@
     "backend/local_worker/campaign.py": "a81cc4c07d27bb04e35be989a0870319a7f4ddea15deba459e6081cf649d669c",
     "backend/local_worker/hpc.py": "93975aed382ec12e002219252fc920b950a760eb2f8688c8e79b32d7619a4ada",
     "backend/local_worker/install_pseudopotentials.py": "42c5a6d6d0f91804776ff04c8b443919e90b73e5af033d312f1a60f3eced05c2",
-    "backend/local_worker/recovery.py": "522a1a7834fde44a6e93b07e8cc057cd3e8644083da1c661d877e7eabb99d439",
+    "backend/local_worker/recovery.py": "d24c1203ab16e4d4a26edd21842ba8c30c61ba161e20cd96089b76dd75b9a020",
     "backend/local_worker/worker.py": "83c9faabe913278724a894635a9cab530d42c40653f3ab5f691ab623b09bc3b6",
     "backend/md_local/__init__.py": "3c845093c9ba66d5de87c234d9fe65efe73d83e7ee043f7fb66b05e48712faea",
     "backend/md_local/analysis_engine.py": "7cb855727c12ceecee62dd772ea89820e882f4c759e1af2b9843addc622bbdcc",
@@ -244,7 +244,7 @@
     "backend/tests/test_local_persistence.py": "55f300f236958e5613a440bc02d4ad94a3e5934091b8f4ce44606aa351d91c6c",
     "backend/tests/test_local_regressions.py": "effb9d0a74ffddf839d638878350773170e002916c3e88d415b0db53d6e708f2",
     "backend/tests/test_local_runtime.py": "54cf1dc172277e55721ab3b23767447f9578215e753628e50128e45439cfeeb1",
-    "backend/tests/test_local_scientific_qualification.py": "50e30c73d7328d3b8806d11601b38ea610af76d82b178dfed35a31143f08a089",
+    "backend/tests/test_local_scientific_qualification.py": "9802d3e0e16af6a87b83dcb8a44a2b70ef746b800ec54a4c085798cbce9f73ab",
     "backend/tests/test_lxml_native_sources.py": "ce54049d09ca8d4d74235eb8990d09453c411f33724ab78669c6f89059a948ed",
     "backend/tests/test_native_bootstrap.py": "f68a7e201eb1b7f84915e45bfb2fef8f83fcedd760743bd725adcd0766f6ea97",
     "backend/tests/test_native_core_notices.py": "98dbf04f586cafb72193408e05c7c663fb4ccd9ba18a19a9042ed803e22ea17a",

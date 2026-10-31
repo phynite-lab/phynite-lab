@@ -78,8 +78,12 @@ def runtime_identity(runtime: str, image: str | None, kind: str) -> dict[str, An
     if identity["scheduler"]:
         import hpc
         identity["schedulerAllocation"] = hpc.current_allocation(identity["scheduler"])
-    root = Path(__file__).resolve().parents[1]
-    source_paths = [Path(__file__), Path(__file__).with_name("worker.py")]
+    # PyInstaller may spell its extracted module under /var while resolve()
+    # spells the same macOS directory /private/var. Use one canonical root for
+    # both provenance hashes and relative paths before any solver is started.
+    source = Path(__file__).resolve()
+    root = source.parents[1]
+    source_paths = [source, source.with_name("worker.py")]
     source_paths += list((root / ("md_local" if kind in {"md-simulation", "md-analysis"} else "compute")).glob("*.py"))
     if kind == "md-analysis":
         source_paths += list((root / "md_studio").rglob("*.py"))

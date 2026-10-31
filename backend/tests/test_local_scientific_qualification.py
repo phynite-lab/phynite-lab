@@ -16,6 +16,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
+from backend.local_worker import recovery
 from backend.local_api.qualification import (
     CHECKS as CORE_CHECKS, Qualification, lj_reference, main, md_input, numerical_measurement,
     sha256, source_snapshot, verify_result_artifacts, write_json,
@@ -29,6 +30,27 @@ SPEC.loader.exec_module(HARNESS)
 
 
 class ScientificReleaseQualificationTests(unittest.TestCase):
+    def test_worker_provenance_resolves_extracted_module_directory_alias(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            backend = root / "extracted/backend"
+            sources = {
+                "local_worker/recovery.py": b"# immutable recovery source\n",
+                "local_worker/worker.py": b"# immutable worker source\n",
+                "compute/local_runner.py": b"# immutable scientific runner\n",
+            }
+            for name, content in sources.items():
+                path = backend / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(content)
+            alias = root / "extraction-alias"
+            alias.symlink_to(backend.parent, target_is_directory=True)
+            with patch.object(recovery, "__file__", str(alias / "backend/local_worker/recovery.py")), patch.dict(recovery.os.environ, {"PHYNITE_HPC_SCHEDULER": ""}):
+                identity = recovery.runtime_identity("docker", None, "qe")
+            self.assertEqual(identity["executionSources"], [
+                {"path": name, "sha256": sha256(backend / name)} for name in sorted(sources)
+            ])
+
     def test_application_executed_input_accepts_only_declared_io_formatting(self):
         submitted = "&control\n prefix='phynite',\n outdir='./tmp',\n pseudo_dir='./pseudo',\n/\n&system\n ecutwfc=12.0\n/\n"
         executed = submitted.replace("outdir='./tmp'", "outdir = './tmp'").replace("pseudo_dir='./pseudo'", "pseudo_dir = './pseudo'")
