@@ -136,6 +136,21 @@ class PackagedSandboxTests(unittest.TestCase):
         self.assertIn('Operation not permitted', result['reason'])
         self.assertLess(len(result['reason']), 500)
 
+    def test_linux_covers_disposable_roots_readonly_after_binding_writable_job(self):
+        job = self.root / 'job'
+        runtime = self.root / 'selected-runtime'
+        job.mkdir(); runtime.mkdir()
+        sandbox = NativeSandbox(self.root / 'data', read_roots=(runtime,))
+        with mock.patch.object(sandbox, '_tool', return_value=('Linux', 'verified-bwrap')):
+            command = sandbox._command(job, [sys.executable, '-c', 'pass'])
+        job_bind = command.index('--bind')
+        self.assertEqual(command[job_bind:job_bind + 3], ['--bind', str(job), str(job)])
+        for hidden in ('/home', '/root', '/run', '/mnt', '/media', '/Users', '/tmp', '/proc', '/dev'):
+            if Path(hidden).is_dir():
+                positions = [index for index in range(len(command) - 1) if command[index:index + 2] == ['--remount-ro', hidden]]
+                self.assertEqual(len(positions), 1, hidden)
+                self.assertGreater(positions[0], job_bind, hidden)
+
 
 class BootstrapProducerTests(unittest.TestCase):
     def setUp(self):

@@ -157,7 +157,15 @@ class NativeSandbox:
                 command += ["--ro-bind", str(root), str(root)]
         # Rebind selected runtimes after hiding /tmp too: the frozen core's
         # active interpreter is extracted there and remains read-only.
-        command += ["--proc", "/proc", "--dev", "/dev", "--bind", str(job_dir), str(job_dir), "--chdir", str(job_dir), "--", *argv]
+        command += ["--proc", "/proc", "--dev", "/dev", "--bind", str(job_dir), str(job_dir)]
+        # Bubblewrap creates parent directories for the explicitly rebound
+        # roots/job. Lock each covering tmpfs only after those mounts exist:
+        # otherwise a child can write siblings in the disposable /tmp or /home
+        # mount. The separately bound job mount remains writable.
+        for hidden in (*hidden_roots, "/proc", "/dev"):
+            if Path(hidden).is_dir():
+                command += ["--remount-ro", hidden]
+        command += ["--chdir", str(job_dir), "--", *argv]
         return command
 
     def probe(self, *, refresh: bool = False) -> dict[str, Any]:
@@ -212,8 +220,11 @@ print(json.dumps(flags))
                     detail = " ".join(process.stderr.split())[:300]
                     raise SandboxError(f"Native isolation could not start (exit {process.returncode}): {detail or 'no diagnostic'}. Check OS sandbox/user-namespace support.")
                 flags = json.loads(process.stdout) if process.returncode == 0 else {}
-                if not all(flags.get(key) is True for key in ("workspaceWrite", "outsideWriteDenied", "externalNetworkDenied")) or outside.read_text() != "private probe":
-                    raise SandboxError("The native isolation probe did not verify workspace confinement and external-network denial. Check OS sandbox/user-namespace support.")
+                failed = [key for key in ("workspaceWrite", "outsideWriteDenied", "externalNetworkDenied") if flags.get(key) is not True]
+                if outside.read_text() != "private probe":
+                    failed.append("outsideUnchanged")
+                if failed:
+                    raise SandboxError("The native isolation probe failed checks: " + ", ".join(failed) + ". Check OS sandbox/user-namespace support.")
                 result.update(available=True, kind="macos-seatbelt" if system == "Darwin" else "linux-bubblewrap")
         except (SandboxError, OSError, ValueError, subprocess.SubprocessError) as error:
             result["reason"] = str(error)[:500]

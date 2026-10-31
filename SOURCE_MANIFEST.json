@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "upstreamCommit": "c8645e66577b097d48380135f82284193a797902",
+  "upstreamCommit": "fe090148f4943ea07f11853910109124704b7b29",
   "files": {
     ".github/actionlint.yaml": "0c504353abd618e30376593b3198fc1fc9c69641d3eeb681e5c1cf4160dce350",
     ".github/scripts/native-ci-apparmor.py": "454d74d30f66d12f58ee3b8cd75ebf83200b33b5e01d87e9c518b49e826ff32a",
@@ -208,7 +208,7 @@
     "backend/local_api/requirements.txt": "c7240f53cec3e580339d18985fbe566c32883e55f22049fb2ac3fbfdc045bea3",
     "backend/local_api/runtime-manifest.json": "7399ac7449a6b7939de0d39077293e3b5d9c935ab7c31389fb42eba2449ad60f",
     "backend/local_api/runtime.py": "f2d71f22247877ee085e04ab914f1aed896eac90409bb3c81e9bf67f12e0437b",
-    "backend/local_api/sandbox.py": "48e9af3e414c95826c8e6629671a6e014f0af18cc1edea052a6dd4a0a75d5d32",
+    "backend/local_api/sandbox.py": "19e3bf4b7d0f02f9c1f41c75ff3018990c9c0d5fc77b78fc35aa815ba7f22006",
     "backend/local_api/scheduler.py": "d14078cfed8b757d140a6372b13f54ad07bc82850a92b112d65accead3cc4d9a",
     "backend/local_api/services.py": "fcd2d5370150695259b3d17c99a431b8e11b19ad2bdc8fb9bb8edc0717c9669c",
     "backend/local_api/snapshots.py": "e3964d3d93aaaa0201f692b912c68ed489082c4b5d558c37337184083b53b6a7",
@@ -246,7 +246,7 @@
     "backend/tests/test_local_runtime.py": "54cf1dc172277e55721ab3b23767447f9578215e753628e50128e45439cfeeb1",
     "backend/tests/test_local_scientific_qualification.py": "735376132cc0ecffbd03eb14917a180fd50eed0e94c53ed7e0e5445d48ae0d94",
     "backend/tests/test_lxml_native_sources.py": "ce54049d09ca8d4d74235eb8990d09453c411f33724ab78669c6f89059a948ed",
-    "backend/tests/test_native_bootstrap.py": "c6c7c92712d7ef5475bfc98e20c8b7b65506b7960b6d56ad2974f97678f30ae8",
+    "backend/tests/test_native_bootstrap.py": "f68a7e201eb1b7f84915e45bfb2fef8f83fcedd760743bd725adcd0766f6ea97",
     "backend/tests/test_native_core_notices.py": "98dbf04f586cafb72193408e05c7c663fb4ccd9ba18a19a9042ed803e22ea17a",
     "backend/tests/test_public_local_core.py": "6f1566192a1619b5691617e896107e0a4ac9ae77e152af3b32d2e02ae7151e57",
     "backend/tests/test_runtime_release.py": "d8fb102f5bb5055d5a62c1fadd74666fdab495abe933e6aa348fcccaa0c11a9a",
