@@ -114,7 +114,14 @@ jobs:
       - name: Build standalone application and explicit local core
         run: |
           npm run build:local
-          python -m venv build/core-venv
+          if [[ "$RUNNER_OS" == macOS ]]; then
+            # Use package-owned shared libraries with their original notices.
+            # setup-python's macOS framework vendors unattributed dylibs.
+            brew list --versions python@3.12 >/dev/null 2>&1 || brew install python@3.12
+            "$(brew --prefix python@3.12)/bin/python3.12" -m venv build/core-venv
+          else
+            python -m venv build/core-venv
+          fi
           build/core-venv/bin/python -m pip install -r scripts/local-core-requirements.txt
           build/core-venv/bin/python scripts/build-local-core.py --output build/core
       - name: Verify public backend and actual frozen core without source checkout
@@ -125,7 +132,7 @@ jobs:
       - name: Build locked native isolation bootstrap without changing host policy
         if: startsWith(matrix.target, 'linux-')
         run: |
-          python scripts/build-native-bootstrap.py --prepare-prefix build/bootstrap-prefix --target "$TARGET" --notices distribution/notices/bootstrap --output build/bootstrap
+          build/core-venv/bin/python scripts/build-native-bootstrap.py --prepare-prefix build/bootstrap-prefix --target "$TARGET" --notices distribution/notices/bootstrap --output build/bootstrap
       - name: Assemble real application and native npm packages
         run: |
           if [[ "$TARGET" == linux-* ]]; then

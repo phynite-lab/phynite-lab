@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 from pathlib import Path
 import socket
 import subprocess
@@ -105,6 +106,14 @@ class FrozenLocalCoreTests(unittest.TestCase):
         self.assertNotEqual(plan.get('code'), 'WORKFLOW_COMPILER_UNAVAILABLE')
         if status == 200:
             self.assertRegex(plan['plan']['compilerSha256'], r'^[a-f0-9]{64}$')
+
+    @unittest.skipUnless(platform.system() == 'Darwin', 'Linux sandbox is qualified after packaging its verified bootstrap.')
+    def test_frozen_runtime_verifies_real_macos_isolation_with_empty_path(self):
+        status, runtime = self.request('/__local/runtime', timeout=20)
+        self.assertEqual(status, 200)
+        isolation = runtime['runtime']['isolation']
+        self.assertTrue(isolation['available'], isolation)
+        self.assertEqual(isolation['kind'], 'macos-seatbelt')
 
 
 if __name__ == '__main__':

@@ -8,6 +8,7 @@ import os
 import stat
 import struct
 import subprocess
+import sys
 import tarfile
 import tempfile
 import unittest
@@ -58,6 +59,45 @@ class PackagedSandboxTests(unittest.TestCase):
         with mock.patch("backend.local_api.sandbox.platform.system", return_value="Darwin"), mock.patch("backend.local_api.sandbox.Path.is_file", return_value=False), mock.patch("backend.local_api.sandbox.shutil.which", return_value="/untrusted/sandbox-exec"):
             with self.assertRaises(SandboxError):
                 NativeSandbox(self.root / "data")._tool()
+
+    def test_frozen_probe_reuses_its_own_runtime_without_inheriting_loader_overrides(self):
+        extraction = self.root / 'extracted-runtime'
+        extraction.mkdir()
+        sandbox = NativeSandbox(self.root / 'data')
+        def probe(command, **options):
+            environment = options['env']
+            self.assertEqual(environment['_PYI_APPLICATION_HOME_DIR'], str(extraction))
+            self.assertEqual(environment['_PYI_ARCHIVE_FILE'], str(Path(sys.executable).resolve()))
+            self.assertEqual(environment['_PYI_PARENT_PROCESS_LEVEL'], '1')
+            self.assertNotIn('PYINSTALLER_RESET_ENVIRONMENT', environment)
+            self.assertNotIn('UNRELATED_PROVIDER_SECRET', environment)
+            return subprocess.CompletedProcess(command, 0, json.dumps({'workspaceWrite': True, 'outsideWriteDenied': True, 'externalNetworkDenied': True}), '')
+        with mock.patch.object(sys, 'frozen', True, create=True), mock.patch.object(sys, '_MEIPASS', str(extraction), create=True), mock.patch.dict(os.environ, {'_PYI_APPLICATION_HOME_DIR': '/untrusted', '_PYI_PARENT_PROCESS_LEVEL': '0', 'PYINSTALLER_RESET_ENVIRONMENT': '1', 'UNRELATED_PROVIDER_SECRET': 'synthetic-fixture'}), mock.patch.object(sandbox, '_tool', return_value=('Darwin', '/usr/bin/sandbox-exec')), mock.patch.object(sandbox, '_command', return_value=['fixed-probe']), mock.patch('backend.local_api.sandbox.subprocess.run', side_effect=probe):
+            self.assertTrue(sandbox.probe()['available'])
+
+    def test_frozen_probe_without_active_extraction_fails_closed(self):
+        sandbox = NativeSandbox(self.root / 'data')
+        with mock.patch.object(sys, 'frozen', True, create=True), mock.patch.object(sys, '_MEIPASS', None, create=True), mock.patch.object(sandbox, '_tool', return_value=('Darwin', '/usr/bin/sandbox-exec')), mock.patch('backend.local_api.sandbox.subprocess.run') as run:
+            self.assertFalse(sandbox.probe()['available'])
+            run.assert_not_called()
+
+    def test_linux_rebinds_selected_temporary_runtime_read_only_after_hiding_tmp(self):
+        with tempfile.TemporaryDirectory(dir='/tmp', prefix='phynite-bootstrap-runtime-') as folder:
+            extraction = Path(folder) / 'runtime'
+            extraction.mkdir()
+            job = self.root / 'job'
+            job.mkdir()
+            # Keep Linux's literal /tmp spelling when testing on a macOS host.
+            with mock.patch.object(Path, 'resolve', lambda path, **options: path), mock.patch.object(sys, 'prefix', str(extraction)), mock.patch.object(sys, 'base_prefix', str(extraction)):
+                sandbox = NativeSandbox(self.root)
+                with mock.patch.object(sandbox, '_tool', return_value=('Linux', '/verified/bwrap')):
+                    command = sandbox._command(job, ['/usr/bin/true'])
+            hidden = next(i for i in range(len(command)) if command[i:i+2] == ['--tmpfs', '/tmp'])
+            runtime = next(i for i in range(len(command)) if command[i:i+3] == ['--ro-bind', str(extraction), str(extraction)])
+            writable = command.index('--bind')
+            self.assertLess(hidden, runtime)
+            self.assertLess(runtime, writable)
+            self.assertEqual(command[writable+1:writable+3], [str(job), str(job)])
 
     def test_verified_packaged_binary_is_selected_without_system_bubblewrap(self):
         self.assertEqual(self.tool(), ("Linux", str(self.binary)))

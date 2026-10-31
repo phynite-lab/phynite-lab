@@ -148,14 +148,16 @@ class NativeSandbox:
         # paths. /home and /root are hidden, then explicitly selected runtime
         # roots are rebound. Network and IPC namespaces are private to the job.
         command = [executable, "--die-with-parent", "--new-session", "--unshare-all", "--ro-bind", "/", "/"]
-        hidden_roots = ("/home", "/root", "/run", "/mnt", "/media", "/Users")
+        hidden_roots = ("/home", "/root", "/run", "/mnt", "/media", "/Users", "/tmp")
         for hidden in hidden_roots:
             if Path(hidden).is_dir():
                 command += ["--tmpfs", hidden]
         for root in sorted(roots, key=str):
             if root.exists() and any(root.is_relative_to(hidden) for hidden in hidden_roots):
                 command += ["--ro-bind", str(root), str(root)]
-        command += ["--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--bind", str(job_dir), str(job_dir), "--chdir", str(job_dir), "--", *argv]
+        # Rebind selected runtimes after hiding /tmp too: the frozen core's
+        # active interpreter is extracted there and remains read-only.
+        command += ["--proc", "/proc", "--dev", "/dev", "--bind", str(job_dir), str(job_dir), "--chdir", str(job_dir), "--", *argv]
         return command
 
     def probe(self, *, refresh: bool = False) -> dict[str, Any]:
@@ -189,8 +191,19 @@ print(json.dumps(flags))
                 if getattr(sys, "frozen", False):
                     env.update(PHYNITE_SANDBOX_PROBE_JOB=str(job), PHYNITE_SANDBOX_PROBE_OUTSIDE=str(outside))
                     argv = [sys.executable, "--sandbox-probe"]
-                    if getattr(sys, "_MEIPASS", None):
-                        self.read_roots += (Path(sys._MEIPASS).resolve(),)
+                    extraction = getattr(sys, "_MEIPASS", None)
+                    if not extraction or not Path(extraction).is_dir():
+                        raise SandboxError("The frozen sandbox probe has no active native runtime directory.")
+                    extraction = Path(extraction).resolve()
+                    self.read_roots += (extraction,)
+                    # PyInstaller 6.16 one-file subprocesses reuse the running
+                    # interpreter's extraction. A fresh bootloader extraction
+                    # needs SysV semaphores, which Seatbelt correctly denies.
+                    # Derive only these internal values from this process;
+                    # never copy arbitrary inherited environment or allow IPC.
+                    env.update(_PYI_ARCHIVE_FILE=str(Path(sys.executable).resolve()),
+                               _PYI_APPLICATION_HOME_DIR=str(extraction),
+                               _PYI_PARENT_PROCESS_LEVEL="1")
                 else:
                     argv = [sys.executable, "-c", script, str(job), str(outside)]
                 command = self._command(job, argv)
