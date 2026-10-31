@@ -411,7 +411,15 @@ test('separate npm tarballs retain bundled production dependencies without insta
   const packedDependency = JSON.parse(await readFile(join(nativeRoot, 'node_modules', 'phynite-fixture-runtime', 'package.json'), 'utf8'));
   assert.equal(packedDependency.scripts.install, undefined);
   const install = join(directory, 'install');
-  await execute('npm', ['install', '--os', 'darwin', '--cpu', 'arm64', '--prefix', install, '--offline', '--no-audit', '--no-fund', '--cache', join(directory, 'empty-npm-cache'), join(directory, nativePack.filename), join(directory, mainPack.filename)]);
+  const installArgs = ['install', '--prefix', install, '--offline', '--no-audit', '--no-fund', '--cache', join(directory, 'empty-npm-cache'), join(directory, nativePack.filename), join(directory, mainPack.filename)];
+  if (distributionPlatform() !== target) {
+    await assert.rejects(execute('npm', installArgs), /EBADPLATFORM/);
+    // Only synthetic shell/JS fixtures are installed across architectures here.
+    // npm 10 ignores --os/--cpu for root packages. Real native acceptance never
+    // forces installation and must run on the declared macOS architecture.
+    installArgs.push('--force');
+  }
+  await execute('npm', installArgs);
   const installed = join(install, 'node_modules', 'phynite-lab');
   const distribution = await verifyDistribution(installed, target);
   assert.deepEqual(distribution.cloud, { ...cloud, apiOrigin: 'https://configured.example.invalid' });
