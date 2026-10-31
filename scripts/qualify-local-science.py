@@ -17,6 +17,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import tarfile
 import time
 import urllib.error
@@ -132,6 +133,7 @@ def attachment(root: Path, path: Path, kind: str) -> dict:
 
 
 def failed_check(root: Path, check_id: str, message: str) -> dict:
+    print(f"FAILED {check_id}: {message}", file=sys.stderr)
     path = root / (check_id + "-failure.json")
     write_json(path, {"passed": False, "error": message})
     return {"id": check_id, "status": "failed", "execution": {"returnCode": 1}, "attachments": [attachment(root, path, "log")]}

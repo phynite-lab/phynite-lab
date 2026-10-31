@@ -133,7 +133,12 @@ jobs:
           PYTHONPATH: .
           PHYNITE_TEST_FROZEN_CORE: ${{ github.workspace }}/build/core/${{ matrix.target }}/phynite-core
         run: build/core-venv/bin/python -m unittest discover -s backend/tests -v
-      - name: Build locked native isolation bootstrap without changing host policy
+      - name: Permit namespaces for exact test executables on ephemeral GitHub Linux runners
+        if: startsWith(matrix.target, 'linux-') && runner.environment == 'github-hosted'
+        run: |
+          python .github/scripts/native-ci-apparmor.py --workspace "$GITHUB_WORKSPACE" --target "$TARGET" --run-id "$GITHUB_RUN_ID" --output "$RUNNER_TEMP/phynite-native-apparmor"
+          sudo -n apparmor_parser -r -T "$RUNNER_TEMP/phynite-native-apparmor"
+      - name: Build locked native isolation bootstrap and verify actual confinement
         if: startsWith(matrix.target, 'linux-')
         run: |
           build/core-venv/bin/python scripts/build-native-bootstrap.py --prepare-prefix build/bootstrap-prefix --target "$TARGET" --notices distribution/notices/bootstrap --output build/bootstrap
@@ -172,6 +177,12 @@ jobs:
           path: build/candidate/
           if-no-files-found: error
           retention-days: 30
+      - name: Remove the exact ephemeral Linux CI namespace profiles
+        if: always() && startsWith(matrix.target, 'linux-') && runner.environment == 'github-hosted'
+        run: |
+          if [[ -f "$RUNNER_TEMP/phynite-native-apparmor" ]]; then
+            sudo -n apparmor_parser -R -T "$RUNNER_TEMP/phynite-native-apparmor"
+          fi
 
   release:
     needs: [source, candidate]
