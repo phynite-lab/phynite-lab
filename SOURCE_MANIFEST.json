@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "upstreamCommit": "4b4025e67c95ebd1a8773fa8d3b007a7b8ee6015",
+  "upstreamCommit": "6ad0c13ee91c80ca4d6a5a3c929f054e31a6815b",
   "files": {
     ".github/actionlint.yaml": "0c504353abd618e30376593b3198fc1fc9c69641d3eeb681e5c1cf4160dce350",
     ".github/scripts/native-ci-apparmor.py": "454d74d30f66d12f58ee3b8cd75ebf83200b33b5e01d87e9c518b49e826ff32a",
@@ -709,7 +709,7 @@
     "tests/local-auth.test.ts": "4b0758704bccba8afa5b8eedf330fc8314bc18e80183b66d4998484a69d55f29",
     "tests/local-browser-opener.test.ts": "53bf9ab0eaee9acdd695c4ea0de338459f54891b48a5bf0f73ddd54a26de5e9b",
     "tests/local-bundled-notices.test.ts": "0c4cf0e9fec5f63112c6569990cb2783c8c1fc1e2eb8e44644b6249326553e35",
-    "tests/local-cli.test.ts": "e13b7d7da315290ea031af84f3bf42fcab5915d046d1081c04ee37964a02b2c7",
+    "tests/local-cli.test.ts": "b774900e19fa0c90b4a94cd249107184057d5ac866dd872ad49707418fcfd99a",
     "tests/local-host-baseline.test.ts": "481fc8355a8637be206698fdd562fee5967cad8ea19d0a503482e343b6c5315c",
     "tests/local-native-inventory.test.ts": "fd03e0babc9340c6a688dea702fd1e5254ab28443345bd8ee66e5adc8823f1d5",
     "tests/local-release-gates.test.ts": "bd67fe79b5b89a34265f4d6089797b73e19a8c377907eb118e684e197556988d",

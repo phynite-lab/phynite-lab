@@ -348,7 +348,9 @@ test('separate npm tarballs retain bundled production dependencies without insta
   const execute = promisify(execFile);
   const directory = await mkdtemp(join(tmpdir(), 'phynite-npm-package-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const target = distributionPlatform(), name = platformPackageName(target);
+  // This is a synthetic packaging test, independent of the CI host OS.
+  // Native execution qualification runs separately on the actual macOS runner.
+  const target = 'darwin-arm64', name = platformPackageName(target);
   const standalone = join(directory, 'standalone'), output = join(directory, 'release');
   await mkdir(join(standalone, 'dist'), { recursive: true }); await mkdir(join(standalone, 'public'));
   const dependency = join(standalone, 'node_modules', 'phynite-fixture-runtime'); await mkdir(dependency, { recursive: true });
@@ -377,13 +379,7 @@ test('separate npm tarballs retain bundled production dependencies without insta
     components: [{ id: 'python:synthetic', kind: 'python', name: 'Synthetic process fixture', version: '0.0.0', provenance: { ownership: 'Synthetic unit fixture; no native qualification' }, notices: [{ name: 'fixture-notice', sha256: coreSha }] }] }));
   const cloud = { apiOrigin: 'https://configured.example.invalid/', region: 'ap-southeast-1', clientId: 'publicClient' };
   const configPath = join(directory, 'release-cloud.json'); await writeFile(configPath, JSON.stringify(cloud));
-  const base = [join(root, 'scripts', 'package-local.mjs'), '--core', core, '--notices', notices, '--standalone', standalone, '--source-commit', 'a'.repeat(40)];
-  if (target.startsWith('linux-')) {
-    const bootstrap = join(directory, 'bootstrap'); await mkdir(bootstrap);
-    const executable = join(bootstrap, 'bwrap'); await writeFile(executable, '#!/bin/sh\nexit 1\n'); await chmod(executable, 0o755);
-    await writeFile(join(bootstrap, 'manifest.json'), JSON.stringify({ schemaVersion: 1, target, tools: { bwrap: { executable: 'bwrap', sha256: createHash('sha256').update(await readFile(executable)).digest('hex'), libraries: [] } } }));
-    base.push('--bootstrap', `${target}=${bootstrap}`);
-  }
+  const base = [join(root, 'scripts', 'package-local.mjs'), '--target', target, '--core', core, '--notices', notices, '--standalone', standalone, '--source-commit', 'a'.repeat(40)];
   await execute(process.execPath, [...base, '--output', output, '--cloud-config', configPath]);
   const mainRoot = join(output, 'phynite-lab'), nativeRoot = join(output, name);
   const manifest = JSON.parse(await readFile(join(mainRoot, 'distribution.json'), 'utf8'));
@@ -415,9 +411,9 @@ test('separate npm tarballs retain bundled production dependencies without insta
   const packedDependency = JSON.parse(await readFile(join(nativeRoot, 'node_modules', 'phynite-fixture-runtime', 'package.json'), 'utf8'));
   assert.equal(packedDependency.scripts.install, undefined);
   const install = join(directory, 'install');
-  await execute('npm', ['install', '--prefix', install, '--offline', '--no-audit', '--no-fund', '--cache', join(directory, 'empty-npm-cache'), join(directory, nativePack.filename), join(directory, mainPack.filename)]);
+  await execute('npm', ['install', '--os', 'darwin', '--cpu', 'arm64', '--prefix', install, '--offline', '--no-audit', '--no-fund', '--cache', join(directory, 'empty-npm-cache'), join(directory, nativePack.filename), join(directory, mainPack.filename)]);
   const installed = join(install, 'node_modules', 'phynite-lab');
-  const distribution = await verifyDistribution(installed);
+  const distribution = await verifyDistribution(installed, target);
   assert.deepEqual(distribution.cloud, { ...cloud, apiOrigin: 'https://configured.example.invalid' });
   assert.equal((await execute(process.execPath, [distribution.server])).stdout.trim(), 'packaged-runtime-present');
   assert.match((await execute(process.execPath, [join(installed, 'bin', 'phynite-lab.mjs'), '--help'])).stdout, /Usage: phynite-lab/);
