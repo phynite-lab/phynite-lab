@@ -17,7 +17,7 @@ import unittest
 from unittest.mock import patch
 
 from backend.local_api.qualification import (
-    Qualification, lj_reference, main, md_input, numerical_measurement,
+    CHECKS as CORE_CHECKS, Qualification, lj_reference, main, md_input, numerical_measurement,
     sha256, source_snapshot, verify_result_artifacts, write_json,
 )
 
@@ -175,6 +175,31 @@ class ScientificReleaseQualificationTests(unittest.TestCase):
             for name in ("../outside", "/tmp/outside", "bad\\path"):
                 with self.subTest(name=name), self.assertRaises(ValueError):
                     HARNESS.fixture_files({"schemaVersion": 1, "files": [{**records[0], "name": name}, *records[1:]]})
+
+    def test_setup_bundles_match_catalogue_and_preserve_real_analysis_gate(self):
+        catalogue = json.loads((ROOT / "backend/local_api/runtime-manifest.json").read_text())["components"]
+        self.assertEqual(set(HARNESS.INSTALL_COMPONENTS), set(catalogue))
+        self.assertIn("analysis-reference", HARNESS.CHECKS)
+        self.assertIn("analysis-reference", CORE_CHECKS)
+
+    def test_analysis_uses_registered_md_interpreter_without_dft_fallback(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output, job = root / "output", root / "job"
+            output.mkdir()
+            job.mkdir()
+            qualification = Qualification(root / "data", output, root / "fixture", 30)
+            python = qualification.manager.root / "md/env/bin/python"
+            python.parent.mkdir(parents=True)
+            python.write_text("Metadata selection fixture; never executed.")
+            python.chmod(0o755)
+            registered = {"PHYNITE_RUNTIME_PYTHON_MD": str(python)}
+            with patch.object(qualification.manager, "environment", return_value=registered):
+                selected, _ = qualification.environment("analysis", job)
+                self.assertEqual(selected, str(python))
+            with patch.object(qualification.manager, "environment", return_value={"PHYNITE_RUNTIME_PYTHON_DFT": str(python)}):
+                with self.assertRaisesRegex(RuntimeError, "unavailable"):
+                    qualification.environment("analysis", job)
 
     def test_no_global_python_fallback_for_missing_runtime(self):
         with tempfile.TemporaryDirectory() as temporary:

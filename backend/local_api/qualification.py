@@ -137,19 +137,23 @@ class Qualification:
             self.checks.append(record)
         except Exception as error:
             failure = directory / "failure.json"
-            write_json(failure, {"passed": False, "error": f"{type(error).__name__}: {error}"})
+            message = f"{type(error).__name__}: {error}"[:500]
+            write_json(failure, {"passed": False, "error": message})
             attachments = [self.attach(failure, "log")]
             # Preserve actual failed job output as diagnostics too.
             result = directory / "job/results/result.json"
             if result.is_file():
                 attachments.append(self.attach(result, "output"))
-            self.checks.append({"id": check_id, "status": "failed", "execution": {"returnCode": 1}, "attachments": attachments})
+            self.checks.append({"id": check_id, "status": "failed", "error": message, "execution": {"returnCode": 1}, "attachments": attachments})
         write_json(self.output / "checks.json", {"passed": all(item["status"] == "passed" for item in self.checks), "checks": self.checks})
 
     def environment(self, component: str, job: Path) -> tuple[str, dict[str, str]]:
         # Use only the registered, immutable scientific Python; never python on PATH.
         installed = self.manager.environment()
         python = installed.get("PHYNITE_RUNTIME_PYTHON_" + component.upper())
+        # The reviewed MD bundle supplies both LAMMPS and OVITO, as in the worker.
+        if not python and component == "analysis":
+            python = installed.get("PHYNITE_RUNTIME_PYTHON_MD")
         if not python or not Path(python).is_file() or not Path(python).resolve().is_relative_to(self.manager.root):
             raise RuntimeError(f"The installed {component} scientific runtime is unavailable.")
         from backend.local_worker.worker import native_environment

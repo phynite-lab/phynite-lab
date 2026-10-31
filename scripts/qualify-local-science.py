@@ -25,6 +25,9 @@ import urllib.request
 from urllib.parse import urlencode, urlsplit
 
 
+# The MD runtime includes OVITO analysis; setup exposes these two bundles.
+INSTALL_COMPONENTS = ("dft", "md")
+
 CHECKS = (
     "runtime-install", "app-qe-queue-reference", "app-queued-cancel-restart",
     "qe-reference", "md-guided-reference", "md-manual-reference",
@@ -499,7 +502,8 @@ console.log(JSON.stringify({platform:process.platform,arch:process.arch,nodeVers
         write_json(output / "native-identity.json", {"sha256": digest(core), "manifest": native_manifest})
         origin, token = start_application()
         inventory = []
-        for component in ("dft", "md", "analysis"):
+        for component in INSTALL_COMPONENTS:
+            print(f"Installing approved {component} runtime...", flush=True)
             request_json(origin, token, "/__local/runtime/install", {"component": component})
             deadline = time.monotonic() + args.timeout_seconds
             while time.monotonic() < deadline:
@@ -509,6 +513,7 @@ console.log(JSON.stringify({platform:process.platform,arch:process.arch,nodeVers
                     raise RuntimeError(f"The actual {component} installer failed: {progress.get('error', 'inspect native installer logs')}")
                 if progress.get("state") == "complete" and component in state.get("runtime", {}).get("installed", {}):
                     inventory.append({"component": component, "runtime": state["runtime"]})
+                    print(f"PASS runtime installation: {component}", flush=True)
                     break
                 if child.poll() is not None:
                     raise RuntimeError("The installed application stopped during runtime setup.")
@@ -553,6 +558,7 @@ console.log(JSON.stringify({platform:process.platform,arch:process.arch,nodeVers
                 for item in check.get("attachments", []):
                     item["path"] = "checks/" + item["path"]
                 report["checks"].append(check)
+                print(f"{check['status'].upper()} {check['id']}" + (f": {check.get('error', 'inspect qualification diagnostics')}" if check['status'] != 'passed' else ''), flush=True)
         except Exception as error:
             runtime_error = f"Native qualification could not finish: {type(error).__name__}: {error}"
     present = {check["id"] for check in report["checks"]}
