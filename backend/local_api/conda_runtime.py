@@ -497,7 +497,10 @@ def install_locked_runtime(manager, component: str, target: str, entry: dict) ->
             if path.is_file():
                 size += path.stat().st_size
                 if size > maximum:
-                    raise RuntimeInstallError("The scientific environment exceeds its reviewed installation-size budget.")
+                    raise RuntimeInstallError(
+                        "The scientific environment exceeds its reviewed installation-size budget "
+                        f"({size} bytes installed; {maximum} bytes allowed)."
+                    )
         signatures = _repair_macos_signatures(manager, release, environment)
         _regenerate_loader_cache(manager, release, environment)
         qualification = _qualify(manager, release, component, executables, environment)

@@ -15,6 +15,8 @@ from urllib.parse import urlsplit
 
 TARGETS = {"darwin-arm64": "osx-arm64", "darwin-x64": "osx-64", "linux-arm64": "linux-aarch64", "linux-x64": "linux-64"}
 EXECUTABLES = {"dft": ["python", "pw.x", "bands.x", "dos.x", "projwfc.x", "ph.x", "q2r.x", "matdyn.x", "mpirun"], "md": ["python", "lmp", "mpirun"], "analysis": ["python"]}
+DEFAULT_MAX_INSTALLED_BYTES = 4 * 1024**3
+LINUX_MD_MAX_INSTALLED_BYTES = 8 * 1024**3
 
 
 def entry_from_solve(solve: dict, component: str, target: str, version: str, installer: dict, wheels: list[dict] | None = None) -> dict:
@@ -35,7 +37,11 @@ def entry_from_solve(solve: dict, component: str, target: str, version: str, ins
         if not re.fullmatch(r"[a-f0-9]{64}", package.get("sha256", "")) or type(package.get("size")) is not int or not package.get("license"):
             raise ValueError("All locked packages need exact SHA-256, size, and license metadata.")
         packages.append({"name": package["name"], "version": package["version"], "build": package["build_string"], "license": package["license"], "url": package["url"], "sha256": package["sha256"], "sizeBytes": package["size"]})
-    entry = {"format": "conda-lock", "version": version, "qualificationStatus": "not-tested-on-target", "installer": installer, "packages": packages, "maxInstalledBytes": 4 * 1024**3, "executables": {name: f"env/bin/{name}" for name in EXECUTABLES[component]}}
+    # Linux MD/OVITO includes a substantially larger Qt/graphics stack than
+    # the DFT lock. Keep that reviewed budget target-specific instead of
+    # letting the installer fail after it has already linked the environment.
+    budget = LINUX_MD_MAX_INSTALLED_BYTES if component == "md" and target.startswith("linux-") else DEFAULT_MAX_INSTALLED_BYTES
+    entry = {"format": "conda-lock", "version": version, "qualificationStatus": "not-tested-on-target", "installer": installer, "packages": packages, "maxInstalledBytes": budget, "executables": {name: f"env/bin/{name}" for name in EXECUTABLES[component]}}
     if target.startswith("linux-"):
         entry["minimumGlibc"] = "2.39"
     if wheels:

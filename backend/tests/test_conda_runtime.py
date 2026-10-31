@@ -202,6 +202,10 @@ class LockedRuntimeTests(unittest.TestCase):
                         self.assertTrue(record["license"])
                     self.assertEqual(len({record["name"] for record in entry["packages"]}), len(entry["packages"]))
                     self.assertIn("python", {record["name"] for record in entry["packages"]})
+                    if component == "md" and target.startswith("linux-"):
+                        self.assertEqual(entry["maxInstalledBytes"], 8 * 1024**3)
+                    else:
+                        self.assertEqual(entry["maxInstalledBytes"], 4 * 1024**3)
                     if component in {"md", "analysis"}:
                         if target == "linux-arm64":
                             self.assertEqual(entry["minimumGlibc"], "2.39")

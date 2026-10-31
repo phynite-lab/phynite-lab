@@ -25,6 +25,13 @@ The user needs neither Python nor a system package manager. No administrator
 operation is involved. This upstream-download path does not publish or bundle
 the solvers in npm.
 
+The reviewed installed-size budget is target-specific. DFT and macOS MD locks
+use 4 GiB; Linux MD/OVITO locks use 8 GiB because the Linux graphics and Qt
+dependencies expand beyond the smaller DFT budget. The installer measures the
+actual immutable prefix before activation and reports both measured and allowed
+bytes on failure. A larger budget does not relax package, checksum, sandbox or
+qualification checks.
+
 Conda rewrites embedded prefixes while linking packages. Installation therefore
 takes place at its final immutable versioned prefix; moving that prefix after
 installation would break it. The active inventory is replaced atomically only

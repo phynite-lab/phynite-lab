@@ -10949,7 +10949,7 @@
             "sizeBytes": 124746850
           }
         ],
-        "maxInstalledBytes": 4294967296,
+        "maxInstalledBytes": 8589934592,
         "executables": {
           "python": "env/bin/python",
           "lmp": "env/bin/lmp",
@@ -15357,7 +15357,7 @@
             "sizeBytes": 4949
           }
         ],
-        "maxInstalledBytes": 4294967296,
+        "maxInstalledBytes": 8589934592,
         "executables": {
           "python": "env/bin/python",
           "lmp": "env/bin/lmp",
