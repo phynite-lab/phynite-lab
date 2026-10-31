@@ -1,0 +1,225 @@
+/* Shared select styles used by the workspace and public forms. */
+/* Parameter dropdowns use the visual language of a scientific instrument:
+   compact readout, isolated actuator, and an unambiguous active marker. */
+.ui-select {
+  --select-bg: var(--raised);
+  --select-bg-hover: var(--surface-subtle);
+  --select-menu: var(--surface);
+  --select-option-hover: var(--surface-subtle);
+  --select-option-selected: var(--surface-subtle);
+  --select-border: var(--line);
+  --select-border-active: var(--line-strong);
+  --select-text: var(--ink);
+  --select-muted: var(--muted-ink);
+  --select-accent: var(--ink);
+  color: var(--select-muted);
+  font-family: var(--font-ui);
+  font-size: var(--text-label);
+  line-height: var(--leading-ui);
+}
+
+.ui-select-label {
+  display: block;
+  overflow: hidden;
+  color: var(--select-muted);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-select-trigger {
+  display: flex;
+  width: 100%;
+  height: var(--control-height);
+  padding: 0;
+  margin-top: 6px;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid var(--select-border) !important;
+  border-radius: var(--control-radius) !important;
+  background: var(--select-bg) !important;
+  color: var(--select-text);
+  text-align: left;
+  outline: none;
+  transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.ui-select-trigger:hover:not(:disabled) {
+  border-color: var(--line-strong) !important;
+  background: var(--select-bg-hover) !important;
+}
+
+.ui-select-trigger:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.ui-select-trigger[aria-expanded='true'] {
+  border-color: var(--select-border-active) !important;
+  background: var(--field-focus-surface, var(--select-bg-hover)) !important;
+  box-shadow: none !important;
+}
+
+.ui-select-trigger:focus-visible {
+  border-color: var(--select-border-active) !important;
+  background: var(--field-focus-surface, var(--select-bg)) !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+.ui-select-value {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  align-self: center;
+  padding: 0 10px;
+  color: var(--select-text) !important;
+  font-size: var(--select-value-size, var(--text-label));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-select-chevron {
+  display: grid;
+  width: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  border-left: 0;
+  color: var(--select-muted);
+  transition: color 120ms ease, background-color 120ms ease;
+}
+
+.ui-select-chevron svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ui-select-trigger[aria-expanded='true'] .ui-select-chevron {
+  background: transparent;
+  color: var(--select-accent);
+}
+
+.ui-select--compact .ui-select-trigger {
+  height: 28px;
+  margin-top: 0;
+}
+
+.ui-select--compact .ui-select-value {
+  padding-inline: 8px;
+  font-size: var(--text-label);
+}
+
+.ui-select--compact .ui-select-chevron {
+  width: 26px;
+  flex-basis: 26px;
+}
+
+.ui-select-menu {
+  position: fixed;
+  z-index: 120;
+  overflow-y: auto;
+  color: var(--ink);
+  color-scheme: inherit;
+  scrollbar-color: var(--line-strong) transparent;
+  font-family: var(--font-ui);
+  line-height: var(--leading-ui);
+  --surface-bg: var(--surface);
+  --surface-raised: var(--raised);
+  --surface-selected: var(--surface-subtle);
+  --surface-border: var(--line);
+  --surface-text: var(--ink);
+  --surface-muted: var(--muted-ink);
+  padding: 5px;
+  border: 1px solid var(--surface-border) !important;
+  border-radius: 9px !important;
+  background: var(--surface-bg) !important;
+  box-shadow: 0 18px 46px rgb(0 0 0 / 42%), 0 0 0 1px rgb(255 255 255 / 3%) !important;
+  transform-origin: top center;
+}
+
+.ui-select-menu--upward {
+  transform-origin: bottom center;
+}
+
+.ui-select-menu--compact .ui-select-option { min-height: 30px; padding: 5px 8px; gap: 8px; }
+.ui-select-menu--compact .ui-select-option + .ui-select-option { margin-top: 2px; }
+.ui-select-menu--compact .ui-select-option:has(.ui-select-option-detail) { min-height: 42px; }
+.ui-select-menu--compact .ui-select-option > svg { flex-shrink: 0; color: var(--surface-text); }
+
+.ui-select-option {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 38px;
+  align-items: center;
+  gap: 9px;
+  overflow: hidden;
+  padding: 6px 7px 6px 10px;
+  border-radius: 6px;
+  color: var(--surface-text);
+  text-align: left;
+}
+
+.ui-select-option + .ui-select-option { margin-top: 6px; }
+
+.ui-select-option[data-highlighted='true']:not(:disabled) {
+  background: var(--surface-selected) !important;
+}
+
+.ui-select-option[aria-selected='true'] {
+  background: var(--surface-selected) !important;
+}
+
+.ui-select-option:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
+.ui-select-option-label,
+.ui-select-option-detail {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-select-option-label {
+  color: var(--surface-text) !important;
+  font-size: var(--text-label);
+  font-weight: var(--weight-regular);
+}
+
+.ui-select-option-detail {
+  margin-top: 2px;
+  color: var(--surface-muted) !important;
+  font-size: var(--text-caption);
+}
+
+
+
+[data-workspace-theme='light'] .ui-select {
+  --select-bg: var(--raised);
+  --select-bg-hover: var(--surface-subtle);
+  --select-menu: var(--surface);
+  --select-option-hover: var(--surface-subtle);
+  --select-option-selected: var(--surface-subtle);
+  --select-border: var(--line);
+  --select-border-active: var(--line-strong);
+  --select-text: var(--ink);
+  --select-muted: var(--muted-ink);
+  --select-accent: var(--ink);
+}
+
+[data-workspace-theme='light'] .ui-select-trigger:hover:not(:disabled) {
+  border-color: var(--line-strong) !important;
+}
+
+[data-workspace-theme='light'] body:not(:has(main.public-experience)) .ui-select-menu {
+  --surface-bg: var(--surface);
+  --surface-raised: var(--raised);
+  --surface-selected: var(--surface-subtle);
+  --surface-border: var(--line);
+  --surface-text: var(--ink);
+  --surface-muted: var(--muted-ink);
+  box-shadow: 0 18px 46px rgb(31 40 52 / 18%), 0 0 0 1px rgb(31 40 52 / 3%) !important;
+}

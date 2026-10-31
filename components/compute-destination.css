@@ -1,0 +1,14 @@
+.compute-number-field { display: grid; align-content: start; gap: 6px; min-width: 0; color: var(--panel-text, var(--ink)); font: 500 12px/1.5 var(--font-ui); }
+.compute-number-field > input { box-sizing: border-box; width: 100%; min-width: 0; height: 36px; padding: 6px 10px; border: 1px solid var(--panel-border, var(--border)); border-radius: 6px; background: var(--panel-bg, var(--surface)); color: inherit; font: 400 13px/1.4 var(--font-ui); }
+.compute-number-field > input:focus-visible { outline: 2px solid var(--panel-accent, var(--accent)); outline-offset: 2px; }
+.compute-number-field > input:disabled { opacity: .55; }
+.compute-personal-fields { display: grid; gap: 10px; }
+.compute-personal-fields > .lab-button { justify-self: start; }
+.compute-duration-control { display: grid; grid-template-columns: minmax(0, 1fr) minmax(100px, .7fr); gap: 12px; align-items: start; }
+.compute-duration-control > p { grid-column: 1 / -1; }
+.compute-accelerator-status { display: grid; gap: 8px; margin: 8px 0 0; border-top: 1px solid var(--panel-border, var(--border)); padding-top: 12px; font: 400 11px/1.5 var(--font-ui); }
+.compute-accelerator-status > div { display: flex; justify-content: space-between; gap: 16px; }
+.compute-accelerator-status dt { color: var(--panel-muted, var(--muted-ink)); }
+.compute-accelerator-status dd { margin: 0; text-align: right; color: var(--panel-text, var(--ink)); }
+.compute-scope-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.compute-scope-actions p { flex: 1 1 150px; }

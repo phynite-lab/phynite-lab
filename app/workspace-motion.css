@@ -1,0 +1,105 @@
+/* Motion belongs to interface surfaces, never scientific geometry or live data. */
+:root {
+  --workspace-motion-feedback: 100ms;
+  --workspace-motion-menu: 140ms;
+  --workspace-motion-view: 120ms;
+  --workspace-motion-panel: 180ms;
+  --workspace-motion-ease: cubic-bezier(.22, 1, .36, 1);
+}
+
+/* Enumerate paint properties so dragging, typing and resizing stay immediate. */
+:where(.research-app-shell) :is(button, a, input, textarea, select, summary, [role=button], [role=tab]),
+:is(.workflow-global-menu, .workflow-context-menu, .workflow-chat-actions-menu, .workflow-picker, .ai-overlay, .ui-select-menu) :is(button, input, [role=option]) {
+  transition-property: background-color, border-color, color, opacity;
+  transition-duration: var(--workspace-motion-feedback);
+  transition-timing-function: ease-out;
+}
+
+.research-app-shell .workflow-tab-close,
+.research-app-shell .research-sidebar-dock,
+.research-app-shell .workspace-item-action { transition: opacity var(--workspace-motion-feedback) ease-out, color var(--workspace-motion-feedback) ease-out; }
+
+/* Opacity-only pane reveals retain viewport coordinates and fixed descendants. */
+.workflow-panes > :is(.workflow-editor, .workflow-canvas-area):not([hidden]):not(.workflow-ai-editor),
+.research-sidebar-slot:not([hidden]) {
+  animation: workspace-view-enter var(--workspace-motion-view) ease-out;
+}
+
+.research-app-shell .workflow-tab {
+  animation: workspace-view-enter var(--workspace-motion-view) ease-out;
+}
+
+/* Individual translate leaves inline positioning transforms intact in portals. */
+:is(.workflow-global-menu, .workflow-context-menu, .workflow-chat-actions-menu, .workflow-picker, .research-more-menu, .lab-account-popover, .ai-overlay),
+.research-app-shell :is(.workflow-project-menu, .workflow-run-control details)[open] > div,
+.research-app-shell :is(.workspace-inline-reveal, .workspace-popover-motion) {
+  animation: workspace-surface-enter var(--workspace-motion-menu) var(--workspace-motion-ease);
+}
+/* Keyboard-constrained sheets keep their viewport gutters during the reveal. */
+.ai-overlay[data-sheet=true] { animation-name: workspace-view-enter; }
+
+.workflow-run-history,
+.lab-config-drawer-layer > .lab-config-drawer {
+  animation: workspace-panel-enter var(--workspace-motion-panel) var(--workspace-motion-ease);
+}
+
+.workflow-ai-editor[data-presentation=composer][data-header-revealed=true] .ai-panel-header,
+.ai-queue,
+.ai-evidence-tray,
+.research-app-shell :is(.workflow-notice, .workflow-conflict, .ai-notice, .ai-error) {
+  animation: workspace-surface-enter var(--workspace-motion-menu) var(--workspace-motion-ease);
+}
+
+/* A native dialog retains top-layer/focus semantics throughout its exit. */
+.research-app-shell dialog {
+  opacity: 0;
+  translate: 0 6px;
+  transition: opacity var(--workspace-motion-menu) ease-out, translate var(--workspace-motion-panel) var(--workspace-motion-ease),
+    display var(--workspace-motion-panel) allow-discrete, overlay var(--workspace-motion-panel) allow-discrete;
+}
+.research-app-shell dialog[open] { opacity: 1; translate: 0 0; }
+.research-app-shell dialog::backdrop {
+  opacity: 0;
+  transition: opacity var(--workspace-motion-menu) ease-out, display var(--workspace-motion-panel) allow-discrete, overlay var(--workspace-motion-panel) allow-discrete;
+}
+.research-app-shell dialog[open]::backdrop { opacity: 1; }
+@starting-style {
+  .research-app-shell dialog[open] { opacity: 0; translate: 0 6px; }
+  .research-app-shell dialog[open]::backdrop { opacity: 0; }
+}
+
+@media (min-width: 961px) {
+  .research-app-shell[data-docked=false] .research-context-sidebar {
+    transition: opacity var(--workspace-motion-menu) ease-out, transform var(--workspace-motion-panel) var(--workspace-motion-ease), visibility 0s linear var(--workspace-motion-panel);
+  }
+  .research-app-shell[data-docked=false][data-preview=true] .research-context-sidebar { transition-delay: 0s; }
+}
+@media (max-width: 960px) {
+  .research-app-shell .research-navigation {
+    opacity: 0;
+    translate: -8px 0;
+    pointer-events: none;
+    transition: opacity var(--workspace-motion-menu) ease-out, translate var(--workspace-motion-panel) var(--workspace-motion-ease), display var(--workspace-motion-panel) allow-discrete;
+  }
+  .research-app-shell[data-mobile-open=true] .research-navigation { opacity: 1; translate: 0 0; pointer-events: auto; }
+  @starting-style { .research-app-shell[data-mobile-open=true] .research-navigation { opacity: 0; translate: -8px 0; } }
+  .research-mobile-backdrop,
+  .lab-config-drawer-backdrop { animation: workspace-view-enter var(--workspace-motion-menu) ease-out; }
+  .research-app-shell :is(.workspace-panel-right[data-shell-open=true], .research-inspector.is-open) { animation: workspace-panel-enter var(--workspace-motion-panel) var(--workspace-motion-ease); }
+}
+
+@keyframes workspace-view-enter { from { opacity: .35; } to { opacity: 1; } }
+@keyframes workspace-surface-enter { from { opacity: 0; translate: 0 -3px; } to { opacity: 1; translate: 0 0; } }
+@keyframes workspace-panel-enter { from { opacity: 0; translate: 0 6px; } to { opacity: 1; translate: 0 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --workspace-motion-feedback: 0ms; --workspace-motion-menu: 0ms; --workspace-motion-view: 0ms; --workspace-motion-panel: 0ms; }
+  .research-app-shell *, .research-app-shell *::before, .research-app-shell *::after,
+  .research-app-shell dialog::backdrop,
+  :is(.workflow-global-menu, .workflow-context-menu, .workflow-chat-actions-menu, .workflow-picker, .ai-overlay, .ui-select-menu),
+  :is(.workflow-global-menu, .workflow-context-menu, .workflow-chat-actions-menu, .workflow-picker, .ai-overlay, .ui-select-menu) * {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

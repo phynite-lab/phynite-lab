@@ -1,0 +1,77 @@
+/* Shared large configuration drawer, aligned with the DFT workbench. */
+.lab-config-drawer-layer { position: absolute; inset: 0; z-index: 60; overflow: clip; contain: layout paint; isolation: isolate; }
+.lab-config-drawer-backdrop { position: absolute; inset: 0; width: 100%; border: 0; border-radius: 0; background: var(--scrim-soft); }
+.lab-config-drawer {
+  container: md-configuration / inline-size;
+  --surface-accent: var(--config-accent, var(--accent));
+  --panel-bg: var(--surface-bg);
+  --panel-raised: var(--surface-raised);
+  --panel-hover: var(--surface-selected);
+  --panel-border: var(--surface-border);
+  --panel-text: var(--surface-text);
+  --panel-muted: var(--surface-muted);
+  --panel-accent: var(--surface-accent);
+  position: absolute;
+  right: clamp(12px, 3vw, 64px);
+  bottom: 12px;
+  left: clamp(12px, 3vw, 64px);
+  display: flex;
+  height: min(680px, calc(100% - 24px));
+  min-height: 320px;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--surface-border);
+  border-radius: 10px;
+  background: var(--surface-bg);
+  color: var(--surface-text);
+  box-shadow: 0 -12px 42px rgb(0 0 0 / 34%);
+}
+.lab-config-drawer-header {
+  display: grid;
+  min-height: 52px;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  grid-template-areas: 'identity actions modes close';
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px 8px 16px;
+  border-bottom: 1px solid var(--surface-border);
+}
+.lab-config-drawer-identity { grid-area: identity; display: flex; min-width: 0; align-items: center; gap: 9px; }
+.lab-config-drawer-icon { display: grid; width: 30px; height: 30px; flex: 0 0 auto; place-items: center; border: 1px solid var(--surface-border); border-radius: 6px; color: var(--surface-accent); }
+.lab-config-drawer-title { min-width: 0; }
+.lab-config-drawer-title strong,
+.lab-config-drawer-title small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lab-config-drawer-title strong { font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: var(--surface-text); letter-spacing: -0.01em; }
+.lab-config-drawer-title small { margin-top: 2px; color: var(--surface-muted); font-size: 9px; }
+.lab-config-drawer-actions { grid-area: actions; display: flex; gap: 5px; }
+.lab-config-drawer-modes { grid-area: modes; display: flex; padding: 3px; border: 1px solid var(--surface-border); border-radius: 6px; background: var(--surface-raised); }
+.lab-config-drawer-modes button { min-height: 28px; padding: 0 10px; border: 0; border-radius: 4px; background: transparent; color: var(--surface-muted); font-family: var(--font-sans); font-size: 10px; font-weight: 600; }
+.lab-config-drawer-modes button[aria-selected='true'] { background: var(--surface-selected); color: var(--surface-text); }
+.lab-config-drawer-close { grid-area: close; }
+.lab-config-drawer-body { min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; background: var(--canvas); }
+.lab-config-drawer-footer { display: flex; min-height: 54px; flex: 0 0 auto; align-items: center; justify-content: flex-end; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--surface-border); background: var(--surface-bg); }
+
+.lab-config-drawer .ui-select-label {
+  color: var(--muted-ink) !important;
+  font-family: var(--font-sans) !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  letter-spacing: normal !important;
+}
+
+@media (max-width: 1023px) {
+  .lab-config-drawer { inset: 0; width: 100%; height: 100%; min-height: 0; border: 0; border-radius: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lab-config-drawer { animation-duration: 1ms; }
+}
+
+@container md-configuration (max-width: 720px) {
+  .lab-config-drawer-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'identity close' 'modes modes' 'actions actions';
+  }
+  .lab-config-drawer-modes { width: 100%; }
+  .lab-config-drawer-modes button { flex: 1; }
+  .lab-config-drawer-footer { flex-wrap: wrap; }
+}

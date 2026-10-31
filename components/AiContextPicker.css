@@ -1,0 +1,12 @@
+.ai-context-picker.ai-command-picker header > div { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.ai-context-picker.ai-command-picker .ai-command-menu { display: flex; flex-direction: column; gap: 3px; }
+.ai-context-picker.ai-command-picker .ai-command-menu > button { width: 100%; min-height: 48px; }
+.ai-context-picker.ai-command-picker .ai-command-menu > button > span { flex: 1; }
+.ai-context-picker.ai-command-picker .ai-command-menu > button > svg:last-child:not(:first-child) { margin-left: auto; }
+.ai-context-picker.ai-command-picker .ai-context-results button[data-active=true] { background: var(--panel-raised); outline: 1px solid var(--ai-focus); outline-offset: -1px; }
+.ai-context-picker.ai-command-picker .ai-command-alias { color: var(--panel-muted); font-family: var(--font-code); font-size: 10px; }
+.ai-context-picker.ai-command-picker .ai-command-hint { display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin: 0 4px 8px; }
+.ai-context-picker.ai-command-picker .ai-command-hint kbd:first-of-type { margin-left: auto; }
+.ai-context-picker.ai-command-picker kbd { flex-shrink: 0; padding: 1px 4px; border: 1px solid var(--panel-border); border-radius: 4px; font: inherit; }
+.ai-context-picker.ai-command-picker .ai-context-row > button:first-child > span { display: block; }
+.ai-context-picker.ai-command-picker button:focus-visible { outline: 2px solid var(--ai-focus); outline-offset: -2px; }

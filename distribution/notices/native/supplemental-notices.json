@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "components": [
+    {
+      "name": "zstd",
+      "upstreamSourceSha256": "37d7284556b20954e56e1ca85b80226768902e2edabd3b649e9e72c0c9012ee3",
+      "sourceArchive": "distribution/sources/native/zstd-1.5.7.tar.gz",
+      "notices": [
+        {
+          "path": "distribution/notices/native/zstd-divsufsort-COPYRIGHT.txt",
+          "sha256": "49ea9487741f926c49d0e6a4da9ffde7e315d413f5f823830acd743fdedb2afa",
+          "sourcePath": "zstd-1.5.7/lib/dictBuilder/divsufsort.c (original leading copyright/license comment)"
+        }
+      ]
+    }
+  ]
+}

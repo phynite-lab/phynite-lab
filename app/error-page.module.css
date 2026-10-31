@@ -1,0 +1,57 @@
+.screen {
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  padding: 24px;
+  background: var(--canvas, #fff);
+  color: var(--ink, #202936);
+  font-family: var(--font-ui, Arial, sans-serif);
+}
+
+.message {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.code {
+  margin: 0;
+  color: var(--muted-ink, #657080);
+  font: 500 11px/1.4 var(--font-geist-mono, ui-monospace, monospace);
+  letter-spacing: .09em;
+}
+
+.message h1 {
+  margin: 0;
+  font-size: clamp(25px, 4vw, 34px);
+  font-weight: 520;
+  letter-spacing: -.045em;
+  line-height: 1.15;
+}
+
+.backButton {
+  min-width: 96px;
+  min-height: 38px;
+  margin-top: 5px;
+  padding: 0 15px;
+  border: 1px solid color-mix(in srgb, var(--ink, #202936) 18%, transparent);
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font: 500 12px/1 var(--font-ui, Arial, sans-serif);
+  cursor: pointer;
+}
+
+.backButton:hover {
+  background: color-mix(in srgb, var(--ink, #202936) 5%, transparent);
+}
+
+.backButton:focus-visible {
+  outline: 2px solid var(--accent, #18181b);
+  outline-offset: 3px;
+}
+
+:global(body:has(.phynite-error-screen) > .site-footer) {
+  display: none;
+}

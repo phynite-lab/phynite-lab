@@ -1,0 +1,6 @@
+/* Scientific workspace utilities are loaded with private routes. */
+@import "tailwindcss/utilities" source(none);
+@reference "./globals.css";
+@source ".";
+@source "../components";
+@source "../lib";

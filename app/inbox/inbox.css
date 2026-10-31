@@ -1,0 +1,57 @@
+.studio-inbox-main { max-width: 1220px; }
+.studio-inbox-heading { margin-bottom: 28px; }
+.studio-inbox-mark-all { display: inline-flex; align-items: center; gap: 9px; flex: none; min-height: 38px; padding: 8px 12px; border: 1px solid var(--lab-border); background: var(--lab-surface); color: var(--lab-text); font-size: 12px; cursor: pointer; }
+.studio-inbox-mark-all:hover { background: var(--lab-subtle); }
+.studio-inbox-mark-all:disabled { cursor: wait; opacity: .65; }
+.studio-inbox-alert { margin: 0 0 14px; padding: 11px 14px; border: 1px solid var(--status-danger); border-radius: 5px; color: var(--status-danger); font-size: 12px; }
+.studio-inbox-layout { display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); gap: 16px; min-height: min(70vh, 700px); }
+.studio-inbox-list-panel, .studio-inbox-detail-panel { min-width: 0; border: 1px solid var(--lab-border); border-radius: 6px; background: var(--lab-surface); }
+.studio-inbox-list-panel { display: flex; flex-direction: column; overflow: hidden; }
+.studio-inbox-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; padding: 13px 17px; border-bottom: 1px solid var(--lab-border); }
+.studio-inbox-panel-heading > span { color: var(--lab-text); font-size: 13px; font-weight: 650; }
+.studio-inbox-panel-heading small { color: var(--lab-muted); font: 500 10px/1.4 var(--font-code); text-align: right; }
+.studio-inbox-list { flex: 1; min-height: 0; max-height: min(70vh, 700px); margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.studio-inbox-list li { position: relative; border-bottom: 1px solid var(--lab-border); }
+.studio-inbox-list li:last-child { border-bottom: 0; }
+.studio-inbox-list li[data-unread]::before { position: absolute; z-index: 1; top: 23px; left: 9px; width: 5px; height: 5px; border-radius: 50%; background: var(--lab-accent); content: ''; }
+.studio-inbox-list li[data-selected] { background: var(--lab-subtle); box-shadow: inset 2px 0 var(--lab-accent); }
+.studio-inbox-list li > button { display: grid; width: 100%; gap: 7px; padding: 17px 17px 17px 21px; border: 0; background: transparent; color: var(--lab-text); text-align: left; cursor: pointer; }
+.studio-inbox-list li > button:hover { background: var(--lab-subtle); }
+.studio-inbox-list li > button:focus-visible, .studio-inbox-load-more:focus-visible, .studio-inbox-empty button:focus-visible, .studio-inbox-inline-error button:focus-visible, .studio-inbox-mark-all:focus-visible { outline: 2px solid var(--lab-accent); outline-offset: -2px; }
+.studio-inbox-item-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--lab-muted); font: 500 9px/1.4 var(--font-code); }
+.studio-inbox-item-top > span { color: var(--lab-accent); text-transform: uppercase; letter-spacing: .05em; }
+.studio-inbox-item-top time { white-space: nowrap; }
+.studio-inbox-list strong { overflow: hidden; font-size: 13px; font-weight: 580; text-overflow: ellipsis; white-space: nowrap; }
+.studio-inbox-list li[data-unread] strong { font-weight: 700; }
+.studio-inbox-preview { display: -webkit-box; overflow: hidden; color: var(--lab-muted); font-size: 11px; line-height: 1.55; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.studio-inbox-reading { color: var(--lab-muted); font: 500 9px/1.4 var(--font-code); }
+.studio-inbox-load-more { width: 100%; min-height: 44px; border: 0; border-top: 1px solid var(--lab-border); background: transparent; color: var(--lab-accent); font-size: 11px; font-weight: 600; cursor: pointer; }
+.studio-inbox-load-more:hover { background: var(--lab-subtle); }
+.studio-inbox-load-more:disabled { cursor: wait; opacity: .6; }
+.studio-inbox-inline-error { padding: 12px 16px; border-top: 1px solid var(--lab-border); color: var(--status-danger); font-size: 11px; line-height: 1.5; }
+.studio-inbox-inline-error button, .studio-inbox-empty button { padding: 0; border: 0; background: transparent; color: var(--lab-accent); font: inherit; font-weight: 600; cursor: pointer; }
+.studio-inbox-detail-panel { display: flex; }
+.studio-inbox-detail { width: 100%; padding: clamp(24px, 4vw, 48px); }
+.studio-inbox-detail-meta { display: flex; align-items: center; justify-content: space-between; gap: 16px; color: var(--lab-accent); font: 600 10px/1.3 var(--font-code); text-transform: uppercase; letter-spacing: .06em; }
+.studio-inbox-detail-meta > span:first-child { display: inline-flex; align-items: center; gap: 9px; }
+.studio-inbox-read-state { color: var(--lab-muted); }
+.studio-inbox-read-state[data-unread] { color: var(--lab-accent); }
+.studio-inbox-detail h2 { max-width: 24ch; margin: 28px 0 12px; color: var(--lab-text); font-size: clamp(24px, 2.7vw, 36px); font-weight: 550; line-height: 1.2; letter-spacing: -.035em; overflow-wrap: anywhere; }
+.studio-inbox-detail > time { display: block; color: var(--lab-muted); font: 500 11px/1.5 var(--font-code); }
+.studio-inbox-message-body { max-width: 72ch; margin-top: 34px; padding-top: 26px; border-top: 1px solid var(--lab-border); color: var(--lab-text); font-size: 14px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.studio-inbox-empty, .studio-inbox-detail-empty { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 260px; padding: 28px; color: var(--lab-muted); font-size: 12px; text-align: center; }
+.studio-inbox-empty svg, .studio-inbox-detail-empty svg { color: var(--lab-accent); }
+.studio-inbox-empty p, .studio-inbox-detail-empty p { max-width: 32ch; margin: 0; line-height: 1.6; }
+.studio-inbox-detail-empty h2 { margin: 8px 0 0; color: var(--lab-text); font-size: 16px; font-weight: 550; }
+@media (max-width: 760px) {
+  .studio-inbox-layout { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  .studio-inbox-list { max-height: 320px; }
+  .studio-inbox-detail-panel { min-height: 360px; }
+}
+@media (max-width: 600px) {
+  .studio-inbox-heading { align-items: flex-start; margin-bottom: 22px; }
+  .studio-inbox-mark-all { width: 100%; justify-content: center; }
+  .studio-inbox-detail { padding: 24px 20px 32px; }
+  .studio-inbox-detail h2 { margin-top: 22px; }
+  .studio-inbox-message-body { margin-top: 26px; padding-top: 21px; }
+}

@@ -1,0 +1,129 @@
+name: Local WSL2 qualification
+
+# Maintainer-operated, ephemeral WSL2 runners must be registered explicitly.
+# This workflow is never invoked by untrusted pull requests or ordinary pushes.
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run_id:
+        description: Successful Local native release candidate run for this exact public source commit
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: local-wsl2-qualification-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  candidate:
+    if: github.repository == 'phynite-lab/phynite-lab'
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CANDIDATE_RUN: ${{ inputs.candidate_run_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require candidate evidence from the same public source commit
+        run: |
+          node --input-type=module <<'NODE'
+          import { execFileSync } from 'node:child_process';
+          if (!/^\d+$/.test(process.env.CANDIDATE_RUN)) throw Error('Numeric candidate workflow run ID required.');
+          const run = JSON.parse(execFileSync('gh', ['api', `repos/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.CANDIDATE_RUN}`], { encoding: 'utf8' }));
+          if (run.head_sha !== process.env.GITHUB_SHA || run.conclusion !== 'success' || run.repository.full_name !== 'phynite-lab/phynite-lab' || run.path !== '.github/workflows/local-release.yml' || run.event !== 'workflow_dispatch') throw Error('Candidate run must have passed on this exact public source commit.');
+          NODE
+          gh run download "$CANDIDATE_RUN" --repo "$GITHUB_REPOSITORY" --name candidate-awaiting-wsl2 --dir build/candidate
+      - uses: actions/upload-artifact@v4
+        with:
+          overwrite: true
+          name: candidate-for-wsl2
+          path: build/candidate/
+          if-no-files-found: error
+          retention-days: 7
+
+  qualify:
+    needs: candidate
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: X64
+            target: wsl2-linux-x64
+            native: linux-x64
+          - architecture: ARM64
+            target: wsl2-linux-arm64
+            native: linux-arm64
+    runs-on: [self-hosted, Linux, '${{ matrix.architecture }}', phynite-wsl2-ephemeral]
+    env:
+      TARGET: ${{ matrix.target }}
+      NATIVE_TARGET: ${{ matrix.native }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: candidate-for-wsl2
+          path: build/candidate
+      - name: Require actual WSL2 kernel before scientific qualification
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const kernel = readFileSync('/proc/sys/kernel/osrelease', 'utf8');
+          if (process.platform !== 'linux' || !/microsoft.*wsl2/i.test(kernel)) throw Error('A real WSL2 kernel is required. Labels or flags cannot substitute for platform qualification.');
+          const report = process.report.getReport().header, glibc = report.glibcVersionRuntime?.split('.').map(Number);
+          if (!glibc || glibc[0] < 2 || glibc[0] === 2 && glibc[1] < 39) throw Error('Ubuntu 24.04 / glibc >=2.39 baseline required.');
+          NODE
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Test exact candidate tarballs without rebuilding them
+        run: |
+          VERSION=$(node --input-type=module -e "import fs from 'node:fs';process.stdout.write(JSON.parse(fs.readFileSync('packages/phynite-lab/package.json')).version)")
+          node scripts/smoke-local-distribution.mjs --tarball "build/candidate/tarballs/phynite-lab-$VERSION.tgz" --runtime-tarball "build/candidate/tarballs/phynite-lab-runtime-$NATIVE_TARGET-$VERSION.tgz" --output build/raw-smoke
+          python scripts/qualify-local-science.py --launcher-tarball "build/candidate/tarballs/phynite-lab-$VERSION.tgz" --runtime-tarball "build/candidate/tarballs/phynite-lab-runtime-$NATIVE_TARGET-$VERSION.tgz" --output build/raw-scientific
+          mkdir -p "build/public-evidence/$TARGET"
+          node scripts/verify-local-release.mjs collect --report build/raw-smoke/report.json --output "build/public-evidence/$TARGET/smoke"
+          node scripts/verify-local-release.mjs collect --report build/raw-scientific/report.json --output "build/public-evidence/$TARGET/scientific"
+      - uses: actions/upload-artifact@v4
+        with:
+          overwrite: true
+          name: evidence-${{ matrix.target }}
+          path: build/public-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+  collect:
+    needs: [candidate, qualify]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: candidate-for-wsl2
+          path: build/release
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: evidence-wsl2-*
+          path: build/release/evidence
+          merge-multiple: true
+      - name: Verify the complete source-bound six-platform release inventory
+        run: |
+          VERSION=$(node --input-type=module -e "import fs from 'node:fs';process.stdout.write(JSON.parse(fs.readFileSync('packages/phynite-lab/package.json')).version)")
+          node scripts/verify-local-release.mjs prepare --directory build/release --version "$VERSION" --source-commit "$GITHUB_SHA" --source-archive source.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          overwrite: true
+          name: wsl2-release-evidence
+          path: build/release/
+          if-no-files-found: error
+          retention-days: 30

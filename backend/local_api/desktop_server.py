@@ -1,0 +1,526 @@
+"""Loopback-only production control plane for the Phynite Lab CLI."""
+from __future__ import annotations
+
+import argparse
+import base64
+import hmac
+import json
+import os
+import secrets
+import signal
+import subprocess
+import sys
+import threading
+import time
+from contextlib import nullcontext
+from email.parser import BytesParser
+from email.policy import default
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
+
+ROOT = Path(sys._MEIPASS) if getattr(sys, 'frozen', False) else Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+
+from backend.local_api.domain.api import PhyniteApi
+from backend.local_api.domain.phynite_core import ApiError, response
+from backend.local_api.services import LocalServices
+from backend.local_api.sqlite_store import StorageError
+
+
+def loopback_origin(value: str) -> str:
+    parsed = urlsplit(value)
+    if parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "localhost", "::1"} or not parsed.port or parsed.username or parsed.password or parsed.path not in {"", "/"} or parsed.query or parsed.fragment:
+        raise ValueError("The local UI must use an explicit loopback HTTP origin")
+    return value.rstrip("/")
+
+
+class DesktopApplication:
+    def __init__(self, data_dir: Path, port: int, ui_origin: str):
+        self.data_dir = data_dir.expanduser().resolve()
+        self.ui_origin = loopback_origin(ui_origin); self.origin = f"http://127.0.0.1:{port}"
+        self.services = LocalServices(self.data_dir, self.origin, self.ui_origin)
+        from backend.local_api.archives import ProjectArchives
+        self.archives = ProjectArchives(self.services)
+        from backend.local_api.connections import DesktopConnections
+        self.connections = DesktopConnections(self.data_dir, self.services)
+        self.token = secrets.token_urlsafe(48)
+        self.closed = threading.Event()
+        self.workers: list[subprocess.Popen] = []
+        self.worker_environment: str | None = None
+        self.runtime = self.scheduler = None
+        # The legacy Python control-plane contract reads AI catalogues from
+        # process environment variables. Serialize those short-lived AI
+        # dispatches so concurrent browser requests cannot observe another
+        # request's refreshed native/gateway catalogue.
+        self.ai_environment_lock = threading.RLock()
+        try:
+            from backend.local_api.runtime import RuntimeManager
+            from backend.local_api.scheduler import ResourceScheduler
+        except ImportError:
+            # The standalone assembler requires both modules. Keep persistence
+            # independently testable while reporting compute as unavailable.
+            pass
+        else:
+            manifest = ROOT / "backend/local_api/runtime-manifest.json"
+            self.runtime = RuntimeManager(self.data_dir, manifest if manifest.is_file() else None)
+            self.scheduler = ResourceScheduler(self.data_dir)
+
+    def worker_job(self, headers, job_id: str) -> dict:
+        if not hmac.compare_digest(headers.get('X-Phynite-Worker-Token', ''), self.services.worker_token):
+            raise ApiError(403, 'Local worker authorization is required.', 'INVALID_WORKER_TOKEN')
+        for kind in ('CALCULATION', 'MD_SIMULATION', 'MD_ANALYSIS'):
+            item = self.services.get_item(self.services.owner, kind, job_id)
+            if item:
+                if item.get('ownerId') != self.services.owner or item.get('computeBackend') != 'LOCAL_MAC':
+                    break
+                return item
+        raise ApiError(404, 'The owned local job was not found.', 'NOT_FOUND')
+
+    def job_request(self, headers, job_id: str, action: str, payload: dict) -> dict:
+        item = self.worker_job(headers, job_id)
+        if not self.scheduler:
+            raise ApiError(503, 'The scheduler is unavailable.', 'RUNTIME_UNAVAILABLE')
+        if action == 'reserve':
+            if item.get('status') not in {'RUNNING', 'CANCEL_REQUESTED'} or int(item.get('leaseExpiresAtEpoch', 0)) < time.time():
+                raise ApiError(409, 'The local job lease is no longer active.', 'LEASE_EXPIRED')
+            cpu, memory = payload.get('vcpus'), payload.get('memoryMiB')
+            if cpu != int(item.get('vcpus') or 1) or memory != int(item.get('memoryMiB') or 2048):
+                raise ApiError(400, 'Resources differ from the accepted scientific job.', 'INVALID_RESOURCES')
+            from backend.local_api.scheduler import ResourceError
+            try:
+                try:
+                    existing = self.scheduler.job(job_id)
+                except ResourceError:
+                    existing = None
+                if existing and existing['status'] == 'running':
+                    if existing['vcpus'] != cpu or existing['memoryMiB'] != memory:
+                        raise ApiError(409, 'The active reservation differs from this job.', 'RESOURCE_CONFLICT')
+                    grant = existing
+                else:
+                    grant = self.scheduler.reserve(job_id, cpu, memory)
+                return response(200, {'reserved': True, 'reservation': grant})
+            except ResourceError as error:
+                if error.code == 'RESOURCE_BUSY':
+                    return response(200, {'reserved': False, 'queued': True})
+                raise ApiError(400, str(error), error.code) from error
+        if action == 'attach':
+            if item.get('status') not in {'RUNNING', 'CANCEL_REQUESTED'}:
+                raise ApiError(409, 'The local job is no longer running.', 'JOB_STOPPED')
+            self.scheduler.attach(job_id, payload.get('pid'))
+        elif action == 'release':
+            self.scheduler.release(job_id, payload.get('status'), payload.get('reason'))
+        elif action != 'status':
+            raise ApiError(404, 'Unknown local job operation.', 'NOT_FOUND')
+        return response(200, {'reservation': self.scheduler.job(job_id)})
+
+    def stop_workers(self):
+        for process in self.workers:
+            if process.poll() is None:
+                process.terminate()
+        for process in self.workers:
+            try:
+                process.wait(timeout=15)
+            except subprocess.TimeoutExpired:
+                process.kill(); process.wait(timeout=5)
+        self.workers.clear()
+
+    def maintain(self):
+        while not self.closed.wait(1):
+            try:
+                if not self.runtime or not self.scheduler:
+                    continue
+                self.scheduler.poll()
+                self.services.reconcile_interrupted_jobs()
+                worker = self.services.get_item(self.services.owner, 'PERSONAL_WORKER', 'primary') or {}
+                self.services.compute_enabled = 'qe' in worker.get('capabilities', []) and int(worker.get('lastSeenAtEpoch') or 0) > time.time() - 90
+                environment = self.runtime.environment()
+                # Capability startup belongs to the worker; do not claim readiness
+                # until the installed runtime passes the existing validation.
+                import shutil
+                path = environment.get('PATH', '')
+                ready = shutil.which('pw.x', path=path) or shutil.which('lmp', path=path) or shutil.which('lammps', path=path) or environment.get('PHYNITE_RUNTIME_PYTHON')
+                selected = self.scheduler.settings()
+                # Existing browser run forms read account defaults. Keep these
+                # aligned with the actual local admission budget.
+                account = self.services.get_item(self.services.owner, 'ACCOUNT', 'primary') or {}
+                defaults = {kind: {'vcpus': selected['vcpus'], 'memoryMiB': selected['memoryMiB']} for kind in ('qe', 'md-simulation', 'md-analysis')}
+                if account.get('personalDefaults') != defaults:
+                    self.services.update_item(self.services.owner, 'ACCOUNT', 'primary', {'personalDefaults': defaults})
+                signature = json.dumps(environment, sort_keys=True)
+                if not ready:
+                    continue
+                active = any(item.get('status') in {'RUNNING', 'CANCEL_REQUESTED'} for kind in ('CALCULATION', 'MD_SIMULATION', 'MD_ANALYSIS') for item in self.services.list_owner_items(self.services.owner, kind))
+                changed = self.worker_environment != signature or len(self.workers) != selected['maxParallelJobs']
+                if changed and not active:
+                    self.stop_workers(); self.worker_environment = signature
+                if changed and active:
+                    continue
+                while len(self.workers) < selected['maxParallelJobs']:
+                    slot = len(self.workers)
+                    command = [sys.executable, '--worker'] if getattr(sys, 'frozen', False) else [sys.executable, str(Path(__file__).resolve()), '--worker']
+                    env = {**os.environ, **environment, 'PHYNITE_APP_MODE': 'local', 'PHYNITE_DATA_DIR': str(self.data_dir), 'PHYNITE_API_URL': self.origin, 'PHYNITE_LOCAL_WORKER_TOKEN': self.services.worker_token}
+                    # Tokens stay in a private process environment, never argv/logs.
+                    log = (self.data_dir / 'logs'); log.mkdir(mode=0o700, exist_ok=True)
+                    with (log / f'worker-{slot}.log').open('ab') as output:
+                        process = subprocess.Popen([*command, '--runtime', 'native', '--work-dir', str(self.data_dir / 'work' / f'worker-{slot}'), '--pseudo-root', str(self.data_dir / 'pseudopotentials'), '--poll-seconds', '2'], env=env, stdout=output, stderr=subprocess.STDOUT)
+                    self.workers.append(process)
+                # A failed validation remains visible in worker logs; do not loop
+                # restarting a broken runtime or replay an interrupted job.
+            except Exception as error:
+                print(f'Local runtime monitor: {type(error).__name__}', file=sys.stderr, flush=True)
+
+    def publish_transport(self):
+        descriptor = os.open(self.data_dir / "core-service.json", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(descriptor, "w") as output:
+            json.dump({"token": self.token, "origin": self.origin, "uiOrigin": self.ui_origin}, output)
+            output.flush(); os.fsync(output.fileno())
+
+    def authorized(self, headers) -> bool:
+        return hmac.compare_digest(headers.get("Authorization", ""), "Bearer " + self.token)
+
+    def dispatch(self, method: str, path: str, raw: bytes, headers, query: dict) -> dict:
+        if path == "/__local/health" and method == "GET":
+            return response(200, {"ready": True, "environment": "local", "mode": "local"})
+        worker = path.startswith(("/worker/v1/", "/md-worker/v1/", "/__local/jobs/"))
+        if not self.authorized(headers) and not worker:
+            raise ApiError(401, "Open this workspace through the Phynite Lab launcher.", "LOCAL_SESSION_REQUIRED")
+        import re
+        archive_part = re.fullmatch(r'/__local/projects/imports/([a-f0-9]{32})/parts/([0-9]+)', path)
+        if archive_part and method == 'PUT':
+            return response(200, self.archives.upload(archive_part[1], int(archive_part[2]), raw))
+        payload = json.loads(raw or b"{}")
+        export = re.fullmatch(r'/__local/projects/([A-Za-z0-9_-]+)/export', path)
+        if export and method == 'POST':
+            return response(200, self.archives.export(export[1]))
+        if path == '/__local/projects/imports' and method == 'POST':
+            return response(201, self.archives.begin(payload))
+        complete = re.fullmatch(r'/__local/projects/imports/([a-f0-9]{32})/complete', path)
+        if complete and method == 'POST':
+            return response(201, self.archives.complete(complete[1]))
+        if path.startswith('/__local/jobs/') and method == 'POST':
+            import re
+            match = re.fullmatch(r'/__local/jobs/([A-Za-z0-9_-]+)/([a-z]+)', path)
+            if not match:
+                raise ApiError(404, 'Invalid local job operation.', 'NOT_FOUND')
+            return self.job_request(headers, match[1], match[2], payload)
+        if path == "/__local/session" and method == "GET":
+            return response(200, {**self.services.local_session(), 'cloud': self.connections.cloud_status()})
+        if path == "/__local/runtime" and method == "GET":
+            worker = self.services.get_item(self.services.owner, 'PERSONAL_WORKER', 'primary') or {}
+            online = int(worker.get('lastSeenAtEpoch') or 0) > time.time() - 90
+            return response(200, {"mode": "local", "identity": {"workspaceId": self.services.owner}, "cloud": self.connections.cloud_status(), "capabilities": {"editor": True, "persistence": "sqlite-filesystem", "solver": worker.get('capabilities', []) if online else [], "solverManifest": worker.get('runtimeManifest') if online else None}, "runtime": self.runtime.status() if self.runtime else {"downloadAvailable": False, "installed": {}, "error": "Compute runtime is not included in this build."}, "resources": self.scheduler.settings() if self.scheduler else None})
+        if path == "/__local/runtime/install" and method == "POST":
+            if not self.runtime:
+                raise ApiError(503, "The runtime installer is not included in this build.", "RUNTIME_UNAVAILABLE")
+            component = payload.get("component")
+            if component not in {"dft", "md", "analysis"}:
+                raise ApiError(400, "Choose DFT, MD, or analysis.", "INVALID_RUNTIME_COMPONENT")
+            # The manager enforces installation locking; progress remains readable.
+            def install():
+                try:
+                    self.runtime.install(component)
+                except Exception:
+                    # Manager records its precise error in progress; no success
+                    # is inferred merely because the request was accepted.
+                    return
+            threading.Thread(target=install, daemon=True).start()
+            return response(202, {"accepted": True, "component": component})
+        if path == "/__local/resources" and method == "PUT":
+            if not self.scheduler:
+                raise ApiError(503, "The native scheduler is unavailable.", "RUNTIME_UNAVAILABLE")
+            return response(200, {"resources": self.scheduler.configure(payload)})
+        if path.startswith(("/__local/cloud", "/__local/sync", "/__local/gateway")):
+            return self.connections.handle(method, path, payload, query, internal=path == '/__local/gateway/environment')
+        if path.startswith(("/public/", "/internal/", "/v1/developer/")):
+            raise ApiError(404, "This endpoint is not part of the local workspace.", "NOT_FOUND")
+        claims = {} if worker else {"sub": self.services.owner, "name": "Local Researcher"}
+        if not worker:
+            # Admission must agree with the validated capability shown by setup.
+            # A worker can report readiness between two monitor ticks; caching
+            # this flag until the next tick made an immediately submitted Run
+            # incorrectly fail with COMPUTE_DISABLED.
+            presence = self.services.get_item(self.services.owner, 'PERSONAL_WORKER', 'primary') or {}
+            self.services.compute_enabled = 'qe' in presence.get('capabilities', []) and int(presence.get('lastSeenAtEpoch') or 0) > time.time() - 90
+        # Worker authorization state belongs to one request. Threaded HTTP
+        # handlers must never share a mutable PhyniteApi instance. The AI
+        # branch also refreshes process-global environment values, so hold its
+        # lock through the handler call as well as the refresh.
+        with (self.ai_environment_lock if path.startswith('/v1/ai/') else nullcontext()):
+            if path.startswith('/v1/ai/'):
+                # Only the discovered local gateway catalog is offered to the
+                # control plane; provider secrets remain in the credential vault.
+                os.environ['PHYNITE_AI_9ROUTER_MODELS'] = json.dumps(self.connections.gateway.status()['models'])
+                # The launcher-owned native bridge is a separate loopback process.
+                # Refresh its verified catalog for each AI mutation so the Python
+                # control plane never trusts a stale model list after connect,
+                # disconnect, or probe.
+                native_url, native_token = os.environ.get('PHYNITE_LOCAL_AI_URL'), os.environ.get('PHYNITE_LOCAL_AI_TOKEN')
+                if native_url and native_token:
+                    try:
+                        from urllib.parse import urlsplit
+                        from urllib.request import Request, urlopen
+                        parsed = urlsplit(native_url)
+                        if parsed.scheme != 'http' or parsed.hostname not in {'127.0.0.1', 'localhost', '::1'} or not parsed.port:
+                            raise ValueError('native bridge is not loopback')
+                        request = Request(native_url.rstrip('/') + '/status', headers={'Authorization': f'Bearer {native_token}'})
+                        with urlopen(request, timeout=2) as result:
+                            status = json.loads(result.read(4 * 1024 * 1024))
+                        models = [item.get('id') for item in status.get('models', []) if isinstance(item, dict) and isinstance(item.get('id'), str)]
+                        capabilities = status.get('capabilities', {}).get('models', {}) if isinstance(status.get('capabilities'), dict) else {}
+                        os.environ['PHYNITE_LOCAL_AI_MODELS'] = json.dumps(models)
+                        os.environ['PHYNITE_LOCAL_AI_CAPABILITIES'] = json.dumps({'checkedAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'models': capabilities})
+                    except Exception:
+                        os.environ['PHYNITE_LOCAL_AI_MODELS'] = '[]'
+                        os.environ['PHYNITE_LOCAL_AI_CAPABILITIES'] = json.dumps({'checkedAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'models': {}})
+            event = {"rawPath": path, "body": raw.decode(), "headers": dict(headers), "queryStringParameters": query, "requestContext": {"http": {"method": method, "sourceIp": "127.0.0.1"}, "authorizer": {"jwt": {"claims": claims}}}}
+            deletion = re.fullmatch(r'/v1/projects/([A-Za-z0-9_-]+)', path)
+            if deletion and method == 'DELETE':
+                with self.connections.project_deletion(deletion[1]):
+                    return PhyniteApi(self.services).handle(event)
+            return PhyniteApi(self.services).handle(event)
+
+    def close(self):
+        self.closed.set()
+        self.connections.close()
+        self.stop_workers()
+        if self.scheduler:
+            self.scheduler.close()
+        transport = self.data_dir / "core-service.json"
+        try:
+            if json.loads(transport.read_text()).get("token") == self.token:
+                transport.unlink()
+        except (OSError, ValueError):
+            pass
+
+
+def handler_for(application: DesktopApplication):
+    class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def setup(self):
+            super().setup(); self.connection.settimeout(30)
+
+        def log_message(self, *_):
+            pass
+
+        def send_result(self, result: dict):
+            body = base64.b64decode(result["body"]) if result.get("isBase64Encoded") else result["body"].encode()
+            self.send_response(result["statusCode"])
+            for name, value in result.get("headers", {}).items():
+                self.send_header(name, value)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
+
+        def body(self, maximum: int) -> bytes:
+            if self.headers.get("Transfer-Encoding"):
+                raise ApiError(400, "Use a bounded Content-Length.", "INVALID_LENGTH")
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                raise ApiError(400, "Invalid request length.", "INVALID_LENGTH") from None
+            if not 0 <= length <= maximum:
+                raise ApiError(413, "The local request is too large.", "REQUEST_TOO_LARGE")
+            body = self.rfile.read(length)
+            if len(body) != length:
+                raise ApiError(400, "The upload was interrupted.", "UPLOAD_INTERRUPTED")
+            return body
+
+        def stream_body(self, maximum: int, expected: int | None = None):
+            """Read a signed artifact directly from the socket in bounded chunks.
+
+            The storage adapter performs checksum and atomic publication. This
+            wrapper keeps large local result files out of process memory while
+            preserving exact Content-Length and interrupted-upload checks.
+            """
+            if self.headers.get("Transfer-Encoding"):
+                raise ApiError(400, "Use a bounded Content-Length.", "INVALID_LENGTH")
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                raise ApiError(400, "Invalid request length.", "INVALID_LENGTH") from None
+            if not 0 <= length <= maximum:
+                raise ApiError(413, "The local request is too large.", "REQUEST_TOO_LARGE")
+            if expected is not None and length != expected:
+                raise ApiError(400, "The upload length differs from its signed reservation.", "UPLOAD_MISMATCH")
+
+            remaining = length
+            stream = self.rfile
+
+            class RequestBody:
+                def read(self, amount: int = -1):
+                    nonlocal remaining
+                    if remaining == 0:
+                        return b""
+                    wanted = remaining if amount is None or amount < 0 else min(amount, remaining)
+                    chunk = stream.read(wanted)
+                    if len(chunk) != wanted:
+                        raise ApiError(400, "The upload was interrupted.", "UPLOAD_INTERRUPTED")
+                    remaining -= len(chunk)
+                    return chunk
+
+            return RequestBody()
+
+        def artifact(self, query: dict):
+            ticket = application.services.s3.verify_ticket(query.get("ticket", [""])[0], self.command)
+            params = ticket["params"]; operation = ticket["operation"]
+            if operation == "get_object":
+                allowed = {key: params[key] for key in ("Bucket", "Key", "VersionId") if key in params}
+                if self.headers.get("Range"):
+                    allowed["Range"] = self.headers["Range"]
+                item = application.services.s3.get_object(**allowed)
+                self.send_response(206 if "ContentRange" in item else 200)
+                self.send_header("Content-Type", item["ContentType"]); self.send_header("Content-Length", str(item["ContentLength"]))
+                self.send_header("Cache-Control", "no-store"); self.send_header("X-Content-Type-Options", "nosniff")
+                if "ContentRange" in item:
+                    self.send_header("Content-Range", item["ContentRange"])
+                self.end_headers()
+                with item["Body"] as body:
+                    for chunk in body.iter_chunks():
+                        self.wfile.write(chunk)
+                return
+            if operation == "post_object":
+                data = self.body(64 * 1024 ** 2 + 64 * 1024)
+            else:
+                expected_length = params.get("ContentLength")
+                if expected_length is not None and (type(expected_length) is not int or expected_length < 0):
+                    raise ApiError(400, "The artifact reservation has no valid size.", "UPLOAD_MISMATCH")
+                data = self.stream_body(64 * 1024 ** 3 if expected_length is not None else 64 * 1024 ** 2, expected_length)
+            if operation == "post_object":
+                message = BytesParser(policy=default).parsebytes(f"Content-Type: {self.headers.get('Content-Type', '')}\r\nMIME-Version: 1.0\r\n\r\n".encode() + data)
+                fields = {}; file = None
+                for part in message.iter_parts():
+                    name = part.get_param("name", header="content-disposition")
+                    if name == "file":
+                        file = part.get_payload(decode=True)
+                    else:
+                        fields[name] = part.get_payload(decode=True).decode()
+                if file is None or fields.get("key") != params["Key"] or any(fields.get(key) != value for key, value in params.get("Fields", {}).items()):
+                    raise ApiError(400, "Upload fields differ from the authorized artifact.", "UPLOAD_MISMATCH")
+                for condition in params.get("Conditions", []):
+                    if isinstance(condition, list) and condition[0] == "content-length-range" and not condition[1] <= len(file) <= condition[2]:
+                        raise ApiError(400, "Upload size differs from its reservation.", "UPLOAD_MISMATCH")
+                params = {key: params[key] for key in ("Bucket", "Key")}
+                params.update(ContentType=fields.get("Content-Type", "application/octet-stream"), Metadata={"sha256": fields.get("x-amz-meta-sha256", "")})
+                data = file; operation = "put_object"
+            header_checksum = self.headers.get("x-amz-checksum-sha256")
+            if header_checksum:
+                signed_checksum = params.get("ChecksumSHA256")
+                if signed_checksum and not hmac.compare_digest(header_checksum, signed_checksum):
+                    raise ApiError(400, "The upload checksum differs from its signed reservation.", "UPLOAD_MISMATCH")
+                params["ChecksumSHA256"] = header_checksum
+            params.pop("Fields", None); params.pop("Conditions", None)
+            getattr(application.services.s3, operation)(**params, Body=data)
+            self.send_response(200); self.send_header("Content-Length", "0"); self.end_headers()
+
+        def run_request(self):
+            try:
+                expected_host = urlsplit(application.origin).netloc
+                if self.headers.get("Host") != expected_host or self.headers.get("Origin") not in {None, application.ui_origin}:
+                    raise ApiError(403, "Local request origin is not allowed.", "INVALID_ORIGIN")
+                parsed = urlsplit(self.path); query = parse_qs(parsed.query)
+                if parsed.path.startswith('/__local/projects/exports/') and self.command == 'GET':
+                    if not application.authorized(self.headers):
+                        raise ApiError(401, 'Open the local workspace through phynite-lab.', 'LOCAL_SESSION_REQUIRED')
+                    path = application.archives.export_path(parsed.path.rsplit('/', 1)[-1])
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/zip')
+                    self.send_header('Content-Disposition', 'attachment; filename="project.phynite"')
+                    self.send_header('Content-Length', str(path.stat().st_size))
+                    self.send_header('Cache-Control', 'no-store'); self.end_headers()
+                    with path.open('rb') as archive:
+                        while chunk := archive.read(1024**2):
+                            self.wfile.write(chunk)
+                    return
+                if parsed.path == "/__local/artifacts":
+                    self.artifact(query); return
+                raw = self.body(10 * 1024 ** 2) if self.command not in {"GET", "HEAD"} else b""
+                result = application.dispatch(self.command, parsed.path, raw, self.headers, {key: values[-1] for key, values in query.items()})
+                self.send_result(result)
+            except ApiError as error:
+                self.send_result(response(error.status, {"error": error.message, "code": error.code}))
+            except StorageError as error:
+                code = error.response["Error"]["Code"]
+                self.send_result(response(404 if code == "NoSuchKey" else 409 if code in {"ConditionalCheckFailedException", "TransactionCanceledException"} else 403, {"error": str(error), "code": code}))
+            except (ValueError, TypeError, KeyError, json.JSONDecodeError):
+                self.send_result(response(400, {"error": "The local request is invalid.", "code": "INVALID_REQUEST"}))
+            except (BrokenPipeError, ConnectionResetError):
+                return
+            except Exception as error:
+                print(f"Local request failed: {type(error).__name__}", file=sys.stderr, flush=True)
+                self.send_result(response(500, {"error": "The local operation failed. Your saved data was retained.", "code": "LOCAL_SERVICE_ERROR"}))
+
+        do_GET = do_POST = do_PUT = do_PATCH = do_DELETE = run_request
+    return Handler
+
+
+def main():
+    if len(sys.argv) > 1 and sys.argv[1] == '--qualify-science':
+        from backend.local_api.qualification import main as qualification_main
+        raise SystemExit(qualification_main(sys.argv[2:]))
+    if len(sys.argv) > 1 and sys.argv[1] == '--worker':
+        sys.path.insert(0, str(ROOT / 'backend/local_worker'))
+        from backend.local_worker.worker import main as worker_main
+        raise SystemExit(worker_main(sys.argv[2:]))
+    if len(sys.argv) > 1 and sys.argv[1] == '--run-runner':
+        import runpy
+        runners = {'qe': 'compute/local_runner.py', 'md-analysis': 'md_local/analysis_runner.py', 'md-simulation': 'md_local/runner.py'}
+        if len(sys.argv) != 3 or sys.argv[2] not in runners:
+            raise SystemExit('Unknown scientific runner')
+        runner = ROOT / 'backend' / runners[sys.argv[2]]
+        sys.path.insert(0, str(runner.parent)); sys.argv = [str(runner)]
+        runpy.run_path(str(runner), run_name='__main__'); return
+    if len(sys.argv) > 1 and sys.argv[1] == '--sandbox-probe':
+        from backend.local_api.sandbox import run_probe
+        raise SystemExit(run_probe())
+    if len(sys.argv) == 3 and sys.argv[1] == '--runtime-check':
+        import importlib
+        checks = {'md': ('ovito',), 'qe': ('numpy', 'scipy', 'seekpath', 'matplotlib')}
+        if sys.argv[2] not in checks:
+            raise SystemExit('Unknown scientific runtime check')
+        try:
+            for module in checks[sys.argv[2]]:
+                importlib.import_module(module)
+        except ImportError:
+            raise SystemExit(1)
+        return
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--data-dir", type=Path, required=True)
+    parser.add_argument("--port", type=int, required=True)
+    parser.add_argument("--ui-origin", required=True)
+    args = parser.parse_args()
+    if not 1 <= args.port <= 65535:
+        parser.error("Port must be between 1 and 65535")
+    # Local persistence never initializes AWS clients, reads AWS credentials,
+    # or enables hosted compute merely because shell variables are inherited.
+    for key in list(os.environ):
+        if key.startswith("AWS_"):
+            os.environ.pop(key, None)
+    os.environ["AWS_EC2_METADATA_DISABLED"] = "true"
+    os.environ["PHYNITE_APP_MODE"] = "local"
+    application = DesktopApplication(args.data_dir, args.port, args.ui_origin)
+    server = ThreadingHTTPServer(("127.0.0.1", args.port), handler_for(application))
+    server.daemon_threads = True
+    application.publish_transport()
+    application.connections.start()
+    threading.Thread(target=application.maintain, daemon=True).start()
+    def shutdown(*_):
+        application.closed.set(); threading.Thread(target=server.shutdown, daemon=True).start()
+    signal.signal(signal.SIGTERM, shutdown); signal.signal(signal.SIGINT, shutdown)
+    parent = int(os.environ.get("PHYNITE_PARENT_PID", "0"))
+    if parent:
+        def monitor_parent():
+            while not application.closed.wait(1):
+                try:
+                    os.kill(parent, 0)
+                except ProcessLookupError:
+                    shutdown(); return
+        threading.Thread(target=monitor_parent, daemon=True).start()
+    try:
+        server.serve_forever(poll_interval=0.25)
+    finally:
+        application.close(); server.server_close()
+
+
+if __name__ == "__main__":
+    main()

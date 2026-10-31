@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "components": [
+    {
+      "name": "@react-three/fiber",
+      "version": "9.7.0",
+      "mode": "fallback",
+      "sourceCommit": "0a107412ac64667b1908422e859447952f57feef",
+      "sourceUrl": "https://github.com/pmndrs/react-three-fiber/tree/0a107412ac64667b1908422e859447952f57feef",
+      "evidence": {
+        "npmMetadataUrl": "https://registry.npmjs.org/@react-three%2ffiber/9.7.0",
+        "npmIntegrity": "sha512-EWm9FwcaOZQu/ExFW5rggoCMM1NJet5YbxVxKaOE+KSncrjU0Wx7017qSyGFvupviK89nMYGCWU3BIK4dI1clw==",
+        "npmGitHead": "0a107412ac64667b1908422e859447952f57feef",
+        "upstreamNoticePath": "LICENSE",
+        "upstreamNoticeSha256": "9c35b5de7b7493a707fffe4eb23bd2f7f449153c1911f7c6eefb4e591fd5349a",
+        "normalization": "Only trailing horizontal whitespace and final blank lines normalized; all license words and copyright attribution unchanged."
+      },
+      "notices": [
+        {
+          "path": "distribution/notices/web/react-three-fiber-9.7.0-LICENSE.txt",
+          "sha256": "9c35b5de7b7493a707fffe4eb23bd2f7f449153c1911f7c6eefb4e591fd5349a",
+          "sourceUrl": "https://raw.githubusercontent.com/pmndrs/react-three-fiber/0a107412ac64667b1908422e859447952f57feef/LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "remark-math",
+      "version": "6.0.0",
+      "mode": "fallback",
+      "sourceCommit": "d5d0660b150810a535bbb07eac6cc96a4510aa24",
+      "sourceUrl": "https://github.com/remarkjs/remark-math/tree/d5d0660b150810a535bbb07eac6cc96a4510aa24",
+      "evidence": {
+        "npmMetadataUrl": "https://registry.npmjs.org/remark-math/6.0.0",
+        "npmIntegrity": "sha512-MMqgnP74Igy+S3WwnhQ7kqGlEerTETXMvJhrUzDikVZ2/uogJCb+WHUg97hK9/jcfc0dkD73s3LN8zU49cTEtA==",
+        "npmGitHead": "d5d0660b150810a535bbb07eac6cc96a4510aa24",
+        "upstreamNoticePath": "license",
+        "upstreamNoticeSha256": "cb992262f361a5359e6771c28740d33c7041e15332ae8537fae40538992591a9",
+        "normalization": "Only trailing horizontal whitespace and final blank lines normalized; all license words and copyright attribution unchanged."
+      },
+      "notices": [
+        {
+          "path": "distribution/notices/web/remark-math-6.0.0-LICENSE.txt",
+          "sha256": "cb992262f361a5359e6771c28740d33c7041e15332ae8537fae40538992591a9",
+          "sourceUrl": "https://raw.githubusercontent.com/remarkjs/remark-math/d5d0660b150810a535bbb07eac6cc96a4510aa24/license"
+        }
+      ]
+    },
+    {
+      "name": "rehype-katex",
+      "version": "7.0.1",
+      "mode": "fallback",
+      "sourceCommit": "88a9497e1ede93b958237c85edbf5651faeca7af",
+      "sourceUrl": "https://github.com/remarkjs/remark-math/tree/88a9497e1ede93b958237c85edbf5651faeca7af",
+      "evidence": {
+        "npmMetadataUrl": "https://registry.npmjs.org/rehype-katex/7.0.1",
+        "npmIntegrity": "sha512-OiM2wrZ/wuhKkigASodFoo8wimG3H12LWQaH8qSPVJn9apWKFSH3YOCtbKpBorTVw/eI7cuT21XBbvwEswbIOA==",
+        "npmGitHead": "88a9497e1ede93b958237c85edbf5651faeca7af",
+        "upstreamNoticePath": "license",
+        "upstreamNoticeSha256": "cb992262f361a5359e6771c28740d33c7041e15332ae8537fae40538992591a9",
+        "normalization": "Only trailing horizontal whitespace and final blank lines normalized; all license words and copyright attribution unchanged."
+      },
+      "notices": [
+        {
+          "path": "distribution/notices/web/rehype-katex-7.0.1-LICENSE.txt",
+          "sha256": "cb992262f361a5359e6771c28740d33c7041e15332ae8537fae40538992591a9",
+          "sourceUrl": "https://raw.githubusercontent.com/remarkjs/remark-math/88a9497e1ede93b958237c85edbf5651faeca7af/license"
+        }
+      ]
+    },
+    {
+      "name": "katex",
+      "version": "0.16.47",
+      "mode": "supplemental",
+      "sourceCommit": "878a61be7743a8ec4ee725b0b5efa810b5167c79",
+      "sourceUrl": "https://github.com/KaTeX/KaTeX/tree/878a61be7743a8ec4ee725b0b5efa810b5167c79",
+      "evidence": {
+        "npmMetadataUrl": "https://registry.npmjs.org/katex/0.16.47",
+        "npmIntegrity": "sha512-Eeo8Ys1doU1z+x8AZsPpQu+p/QcZBI5PeOo7QGQdy2x2m0MU/hYagBbGOmXwr5KVbEfVuWv9LpnQWeehogurjg==",
+        "npmGitHead": "878a61be7743a8ec4ee725b0b5efa810b5167c79",
+        "fontManifest": "distribution/notices/web/katex-0.16.47-fonts.json",
+        "fontManifestSha256": "de3c1c8174b92c55be43d0ebfa24831c511886d53376e945fb754f374e3175e6",
+        "fontCount": 60,
+        "fontNoticeSource": "Original font name-table entries explicitly specify SIL OFL 1.1. Canonical full license terms are from the pinned SPDX license list; copyright/reserved names come from the fonts themselves.",
+        "canonicalLicenseSourceCommit": "31846481de7ea17d92f2f46fad76abe58b2e9bb0",
+        "canonicalLicenseRawSha256": "8eea8287e5876b539670cadb82e99f9a7afddec6f6730811be1daf25d2e9bcfd",
+        "normalization": "Only trailing horizontal whitespace and final blank lines of the canonical license normalized; all license words unchanged."
+      },
+      "notices": [
+        {
+          "path": "distribution/notices/web/katex-0.16.47-font-COPYRIGHT.txt",
+          "sha256": "4cb68104ea2389cc0a396c7f20ad4998213c865d046fdce5b21aeb77e017a62d",
+          "sourceUrl": "https://registry.npmjs.org/katex/-/katex-0.16.47.tgz"
+        },
+        {
+          "path": "distribution/notices/web/OFL-1.1.txt",
+          "sha256": "8eea8287e5876b539670cadb82e99f9a7afddec6f6730811be1daf25d2e9bcfd",
+          "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-data/31846481de7ea17d92f2f46fad76abe58b2e9bb0/text/OFL-1.1.txt"
+        }
+      ]
+    }
+  ]
+}

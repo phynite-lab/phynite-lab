@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "qef-qe-7.5-pw-scf-si",
+  "referenceSource": "https://github.com/QEF/q-e/tree/770a0b2d12928a67048e2f3da8d10d057e52179e/test-suite/pw_scf",
+  "scope": "Numerical software regression against the upstream QE test-suite; not cutoff convergence or experimental validation.",
+  "expectedEnergyRy": -15.79449593,
+  "absoluteToleranceRy": 0.00001,
+  "files": [
+    {
+      "name": "scf.in",
+      "role": "input",
+      "url": "https://raw.githubusercontent.com/QEF/q-e/770a0b2d12928a67048e2f3da8d10d057e52179e/test-suite/pw_scf/scf.in",
+      "sha256": "801a5932eb8a49bda647afce06305b7d5dabda208cee17a35bb996a6ea4f0483"
+    },
+    {
+      "name": "upstream-scf.out",
+      "role": "reference",
+      "url": "https://raw.githubusercontent.com/QEF/q-e/770a0b2d12928a67048e2f3da8d10d057e52179e/test-suite/pw_scf/benchmark.out.git.inp=scf.in",
+      "sha256": "16e52c2ba418e0337978952cf1f7fdd1bd42648557c6156fe86025963749a13c"
+    },
+    {
+      "name": "Si.pz-vbc.UPF",
+      "role": "pseudopotential",
+      "url": "https://pseudopotentials.quantum-espresso.org/upf_files/Si.pz-vbc.UPF",
+      "sha256": "e8d933754cd51c6bb4b2a809151f89e0647e53d878bab88d26e1b5a5d68d5217"
+    }
+  ]
+}

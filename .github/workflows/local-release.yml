@@ -1,0 +1,281 @@
+name: Local native release
+
+# A normal push never publishes. A maintainer explicitly chooses a version and
+# requests publication after native qualification. WSL2 may be explicitly deferred.
+on:
+  push:
+    branches: ['release/**']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact package version already committed in source (X.Y.Z)
+        required: true
+        type: string
+      publish:
+        description: Publish after every required native gate passes
+        required: true
+        default: false
+        type: boolean
+      wsl2_deferral_reason:
+        description: Optional explicit reason to release with WSL2 marked untested (all four native gates remain mandatory)
+        required: false
+        type: string
+      evidence_run_id:
+        description: Successful workflow run in this repo containing wsl2-release-evidence for this exact commit and tarball hashes
+        required: false
+        type: string
+
+permissions:
+  contents: read
+concurrency:
+  group: local-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  source:
+    if: github.repository == 'phynite-lab/phynite-lab'
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.identity.outputs.version }}
+      source_commit: ${{ steps.identity.outputs.source_commit }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Verify explicit version and exact public source identity
+        id: identity
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, appendFileSync } from 'node:fs';
+          const version = process.env.REQUESTED_VERSION || JSON.parse(readFileSync('packages/phynite-lab/package.json')).version;
+          if (!/^\d+\.\d+\.\d+$/.test(version)) throw Error('Explicit stable X.Y.Z version required.');
+          for (const path of ['package.json', 'packages/phynite-lab/package.json']) {
+            if (JSON.parse(readFileSync(path)).version !== version) throw Error(`Version mismatch in ${path}`);
+          }
+          if (!/^[a-f0-9]{40}$/.test(process.env.GITHUB_SHA)) throw Error('Full public source commit required.');
+          appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\nsource_commit=${process.env.GITHUB_SHA}\n`);
+          NODE
+      - run: npm ci
+      - name: Verify source without deployment
+        run: |
+          npm run test:structures
+          npm run test:native-ai
+          npm run lint
+          npx tsc --noEmit --incremental false
+          git diff --check
+      - name: Create exact corresponding source archive
+        run: |
+          mkdir -p build/source
+          git archive --format=tar.gz --prefix=phynite-lab-${GITHUB_SHA}/ --output=build/source/source.tar.gz "$GITHUB_SHA"
+      - uses: actions/upload-artifact@v4
+        with:
+          overwrite: true
+          name: corresponding-source
+          path: build/source/source.tar.gz
+          if-no-files-found: error
+
+  candidate:
+    needs: source
+    if: inputs.evidence_run_id == ''
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            target: darwin-arm64
+          - runner: macos-15-intel
+            target: darwin-x64
+          - runner: ubuntu-24.04
+            target: linux-x64
+          - runner: ubuntu-24.04-arm
+            target: linux-arm64
+    runs-on: ${{ matrix.runner }}
+    env:
+      TARGET: ${{ matrix.target }}
+      RELEASE_VERSION: ${{ needs.source.outputs.version }}
+      SOURCE_COMMIT: ${{ needs.source.outputs.source_commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.source.outputs.source_commit }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - name: Build standalone application and explicit local core
+        run: |
+          npm run build:local
+          python -m venv build/core-venv
+          build/core-venv/bin/python -m pip install -r scripts/local-core-requirements.txt
+          build/core-venv/bin/python scripts/build-local-core.py --output build/core
+      - name: Verify public backend and actual frozen core without source checkout
+        env:
+          PYTHONPATH: .
+          PHYNITE_TEST_FROZEN_CORE: ${{ github.workspace }}/build/core/${{ matrix.target }}/phynite-core
+        run: build/core-venv/bin/python -m unittest discover -s backend/tests -v
+      - name: Build locked native isolation bootstrap without changing host policy
+        if: startsWith(matrix.target, 'linux-')
+        run: |
+          python scripts/build-native-bootstrap.py --prepare-prefix build/bootstrap-prefix --target "$TARGET" --notices distribution/notices/bootstrap --output build/bootstrap
+      - name: Assemble real application and native npm packages
+        run: |
+          if [[ "$TARGET" == linux-* ]]; then
+            node scripts/package-local.mjs --target "$TARGET" --source-commit "$SOURCE_COMMIT" --core "build/core/$TARGET/phynite-core" --notices "build/core/$TARGET/THIRD_PARTY_NOTICES.md" --bootstrap "$TARGET=build/bootstrap" --output build/npm/release
+          else
+            node scripts/package-local.mjs --target "$TARGET" --source-commit "$SOURCE_COMMIT" --core "build/core/$TARGET/phynite-core" --notices "build/core/$TARGET/THIRD_PARTY_NOTICES.md" --output build/npm/release
+          fi
+          mkdir -p "build/candidate/tarballs" "build/candidate/evidence/$TARGET"
+      - name: Pack launcher from its package root
+        working-directory: build/npm/release/phynite-lab
+        run: npm pack --pack-destination "$GITHUB_WORKSPACE/build/candidate/tarballs"
+      - name: Pack native application with its bundled production dependencies
+        working-directory: build/npm/release/phynite-lab-runtime-${{ matrix.target }}
+        run: npm pack --pack-destination "$GITHUB_WORKSPACE/build/candidate/tarballs"
+      - name: Install build-only browser test tools
+        run: npx playwright install --with-deps chromium
+      - name: Clean-prefix offline installation and desktop/mobile persistence acceptance
+        run: |
+          node scripts/smoke-local-distribution.mjs --tarball "build/candidate/tarballs/phynite-lab-$RELEASE_VERSION.tgz" --runtime-tarball "build/candidate/tarballs/phynite-lab-runtime-$TARGET-$RELEASE_VERSION.tgz" --output build/raw-smoke
+      - name: Install scientific runtime and execute real reference and isolation gates
+        run: |
+          python scripts/qualify-local-science.py --launcher-tarball "build/candidate/tarballs/phynite-lab-$RELEASE_VERSION.tgz" --runtime-tarball "build/candidate/tarballs/phynite-lab-runtime-$TARGET-$RELEASE_VERSION.tgz" --output build/raw-scientific
+      - name: Collect only checksummed public evidence, excluding local test identities and databases
+        run: |
+          node scripts/verify-local-release.mjs collect --report build/raw-smoke/report.json --output "build/candidate/evidence/$TARGET/smoke"
+          node scripts/verify-local-release.mjs collect --report build/raw-scientific/report.json --output "build/candidate/evidence/$TARGET/scientific"
+      - name: Preserve source-bound tarballs and actual qualification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          overwrite: true
+          name: native-candidate-${{ matrix.target }}
+          path: build/candidate/
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    needs: [source, candidate]
+    if: always() && needs.source.result == 'success' && (needs.candidate.result == 'success' || needs.candidate.result == 'skipped')
+    runs-on: ubuntu-24.04
+    # Trusted publishing must be configured for this public repo and workflow.
+    # No npm token is embedded in source, artifacts or generated packages.
+    permissions:
+      contents: write
+      actions: read
+      id-token: write
+    env:
+      RELEASE_VERSION: ${{ needs.source.outputs.version }}
+      SOURCE_COMMIT: ${{ needs.source.outputs.source_commit }}
+      GH_TOKEN: ${{ github.token }}
+      WSL_EVIDENCE_RUN: ${{ inputs.evidence_run_id }}
+      WSL_DEFERRAL_REASON: ${{ inputs.wsl2_deferral_reason }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.source.outputs.source_commit }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: https://registry.npmjs.org
+      - uses: actions/download-artifact@v4
+        if: inputs.evidence_run_id == ''
+        with:
+          pattern: native-candidate-*
+          path: build/downloads
+      - uses: actions/download-artifact@v4
+        if: inputs.evidence_run_id == ''
+        with:
+          name: corresponding-source
+          path: build/release
+      - name: Collect native tarballs without silently replacing different bytes
+        if: inputs.evidence_run_id == ''
+        run: |
+          node --input-type=module <<'NODE'
+          import { mkdir, readdir, cp, readFile, access } from 'node:fs/promises';
+          import { createHash } from 'node:crypto';
+          const digest = value => createHash('sha256').update(value).digest('hex');
+          await mkdir('build/release/tarballs', { recursive: true });
+          await mkdir('build/release/evidence', { recursive: true });
+          for (const entry of await readdir('build/downloads')) {
+            const source = `build/downloads/${entry}`;
+            for (const filename of await readdir(`${source}/tarballs`)) {
+              const destination = `build/release/tarballs/${filename}`, input = `${source}/tarballs/${filename}`;
+              let exists = false; try { await access(destination); exists = true; } catch {}
+              if (exists) {
+                if (digest(await readFile(destination)) !== digest(await readFile(input))) throw Error('Platform builds produced different launcher bytes.');
+              } else await cp(input, destination);
+            }
+            for (const target of await readdir(`${source}/evidence`)) {
+              await cp(`${source}/evidence/${target}`, `build/release/evidence/${target}`, { recursive: true, errorOnExist: true, force: false });
+            }
+          }
+          NODE
+      - name: Verify WSL evidence comes from a successful run of this public commit
+        if: inputs.evidence_run_id != ''
+        run: |
+          node --input-type=module <<'NODE'
+          import { execFileSync } from 'node:child_process';
+          const id = process.env.WSL_EVIDENCE_RUN;
+          if (!/^\d+$/.test(id)) throw Error('A numeric evidence workflow run ID is required.');
+          const run = JSON.parse(execFileSync('gh', ['api', `repos/${process.env.GITHUB_REPOSITORY}/actions/runs/${id}`], { encoding: 'utf8' }));
+          if (run.head_sha !== process.env.SOURCE_COMMIT || run.conclusion !== 'success' || run.repository.full_name !== 'phynite-lab/phynite-lab' || run.path !== '.github/workflows/local-wsl2-qualification.yml' || run.event !== 'workflow_dispatch') throw Error('WSL evidence must come from a successful workflow run of the exact public release commit.');
+          NODE
+          gh run download "$WSL_EVIDENCE_RUN" --repo "$GITHUB_REPOSITORY" --name wsl2-release-evidence --dir build/release
+      - name: Preserve candidate bundle for independent WSL2 testing
+        if: inputs.evidence_run_id == ''
+        uses: actions/upload-artifact@v4
+        with:
+          overwrite: true
+          name: candidate-awaiting-wsl2
+          path: build/release/
+          retention-days: 30
+      - name: Verify native gates and explicit WSL2 qualification status
+        if: inputs.publish || inputs.evidence_run_id != '' || inputs.wsl2_deferral_reason != ''
+        run: |
+          extra=()
+          if [[ -n "$WSL_DEFERRAL_REASON" ]]; then
+            extra+=(--defer-wsl2-reason "$WSL_DEFERRAL_REASON")
+          fi
+          if [[ ! -f build/release/release.json ]]; then
+            node scripts/verify-local-release.mjs prepare --directory build/release --version "$RELEASE_VERSION" --source-commit "$SOURCE_COMMIT" --source-archive source.tar.gz "${extra[@]}"
+          fi
+          node scripts/verify-local-release.mjs verify --inventory build/release/release.json --version "$RELEASE_VERSION" --source-commit "$SOURCE_COMMIT"
+          node scripts/publish-local-release.mjs --inventory build/release/release.json --confirm-version "$RELEASE_VERSION"
+      - name: Publish exact verified platform packages before launcher through npm trusted publishing
+        if: inputs.publish
+        run: |
+          npm install -g npm@11.6.2 --ignore-scripts --no-audit --no-fund
+          node scripts/publish-local-release.mjs --inventory build/release/release.json --confirm-version "$RELEASE_VERSION" --publish --provenance
+      - name: Write checksums for corresponding source, tarballs and gate inventory
+        if: inputs.publish || inputs.evidence_run_id != '' || inputs.wsl2_deferral_reason != ''
+        run: |
+          node --input-type=module <<'NODE'
+          import { readdir, readFile, writeFile } from 'node:fs/promises';
+          import { createHash } from 'node:crypto';
+          const files = ['source.tar.gz', 'release.json', ...(await readdir('build/release/tarballs')).sort().map(name => `tarballs/${name}`)];
+          const lines = [];
+          for (const name of files) lines.push(`${createHash('sha256').update(await readFile(`build/release/${name}`)).digest('hex')}  ${name}`);
+          await writeFile('build/release/SHA256SUMS', lines.join('\n') + '\n');
+          NODE
+          tar -czf build/release/qualification-evidence.tar.gz -C build/release evidence
+      - name: Preserve fully verified release inventory and evidence
+        if: inputs.publish || inputs.evidence_run_id != '' || inputs.wsl2_deferral_reason != ''
+        uses: actions/upload-artifact@v4
+        with:
+          overwrite: true
+          name: verified-release
+          path: build/release/
+          retention-days: 90
+      - name: Publish GitHub corresponding source and qualification evidence
+        if: inputs.publish
+        run: |
+          gh release create "v$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --target "$SOURCE_COMMIT" --title "Phynite Lab $RELEASE_VERSION" --notes "GNU AGPL v3 only. Exact source, package checksums, native evidence and WSL2 qualification status are attached in release.json. WSL2 is untested when explicitly deferred there. Scientific runtimes are installed separately through local setup." build/release/source.tar.gz build/release/SHA256SUMS build/release/release.json build/release/qualification-evidence.tar.gz build/release/tarballs/*.tgz

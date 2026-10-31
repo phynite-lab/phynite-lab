@@ -1,0 +1,43 @@
+.workspace-resources-meter { position:relative; }
+.workspace-resources-active { position:absolute; top:7px; right:6px; width:5px; height:5px; border-radius:50%; background:var(--ink); }
+.workspace-resources-layer { position:fixed; inset:0; z-index:110; font:13px/1.5 var(--font-ui); }
+.workspace-resources-layer > .lab-config-drawer-layer { position:absolute; inset:0; }
+.workspace-resources-layer .workspace-resources-panel { top:12px; right:12px; bottom:12px; left:auto; width:min(480px,calc(100% - 24px)); height:auto; min-height:0; border-radius:12px; box-shadow:0 8px 36px #0003; }
+.workspace-resources-panel .lab-config-drawer-header { grid-template-columns:minmax(0,1fr) auto; grid-template-areas:'identity close' 'modes modes'; gap:12px; padding:16px; }
+.workspace-resources-panel .lab-config-drawer-actions { display:none; }
+.workspace-resources-panel .lab-config-drawer-modes { width:auto; justify-self:start; }
+.workspace-resources-panel .lab-config-drawer-title strong { font-size:15px; }
+.workspace-resources-panel .lab-config-drawer-title small { font-size:11px; }
+.workspace-resources-panel .lab-config-drawer-modes button { min-width:90px; font-size:12px; }
+.workspace-resources-panel .lab-config-drawer-body { background:var(--surface); }
+.workspace-resource-overview { padding:0 20px 20px; }
+.workspace-resource-section { padding:20px 0; border-bottom:1px solid var(--line); }
+.workspace-resource-section h2 { display:flex; align-items:center; gap:8px; margin:0 0 12px; font-size:12px; font-weight:550; }
+.workspace-resource-section h2 > svg { color:var(--muted-ink); }
+.workspace-resource-section h2 > :last-child:not(svg) { margin-left:auto; }
+.workspace-resource-section h2 :is(a,button) { display:inline-flex; align-items:center; gap:4px; padding:2px 0; border:0; background:transparent; color:var(--muted-ink); font:inherit; font-weight:400; text-decoration:none; cursor:pointer; }
+.workspace-resource-section h2 :is(a,button):hover { color:var(--ink); }
+.workspace-resource-section h2 button:disabled { opacity:.5; cursor:wait; }
+.workspace-resource-section h2 small { font-size:11px; font-weight:400; color:var(--muted-ink); }
+.workspace-resource-section dl { margin:0; }
+.workspace-resource-section dl > div { display:flex; justify-content:space-between; gap:16px; padding:5px 0; font-size:12px; }
+.workspace-resource-section dt { color:var(--muted-ink); }
+.workspace-resource-section dd { margin:0; text-align:right; font-weight:500; font-variant-numeric:tabular-nums; }
+.workspace-resource-compute-name { margin:0 0 8px; font-size:12px; }
+.workspace-resource-note { margin:10px 0 0; color:var(--muted-ink); font-size:11px; line-height:1.65; }
+.workspace-job-timing { display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin:12px 0 0; }
+.workspace-job-timing strong { font-size:13px; font-weight:500; font-variant-numeric:tabular-nums; }
+.workspace-job-timing span { font-size:11px; color:var(--muted-ink); }
+.workspace-storage-meter { height:3px; margin:14px 0; overflow:hidden; background:var(--line); border-radius:3px; }
+.workspace-storage-meter > span { display:block; height:100%; background:var(--muted-ink); }
+.workspace-resource-detail-link { display:flex; align-items:center; gap:5px; width:fit-content; margin-top:16px; color:var(--ink); font-size:11px; text-decoration:none; }
+.workspace-resource-detail-link:hover { text-decoration:underline; }
+.workspace-resource-scope, .workspace-resource-guidance { margin:16px; }
+.workspace-resource-scope { font-size:11px; color:var(--muted-ink); line-height:1.65; }
+.workspace-resource-overview > .lab-button { margin-top:16px; }
+@media(max-width:600px) {
+ .workspace-resources-layer .workspace-resources-panel { inset:0; width:100%; border:0; border-radius:0; }
+ .workspace-resource-overview { padding:0 16px 20px; }
+ .workspace-resource-section dl > div { gap:10px; }
+ .workspace-job-timing { flex-wrap:wrap; gap:4px; }
+}

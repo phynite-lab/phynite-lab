@@ -1,0 +1,158 @@
+
+
+.studio-page, .studio-home { --lab-bg: var(--canvas); --lab-surface: var(--surface); --lab-border: var(--line); --lab-text: var(--ink); --lab-muted: var(--muted-ink); --lab-accent: var(--accent); --lab-subtle: var(--surface-subtle); --lab-soft: var(--accent-soft); }
+
+/* Shared studio surfaces: graphite, paper, and one cobalt action color. */
+
+/* Research Tools Grid */
+.studio-tools {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+/* Tool Cards */
+.studio-tool {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 18px 20px;
+  border: 1px solid var(--lab-border);
+  border-radius: 8px;
+  background: var(--lab-surface);
+  color: var(--lab-text);
+  text-decoration: none;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+.studio-tool:hover {
+  border-color: var(--line-strong);
+  background: var(--lab-subtle);
+}
+
+/* Card Header: Icon, Engine Label, Arrow */
+.studio-tool-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.studio-tool-art {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  height: auto;
+  flex: none;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--lab-muted);
+  transition: color 140ms ease;
+}
+.studio-tool:hover .studio-tool-art {
+  color: var(--lab-text);
+}
+.studio-tool-art > svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+.studio-tool-engine {
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font-code, monospace);
+  color: var(--lab-muted);
+  margin-left: 10px;
+  margin-right: auto;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.studio-tool-arrow {
+  color: var(--lab-muted);
+  transition: color 140ms ease, transform 140ms ease;
+  flex-shrink: 0;
+}
+.studio-tool:hover .studio-tool-arrow {
+  color: var(--lab-text);
+  transform: translate(2px, -2px);
+}
+
+/* Card Content: Title & Description */
+.studio-tool-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.studio-tool-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--lab-text);
+}
+.studio-tool-desc {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--lab-muted);
+}
+.studio-tools--workspace { gap: 8px; }
+.studio-tools--workspace .studio-tool--compact {
+  display: grid;
+  min-height: 58px;
+  grid-template-columns: 26px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: 5px;
+}
+.studio-tools--workspace .studio-tool--compact .studio-tool-art { width: 26px; height: 26px; margin: 0; color: var(--lab-accent); }
+.studio-tool-compact-copy { display: grid; min-width: 0; gap: 2px; }
+.studio-tool-compact-copy > :is(strong,span) { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.studio-tool-compact-copy .studio-tool-title { font-size: 13px; font-weight: 590; }
+.studio-tool-compact-copy .studio-tool-engine { margin: 0; font-size: 8px; letter-spacing: .035em; }
+
+/* Read-only project artifacts: a compact instrument panel for reproducible runs. */
+@keyframes studio-files-spin { to { transform: rotate(360deg); } }
+
+/* Storage keeps the same explorer model as the project modal, with projects as its first pane. */
+.newsletter-panel { position: relative; overflow: hidden; }
+@media (max-width: 1240px) {
+  .studio-tool { padding: 18px; }
+  .studio-tool-art { gap: 16px; }
+  .studio-public-header { gap: 20px; }
+  .studio-public-header nav a { padding-inline: 8px; }
+}
+@media (max-width: 960px) {
+  .lab-header nav > a > span:not(.lab-avatar) { display: none; }
+  .studio-public-header nav { display: none; }
+  .studio-public-header nav[data-open='true'] { display: grid; position: absolute; top: 100%; left: 0; right: 0; padding: 12px 20px; background: var(--lab-surface); border-bottom: 1px solid var(--lab-border); box-shadow: 0 12px 24px color-mix(in srgb, black 7%, transparent); }
+  .studio-public-header nav[data-open='true'] a { display: block; padding: 12px; }
+  .studio-mobile-menu { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 4px; color: var(--lab-text); }
+  .studio-mobile-menu:hover { background: var(--lab-subtle); }
+  .studio-tools { grid-template-columns: 1fr 1fr; }
+  .studio-tool-preview .studio-tool-art { height: auto; margin: 0; }
+  .studio-tool-preview .studio-tool-content { display: grid; grid-template-columns: auto auto; column-gap: 16px; }
+  .studio-tool-preview .studio-tool-content > span { grid-row: 2; }
+}
+@media (max-width: 860px) {
+  .studio-page .studio-tools--workspace { grid-template-columns: 1fr; gap: 12px; }
+}
+@media (max-width: 720px) {
+  .studio-page .studio-tools:not(.studio-tools--workspace) { grid-template-columns: 1fr; }
+  .studio-page .studio-tools:not(.studio-tools--workspace) .studio-tool { border-right: 0; border-bottom: 1px solid var(--lab-border); }
+  .studio-page .studio-tools:not(.studio-tools--workspace) .studio-tool:last-child { border-bottom: 0; }
+}
+@media (max-width: 600px) {
+  .studio-tools { gap: 12px; }
+  .studio-tool { padding: 16px; }
+  .studio-tool > svg { top: 14px; right: 14px; width: 15px; }
+  .studio-tool-art { height: 40px; margin: 10px 0 16px; }
+  .studio-tool-art > svg:nth-child(2) { display: none; }
+  .studio-tool-content strong { font-size: 16px; }
+  .studio-tool-content > span { line-height: 1.6; }
+  .studio-tool-preview .studio-tool-content { display: flex; }
+  .studio-tool-preview .studio-tool-art { padding: 0 5px; }
+}
+@media (prefers-reduced-motion: reduce) { .studio-tool { transition: none; } }
+/* Documentation separates topic navigation, the reading column, and in-page anchors. */
+.studio-public-header { --lab-surface: var(--canvas); --lab-text: var(--ink); --lab-muted: var(--muted-ink); --lab-border: var(--line); --lab-subtle: var(--surface); }

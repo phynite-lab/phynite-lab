@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "sha256": "1d42ffe88e83a03bf814caebdfcd809760a7b9a2ac6e4d2a2e93b54121a113c2",
+  "inputs": {
+    "data/sssp/SSSP_1.3.0_PBE_efficiency.json": "2c8642a70308ecd072a209a30c160bf51423560bb202116cb31fd5275eff814a",
+    "data/sssp/SSSP_1.3.0_PBE_precision.json": "7b7b648915e54c8397cd8143a7385c17eeed3104ad1236cecd905126d338a4e3",
+    "lib/crystal-cell.ts": "408a78c5c5b1a948d401dac0e6e8771085303097bf33a178ef441a95cc1514bd",
+    "lib/md-workflow-compiler.ts": "f3926543dafe2445015c75aa0f82823813e8c4f78219fc15afe42da8e9dbd6f7",
+    "lib/project-workflow-compiler.ts": "88c6ff68de810797231ee545249f779c39935c920e579b1ab8d91e3484574707",
+    "lib/project-workflow-control-compiler.ts": "e90067b493ac8e78b44db6e1c35a4731c885b63155198bbd220f6ccb52125e79",
+    "lib/qe-adaptive.ts": "80610a46c34da44611cdbadcc0e9a4fb8aa1ea7c1b2a6cb849415324715b3f11",
+    "lib/qe-atomic-masses.ts": "f9d58c6649f53724f9142772054c1d05ef504f667c62f5054fd939bb37789a27",
+    "lib/qe-defaults.ts": "814e9ba3b8c40e26e62cd0bad0edada577095031e12b0514b7bf8b0b7f72b613",
+    "lib/qe-dipole.ts": "2667b4288d5a084f674175db2288e67a51a7ed9fa4e31ae293eac25777e936dd",
+    "lib/qe-input.ts": "5a8700dbcbab6e867d7f5116a663cdf0948c11a9533f774ec9bc2c2704e9df84",
+    "lib/qe-structure.ts": "94deeebf67a9ed470f8683ce27f3a6d9b73bcd10ecfd90588ab8e786f475a2d3",
+    "lib/qe-workflow.ts": "7d92f71b145fb84e20eecbfa189e38cab874bc252497f2703dc5fe63c0adbaf7",
+    "lib/reciprocal-path.ts": "70b92e26b2d80a7b8d7a01ee1656bc98ebc5dc259463d2e8ab890b092b65168a",
+    "lib/structure-formula.ts": "890a018efc44fb54b7e83b2585345607f22d636538ca51af7329dd91657a7c18",
+    "lib/structure-occupancy.ts": "940128c15c03f5d602570ad629c3df6d9cdf414b267f666c191af04c85cc2879"
+  }
+}
