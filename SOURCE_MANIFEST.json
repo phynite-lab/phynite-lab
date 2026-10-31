@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "upstreamCommit": "9b75e2e45d535b1ce0dd42751a3e51b39b5b2554",
+  "upstreamCommit": "513ba9637f996194aba7b90b860243abfdfb3268",
   "files": {
     ".github/actionlint.yaml": "0c504353abd618e30376593b3198fc1fc9c69641d3eeb681e5c1cf4160dce350",
     ".github/scripts/native-ci-apparmor.py": "454d74d30f66d12f58ee3b8cd75ebf83200b33b5e01d87e9c518b49e826ff32a",
@@ -599,7 +599,7 @@
     "packages/phynite-lab/lib/bundled-notices.mjs": "ba6c9e3e309239b64580c3c4d41184be5fde89cce725810fbdf95231704bd5b7",
     "packages/phynite-lab/lib/check-distribution.mjs": "ebc0d3fc4f7dab54c53b58272ab9d6417786f4c480b6b261c2a839376b704763",
     "packages/phynite-lab/lib/cloud-config.mjs": "5fc2602156f71c3d6e084c3aa8e02d18dc35827ab36cd37d4eae9d97c8535586",
-    "packages/phynite-lab/lib/distribution.mjs": "9029be0412fb60ab97dc4ce7cd55222a0f2f3b109b417495ad33d046f1bd1674",
+    "packages/phynite-lab/lib/distribution.mjs": "9381d7a1b439993831ce69b30eb3c9faf7c3026dd5f0fdc19c4ba4a55fb13513",
     "packages/phynite-lab/lib/launcher.mjs": "bfb461b91cf3c545c65576a0f3af520ac714b5e045eabe2f6677181eede4c846",
     "packages/phynite-lab/lib/native-ai.mjs": "1e30f4962375350668ddcdb7ef136ca8add16cf7c4adc782531cc744054e5cf4",
     "packages/phynite-lab/lib/native-inventory.mjs": "645c595fa351af5a2a7bb00b91b0b1e174f0b3c5ee9c58d27278d37bd9cd9e8f",

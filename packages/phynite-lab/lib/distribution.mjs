@@ -134,9 +134,8 @@ export async function resolveDistribution(root, target) {
     const server = join(root, 'app', 'server.js'); await access(server, constants.R_OK);
     return { executable, server, manifest, cloud: validateCloudConfig(manifest.cloud), packageRoot: root, source: undefined, bootstrap: undefined };
   }
-  const release = await verifyLauncherManifest(root);
+  const release = await verifyLauncherManifest(root), name = platformPackageName(target);
   if (!release.manifest.targets[target]) throw new Error(`This release supports macOS Apple Silicon (arm64). No runtime for ${target} is included.`);
-  const name = platformPackageName(target);
   let packageRoot;
   try { packageRoot = await realpath(join(createRequire(join(root, 'package.json')).resolve(`${name}/package.json`), '..')); }
   catch { throw new Error(`The native package ${name}@${release.manifest.version} is missing. Reinstall phynite-lab with optional dependencies enabled.`); }
