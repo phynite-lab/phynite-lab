@@ -28,8 +28,9 @@ Do not assemble a release using stale cores or application output from another
 commit or platform. Solver scientific libraries belong in the optional runtime,
 not the npm package. Do not include restricted pseudopotentials or potentials.
 
-Targets are `darwin-arm64`, `darwin-x64`, `linux-arm64` and `linux-x64`; Windows
-runs the Linux package inside WSL2. Linux/WSL2 baseline is Ubuntu 24.04/glibc 2.39+.
+The 0.1.0 npm release targets `darwin-arm64` (macOS Apple Silicon) only.
+Intel Macs, Linux and Windows/WSL2 are postponed. Portable source/build utilities
+remain available but do not expand this release's supported platforms.
 A target is supported only after actual native installation, isolation and
 scientific reference tests pass. A cross-platform dependency solve is insufficient.
 
@@ -61,14 +62,13 @@ runs sudo or disables those protections automatically.
 
 An assembly produces:
 
-- `phynite-lab/`: universal launcher, license, source metadata and four exact-version
+- `phynite-lab/`: universal launcher, license, source metadata and one exact-version
   optional dependencies named `phynite-lab-runtime-<target>`.
 - `phynite-lab-runtime-<target>/`: each supplied platform package, marked with npm
   `os` and `cpu`, with production dependencies declared as bundled.
 - `assembly.json`: version, public source metadata and produced package inventory.
 
-No app or scientific runtime download runs from npm lifecycle scripts. Publish all
-four qualified platform packages before the launcher. Installing with npm optional
+No app or scientific runtime download runs from npm lifecycle scripts. Publish the qualified macOS platform package before the launcher. Installing with npm optional
 dependencies disabled produces an explicit missing-runtime error.
 
 The assembler's `--source-commit` must identify a full commit in the public source

@@ -5,7 +5,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { distributionPlatform } from '../packages/phynite-lab/lib/launcher.mjs';
 import { checkDistribution, prohibitedDistributionPath } from '../packages/phynite-lab/lib/check-distribution.mjs';
-import { DISTRIBUTION_TARGETS, platformPackageName, releaseSource } from '../packages/phynite-lab/lib/distribution.mjs';
+import { NPM_RELEASE_TARGETS as DISTRIBUTION_TARGETS, platformPackageName, releaseSource } from '../packages/phynite-lab/lib/distribution.mjs';
 import { localRuntimeClosure } from './local-runtime-closure.mjs';
 import { validateCloudConfig } from '../packages/phynite-lab/lib/cloud-config.mjs';
 import { validateNativeInventory } from '../packages/phynite-lab/lib/native-inventory.mjs';

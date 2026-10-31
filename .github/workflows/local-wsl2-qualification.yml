@@ -29,6 +29,8 @@ jobs:
         run: |
           node --input-type=module <<'NODE'
           import { execFileSync } from 'node:child_process';
+          import { NPM_RELEASE_TARGETS } from './packages/phynite-lab/lib/distribution.mjs';
+          if (!['linux-x64', 'linux-arm64'].every(target => NPM_RELEASE_TARGETS.includes(target))) throw Error('WSL2 is not included in this release.');
           if (!/^\d+$/.test(process.env.CANDIDATE_RUN)) throw Error('Numeric candidate workflow run ID required.');
           const run = JSON.parse(execFileSync('gh', ['api', `repos/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.CANDIDATE_RUN}`], { encoding: 'utf8' }));
           if (run.head_sha !== process.env.GITHUB_SHA || run.conclusion !== 'success' || run.repository.full_name !== 'phynite-lab/phynite-lab' || run.path !== '.github/workflows/local-release.yml' || run.event !== 'workflow_dispatch') throw Error('Candidate run must have passed on this exact public source commit.');

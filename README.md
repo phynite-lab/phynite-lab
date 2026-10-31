@@ -25,12 +25,9 @@ phynite-lab doctor
 npm install -g phynite-lab@latest
 ```
 
-Targets are macOS ARM64/x64 and Ubuntu 24.04-compatible Linux ARM64/x64
-(glibc 2.39 or later). Windows runs inside WSL2. Native isolation must pass
-the actual OS probe. Linux policy restrictions may require an administrator's
-configuration; Phynite never disables those restrictions automatically.
-Source availability is not a claim that every target has completed qualification.
-Only versioned releases with the published acceptance evidence are supported.
+The 0.1.0 npm release supports **macOS Apple Silicon (M1 or later)** only.
+Intel Macs, Linux and Windows are postponed. The source retains portable runtime
+code; availability in source is not a claim of npm platform support.
 
 ## Local work and optional Cloud
 
@@ -72,8 +69,3 @@ release identify the exact source commit and downloadable source archive.
 Third-party components retain their own licenses and notices. Solver runtimes
 are separate downloads. Preserve their notices and corresponding-source duties;
 the Phynite license does not replace them.
-
-For the initial 0.1.0 release, WSL2 qualification is deferred by the maintainer.
-Windows/WSL2 is experimental and has not been tested on a WSL2 host. The Linux
-package and its isolation requirements still apply; see the release evidence
-for the platforms that were actually verified.

@@ -10,6 +10,8 @@ import { validateBundledNoticeIndex, validateBundledNoticeReport } from './bundl
 
 export const RELEASE_REPOSITORY = 'https://github.com/phynite-lab/phynite-lab';
 export const DISTRIBUTION_TARGETS = Object.freeze(['darwin-arm64', 'darwin-x64', 'linux-arm64', 'linux-x64']);
+// Release scope is narrower than the source/build target inventory.
+export const NPM_RELEASE_TARGETS = Object.freeze(['darwin-arm64']);
 const VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 const HASH = /^[a-f0-9]{64}$/;
 
@@ -50,9 +52,10 @@ export async function verifyLauncherManifest(root) {
   if (manifest.schemaVersion !== 2 || manifest.kind !== 'launcher' || packageJson.name !== 'phynite-lab'
       || !VERSION.test(manifest.version ?? '') || packageJson.version !== manifest.version || packageJson.license !== 'AGPL-3.0-only') throw new Error('The launcher release metadata is invalid.');
   const source = validateSource(manifest.source), cloud = validateCloudConfig(manifest.cloud);
-  if (!manifest.targets || Object.keys(manifest.targets).sort().join(',') !== [...DISTRIBUTION_TARGETS].sort().join(',')) throw new Error('The launcher must declare all supported platform packages.');
-  if (Object.keys(packageJson.optionalDependencies ?? {}).sort().join(',') !== DISTRIBUTION_TARGETS.map(platformPackageName).sort().join(',') || Object.keys(packageJson.dependencies ?? {}).length) throw new Error('The launcher can depend only on its four exact native platform packages.');
-  for (const target of DISTRIBUTION_TARGETS) {
+  const targets = Object.keys(manifest.targets ?? {});
+  if (!targets.length || targets.some(target => !DISTRIBUTION_TARGETS.includes(target))) throw new Error('The launcher must declare supported platform packages.');
+  if (Object.keys(packageJson.optionalDependencies ?? {}).sort().join(',') !== targets.map(platformPackageName).sort().join(',') || Object.keys(packageJson.dependencies ?? {}).length) throw new Error('The launcher can depend only on its declared exact native platform packages.');
+  for (const target of targets) {
     const entry = manifest.targets[target], name = platformPackageName(target);
     if (!entry || entry.package !== name || entry.version !== manifest.version || packageJson.optionalDependencies?.[name] !== manifest.version) throw new Error('Native runtime package versions must exactly match the launcher release.');
   }
@@ -131,7 +134,9 @@ export async function resolveDistribution(root, target) {
     const server = join(root, 'app', 'server.js'); await access(server, constants.R_OK);
     return { executable, server, manifest, cloud: validateCloudConfig(manifest.cloud), packageRoot: root, source: undefined, bootstrap: undefined };
   }
-  const release = await verifyLauncherManifest(root), name = platformPackageName(target);
+  const release = await verifyLauncherManifest(root);
+  if (!release.manifest.targets[target]) throw new Error(`This release supports macOS Apple Silicon (arm64). No runtime for ${target} is included.`);
+  const name = platformPackageName(target);
   let packageRoot;
   try { packageRoot = await realpath(join(createRequire(join(root, 'package.json')).resolve(`${name}/package.json`), '..')); }
   catch { throw new Error(`The native package ${name}@${release.manifest.version} is missing. Reinstall phynite-lab with optional dependencies enabled.`); }

@@ -1,7 +1,7 @@
 name: Local native release
 
 # A normal push never publishes. A maintainer explicitly chooses a version and
-# requests publication after native qualification. WSL2 may be explicitly deferred.
+# requests publication after macOS Apple Silicon qualification.
 on:
   push:
     branches: ['release/**']
@@ -16,14 +16,6 @@ on:
         required: true
         default: false
         type: boolean
-      wsl2_deferral_reason:
-        description: Optional explicit reason to release with WSL2 marked untested (all four native gates remain mandatory)
-        required: false
-        type: string
-      evidence_run_id:
-        description: Successful workflow run in this repo containing wsl2-release-evidence for this exact commit and tarball hashes
-        required: false
-        type: string
 
 permissions:
   contents: read
@@ -80,7 +72,6 @@ jobs:
 
   candidate:
     needs: source
-    if: inputs.evidence_run_id == ''
     timeout-minutes: 90
     strategy:
       fail-fast: false
@@ -88,12 +79,6 @@ jobs:
         include:
           - runner: macos-15
             target: darwin-arm64
-          - runner: macos-15-intel
-            target: darwin-x64
-          - runner: ubuntu-24.04
-            target: linux-x64
-          - runner: ubuntu-24.04-arm
-            target: linux-arm64
     runs-on: ${{ matrix.runner }}
     env:
       TARGET: ${{ matrix.target }}
@@ -133,15 +118,6 @@ jobs:
           PYTHONPATH: .
           PHYNITE_TEST_FROZEN_CORE: ${{ github.workspace }}/build/core/${{ matrix.target }}/phynite-core
         run: build/core-venv/bin/python -m unittest discover -s backend/tests -v
-      - name: Permit namespaces for exact test executables on ephemeral GitHub Linux runners
-        if: startsWith(matrix.target, 'linux-') && runner.environment == 'github-hosted'
-        run: |
-          python .github/scripts/native-ci-apparmor.py --workspace "$GITHUB_WORKSPACE" --target "$TARGET" --run-id "$GITHUB_RUN_ID" --output "$RUNNER_TEMP/phynite-native-apparmor"
-          sudo -n apparmor_parser -r -T "$RUNNER_TEMP/phynite-native-apparmor"
-      - name: Build locked native isolation bootstrap and verify actual confinement
-        if: startsWith(matrix.target, 'linux-')
-        run: |
-          build/core-venv/bin/python scripts/build-native-bootstrap.py --prepare-prefix build/bootstrap-prefix --target "$TARGET" --notices distribution/notices/bootstrap --output build/bootstrap
       - name: Assemble real application and native npm packages
         run: |
           if [[ "$TARGET" == linux-* ]]; then
@@ -177,16 +153,10 @@ jobs:
           path: build/candidate/
           if-no-files-found: error
           retention-days: 30
-      - name: Remove the exact ephemeral Linux CI namespace profiles
-        if: always() && startsWith(matrix.target, 'linux-') && runner.environment == 'github-hosted'
-        run: |
-          if [[ -f "$RUNNER_TEMP/phynite-native-apparmor" ]]; then
-            sudo -n apparmor_parser -R -T "$RUNNER_TEMP/phynite-native-apparmor"
-          fi
 
   release:
     needs: [source, candidate]
-    if: always() && needs.source.result == 'success' && (needs.candidate.result == 'success' || needs.candidate.result == 'skipped')
+    if: always() && needs.source.result == 'success' && needs.candidate.result == 'success'
     runs-on: ubuntu-24.04
     # Trusted publishing must be configured for this public repo and workflow.
     # No npm token is embedded in source, artifacts or generated packages.
@@ -198,8 +168,6 @@ jobs:
       RELEASE_VERSION: ${{ needs.source.outputs.version }}
       SOURCE_COMMIT: ${{ needs.source.outputs.source_commit }}
       GH_TOKEN: ${{ github.token }}
-      WSL_EVIDENCE_RUN: ${{ inputs.evidence_run_id }}
-      WSL_DEFERRAL_REASON: ${{ inputs.wsl2_deferral_reason }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -209,17 +177,14 @@ jobs:
           node-version: '22'
           registry-url: https://registry.npmjs.org
       - uses: actions/download-artifact@v4
-        if: inputs.evidence_run_id == ''
         with:
           pattern: native-candidate-*
           path: build/downloads
       - uses: actions/download-artifact@v4
-        if: inputs.evidence_run_id == ''
         with:
           name: corresponding-source
           path: build/release
       - name: Collect native tarballs without silently replacing different bytes
-        if: inputs.evidence_run_id == ''
         run: |
           node --input-type=module <<'NODE'
           import { mkdir, readdir, cp, readFile, access } from 'node:fs/promises';
@@ -241,35 +206,9 @@ jobs:
             }
           }
           NODE
-      - name: Verify WSL evidence comes from a successful run of this public commit
-        if: inputs.evidence_run_id != ''
+      - name: Verify every shipped macOS gate and preserve exact release inventory
         run: |
-          node --input-type=module <<'NODE'
-          import { execFileSync } from 'node:child_process';
-          const id = process.env.WSL_EVIDENCE_RUN;
-          if (!/^\d+$/.test(id)) throw Error('A numeric evidence workflow run ID is required.');
-          const run = JSON.parse(execFileSync('gh', ['api', `repos/${process.env.GITHUB_REPOSITORY}/actions/runs/${id}`], { encoding: 'utf8' }));
-          if (run.head_sha !== process.env.SOURCE_COMMIT || run.conclusion !== 'success' || run.repository.full_name !== 'phynite-lab/phynite-lab' || run.path !== '.github/workflows/local-wsl2-qualification.yml' || run.event !== 'workflow_dispatch') throw Error('WSL evidence must come from a successful workflow run of the exact public release commit.');
-          NODE
-          gh run download "$WSL_EVIDENCE_RUN" --repo "$GITHUB_REPOSITORY" --name wsl2-release-evidence --dir build/release
-      - name: Preserve candidate bundle for independent WSL2 testing
-        if: inputs.evidence_run_id == ''
-        uses: actions/upload-artifact@v4
-        with:
-          overwrite: true
-          name: candidate-awaiting-wsl2
-          path: build/release/
-          retention-days: 30
-      - name: Verify native gates and explicit WSL2 qualification status
-        if: inputs.publish || inputs.evidence_run_id != '' || inputs.wsl2_deferral_reason != ''
-        run: |
-          extra=()
-          if [[ -n "$WSL_DEFERRAL_REASON" ]]; then
-            extra+=(--defer-wsl2-reason "$WSL_DEFERRAL_REASON")
-          fi
-          if [[ ! -f build/release/release.json ]]; then
-            node scripts/verify-local-release.mjs prepare --directory build/release --version "$RELEASE_VERSION" --source-commit "$SOURCE_COMMIT" --source-archive source.tar.gz "${extra[@]}"
-          fi
+          node scripts/verify-local-release.mjs prepare --directory build/release --version "$RELEASE_VERSION" --source-commit "$SOURCE_COMMIT" --source-archive source.tar.gz
           node scripts/verify-local-release.mjs verify --inventory build/release/release.json --version "$RELEASE_VERSION" --source-commit "$SOURCE_COMMIT"
           node scripts/publish-local-release.mjs --inventory build/release/release.json --confirm-version "$RELEASE_VERSION"
       - name: Publish exact verified platform packages before launcher through npm trusted publishing
@@ -278,7 +217,6 @@ jobs:
           npm install -g npm@11.6.2 --ignore-scripts --no-audit --no-fund
           node scripts/publish-local-release.mjs --inventory build/release/release.json --confirm-version "$RELEASE_VERSION" --publish --provenance
       - name: Write checksums for corresponding source, tarballs and gate inventory
-        if: inputs.publish || inputs.evidence_run_id != '' || inputs.wsl2_deferral_reason != ''
         run: |
           node --input-type=module <<'NODE'
           import { readdir, readFile, writeFile } from 'node:fs/promises';
@@ -290,7 +228,6 @@ jobs:
           NODE
           tar -czf build/release/qualification-evidence.tar.gz -C build/release evidence
       - name: Preserve fully verified release inventory and evidence
-        if: inputs.publish || inputs.evidence_run_id != '' || inputs.wsl2_deferral_reason != ''
         uses: actions/upload-artifact@v4
         with:
           overwrite: true
@@ -300,4 +237,4 @@ jobs:
       - name: Publish GitHub corresponding source and qualification evidence
         if: inputs.publish
         run: |
-          gh release create "v$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --target "$SOURCE_COMMIT" --title "Phynite Lab $RELEASE_VERSION" --notes "GNU AGPL v3 only. Exact source, package checksums, native evidence and WSL2 qualification status are attached in release.json. WSL2 is untested when explicitly deferred there. Scientific runtimes are installed separately through local setup." build/release/source.tar.gz build/release/SHA256SUMS build/release/release.json build/release/qualification-evidence.tar.gz build/release/tarballs/*.tgz
+          gh release create "v$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --target "$SOURCE_COMMIT" --title "Phynite Lab $RELEASE_VERSION" --notes "GNU AGPL v3 only. Exact source, package checksums, macOS Apple Silicon qualification evidence are attached in release.json. Intel, Linux and Windows are not included in this release. Scientific runtimes are installed separately through local setup." build/release/source.tar.gz build/release/SHA256SUMS build/release/release.json build/release/qualification-evidence.tar.gz build/release/tarballs/*.tgz

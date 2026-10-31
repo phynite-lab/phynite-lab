@@ -7,7 +7,7 @@ import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { DISTRIBUTION_TARGETS, platformPackageName, releaseSource } from '../packages/phynite-lab/lib/distribution.mjs';
+import { NPM_RELEASE_TARGETS as DISTRIBUTION_TARGETS, platformPackageName, releaseSource } from '../packages/phynite-lab/lib/distribution.mjs';
 import { RELEASE_TARGETS, SCIENTIFIC_CHECKS, SMOKE_CHECKS, collectReleaseEvidence, prepareLocalRelease, sha256, verifyLocalRelease } from '../scripts/verify-local-release.mjs';
 import { publishLocalRelease } from '../scripts/publish-local-release.mjs';
 
@@ -32,7 +32,7 @@ async function createFixture() {
     const name = target ? platformPackageName(target) : 'phynite-lab', directory = join(root, 'assembly', name, 'package');
     await mkdir(directory, { recursive: true });
     const metadata = { name, version, license: 'AGPL-3.0-only', ...(target ? { os: [target.split('-')[0]], cpu: [target.split('-')[1]], dependencies: { 'synthetic-bundled-runtime': '0.0.0' }, bundledDependencies: ['synthetic-bundled-runtime'] }
-      : { optionalDependencies: Object.fromEntries(DISTRIBUTION_TARGETS.map(value => [platformPackageName(value), version])) }) };
+      : { os: ['darwin'], cpu: ['arm64'], optionalDependencies: Object.fromEntries(DISTRIBUTION_TARGETS.map(value => [platformPackageName(value), version])) }) };
     const manifest: Record<string, any> = { schemaVersion: 2, kind: target ? 'runtime' : 'launcher', version, source: releaseSource(commit), ...(target ? { target } : { targets: Object.fromEntries(DISTRIBUTION_TARGETS.map(value => [value, { package: platformPackageName(value), version }])) }) }; // eslint-disable-line @typescript-eslint/no-explicit-any
     if (target) {
       await mkdir(join(directory, 'node_modules/synthetic-bundled-runtime'), { recursive: true });
@@ -118,43 +118,28 @@ test('complete synthetic schema validates offline and publisher defaults to a ve
   const root = await fixture();
   try {
     const verified = await verifyLocalRelease(join(root, 'release.json'));
-    assert.equal(verified.packages.size, 5); assert.equal(verified.release.evidence.length, 6);
+    assert.equal(verified.packages.size, 2); assert.equal(verified.release.evidence.length, 1);
     const result = await publishLocalRelease(join(root, 'release.json'), { confirmVersion: version });
     assert.equal(result.published, false); assert.equal(result.order.at(-1), 'phynite-lab');
     await assert.rejects(publishLocalRelease(join(root, 'release.json'), { confirmVersion: '0.2.0' }), /confirm-version/);
   } finally { await rm(root, { recursive: true }); }
 });
 
-test('missing WSL2 target blocks publication even when all four native targets passed', async () => {
+test('every shipped platform requires evidence and cannot be waived', async () => {
   const root = await fixture();
   try {
-    await editJson(join(root, 'release.json'), value => { value.evidence = value.evidence.filter((item: { target: string }) => !item.target.startsWith('wsl2-')); });
-    await assert.rejects(verifyLocalRelease(join(root, 'release.json')), /WSL2 x64 and ARM64/);
+    await editJson(join(root, 'release.json'), value => { value.evidence = []; });
+    await assert.rejects(verifyLocalRelease(join(root, 'release.json')), /Every released native target/);
   } finally { await rm(root, { recursive: true }); }
 });
 
-test('explicit WSL2 deferral permits four native targets without claiming WSL2 qualification', async () => {
+test('unshipped platforms and qualification deferrals cannot widen or bypass this release', async () => {
   const root = await fixture();
   try {
-    await editJson(join(root, 'release.json'), value => {
-      value.qualification = { wsl2: 'deferred', reason: 'Maintainer requested publication before WSL2 access is available.' };
-      value.evidence = value.evidence.filter((item: { target: string }) => !item.target.startsWith('wsl2-'));
-    });
-    const verified = await verifyLocalRelease(join(root, 'release.json'));
-    assert.equal(verified.release.evidence.length, 4);
-    assert.equal((await publishLocalRelease(join(root, 'release.json'), { confirmVersion: version })).published, false);
-    await editJson(join(root, 'release.json'), value => { value.evidence.pop(); });
-    await assert.rejects(verifyLocalRelease(join(root, 'release.json')), /All four native/);
-  } finally { await rm(root, { recursive: true }); }
-});
-
-test('WSL2 deferral requires a reason and cannot waive a native platform', async () => {
-  const root = await fixture();
-  try {
-    await editJson(join(root, 'release.json'), value => { value.qualification = { wsl2: 'deferred', reason: '' }; });
-    await assert.rejects(verifyLocalRelease(join(root, 'release.json')), /Invalid WSL2 deferral/);
-    await editJson(join(root, 'release.json'), value => { value.qualification = { wsl2: 'deferred', reason: 'WSL2 untested', native: 'deferred' }; });
-    await assert.rejects(verifyLocalRelease(join(root, 'release.json')), /native qualification cannot/);
+    await editJson(join(root, 'release.json'), value => { value.qualification = { wsl2: 'deferred', reason: 'Unshipped platform' }; });
+    await assert.rejects(verifyLocalRelease(join(root, 'release.json')), /deferrals are not supported/);
+    await editJson(join(root, 'release.json'), value => { delete value.qualification; value.evidence[0].target = 'darwin-x64'; });
+    await assert.rejects(verifyLocalRelease(join(root, 'release.json')), /only macOS Apple Silicon evidence/);
   } finally { await rm(root, { recursive: true }); }
 });
 
@@ -162,26 +147,20 @@ test('evidence from a different source commit or package tarball fails closed', 
   for (const field of ['source', 'package']) {
     const root = await fixture();
     try {
-      await editReport(root, 'linux-x64', 'scientific', value => { if (field === 'source') value.sourceCommit = 'b'.repeat(40); else value.packages.runtimeSha256 = 'b'.repeat(64); });
+      await editReport(root, 'darwin-arm64', 'scientific', value => { if (field === 'source') value.sourceCommit = 'b'.repeat(40); else value.packages.runtimeSha256 = 'b'.repeat(64); });
       await assert.rejects(verifyLocalRelease(join(root, 'release.json')), field === 'source' ? /release candidate/ : /different tarballs/);
     } finally { await rm(root, { recursive: true }); }
   }
 });
 
-test('a user-supplied WSL flag without a Microsoft WSL2 kernel marker cannot qualify', async () => {
-  const root = await fixture();
-  try {
-    await editReport(root, 'wsl2-linux-arm64', 'scientific', value => { value.environment.kernelRelease = '6.8.0-generic'; });
-    await assert.rejects(verifyLocalRelease(join(root, 'release.json')), /actual Microsoft WSL2/);
-  } finally { await rm(root, { recursive: true }); }
-});
-
-test('unsupported glibc or Node baseline is rejected', async () => {
-  for (const field of ['nodeVersion', 'glibcVersion']) {
+test('wrong platform, architecture and Node baseline cannot qualify macOS', async () => {
+  for (const field of ['platform', 'arch', 'nodeVersion', 'wsl2']) {
     const root = await fixture();
     try {
-      await editReport(root, 'linux-arm64', 'smoke', value => { value.environment[field] = field === 'nodeVersion' ? 'v22.12.0' : '2.38'; });
-      await assert.rejects(verifyLocalRelease(join(root, 'release.json')), /baseline|Node.js/);
+      await editReport(root, 'darwin-arm64', 'smoke', value => {
+        value.environment[field] = ({ platform: 'linux', arch: 'x64', nodeVersion: 'v22.12.0', wsl2: true } as Record<string, unknown>)[field];
+      });
+      await assert.rejects(verifyLocalRelease(join(root, 'release.json')), /runtime environment|Node.js|WSL2/);
     } finally { await rm(root, { recursive: true }); }
   }
 });
@@ -198,8 +177,8 @@ test('mutated solver output and unsafe attachment paths are rejected', async () 
   for (const unsafe of [false, true]) {
     const root = await fixture();
     try {
-      if (unsafe) await editReport(root, 'darwin-x64', 'scientific', value => { value.checks[1].attachments[0].path = '../outside.txt'; });
-      else await writeFile(join(root, 'evidence/darwin-x64/scientific/output.txt'), 'Tampered output');
+      if (unsafe) await editReport(root, 'darwin-arm64', 'scientific', value => { value.checks[1].attachments[0].path = '../outside.txt'; });
+      else await writeFile(join(root, 'evidence/darwin-arm64/scientific/output.txt'), 'Tampered output');
       await assert.rejects(verifyLocalRelease(join(root, 'release.json')), unsafe ? /unsafe file/ : /SHA-256 mismatch/);
     } finally { await rm(root, { recursive: true }); }
   }
@@ -209,12 +188,12 @@ test('failed solver execution and numerical mismatch cannot be called qualificat
   for (const mode of ['exit', 'numeric']) {
     const root = await fixture();
     try {
-      if (mode === 'exit') await editReport(root, 'linux-x64', 'scientific', value => { value.checks[1].execution.returnCode = 1; });
+      if (mode === 'exit') await editReport(root, 'darwin-arm64', 'scientific', value => { value.checks[1].execution.returnCode = 1; });
       else {
-        const numeric = join(root, 'evidence/linux-x64/scientific/numeric.json');
+        const numeric = join(root, 'evidence/darwin-arm64/scientific/numeric.json');
         await editJson(numeric, value => { value.measurements[0].value = 100; });
         const hash = await sha256(numeric);
-        await editReport(root, 'linux-x64', 'scientific', value => { for (const check of value.checks) check.attachments.find((item: { kind: string }) => item.kind === 'numeric').sha256 = hash; });
+        await editReport(root, 'darwin-arm64', 'scientific', value => { for (const check of value.checks) check.attachments.find((item: { kind: string }) => item.kind === 'numeric').sha256 = hash; });
       }
       await assert.rejects(verifyLocalRelease(join(root, 'release.json')), mode === 'exit' ? /successful execution/ : /numerical reference/);
     } finally { await rm(root, { recursive: true }); }
@@ -235,7 +214,7 @@ test('prepare builds a complete inventory and cannot overwrite an existing revie
 test('public evidence collection excludes all unreferenced test identities and databases', async () => {
   const root = await fixture();
   try {
-    const raw = join(root, 'evidence/linux-x64/smoke');
+    const raw = join(root, 'evidence/darwin-arm64/smoke');
     await writeFile(join(raw, 'core-service.json'), 'private local opaque test token');
     await writeFile(join(raw, 'sessions.sqlite'), 'private test database');
     const output = join(root, 'collected');

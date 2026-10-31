@@ -8,12 +8,12 @@ import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createGunzip } from 'node:zlib';
 import { pipeline } from 'node:stream/promises';
-import { DISTRIBUTION_TARGETS, platformPackageName, RELEASE_REPOSITORY } from '../packages/phynite-lab/lib/distribution.mjs';
+import { NPM_RELEASE_TARGETS as DISTRIBUTION_TARGETS, platformPackageName, RELEASE_REPOSITORY } from '../packages/phynite-lab/lib/distribution.mjs';
 import { prohibitedDistributionPath } from '../packages/phynite-lab/lib/check-distribution.mjs';
 import { validateNativeInventory } from '../packages/phynite-lab/lib/native-inventory.mjs';
 import { validateBundledNoticeIndex, validateBundledNoticeReport } from '../packages/phynite-lab/lib/bundled-notices.mjs';
 
-export const RELEASE_TARGETS = Object.freeze([...DISTRIBUTION_TARGETS, 'wsl2-linux-x64', 'wsl2-linux-arm64']);
+export const RELEASE_TARGETS = Object.freeze([...DISTRIBUTION_TARGETS]);
 export const SMOKE_CHECKS = Object.freeze(['clean-install', 'native-core', 'loopback-security', 'local-workspace', 'ui-desktop-mobile', 'persistence-restart', 'project-import-export', 'local-ai-gateway', 'optional-cloud-no-auto-upload']);
 export const SCIENTIFIC_CHECKS = Object.freeze(['runtime-install', 'qe-reference', 'app-qe-queue-reference', 'app-queued-cancel-restart', 'md-guided-reference', 'md-manual-reference', 'analysis-reference', 'sandbox-probe', 'sandbox-denials', 'cancel-resource-recovery', 'installer-failure-recovery']);
 const HASH = /^[a-f0-9]{64}$/;
@@ -22,12 +22,10 @@ const VERSION = /^\d+\.\d+\.\d+$/;
 const nativeTarget = target => target.replace(/^wsl2-/, '');
 const fail = message => { throw new Error(message); };
 
-/** WSL deferral is explicit release metadata, never a claimed successful test. */
+/** Every shipped platform must pass; unshipped targets cannot waive a gate. */
 export function requiredReleaseTargets(qualification) {
-  if (qualification === undefined) return RELEASE_TARGETS;
-  if (qualification?.wsl2 !== 'deferred' || typeof qualification.reason !== 'string' || !qualification.reason.trim()
-      || qualification.reason.length > 500 || Object.keys(qualification).some(key => !['wsl2', 'reason'].includes(key))) fail('Invalid WSL2 deferral: record an explicit reason; native qualification cannot be deferred.');
-  return DISTRIBUTION_TARGETS;
+  if (qualification !== undefined) fail('This release includes only macOS Apple Silicon; qualification deferrals are not supported.');
+  return RELEASE_TARGETS;
 }
 
 export async function sha256(path) {
@@ -95,8 +93,9 @@ async function verifyPackage(path, item, release, expectedLicense) {
   if (manifest.schemaVersion !== 2 || manifest.version !== release.version || manifest.source?.commit !== release.source.commit || manifest.source?.repository !== RELEASE_REPOSITORY
       || manifest.source?.url !== `${RELEASE_REPOSITORY}/tree/${release.source.commit}` || manifest.source?.archiveUrl !== `${RELEASE_REPOSITORY}/archive/${release.source.commit}.tar.gz`) fail(`${item.name}: exact public corresponding source differs from the release inventory.`);
   if (item.name === 'phynite-lab') {
-    if (item.target !== undefined || manifest.kind !== 'launcher' || Object.keys(metadata.dependencies ?? {}).length
-        || Object.keys(metadata.optionalDependencies ?? {}).sort().join(',') !== DISTRIBUTION_TARGETS.map(platformPackageName).sort().join(',')) fail('Launcher must depend on exactly the four native packages.');
+    if (item.target !== undefined || manifest.kind !== 'launcher' || metadata.os?.join(',') !== 'darwin' || metadata.cpu?.join(',') !== 'arm64'
+        || Object.keys(manifest.targets ?? {}).sort().join(',') !== [...DISTRIBUTION_TARGETS].sort().join(',') || Object.keys(metadata.dependencies ?? {}).length
+        || Object.keys(metadata.optionalDependencies ?? {}).sort().join(',') !== DISTRIBUTION_TARGETS.map(platformPackageName).sort().join(',')) fail('Launcher must depend on exactly the released native packages.');
     for (const target of DISTRIBUTION_TARGETS) {
       if (metadata.optionalDependencies[platformPackageName(target)] !== release.version || manifest.targets?.[target]?.package !== platformPackageName(target) || manifest.targets?.[target]?.version !== release.version) fail('Launcher native dependencies must use exact matching versions.');
     }
@@ -186,7 +185,7 @@ async function verifyEvidence(root, item, kind, release, packages) {
 }
 
 /**
- * Four native targets are mandatory. WSL2 may be explicitly deferred in release metadata.
+ * Every shipped native target requires real smoke and scientific qualification.
  * @param {string} inventoryPath
  * @param {{version?: string, sourceCommit?: string}} [expected]
  */
@@ -205,7 +204,7 @@ export async function verifyLocalRelease(inventoryPath, expected = {}) {
   const expectedLicense = await tarMember(archive, sourceLicensePath);
   if (!expectedLicense.includes('GNU AFFERO GENERAL PUBLIC LICENSE') || !expectedLicense.includes('Version 3, 19 November 2007')) fail('The public corresponding source license is not GNU AGPL v3.');
   const packageNames = ['phynite-lab', ...DISTRIBUTION_TARGETS.map(platformPackageName)];
-  if (!Array.isArray(release.packages) || release.packages.length !== packageNames.length || new Set(release.packages.map(item => item.name)).size !== packageNames.length || release.packages.some(item => !packageNames.includes(item.name) || item.version !== release.version)) fail('Release inventory must include exactly one launcher and all four native packages.');
+  if (!Array.isArray(release.packages) || release.packages.length !== packageNames.length || new Set(release.packages.map(item => item.name)).size !== packageNames.length || release.packages.some(item => !packageNames.includes(item.name) || item.version !== release.version)) fail('Release inventory must include exactly one launcher and every released native package.');
   const packages = new Map();
   for (const item of release.packages) {
     if (item.name !== 'phynite-lab' && (!DISTRIBUTION_TARGETS.includes(item.target) || item.name !== platformPackageName(item.target))) fail('Native package target/name mismatch.');
@@ -230,9 +229,7 @@ export async function verifyLocalRelease(inventoryPath, expected = {}) {
     if (actual.sha256 !== record.sha256 || record.bytes !== undefined && actual.bytes !== record.bytes) fail('Native corresponding source checksum or size mismatch.');
   }
   const requiredTargets = requiredReleaseTargets(release.qualification);
-  if (!Array.isArray(release.evidence) || release.evidence.length !== requiredTargets.length || new Set(release.evidence.map(item => item.target)).size !== requiredTargets.length || release.evidence.some(item => !requiredTargets.includes(item.target))) fail(requiredTargets === RELEASE_TARGETS
-    ? 'All four native targets plus WSL2 x64 and ARM64 must pass before publication.'
-    : 'All four native targets must pass; deferred WSL2 targets cannot be declared qualified.');
+  if (!Array.isArray(release.evidence) || release.evidence.length !== requiredTargets.length || new Set(release.evidence.map(item => item.target)).size !== requiredTargets.length || release.evidence.some(item => !requiredTargets.includes(item.target))) fail('Every released native target must pass; only macOS Apple Silicon evidence is accepted for this release.');
   for (const item of release.evidence) {
     await verifyEvidence(root, item, 'smoke', release, packages);
     await verifyEvidence(root, item, 'scientific', release, packages);
@@ -305,6 +302,6 @@ async function main() {
   const result = command === 'verify' && options['--inventory'] ? await verifyLocalRelease(options['--inventory'], { version: options['--version'], sourceCommit: options['--source-commit'] })
     : command === 'prepare' && options['--directory'] ? await prepareLocalRelease(options['--directory'], { version: options['--version'], sourceCommit: options['--source-commit'], sourceArchive: options['--source-archive'], deferWsl2Reason: options['--defer-wsl2-reason'] }) : fail('Expected prepare or verify with the required release evidence options.');
   assert.equal(result.release.evidence.length, requiredReleaseTargets(result.release.qualification).length);
-  console.log(`PASS: ${result.release.version}, source ${result.release.source.commit}; ${result.release.qualification ? 'four native gates verified; WSL2 explicitly untested' : 'all six native/WSL2 gates verified'}; exact source/package/evidence SHA-256 verified. No publication performed.`);
+  console.log(`PASS: ${result.release.version}, source ${result.release.source.commit}; all released native gates verified (macOS Apple Silicon); exact source/package/evidence SHA-256 verified. No publication performed.`);
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

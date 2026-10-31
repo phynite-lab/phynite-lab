@@ -11,10 +11,9 @@ npm install -g phynite-lab
 phynite-lab
 ```
 
-Requires Node.js 22.13 or later. Release targets are macOS and Linux (arm64/x64);
-Linux and WSL2 require Ubuntu 24.04 or a compatible glibc 2.39+ system. On Windows,
-install and run inside WSL2. Platform support is declared only after native release
-qualification. npm selects an exact-version `phynite-lab-runtime-<platform>`
+Requires Node.js 22.13 or later and macOS Apple Silicon (M1 or later).
+The 0.1.0 npm release does not include Intel Macs, Linux or Windows.
+npm selects the exact-version `phynite-lab-runtime-darwin-arm64`
 optional package containing the production app and frozen local core; it does not require
 a global Python installation, AWS CLI, or Docker. Scientific solver runtimes are
 installed separately from the application's setup page.
@@ -43,9 +42,6 @@ npm install -g phynite-lab@latest
 ```
 
 The first solver installation downloads the chosen runtime from the setup page.
-Linux native isolation requires working user namespaces; the packaged bootstrap
-does not override kernel or AppArmor restrictions. Setup reports any required
-system repair and does not disable security policy automatically.
 
 Cloud and AI connections are optional and configured inside the application.
 Local AI uses the official Codex or Antigravity CLI already installed on this
@@ -70,8 +66,3 @@ limits, not token counts. Failed refreshes retain the last report with its times
 unsupported or missing reports are shown as unavailable.
 Third-party components retain their own licenses; see THIRD_PARTY_NOTICES.md in
 the assembled release.
-
-For the initial 0.1.0 release, WSL2 qualification is deferred by the maintainer.
-Windows/WSL2 is experimental and has not been tested on a WSL2 host. The Linux
-package and its isolation requirements still apply; see the release evidence
-for the platforms that were actually verified.

@@ -130,7 +130,7 @@ async function splitFixture(directory: string, target = distributionPlatform()) 
   await writeFile(join(runtimeRoot, 'package.json'), JSON.stringify({ name: platformPackageName(target), version, type: 'module', license: 'AGPL-3.0-only', os: [os], cpu: [cpu] }));
   await writeFile(join(runtimeRoot, 'distribution.json'), JSON.stringify(runtime));
   const packageJson = JSON.parse(await readFile(join(root, 'packages', 'phynite-lab', 'package.json'), 'utf8'));
-  await writeFile(join(packageRoot, 'package.json'), JSON.stringify(packageJson));
+  await writeFile(join(packageRoot, 'package.json'), JSON.stringify({ ...packageJson, optionalDependencies: Object.fromEntries(DISTRIBUTION_TARGETS.map(platform => [platformPackageName(platform), version])) }));
   await writeFile(join(packageRoot, 'distribution.json'), JSON.stringify({ schemaVersion: 2, kind: 'launcher', version, source,
     targets: Object.fromEntries(DISTRIBUTION_TARGETS.map(platform => [platform, { package: platformPackageName(platform), version }])) }));
   await mkdir(join(packageRoot, 'lib'));
@@ -139,7 +139,7 @@ async function splitFixture(directory: string, target = distributionPlatform()) 
     await cp(join(root, 'LICENSE'), join(output, 'LICENSE'));
     await writeFile(join(output, 'THIRD_PARTY_NOTICES.md'), 'Process protocol fixture; no scientific output or actual solver.');
   }
-  return { packageRoot, runtimeRoot, runtime, target, source, packageJson };
+  return { packageRoot, runtimeRoot, runtime, target, source, packageJson: { ...packageJson, optionalDependencies: Object.fromEntries(DISTRIBUTION_TARGETS.map(platform => [platformPackageName(platform), version])) } };
 }
 
 test('native optional package must match platform, exact version, source commit and checksum', async t => {

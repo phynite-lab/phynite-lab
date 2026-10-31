@@ -4,7 +4,7 @@ import { createReadStream } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DISTRIBUTION_TARGETS, platformPackageName } from '../packages/phynite-lab/lib/distribution.mjs';
+import { NPM_RELEASE_TARGETS as DISTRIBUTION_TARGETS, platformPackageName } from '../packages/phynite-lab/lib/distribution.mjs';
 import { sha256, verifyLocalRelease } from './verify-local-release.mjs';
 
 function npm(args) {

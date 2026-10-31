@@ -11,11 +11,10 @@
   "bin": { "phynite-lab": "bin/phynite-lab.mjs" },
   "files": ["bin/", "lib/", "distribution.json", "LICENSE", "THIRD_PARTY_NOTICES.md", "README.md"],
   "optionalDependencies": {
-    "phynite-lab-runtime-darwin-arm64": "0.1.0",
-    "phynite-lab-runtime-darwin-x64": "0.1.0",
-    "phynite-lab-runtime-linux-arm64": "0.1.0",
-    "phynite-lab-runtime-linux-x64": "0.1.0"
+    "phynite-lab-runtime-darwin-arm64": "0.1.0"
   },
   "scripts": { "prepack": "node lib/check-distribution.mjs" },
-  "publishConfig": { "access": "public" }
+  "publishConfig": { "access": "public" },
+  "os": ["darwin"],
+  "cpu": ["arm64"]
 }
