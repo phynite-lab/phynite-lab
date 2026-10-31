@@ -350,5 +350,6 @@ try {
     try { report.artifacts.push({ path: name, sha256: createHash('sha256').update(await readFile(join(output, name))).digest('hex') }); } catch { /* Failed acceptance may have no screenshot yet. */ }
   }
   await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });
-  console.log(`${report.passed ? 'PASS' : 'FAIL'}: actual local npm distribution acceptance. Evidence: ${output}`);
+  const diagnostic = report.failure ? ` Failure: ${String(report.failure).slice(0, 500)}` : '';
+  console.log(`${report.passed ? 'PASS' : 'FAIL'}: actual local npm distribution acceptance.${diagnostic} Evidence: ${output}`);
 }

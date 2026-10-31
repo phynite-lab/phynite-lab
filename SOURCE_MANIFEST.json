@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "upstreamCommit": "9d060d56d55a3c9787fb8c46242538d2cae4bedc",
+  "upstreamCommit": "d94ffcf",
   "files": {
     ".github/actionlint.yaml": "0c504353abd618e30376593b3198fc1fc9c69641d3eeb681e5c1cf4160dce350",
     ".github/scripts/native-ci-apparmor.py": "454d74d30f66d12f58ee3b8cd75ebf83200b33b5e01d87e9c518b49e826ff32a",
@@ -669,7 +669,7 @@
     "scripts/publish-local-release.mjs": "d56222d377bf1e97b4b0d3a87c147ca09b5ca97bb6f217e6e957eef0068a8819",
     "scripts/qualify-local-science.py": "94c9dcda83761ab83b07a077f6b50607d479bf9bdb227c43ec3439c2b3b3d290",
     "scripts/rebuild-lxml-native.py": "dff34d4bb1cc4201a5f78b75665623c6a746cf92c6ee6b3ba107e431d585c5ac",
-    "scripts/smoke-local-distribution.mjs": "aa46369ad66f1d358a259750dbcaf071a091e43edad054ca819905c2e116e102",
+    "scripts/smoke-local-distribution.mjs": "5a63898a3dbdd31069a0b2b177349882256a24f3d90e4844c8796c7eef7464e1",
     "scripts/start-local-dev.mjs": "09f8d9101906082fe2af2f69550d368bee8452c67e6ecca8555295d21c215860",
     "scripts/subset-fonts.py": "7a98b1e9408065aa4b37fe29a42ff9a98fe5891771b28ab100d6a26bc04b0535",
     "scripts/verify-local-release.mjs": "c8c14149fdab4ffb02a7ae02cf1d3dd4f6ee42fae92af30f1333895d34885e8c",
