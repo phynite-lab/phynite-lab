@@ -27,7 +27,7 @@ function launch(args: string[], packageRoot: string, env: Record<string, string>
   return { child, finished, output: () => output };
 }
 
-async function fixture(directory: string) {
+async function fixture(directory: string, { stealWebPortOnce = false } = {}) {
   const target = distributionPlatform();
   const coreDirectory = join(directory, 'core', target);
   await mkdir(coreDirectory, { recursive: true }); await mkdir(join(directory, 'app'));
@@ -38,21 +38,27 @@ async function fixture(directory: string) {
   const executable = join(coreDirectory, 'phynite-core');
   await writeFile(executable, `#!${process.execPath}
 import { createServer } from 'node:http';
-import { writeFileSync, appendFileSync } from 'node:fs';
+import { writeFileSync, appendFileSync, existsSync } from 'node:fs';
 const args = Object.fromEntries(Array.from({ length: (process.argv.length - 2) / 2 }, (_, i) => [process.argv[2 + i * 2], process.argv[3 + i * 2]]));
 const dir = args['--data-dir'], port = Number(args['--port']), uiOrigin = args['--ui-origin'];
+let competitor;
+if (${stealWebPortOnce} && !existsSync(dir + '/stolen-web-origin')) {
+ writeFileSync(dir + '/stolen-web-origin', uiOrigin);
+ competitor = createServer((request, response) => { response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify({ mode: 'local', user: { id: 'another-workspace' } })); });
+ competitor.listen(Number(new URL(uiOrigin).port), '127.0.0.1');
+}
 const token = 'fixture-service-session-token-with-32-characters';
 writeFileSync(dir + '/core-service.json', JSON.stringify({ token, origin: 'http://127.0.0.1:' + port, uiOrigin }), { mode: 0o600 });
 appendFileSync(dir + '/core-starts', 'start\\n');
 writeFileSync(dir + '/core-cloud-config.json', JSON.stringify({ apiOrigin: process.env.PHYNITE_CLOUD_API_URL ?? null, region: process.env.PHYNITE_CLOUD_AWS_REGION ?? null, clientId: process.env.PHYNITE_CLOUD_COGNITO_CLIENT_ID ?? null }));
-const server = createServer((request, response) => { response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify({ ready: true, environment: 'local' })); });
+const server = createServer((request, response) => { response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify(request.url === '/__local/session' ? { mode: 'local', user: { id: dir } } : { ready: true, environment: 'local' })); });
 server.listen(port, '127.0.0.1');
-process.on('SIGTERM', () => server.close());
+process.on('SIGTERM', () => { server.close(); competitor?.close(); });
 `);
   await chmod(executable, 0o755);
   await writeFile(join(directory, 'distribution.json'), JSON.stringify({ schemaVersion: 1, targets: { [target]: { executable: `core/${target}/phynite-core`, sha256: createHash('sha256').update(await readFile(executable)).digest('hex') } } }));
   await writeFile(join(directory, 'app', 'server.js'), `import { createServer } from 'node:http';
-const server = createServer((request, response) => { response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify({ local: process.env.PHYNITE_APP_MODE === 'local', session: process.env.PHYNITE_LOCAL_SERVICE_TOKEN === 'fixture-service-session-token-with-32-characters', inheritedAws: !!process.env.AWS_SECRET_ACCESS_KEY, inheritedProvider: !!process.env.PHYNITE_AI_AUTH_TOKEN })); });
+const server = createServer((request, response) => { response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify(request.url === '/api/auth/session' ? { mode: 'local', user: { id: process.env.PHYNITE_DATA_DIR } } : { local: process.env.PHYNITE_APP_MODE === 'local', session: process.env.PHYNITE_LOCAL_SERVICE_TOKEN === 'fixture-service-session-token-with-32-characters', inheritedAws: !!process.env.AWS_SECRET_ACCESS_KEY, inheritedProvider: !!process.env.PHYNITE_AI_AUTH_TOKEN })); });
 server.listen(Number(process.env.PORT), process.env.HOST);
 process.on('SIGTERM', () => server.close());
 `);
@@ -209,7 +215,7 @@ test('split-package launcher uses the verified helper app and ignores inherited 
   const directory = await mkdtemp(join(tmpdir(), 'phynite-native-launch-'));
   const { packageRoot, runtimeRoot, source } = await splitFixture(directory), dataDir = join(directory, 'data');
   await writeFile(join(runtimeRoot, 'app', 'server.js'), `import { createServer } from 'node:http';
-const server = createServer((request, response) => { response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify({ source: process.env.PHYNITE_RELEASE_SOURCE_COMMIT, version: process.env.PHYNITE_RELEASE_VERSION, bootstrap: process.env.PHYNITE_NATIVE_TOOLS_DIR, entry: process.env.PHYNITE_PACKAGED_WEB_ENTRY })); });
+const server = createServer((request, response) => { response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify(request.url === '/api/auth/session' ? { mode: 'local', user: { id: process.env.PHYNITE_DATA_DIR } } : { source: process.env.PHYNITE_RELEASE_SOURCE_COMMIT, version: process.env.PHYNITE_RELEASE_VERSION, bootstrap: process.env.PHYNITE_NATIVE_TOOLS_DIR, entry: process.env.PHYNITE_PACKAGED_WEB_ENTRY })); });
 server.listen(Number(process.env.PORT), process.env.HOST); process.on('SIGTERM', () => server.close());`);
   const started = launch(['--no-open', '--data-dir', dataDir], packageRoot, { PHYNITE_RELEASE_SOURCE_COMMIT: 'untrusted-source', PHYNITE_RELEASE_VERSION: 'bad-version', PHYNITE_PACKAGED_WEB_ENTRY: '/untrusted/app.js', PHYNITE_NATIVE_TOOLS_DIR: '/untrusted/tools' });
   t.after(async () => {
@@ -268,6 +274,28 @@ test('CLI reuses one workspace, selects a free port, isolates credentials and st
   assert.equal((await started.finished).code, 0);
   assert.equal(await readInstance(dataDir), null);
   assert.equal(await readFile(join(dataDir, 'core-starts'), 'utf8'), 'start\n');
+});
+
+test('launcher retries a stolen port without accepting another workspace as ready', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'phynite-port-race-'));
+  const packageRoot = join(directory, 'package'), dataDir = join(directory, 'data');
+  await mkdir(packageRoot); await fixture(packageRoot, { stealWebPortOnce: true });
+  const serverPath = join(packageRoot, 'app', 'server.js');
+  const server = await readFile(serverPath, 'utf8');
+  await writeFile(serverPath, server.replace('server.listen(', 'await new Promise(accept => setTimeout(accept, 400));\nserver.listen('));
+  const started = launch(['--no-open', '--data-dir', dataDir], packageRoot);
+  t.after(async () => {
+    await launch(['stop', '--data-dir', dataDir], packageRoot).finished;
+    if (started.child.exitCode === null) started.child.kill('SIGTERM');
+    await started.finished; await rm(directory, { recursive: true, force: true });
+  });
+  const instance = await waitForInstance(dataDir, started.output);
+  assert.notEqual(instance.url, await readFile(join(dataDir, 'stolen-web-origin'), 'utf8'));
+  const session = await (await fetch(instance.url + '/api/auth/session')).json();
+  assert.deepEqual(session, { mode: 'local', user: { id: await realpath(dataDir) } });
+  assert.equal(await readFile(join(dataDir, 'core-starts'), 'utf8'), 'start\nstart\n');
+  await launch(['stop', '--data-dir', dataDir], packageRoot).finished;
+  assert.equal((await started.finished).code, 0);
 });
 
 test('launcher passes only public cloud metadata from the verified release manifest', async t => {

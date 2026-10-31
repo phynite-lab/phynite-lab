@@ -127,6 +127,15 @@ class PackagedSandboxTests(unittest.TestCase):
         self.assertFalse(result["available"])
         self.assertIn("kernel denied", result["reason"])
 
+    def test_failed_probe_exposes_bounded_native_diagnostic_without_advertising_isolation(self):
+        sandbox = NativeSandbox(self.root / 'data', bootstrap_dir=self.bootstrap)
+        reply = subprocess.CompletedProcess([], 1, stdout='', stderr='bwrap: Creating new namespace failed: Operation not permitted\n' + 'x' * 1000)
+        with mock.patch('backend.local_api.sandbox.platform.system', return_value='Linux'), mock.patch('backend.local_api.sandbox.platform.machine', return_value='aarch64'), mock.patch('backend.local_api.sandbox.subprocess.run', return_value=reply):
+            result = sandbox.probe()
+        self.assertFalse(result['available'])
+        self.assertIn('Operation not permitted', result['reason'])
+        self.assertLess(len(result['reason']), 500)
+
 
 class BootstrapProducerTests(unittest.TestCase):
     def setUp(self):

@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest import mock
 
 from backend.local_api.runtime import RuntimeInstallError, RuntimeManager, runtime_platform
-from backend.local_api.conda_runtime import _download_record, _wheel_record
+from backend.local_api.conda_runtime import _download_record, _qualify, _wheel_record
 
 
 class LockedRuntimeTests(unittest.TestCase):
@@ -72,6 +72,27 @@ class LockedRuntimeTests(unittest.TestCase):
         (metadata / "licenses").mkdir(parents=True)
         (metadata / "licenses/LICENSE").write_text("fixture license")
         return subprocess.CompletedProcess(command, 0)
+
+    def test_import_qualification_keeps_native_stderr_separate_from_acknowledgement(self):
+        release = (self.root / 'release').resolve()
+        binary = release / 'env/bin/python'
+        binary.parent.mkdir(parents=True)
+        binary.write_text('Synthetic process fixture; never executed.')
+        binary.chmod(0o755)
+        manager = self.manager()
+        manager.sandbox.read_roots = ()
+        def imports(command, **options):
+            self.assertEqual(options['stdout'], subprocess.PIPE)
+            self.assertTrue(options['text'])
+            options['stderr'].write('OMP: native library diagnostic\n')
+            return subprocess.CompletedProcess(command, 0, stdout='{"passed": true}\n')
+        with mock.patch('backend.local_api.conda_runtime.subprocess.run', side_effect=imports):
+            self.assertEqual(_qualify(manager, release, 'dft', {'python': 'env/bin/python'}, {}), {'passed': True})
+        self.assertEqual((release / 'qualification.log').read_text(), 'OMP: native library diagnostic\n{"passed": true}\n')
+        with mock.patch('backend.local_api.conda_runtime.subprocess.run', return_value=subprocess.CompletedProcess([], 1, stdout='{"passed": true}')), self.assertRaisesRegex(RuntimeInstallError, 'qualification failed'):
+            _qualify(manager, release, 'dft', {'python': 'env/bin/python'}, {})
+        with mock.patch('backend.local_api.conda_runtime.subprocess.run', return_value=subprocess.CompletedProcess([], 0, stdout='not an acknowledgement')), self.assertRaisesRegex(RuntimeInstallError, 'valid acknowledgement'):
+            _qualify(manager, release, 'dft', {'python': 'env/bin/python'}, {})
 
     def test_verified_lock_installs_offline_at_final_prefix_and_activates_after_qualification(self):
         manager = self.manager()

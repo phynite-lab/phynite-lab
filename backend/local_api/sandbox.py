@@ -208,6 +208,9 @@ print(json.dumps(flags))
                     argv = [sys.executable, "-c", script, str(job), str(outside)]
                 command = self._command(job, argv)
                 process = subprocess.run(command, cwd=job, env=env, capture_output=True, text=True, timeout=15, check=False)
+                if process.returncode:
+                    detail = " ".join(process.stderr.split())[:300]
+                    raise SandboxError(f"Native isolation could not start (exit {process.returncode}): {detail or 'no diagnostic'}. Check OS sandbox/user-namespace support.")
                 flags = json.loads(process.stdout) if process.returncode == 0 else {}
                 if not all(flags.get(key) is True for key in ("workspaceWrite", "outsideWriteDenied", "externalNetworkDenied")) or outside.read_text() != "private probe":
                     raise SandboxError("The native isolation probe did not verify workspace confinement and external-network denial. Check OS sandbox/user-namespace support.")

@@ -117,7 +117,11 @@ jobs:
           if [[ "$RUNNER_OS" == macOS ]]; then
             # Use package-owned shared libraries with their original notices.
             # setup-python's macOS framework vendors unattributed dylibs.
-            brew list --versions python@3.12 >/dev/null 2>&1 || brew install python@3.12
+            if ! brew list --versions python@3.12 >/dev/null 2>&1; then
+              # Intel runners may already have conflicting global symlinks.
+              # Use the formula's absolute executable; never overwrite links.
+              brew install python@3.12 || test -x "$(brew --prefix python@3.12)/bin/python3.12"
+            fi
             "$(brew --prefix python@3.12)/bin/python3.12" -m venv build/core-venv
           else
             python -m venv build/core-venv

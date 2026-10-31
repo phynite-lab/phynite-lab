@@ -211,7 +211,7 @@ export async function runCli(args = process.argv.slice(2), { packageRoot = PACKA
   }
   await lock.writeFile(JSON.stringify({ pid: process.pid, instanceId }));
   await lock.close();
-  const children = [];
+  const children = new Set();
   let controlServer, aiServer, closing, ready = false;
   const shutdown = () => closing ??= (async () => {
     ready = false;
@@ -224,41 +224,61 @@ export async function runCli(args = process.argv.slice(2), { packageRoot = PACKA
   const onSignal = () => { void shutdown(); };
   process.once('SIGINT', onSignal); process.once('SIGTERM', onSignal);
   try {
-    const webPort = await freePort(options.port), corePort = await freePort();
-    const url = `http://${HOST}:${webPort}`, apiOrigin = `http://${HOST}:${corePort}`;
     const logsDir = join(dataDir, 'logs'); await mkdir(logsDir, { recursive: true, mode: 0o700 });
-    const env = safeChildEnvironment(dataDir, apiOrigin, url, distribution.cloud);
-    if (distribution.source) Object.assign(env, {
-      PHYNITE_RELEASE_SOURCE_COMMIT: distribution.source.commit,
-      PHYNITE_RELEASE_VERSION: distribution.manifest.version,
-    });
-    if (distribution.bootstrap) env.PHYNITE_NATIVE_TOOLS_DIR = distribution.bootstrap;
     aiServer = await createLocalAiServer({ dataDir });
-    Object.assign(env, { PHYNITE_LOCAL_AI_URL: aiServer.origin, PHYNITE_LOCAL_AI_TOKEN: aiServer.token });
-    const launch = async (name, command, argv, cwd, extraEnv = {}) => {
-      if (closing) throw new Error('Local startup was interrupted.');
-      const log = await open(join(logsDir, `${name}.log`), 'a', 0o600);
-      let child;
-      try { child = spawn(command, argv, { cwd, env: { ...env, ...extraEnv }, stdio: ['ignore', log.fd, log.fd], detached: true }); }
-      finally { await log.close(); }
-      child.on('error', error => { child.spawnError = error; });
-      children.push(child);
-      child.once('exit', () => { if (ready && !closing) { process.exitCode = 1; console.error(`${name} stopped. Local files are retained; check ${logsDir}.`); void shutdown(); } });
-      return child;
-    };
-    const core = await launch('core', distribution.executable, ['--data-dir', dataDir, '--port', String(corePort), '--ui-origin', url], dirname(distribution.executable));
-    await waitReady(`${apiOrigin}/__local/health`, core, async response => { const value = await response.json(); return value.ready === true && (value.environment === 'local' || value.mode === 'local'); });
-    const service = await readJson(join(dataDir, 'core-service.json'));
-    if (!service || service.origin !== apiOrigin || service.uiOrigin !== url || typeof service.token !== 'string' || service.token.length < 32) {
-      throw new Error('The local core did not provide a valid private service session.');
+    let url;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const attemptedChildren = [];
+      try {
+        const webPort = await freePort(attempt === 0 ? options.port : 0);
+        let corePort = await freePort();
+        while (corePort === webPort) corePort = await freePort();
+        url = `http://${HOST}:${webPort}`;
+        const apiOrigin = `http://${HOST}:${corePort}`;
+        const env = safeChildEnvironment(dataDir, apiOrigin, url, distribution.cloud);
+        if (distribution.source) Object.assign(env, {
+          PHYNITE_RELEASE_SOURCE_COMMIT: distribution.source.commit,
+          PHYNITE_RELEASE_VERSION: distribution.manifest.version,
+        });
+        if (distribution.bootstrap) env.PHYNITE_NATIVE_TOOLS_DIR = distribution.bootstrap;
+        Object.assign(env, { PHYNITE_LOCAL_AI_URL: aiServer.origin, PHYNITE_LOCAL_AI_TOKEN: aiServer.token });
+        const launch = async (name, command, argv, cwd, extraEnv = {}) => {
+          if (closing) throw new Error('Local startup was interrupted.');
+          const log = await open(join(logsDir, `${name}.log`), 'a', 0o600);
+          let child;
+          try { child = spawn(command, argv, { cwd, env: { ...env, ...extraEnv }, stdio: ['ignore', log.fd, log.fd], detached: true }); }
+          finally { await log.close(); }
+          child.on('error', error => { child.spawnError = error; });
+          children.add(child); attemptedChildren.push(child);
+          child.once('exit', () => { if (children.has(child) && ready && !closing) { process.exitCode = 1; console.error(`${name} stopped. Local files are retained; check ${logsDir}.`); void shutdown(); } });
+          return child;
+        };
+        const core = await launch('core', distribution.executable, ['--data-dir', dataDir, '--port', String(corePort), '--ui-origin', url], dirname(distribution.executable));
+        await waitReady(`${apiOrigin}/__local/health`, core, async response => { const value = await response.json(); return value.ready === true && (value.environment === 'local' || value.mode === 'local'); });
+        const service = await readJson(join(dataDir, 'core-service.json'));
+        if (!service || service.origin !== apiOrigin || service.uiOrigin !== url || typeof service.token !== 'string' || service.token.length < 32) {
+          throw new Error('The local core did not provide a valid private service session.');
+        }
+        const sessionMode = (await stat(join(dataDir, 'core-service.json'))).mode & 0o777;
+        if (sessionMode & 0o077) throw new Error('The private core service file has unsafe permissions.');
+        const coreSessionReply = await fetch(`${apiOrigin}/__local/session`, { headers: { Authorization: `Bearer ${service.token}` }, redirect: 'error', signal: AbortSignal.timeout(5000) });
+        const coreSession = await coreSessionReply.json();
+        if (!coreSessionReply.ok || coreSession.mode !== 'local' || typeof coreSession.user?.id !== 'string' || !coreSession.user.id) throw new Error('The native core session did not identify this local workspace.');
+        const web = await launch('web', process.execPath, [join(packageRoot, 'lib', 'web-server.mjs')], dirname(distribution.server), {
+          PORT: String(webPort), PHYNITE_LOCAL_SERVICE_TOKEN: service.token,
+          PHYNITE_PACKAGED_WEB_ENTRY: distribution.server,
+        });
+        await waitReady(`${url}/api/auth/session`, web, async response => {
+          const session = await response.json();
+          return session.mode === 'local' && session.user?.id === coreSession.user.id;
+        });
+        break;
+      } catch (error) {
+        for (const child of attemptedChildren) children.delete(child);
+        await Promise.allSettled(attemptedChildren.reverse().map(stopChild));
+        if (closing || attempt === 2) throw error;
+      }
     }
-    const sessionMode = (await stat(join(dataDir, 'core-service.json'))).mode & 0o777;
-    if (sessionMode & 0o077) throw new Error('The private core service file has unsafe permissions.');
-    const web = await launch('web', process.execPath, [join(packageRoot, 'lib', 'web-server.mjs')], dirname(distribution.server), {
-      PORT: String(webPort), PHYNITE_LOCAL_SERVICE_TOKEN: service.token,
-      PHYNITE_PACKAGED_WEB_ENTRY: distribution.server,
-    });
-    await waitReady(url, web, async () => true);
     if (closing) throw new Error('Local startup was interrupted.');
     const token = randomBytes(32).toString('hex');
     controlServer = createServer((request, response) => {

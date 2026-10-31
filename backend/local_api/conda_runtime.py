@@ -296,11 +296,15 @@ print(json.dumps({'python':sys.version.split()[0],'imports':[m.__name__ for m in
     command = manager.sandbox.command(release, [str(python), "-I", "-c", script, str(prefix), json.dumps(IMPORTS[component]), str(bundled), component])
     log = release / "qualification.log"
     with log.open("w", encoding="utf-8") as output:
-        process = subprocess.run(command, cwd=release, env=environment, stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.STDOUT, timeout=120, check=False)
+        # Native libraries may emit diagnostics on stderr even after a valid
+        # import. Retain those diagnostics without mixing them into the fixed
+        # JSON acknowledgement on stdout.
+        process = subprocess.run(command, cwd=release, env=environment, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=output, text=True, timeout=120, check=False)
+        output.write(process.stdout)
     if process.returncode:
         raise RuntimeInstallError("Scientific runtime import qualification failed. Inspect the retained qualification log; the previous runtime remains active.")
     try:
-        result = json.loads(log.read_text())
+        result = json.loads(process.stdout)
         if result.get("passed") is not True:
             raise ValueError()
     except (ValueError, OSError) as error:

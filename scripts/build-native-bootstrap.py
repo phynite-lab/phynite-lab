@@ -204,7 +204,7 @@ def assemble(prefix: Path, output: Path, target: str, lock: dict, notices: Path,
     else:
         qualification = qualify(output)
     if qualification.get("available") is not True:
-        raise BootstrapError("The packaged bootstrap did not pass the native OS isolation probe. Check user namespaces and AppArmor policy; no policy was changed.")
+        raise BootstrapError("The packaged bootstrap did not pass the native OS isolation probe. " + str(qualification.get("reason", "")) + " Check user namespaces and AppArmor policy; no policy was changed.")
     if any(digest(output / path) != value for path, value in expected_hashes.items()):
         raise BootstrapError("Qualification modified a reviewed bootstrap file.")
     (output / "qualification.json").write_text(json.dumps(qualification, indent=2) + "\n")
