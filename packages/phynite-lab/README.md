@@ -11,12 +11,20 @@ npm install -g phynite-lab
 phynite-lab
 ```
 
-Requires Node.js 22.13 or later and macOS Apple Silicon (M1 or later).
-The 0.1.0 npm release does not include Intel Macs, Linux or Windows.
-npm selects the exact-version `phynite-lab-runtime-darwin-arm64`
-optional package containing the production app and frozen local core; it does not require
+Requires Node.js 22.13 or later. Version 0.1.1 supports macOS Apple Silicon
+(M1 or later) and Linux x64 with glibc >=2.39, including current Omarchy/Arch Linux.
+Intel Macs, Linux ARM64 and Windows/WSL2 are not included. Linux qualification
+runs on Ubuntu 24.04; direct testing on an Omarchy desktop is not claimed.
+npm selects the exact-version native platform optional package containing
+the production app, frozen local core and Linux sandbox; it does not require
 a global Python installation, AWS CLI, or Docker. Scientific solver runtimes are
 installed separately from the application's setup page.
+
+On Omarchy, run the launcher as your normal desktop user. Its bundled bubblewrap
+needs unprivileged user namespaces; Setup verifies actual filesystem/network
+isolation before enabling scientific execution. A blocked probe displays the
+repair needed instead of weakening OS policy. Browser opening uses `xdg-open`;
+`--no-open` also prints the local URL for manual opening.
 
 The application binds to `127.0.0.1`, opens a browser, and keeps user data in
 `~/.phynite-lab`. A busy default port is replaced with an available local port.

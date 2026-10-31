@@ -1,7 +1,7 @@
 name: Local native release
 
 # A normal push never publishes. A maintainer explicitly chooses a version and
-# requests publication after macOS Apple Silicon qualification.
+# requests publication after every shipped native target passes qualification.
 on:
   push:
     branches: ['release/**']
@@ -79,6 +79,8 @@ jobs:
         include:
           - runner: macos-15
             target: darwin-arm64
+          - runner: ubuntu-24.04
+            target: linux-x64
     runs-on: ${{ matrix.runner }}
     env:
       TARGET: ${{ matrix.target }}
@@ -113,6 +115,16 @@ jobs:
           fi
           build/core-venv/bin/python -m pip install -r scripts/local-core-requirements.txt
           build/core-venv/bin/python scripts/build-local-core.py --output build/core
+      - name: Allow only exact ephemeral CI sandbox executables to create user namespaces
+        if: runner.os == 'Linux'
+        id: apparmor
+        run: |
+          python .github/scripts/native-ci-apparmor.py --workspace "$GITHUB_WORKSPACE" --output "$RUNNER_TEMP/phynite-ci.apparmor" --target "$TARGET" --run-id "$GITHUB_RUN_ID"
+          sudo apparmor_parser -r "$RUNNER_TEMP/phynite-ci.apparmor"
+      - name: Build and probe the locked non-setuid Linux isolation bootstrap
+        if: runner.os == 'Linux'
+        run: |
+          build/core-venv/bin/python scripts/build-native-bootstrap.py --prepare-prefix "$RUNNER_TEMP/phynite-bootstrap-prefix" --target "$TARGET" --notices distribution/notices/bootstrap --output build/bootstrap
       - name: Verify public backend and actual frozen core without source checkout
         env:
           PYTHONPATH: .
@@ -153,6 +165,9 @@ jobs:
           path: build/candidate/
           if-no-files-found: error
           retention-days: 30
+      - name: Remove the ephemeral CI user-namespace fixture
+        if: always() && runner.os == 'Linux' && steps.apparmor.outcome == 'success'
+        run: sudo apparmor_parser -R "$RUNNER_TEMP/phynite-ci.apparmor"
 
   release:
     needs: [source, candidate]
@@ -206,7 +221,7 @@ jobs:
             }
           }
           NODE
-      - name: Verify every shipped macOS gate and preserve exact release inventory
+      - name: Verify every shipped native gate and preserve exact release inventory
         run: |
           node scripts/verify-local-release.mjs prepare --directory build/release --version "$RELEASE_VERSION" --source-commit "$SOURCE_COMMIT" --source-archive source.tar.gz
           node scripts/verify-local-release.mjs verify --inventory build/release/release.json --version "$RELEASE_VERSION" --source-commit "$SOURCE_COMMIT"
@@ -214,7 +229,7 @@ jobs:
       - name: Publish exact verified platform packages before launcher through npm trusted publishing
         if: inputs.publish
         run: |
-          npm install -g npm@11.6.2 --ignore-scripts --no-audit --no-fund
+          npm install -g npm@11.15.0 --ignore-scripts --no-audit --no-fund
           node scripts/publish-local-release.mjs --inventory build/release/release.json --confirm-version "$RELEASE_VERSION" --publish --provenance
       - name: Write checksums for corresponding source, tarballs and gate inventory
         run: |
@@ -237,4 +252,50 @@ jobs:
       - name: Publish GitHub corresponding source and qualification evidence
         if: inputs.publish
         run: |
-          gh release create "v$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --target "$SOURCE_COMMIT" --title "Phynite Lab $RELEASE_VERSION" --notes "GNU AGPL v3 only. Exact source, package checksums, macOS Apple Silicon qualification evidence are attached in release.json. Intel, Linux and Windows are not included in this release. Scientific runtimes are installed separately through local setup." build/release/source.tar.gz build/release/SHA256SUMS build/release/release.json build/release/qualification-evidence.tar.gz build/release/tarballs/*.tgz
+          gh release create "v$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --target "$SOURCE_COMMIT" --title "Phynite Lab $RELEASE_VERSION" --notes "GNU AGPL v3 only. macOS Apple Silicon and Linux x64 (glibc >=2.39, including current Omarchy/Arch Linux). Linux qualification runs on Ubuntu 24.04; an Omarchy desktop was not directly tested. Intel Macs, Linux ARM64 and Windows are not included. Exact source, checksums and qualification evidence are attached. Scientific runtimes are installed through local setup." build/release/source.tar.gz build/release/SHA256SUMS build/release/release.json build/release/qualification-evidence.tar.gz build/release/tarballs/*.tgz
+
+  registry:
+    needs: [source, release]
+    if: needs.release.result == 'success'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            target: darwin-arm64
+          - runner: ubuntu-24.04
+            target: linux-x64
+    runs-on: ${{ matrix.runner }}
+    env:
+      RELEASE_VERSION: ${{ needs.source.outputs.version }}
+      SOURCE_COMMIT: ${{ needs.source.outputs.source_commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.source.outputs.source_commit }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check whether this exact version has been published
+        id: published
+        run: |
+          node --input-type=module <<'NODE'
+          import { spawnSync } from 'node:child_process';
+          import { appendFileSync } from 'node:fs';
+          const result = spawnSync('npm', ['view', `phynite-lab@${process.env.RELEASE_VERSION}`, 'version', '--json', '--prefer-online'], { encoding: 'utf8' });
+          if (result.status !== 0 && !/\bE404\b/.test(result.stderr)) throw Error('Cannot verify registry availability.');
+          const available = result.status === 0;
+          appendFileSync(process.env.GITHUB_OUTPUT, `available=${available}\n`);
+          console.log(available ? 'Published version available; verifying a clean global install.' : 'Candidate has not been published; registry acceptance remains pending. Rerun this job after publication.');
+          NODE
+      - name: Install from the real registry and verify native launch and persistence
+        if: steps.published.outputs.available == 'true'
+        run: |
+          mkdir -p build
+          node scripts/verify-registry-install.mjs --output build/registry --version "$RELEASE_VERSION" --source-commit "$SOURCE_COMMIT" --npm-executable "$(command -v npm)"
+      - uses: actions/upload-artifact@v4
+        if: steps.published.outputs.available == 'true'
+        with:
+          name: registry-install-${{ matrix.target }}
+          path: build/registry/report.json
+          if-no-files-found: error

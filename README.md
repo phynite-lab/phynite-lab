@@ -25,9 +25,7 @@ phynite-lab doctor
 npm install -g phynite-lab@latest
 ```
 
-The 0.1.0 npm release supports **macOS Apple Silicon (M1 or later)** only.
-Intel Macs, Linux and Windows are postponed. The source retains portable runtime
-code; availability in source is not a claim of npm platform support.
+The 0.1.1 release targets **macOS Apple Silicon (M1 or later)** and **Linux x64**, including current Omarchy/Arch Linux with glibc >=2.39. Intel Macs, Linux ARM64 and Windows/WSL2 are not included. Linux requires unprivileged user namespaces; the verified bubblewrap sandbox is included. See the distribution guide for the test environment and Omarchy setup.
 
 ## Local work and optional Cloud
 

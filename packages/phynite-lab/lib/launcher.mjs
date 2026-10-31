@@ -52,7 +52,7 @@ export function requireRuntimeHost(os = platform(), glibcVersion = os === 'linux
   if (os !== 'linux') return;
   const version = /^(\d+)\.(\d+)(?:\D|$)/.exec(glibcVersion ?? '');
   if (!version || Number(version[1]) < 2 || Number(version[1]) === 2 && Number(version[2]) < 39) {
-    throw new Error('Phynite Lab requires Ubuntu 24.04 or compatible Linux/WSL2 with glibc 2.39 or later. Use a supported distribution before starting the native core.');
+    throw new Error('Phynite Lab requires glibc 2.39 or later on Linux, including current Omarchy/Arch Linux and Ubuntu 24.04. Upgrade an older distribution before starting the native core.');
   }
 }
 

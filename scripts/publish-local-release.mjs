@@ -4,6 +4,7 @@ import { createReadStream } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { setTimeout as delay } from 'node:timers/promises';
 import { NPM_RELEASE_TARGETS as DISTRIBUTION_TARGETS, platformPackageName } from '../packages/phynite-lab/lib/distribution.mjs';
 import { sha256, verifyLocalRelease } from './verify-local-release.mjs';
 
@@ -23,6 +24,20 @@ async function integrity(path) {
   return `sha512-${hash.digest('base64')}`;
 }
 
+/** npm can accept a new package before its operational version becomes visible. */
+export async function waitForRegistryIntegrity(name, version, expected, { query = npm, sleep = milliseconds => delay(milliseconds), attempts = 40, intervalMs = 15000 } = {}) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const result = await query(['view', `${name}@${version}`, 'dist.integrity', '--json', '--prefer-online']);
+    if (result.code === 0) {
+      if (JSON.parse(result.stdout) !== expected) throw new Error(`${name}@${version}: registry integrity mismatch. Do not overwrite this version.`);
+      return;
+    }
+    if (!/\bE404\b/.test(result.stderr)) throw new Error(`Cannot verify npm availability for ${name}. Authentication/network failure; no later package was published.`);
+    if (attempt + 1 < attempts) await sleep(intervalMs);
+  }
+  throw new Error(`${name}@${version} has not propagated with verified registry integrity. No later package was published; retry the same qualified inventory later.`);
+}
+
 /**
  * @param {string} inventory
  * @param {{confirmVersion?: string, publish?: boolean, provenance?: boolean}} [options]
@@ -36,7 +51,7 @@ export async function publishLocalRelease(inventory, { confirmVersion, publish =
   // resumed only when npm serves the identical tarball's SHA-512 integrity.
   const present = new Set();
   for (const name of order) {
-    const item = packages.get(name), result = await npm(['view', `${name}@${release.version}`, 'dist.integrity', '--json']);
+    const item = packages.get(name), result = await npm(['view', `${name}@${release.version}`, 'dist.integrity', '--json', '--prefer-online']);
     if (result.code === 0) {
       if (JSON.parse(result.stdout) !== await integrity(item.filename)) throw new Error(`${name}@${release.version} already exists with different bytes. Choose a new release version.`);
       present.add(name);
@@ -51,8 +66,7 @@ export async function publishLocalRelease(inventory, { confirmVersion, publish =
     }
     // The launcher is reached only after each native dependency is available
     // with exactly the same bytes that passed its qualification gates.
-    const available = await npm(['view', `${name}@${release.version}`, 'dist.integrity', '--json']);
-    if (available.code !== 0 || JSON.parse(available.stdout) !== await integrity(item.filename)) throw new Error(`${name} was not yet retrievable with verified registry integrity. No later package was published; retry after registry propagation.`);
+    await waitForRegistryIntegrity(name, release.version, await integrity(item.filename));
   }
   return { published: true, version: release.version, order, sourceCommit: release.source.commit };
 }

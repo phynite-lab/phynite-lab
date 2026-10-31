@@ -11,7 +11,7 @@ import { validateBundledNoticeIndex, validateBundledNoticeReport } from './bundl
 export const RELEASE_REPOSITORY = 'https://github.com/phynite-lab/phynite-lab';
 export const DISTRIBUTION_TARGETS = Object.freeze(['darwin-arm64', 'darwin-x64', 'linux-arm64', 'linux-x64']);
 // Release scope is narrower than the source/build target inventory.
-export const NPM_RELEASE_TARGETS = Object.freeze(['darwin-arm64']);
+export const NPM_RELEASE_TARGETS = Object.freeze(['darwin-arm64', 'linux-x64']);
 const VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 const HASH = /^[a-f0-9]{64}$/;
 
@@ -135,7 +135,7 @@ export async function resolveDistribution(root, target) {
     return { executable, server, manifest, cloud: validateCloudConfig(manifest.cloud), packageRoot: root, source: undefined, bootstrap: undefined };
   }
   const release = await verifyLauncherManifest(root), name = platformPackageName(target);
-  if (!release.manifest.targets[target]) throw new Error(`This release supports macOS Apple Silicon (arm64). No runtime for ${target} is included.`);
+  if (!release.manifest.targets[target]) throw new Error(`No runtime for ${target} is included in this release. Supported targets: ${Object.keys(release.manifest.targets).join(', ')}.`);
   let packageRoot;
   try { packageRoot = await realpath(join(createRequire(join(root, 'package.json')).resolve(`${name}/package.json`), '..')); }
   catch { throw new Error(`The native package ${name}@${release.manifest.version} is missing. Reinstall phynite-lab with optional dependencies enabled.`); }

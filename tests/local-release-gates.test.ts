@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { NPM_RELEASE_TARGETS as DISTRIBUTION_TARGETS, platformPackageName, releaseSource } from '../packages/phynite-lab/lib/distribution.mjs';
 import { RELEASE_TARGETS, SCIENTIFIC_CHECKS, SMOKE_CHECKS, collectReleaseEvidence, prepareLocalRelease, sha256, verifyLocalRelease } from '../scripts/verify-local-release.mjs';
-import { publishLocalRelease } from '../scripts/publish-local-release.mjs';
+import { publishLocalRelease, waitForRegistryIntegrity } from '../scripts/publish-local-release.mjs';
 
 const exec = promisify(execFile);
 const version = '0.1.0';
@@ -22,7 +22,11 @@ async function createFixture() {
   await exec('git', ['init', '-q'], { cwd: source });
   await writeFile(join(source, 'README.md'), 'Synthetic gate fixture only. Not scientific evidence.\n');
   await writeFile(join(source, 'LICENSE'), license);
-  await exec('git', ['add', 'README.md', 'LICENSE'], { cwd: source });
+  for (const path of ['distribution/notices/bootstrap', 'distribution/sources/bootstrap', 'scripts/build-native-bootstrap.py', 'backend/local_api/native-bootstrap-lock.json', 'backend/local_api/sandbox.py']) {
+    await mkdir(dirname(join(source, path)), { recursive: true });
+    await cp(new URL('../' + path, import.meta.url), join(source, path), { recursive: true });
+  }
+  await exec('git', ['add', '.'], { cwd: source });
   await exec('git', ['-c', 'user.name=Gate Fixture', '-c', 'user.email=fixture@example.test', 'commit', '-qm', 'fixture'], { cwd: source });
   const commit = (await exec('git', ['rev-parse', 'HEAD'], { cwd: source })).stdout.trim();
   await exec('git', ['archive', '--format=tar.gz', '--prefix=fixture/', '--output', join(root, 'source.tar.gz'), commit], { cwd: source });
@@ -32,7 +36,7 @@ async function createFixture() {
     const name = target ? platformPackageName(target) : 'phynite-lab', directory = join(root, 'assembly', name, 'package');
     await mkdir(directory, { recursive: true });
     const metadata = { name, version, license: 'AGPL-3.0-only', ...(target ? { os: [target.split('-')[0]], cpu: [target.split('-')[1]], dependencies: { 'synthetic-bundled-runtime': '0.0.0' }, bundledDependencies: ['synthetic-bundled-runtime'] }
-      : { os: ['darwin'], cpu: ['arm64'], optionalDependencies: Object.fromEntries(DISTRIBUTION_TARGETS.map(value => [platformPackageName(value), version])) }) };
+      : { os: ['darwin', 'linux'], cpu: ['arm64', 'x64'], optionalDependencies: Object.fromEntries(DISTRIBUTION_TARGETS.map(value => [platformPackageName(value), version])) }) };
     const manifest: Record<string, any> = { schemaVersion: 2, kind: target ? 'runtime' : 'launcher', version, source: releaseSource(commit), ...(target ? { target } : { targets: Object.fromEntries(DISTRIBUTION_TARGETS.map(value => [value, { package: platformPackageName(value), version }])) }) }; // eslint-disable-line @typescript-eslint/no-explicit-any
     if (target) {
       await mkdir(join(directory, 'node_modules/synthetic-bundled-runtime'), { recursive: true });
@@ -60,6 +64,16 @@ async function createFixture() {
       }
       await writeFile(join(directory, 'bundled-notices.json'), JSON.stringify({ schemaVersion: 1, format: 'phynite-bundled-js-notice-index', reports, packages: [] }));
       manifest.bundledNotices = { path: 'bundled-notices.json', sha256: await sha256(join(directory, 'bundled-notices.json')), noticesSha256: createHash('sha256').update('Synthetic gate fixture.').digest('hex') };
+      if (target.startsWith('linux-')) {
+        const bootstrap = join(directory, 'bootstrap');
+        await mkdir(bootstrap);
+        await writeFile(join(bootstrap, 'bwrap'), 'Synthetic test binary. Never native isolation evidence.');
+        await cp(join(source, 'distribution/notices/bootstrap'), join(bootstrap, 'notices'), { recursive: true });
+        const lock = JSON.parse(await readFile(join(source, 'backend/local_api/native-bootstrap-lock.json'), 'utf8'));
+        await writeFile(join(bootstrap, 'source-lock.json'), JSON.stringify(lock.targets[target]));
+        await writeFile(join(bootstrap, 'manifest.json'), JSON.stringify({ schemaVersion: 1, target, minimumGlibc: '2.39', tools: { bwrap: { executable: 'bwrap', sha256: await sha256(join(bootstrap, 'bwrap')), libraries: [] } }, notices: 'notices', sourceLock: 'source-lock.json' }));
+        manifest.bootstrap = { directory: 'bootstrap', sha256: await sha256(join(bootstrap, 'manifest.json')) };
+      }
     }
     await writeFile(join(directory, 'package.json'), JSON.stringify(metadata));
     await writeFile(join(directory, 'distribution.json'), JSON.stringify(manifest));
@@ -118,7 +132,7 @@ test('complete synthetic schema validates offline and publisher defaults to a ve
   const root = await fixture();
   try {
     const verified = await verifyLocalRelease(join(root, 'release.json'));
-    assert.equal(verified.packages.size, 2); assert.equal(verified.release.evidence.length, 1);
+    assert.equal(verified.packages.size, 1 + DISTRIBUTION_TARGETS.length); assert.equal(verified.release.evidence.length, DISTRIBUTION_TARGETS.length);
     const result = await publishLocalRelease(join(root, 'release.json'), { confirmVersion: version });
     assert.equal(result.published, false); assert.equal(result.order.at(-1), 'phynite-lab');
     await assert.rejects(publishLocalRelease(join(root, 'release.json'), { confirmVersion: '0.2.0' }), /confirm-version/);
@@ -133,13 +147,50 @@ test('every shipped platform requires evidence and cannot be waived', async () =
   } finally { await rm(root, { recursive: true }); }
 });
 
+test('Linux requires its own real-environment evidence and a verified bootstrap', async () => {
+  for (const mode of ['missing-evidence', 'old-glibc', 'missing-bootstrap', 'tampered-tool', 'wrong-source-lock']) {
+    const root = await fixture();
+    try {
+      if (mode === 'missing-evidence') {
+        await editJson(join(root, 'release.json'), value => { value.evidence = value.evidence.filter((entry: { target: string }) => entry.target !== 'linux-x64'); });
+      } else if (mode === 'old-glibc') {
+        await editReport(root, 'linux-x64', 'smoke', value => { value.environment.glibcVersion = '2.38'; });
+      } else {
+        const name = platformPackageName('linux-x64'), path = join(root, `tarballs/${name}-${version}.tgz`), unpacked = join(root, 'unpacked');
+        await mkdir(unpacked); await exec('tar', ['-xzf', path, '-C', unpacked]);
+        if (mode === 'missing-bootstrap') await editJson(join(unpacked, 'package/distribution.json'), value => { delete value.bootstrap; });
+        if (mode === 'tampered-tool') await writeFile(join(unpacked, 'package/bootstrap/bwrap'), 'Modified after checksum collection.');
+        if (mode === 'wrong-source-lock') await editJson(join(unpacked, 'package/bootstrap/source-lock.json'), value => { value.packages = []; });
+        await exec('tar', ['-czf', path, '-C', unpacked, 'package']);
+        const hash = await sha256(path);
+        await editJson(join(root, 'release.json'), value => { value.packages.find((entry: { name: string }) => entry.name === name).sha256 = hash; });
+      }
+      await assert.rejects(verifyLocalRelease(join(root, 'release.json')), /Every released native target|glibc|bootstrap/i);
+    } finally { await rm(root, { recursive: true }); }
+  }
+});
+
+test('registry propagation waits for exact bytes and stops on authentication or integrity failures', async () => {
+  let attempts = 0, waits = 0;
+  const expected = 'sha512-qualified-test-tarball';
+  await waitForRegistryIntegrity('phynite-lab-runtime-linux-x64', version, expected, {
+    query: async () => ++attempts < 3 ? { code: 1, stdout: '', stderr: 'E404 No match found for version' } : { code: 0, stdout: JSON.stringify(expected), stderr: '' },
+    sleep: async () => { waits++; },
+  });
+  assert.equal(attempts, 3); assert.equal(waits, 2);
+  for (const response of [{ code: 1, stdout: '', stderr: 'E401 Authentication required' }, { code: 0, stdout: JSON.stringify('sha512-different-bytes'), stderr: '' }]) {
+    await assert.rejects(waitForRegistryIntegrity('phynite-lab', version, expected, { query: async () => response, sleep: async () => { assert.fail('A permanent failure must not retry.'); } }), /Authentication\/network failure|integrity mismatch/);
+  }
+  await assert.rejects(waitForRegistryIntegrity('phynite-lab', version, expected, { attempts: 2, query: async () => ({ code: 1, stdout: '', stderr: 'E404' }), sleep: async () => {} }), /has not propagated/);
+});
+
 test('unshipped platforms and qualification deferrals cannot widen or bypass this release', async () => {
   const root = await fixture();
   try {
     await editJson(join(root, 'release.json'), value => { value.qualification = { wsl2: 'deferred', reason: 'Unshipped platform' }; });
     await assert.rejects(verifyLocalRelease(join(root, 'release.json')), /deferrals are not supported/);
     await editJson(join(root, 'release.json'), value => { delete value.qualification; value.evidence[0].target = 'darwin-x64'; });
-    await assert.rejects(verifyLocalRelease(join(root, 'release.json')), /only macOS Apple Silicon evidence/);
+    await assert.rejects(verifyLocalRelease(join(root, 'release.json')), /exactly its own platform evidence/);
   } finally { await rm(root, { recursive: true }); }
 });
 

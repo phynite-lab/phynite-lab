@@ -28,11 +28,35 @@ Do not assemble a release using stale cores or application output from another
 commit or platform. Solver scientific libraries belong in the optional runtime,
 not the npm package. Do not include restricted pseudopotentials or potentials.
 
-The 0.1.0 npm release targets `darwin-arm64` (macOS Apple Silicon) only.
-Intel Macs, Linux and Windows/WSL2 are postponed. Portable source/build utilities
+The 0.1.1 npm release targets `darwin-arm64` (macOS Apple Silicon) and `linux-x64` (glibc >=2.39, including current Omarchy/Arch Linux).
+Intel Macs, Linux ARM64 and Windows/WSL2 are postponed. Portable source/build utilities
 remain available but do not expand this release's supported platforms.
 A target is supported only after actual native installation, isolation and
 scientific reference tests pass. A cross-platform dependency solve is insufficient.
+
+## Omarchy / Arch Linux x64
+
+Use Node.js >=22.13 and npm from your preferred user-managed Node installation.
+Install with `npm install -g phynite-lab`, then run `phynite-lab` in the normal
+desktop session. Scientific runtime installation is available under Setup; choose
+DFT, MD/analysis, or both. No solver, Docker, global Python or administrator
+command runs during npm installation. Do not omit npm optional dependencies.
+
+The Linux x64 package requires glibc >=2.39. It carries its own non-setuid
+bubblewrap and libcap rather than depending on an Ubuntu package manager. Runtime
+packages pin their full native library closure. Omarchy's Hyprland session opens
+the local app through `xdg-open`; use `phynite-lab --no-open` and the printed URL
+if no default browser is configured. Saved data stays in `~/.phynite-lab` across
+updates.
+
+Unprivileged user namespaces must be available in the running kernel and policy.
+Setup's real write/network confinement probe determines availability; a disabled
+namespace or security-policy restriction blocks manual MD and runtime setup with
+its actual diagnostic. The application never disables those restrictions. Ubuntu
+CI uses an exact-path, ephemeral AppArmor fixture rather than a global sysctl
+change; this fixture is never installed on users' machines. Direct Omarchy desktop
+testing is not part of this release's evidence; native qualification uses Ubuntu
+24.04 x64.
 
 ## Assemble separate launcher and platform packages
 
@@ -110,8 +134,8 @@ process fixtures are rejected by executable magic. It never downloads a browser.
 
 ```sh
 node scripts/smoke-local-distribution.mjs \
-  --tarball /path/to/tarballs/phynite-lab-0.1.0.tgz \
-  --runtime-tarball /path/to/tarballs/phynite-lab-runtime-darwin-arm64-0.1.0.tgz \
+  --tarball /path/to/tarballs/phynite-lab-0.1.1.tgz \
+  --runtime-tarball /path/to/tarballs/phynite-lab-runtime-darwin-arm64-0.1.1.tgz \
   --output /path/to/new-evidence
 ```
 

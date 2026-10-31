@@ -24,7 +24,7 @@ const fail = message => { throw new Error(message); };
 
 /** Every shipped platform must pass; unshipped targets cannot waive a gate. */
 export function requiredReleaseTargets(qualification) {
-  if (qualification !== undefined) fail('This release includes only macOS Apple Silicon; qualification deferrals are not supported.');
+  if (qualification !== undefined) fail('Qualification deferrals are not supported for released native targets.');
   return RELEASE_TARGETS;
 }
 
@@ -58,7 +58,12 @@ function run(executable, args, input) {
     child.stderr.on('data', value => { stderr += value; });
     child.on('error', reject);
     child.on('close', code => code === 0 ? accept(stdout) : reject(new Error(`Release archive inspection failed (${executable}, exit ${code}): ${stderr.slice(0, 500)}`)));
-    if (input) input(child.stdin).catch(reject); else child.stdin.end();
+    if (input) input(child.stdin).catch(error => {
+      // git needs only the leading archive header and closes stdin early on
+      // larger source bundles. Its exit status still verifies that header;
+      // the complete archive/checksum is validated independently below.
+      if (error.code !== 'EPIPE' || executable !== 'git' || args[0] !== 'get-tar-commit-id') reject(error);
+    }); else child.stdin.end();
   });
 }
 
@@ -79,13 +84,51 @@ async function tarMemberDigest(path, member) {
   });
 }
 
+async function verifyLinuxBootstrap(item, sourceArchive, sourcePrefix, sourceEntries) {
+  const manifest = JSON.parse(await tarMember(item.filename, 'package/distribution.json'));
+  if (manifest.bootstrap?.directory !== 'bootstrap' || !HASH.test(manifest.bootstrap.sha256 ?? '')) fail('Linux packages require a checksummed isolation bootstrap.');
+  const text = await tarMember(item.filename, 'package/bootstrap/manifest.json');
+  if (createHash('sha256').update(text).digest('hex') !== manifest.bootstrap.sha256) fail('Linux bootstrap manifest checksum mismatch.');
+  const bootstrap = JSON.parse(text);
+  if (bootstrap.schemaVersion !== 1 || bootstrap.target !== item.target || bootstrap.minimumGlibc !== '2.39'
+      || Object.keys(bootstrap.tools ?? {}).join(',') !== 'bwrap' || bootstrap.notices !== 'notices' || bootstrap.sourceLock !== 'source-lock.json') fail('Linux bootstrap target, baseline or source metadata is invalid.');
+  const tool = bootstrap.tools.bwrap;
+  if (!tool || !Array.isArray(tool.libraries) || tool.libraries.length > 100) fail('Linux bootstrap tool inventory is invalid.');
+  const seen = new Set();
+  for (const record of [{ path: tool.executable, sha256: tool.sha256 }, ...tool.libraries]) {
+    if (typeof record?.path !== 'string' || record.path.startsWith('/') || record.path.includes('\\') || record.path.split('/').some(part => !part || part === '.' || part === '..')
+        || seen.has(record.path) || !HASH.test(record.sha256 ?? '')) fail('Linux bootstrap contains an unsafe file record.');
+    seen.add(record.path);
+    const actual = await tarMemberDigest(item.filename, `package/bootstrap/${record.path}`);
+    if (!actual.bytes || actual.sha256 !== record.sha256) fail('Linux bootstrap executable/library checksum mismatch.');
+  }
+  const lock = JSON.parse(await tarMember(sourceArchive, sourcePrefix + 'backend/local_api/native-bootstrap-lock.json'));
+  const packagedLock = JSON.parse(await tarMember(item.filename, 'package/bootstrap/source-lock.json'));
+  assert.deepEqual(packagedLock, lock.targets?.[item.target], 'Packaged Linux bootstrap lock differs from its corresponding source.');
+  const noticePrefix = 'distribution/notices/bootstrap/';
+  for (const entry of sourceEntries.filter(name => name.startsWith(sourcePrefix + noticePrefix) && !name.endsWith('/'))) {
+    const relative = entry.slice((sourcePrefix + noticePrefix).length);
+    const original = await tarMemberDigest(sourceArchive, entry), packaged = await tarMemberDigest(item.filename, 'package/bootstrap/notices/' + relative);
+    if (original.sha256 !== packaged.sha256) fail('Linux bootstrap notices differ from the corresponding source.');
+  }
+  const sources = JSON.parse(await tarMember(sourceArchive, sourcePrefix + noticePrefix + 'sources.json'));
+  if (sources.schemaVersion !== 1 || !sources.components?.bubblewrap || !sources.components?.libcap) fail('Linux bootstrap corresponding-source inventory is incomplete.');
+  for (const component of Object.values(sources.components)) {
+    const archive = component.upstreamArchive;
+    if (!archive?.localPath?.startsWith('distribution/sources/bootstrap/') || archive.localPath.split('/').includes('..') || !HASH.test(archive.sha256 ?? '')) fail('Linux bootstrap source archive metadata is invalid.');
+    const actual = await tarMemberDigest(sourceArchive, sourcePrefix + archive.localPath);
+    if (actual.sha256 !== archive.sha256 || actual.bytes !== archive.sizeBytes) fail('Linux bootstrap corresponding-source checksum/size mismatch.');
+  }
+  for (const path of sources.releaseSourceFiles ?? []) if (!sourceEntries.includes(sourcePrefix + path)) fail('Linux bootstrap is missing corresponding build or source files.');
+}
+
 async function verifyPackage(path, item, release, expectedLicense) {
   const metadata = JSON.parse(await tarMember(path, 'package/package.json'));
   const manifest = JSON.parse(await tarMember(path, 'package/distribution.json'));
   const license = await tarMember(path, 'package/LICENSE');
   const notices = await tarMember(path, 'package/THIRD_PARTY_NOTICES.md');
   const entries = (await run('tar', ['-tzf', path])).trim().split('\n');
-  if ((await run('tar', ['-tvzf', path])).trim().split('\n').some(entry => !/^[-d]/.test(entry))) fail(`${item.name}: npm archive links or special files are forbidden.`);
+  if ((await run('tar', ['-tvzf', path])).trim().split('\n').some(entry => !/^[-d]/.test(entry) || /[sS]/.test(entry[3] + entry[6]))) fail(`${item.name}: npm archive links, setuid/setgid or special files are forbidden.`);
   if (entries.some(entry => !entry.startsWith('package/') || entry.includes('\\') || entry.split('/').includes('..') || prohibitedDistributionPath(entry))) fail(`${item.name}: unsafe or prohibited npm archive entry.`);
   if (metadata.name !== item.name || metadata.version !== release.version || metadata.license !== 'AGPL-3.0-only'
       || license !== expectedLicense || !license.includes('GNU AFFERO GENERAL PUBLIC LICENSE') || !license.includes('Version 3, 19 November 2007') || !notices.trim()) fail(`${item.name}: invalid package identity, license or notices.`);
@@ -93,7 +136,7 @@ async function verifyPackage(path, item, release, expectedLicense) {
   if (manifest.schemaVersion !== 2 || manifest.version !== release.version || manifest.source?.commit !== release.source.commit || manifest.source?.repository !== RELEASE_REPOSITORY
       || manifest.source?.url !== `${RELEASE_REPOSITORY}/tree/${release.source.commit}` || manifest.source?.archiveUrl !== `${RELEASE_REPOSITORY}/archive/${release.source.commit}.tar.gz`) fail(`${item.name}: exact public corresponding source differs from the release inventory.`);
   if (item.name === 'phynite-lab') {
-    if (item.target !== undefined || manifest.kind !== 'launcher' || metadata.os?.join(',') !== 'darwin' || metadata.cpu?.join(',') !== 'arm64'
+    if (item.target !== undefined || manifest.kind !== 'launcher' || [...(metadata.os ?? [])].sort().join(',') !== [...new Set(DISTRIBUTION_TARGETS.map(target => target.split('-')[0]))].sort().join(',') || [...(metadata.cpu ?? [])].sort().join(',') !== [...new Set(DISTRIBUTION_TARGETS.map(target => target.split('-')[1]))].sort().join(',')
         || Object.keys(manifest.targets ?? {}).sort().join(',') !== [...DISTRIBUTION_TARGETS].sort().join(',') || Object.keys(metadata.dependencies ?? {}).length
         || Object.keys(metadata.optionalDependencies ?? {}).sort().join(',') !== DISTRIBUTION_TARGETS.map(platformPackageName).sort().join(',')) fail('Launcher must depend on exactly the released native packages.');
     for (const target of DISTRIBUTION_TARGETS) {
@@ -213,6 +256,7 @@ export async function verifyLocalRelease(inventoryPath, expected = {}) {
     packages.set(item.name, { ...item, filename, nativeInventory });
   }
   const prefix = sourceLicensePath.slice(0, -'LICENSE'.length), sources = new Map();
+  for (const item of packages.values()) if (item.target?.startsWith('linux-')) await verifyLinuxBootstrap(item, archive, prefix, sourceEntries);
   for (const item of packages.values()) for (const component of item.nativeInventory?.components ?? []) {
     const evidence = component.staticSourceEvidence;
     if (!evidence) continue;
@@ -229,7 +273,7 @@ export async function verifyLocalRelease(inventoryPath, expected = {}) {
     if (actual.sha256 !== record.sha256 || record.bytes !== undefined && actual.bytes !== record.bytes) fail('Native corresponding source checksum or size mismatch.');
   }
   const requiredTargets = requiredReleaseTargets(release.qualification);
-  if (!Array.isArray(release.evidence) || release.evidence.length !== requiredTargets.length || new Set(release.evidence.map(item => item.target)).size !== requiredTargets.length || release.evidence.some(item => !requiredTargets.includes(item.target))) fail('Every released native target must pass; only macOS Apple Silicon evidence is accepted for this release.');
+  if (!Array.isArray(release.evidence) || release.evidence.length !== requiredTargets.length || new Set(release.evidence.map(item => item.target)).size !== requiredTargets.length || release.evidence.some(item => !requiredTargets.includes(item.target))) fail('Every released native target must pass with exactly its own platform evidence.');
   for (const item of release.evidence) {
     await verifyEvidence(root, item, 'smoke', release, packages);
     await verifyEvidence(root, item, 'scientific', release, packages);

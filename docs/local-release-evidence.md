@@ -2,9 +2,8 @@
 
 A push runs source CI. A `release/**` branch push also builds and qualifies a native candidate without publishing. Publication is an explicit `Local native release` workflow dispatch against the public repository, with a version already committed in both package manifests. The release scripts never deploy the hosted application.
 
-The `0.1.0` release includes only macOS Apple Silicon (`darwin-arm64`). Intel,
-Linux and WSL2 packages are postponed. The native workflow builds the exact public
-commit, installs the two resulting npm tarballs in a clean prefix, and requires
+The `0.1.1` release includes macOS Apple Silicon (`darwin-arm64`) and Linux x64 (`linux-x64`, glibc >=2.39). Linux builders use Ubuntu 24.04. Direct testing on an Omarchy desktop is not claimed. Intel Macs, Linux ARM64 and WSL2 are not included. The native workflow builds the exact public
+commit, installs the launcher and matching platform tarball in a clean prefix, and requires
 all browser, persistence, scientific reference and sandbox checks to pass.
 `verified-release` contains the source archive, tarballs and checksummed evidence.
 Normal pushes never publish. A maintainer can publish this same verified bundle
@@ -16,23 +15,23 @@ only when registry tarballs have identical SHA-512 integrity.
 
 ```bash
 node scripts/verify-local-release.mjs prepare \
-  --directory build/release --version 0.1.0 \
+  --directory build/release --version 0.1.1 \
   --source-commit FULL_PUBLIC_COMMIT --source-archive source.tar.gz
 node scripts/verify-local-release.mjs verify \
   --inventory build/release/release.json \
-  --version 0.1.0 --source-commit FULL_PUBLIC_COMMIT
+  --version 0.1.1 --source-commit FULL_PUBLIC_COMMIT
 node scripts/publish-local-release.mjs \
-  --inventory build/release/release.json --confirm-version 0.1.0
+  --inventory build/release/release.json --confirm-version 0.1.1
 ```
 
-For a first publication, npm must already know each package before its settings can be configured with a trusted publisher. After all required gates pass, download the complete verified bundle and use the maintainer's official `npm login` session with the publisher locally. Then configure trusted publishing for both package names, the public repository and `local-release.yml`; later releases can use the workflow's OIDC identity. Do not create unqualified placeholder versions merely to configure npm. A two-factor authentication or publisher setup requirement remains an explicit account step; never embed a token in source or artifacts.
+For a first publication, npm must already know each package before its settings can be configured with a trusted publisher. After all required gates pass, download the complete verified bundle and use the maintainer's official `npm login` session with the publisher locally. Then configure trusted publishing for every released package name, the public repository and `local-release.yml`; later releases can use the workflow's OIDC identity. Do not create unqualified placeholder versions merely to configure npm. A two-factor authentication or publisher setup requirement remains an explicit account step; never embed a token in source or artifacts.
 
 The publisher defaults to a verified dry run. `--publish` explicitly enables registry writes; `--provenance` additionally enables npm provenance in the trusted GitHub workflow.
 
 The inventory format is `phynite-local-release-candidate`, schema version 1. It
 identifies the release version, exact public source commit, SHA-256-bound
-`git archive` source tarball, the launcher and macOS ARM64 runtime tarballs, and
-the actual target's smoke/scientific reports. Missing macOS evidence, unshipped
+`git archive` source tarball, the launcher and both platform runtime tarballs, and
+each actual target's smoke/scientific reports. Missing platform evidence, unshipped
 targets and qualification deferrals are rejected. No scientific gate is waived.
 
 Reports identify the exact source commit, version, launcher/runtime SHA-256 and actual platform, architecture, Node version, kernel release, WSL2 status and Linux glibc version. Every referenced artifact must be a nonempty regular file within its report directory and match its checksum. Missing, failed, mutated, mismatched or unsupported evidence blocks publication. Tests using synthetic evidence exercise these rules; synthetic test fixtures never qualify a release.
@@ -54,3 +53,7 @@ Scientific reports require runtime installation, a QE job submitted through the 
 Raw acceptance directories contain local test state and must remain private. Use `verify-local-release.mjs collect --report RAW/report.json --output NEW_PUBLIC_DIR` to retain only explicit checksummed screenshots, logs and scientific attachments. The collector rejects identity/credential files and test databases. GitHub release evidence contains those collected files, never a raw test data directory.
 
 Every native executable must still pass the real acceptance producer on its target. A successful report parser, packaging test or build alone does not establish solver or sandbox qualification. No platform is supported for publication until its real gate passes.
+
+## Registry acceptance after publication
+
+The workflow also checks a fresh global npm install, native startup, status/stop, project creation and restart persistence on macOS ARM64 and Linux x64 with an empty home and a Node-only PATH. Before a version is published, this job explicitly reports acceptance pending. Rerun its matrix jobs against the same source commit after initial publication; only their actual successful reports qualify registry installation. `verify-registry-install.mjs` uploads a sanitized report, not its temporary database, sessions or private process logs. The publisher waits up to ten minutes for npm staged-placeholder propagation, verifies the exact operational version integrity, and stops on authentication or different-byte failures.
