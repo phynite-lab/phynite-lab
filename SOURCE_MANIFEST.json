@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "upstreamCommit": "47f976b35bbf9207cbb0f962dddac5a52a6683e3",
+  "upstreamCommit": "e05f9c89496805609ef25850e1f758f452bf603b",
   "files": {
     ".github/actionlint.yaml": "0c504353abd618e30376593b3198fc1fc9c69641d3eeb681e5c1cf4160dce350",
     ".github/scripts/native-ci-apparmor.py": "454d74d30f66d12f58ee3b8cd75ebf83200b33b5e01d87e9c518b49e826ff32a",
     ".github/workflows/ci.yml": "09bccd8cbfa05625616bf2fc27ab0aa356a3db0e5f4b5326cde79c14d09875bc",
-    ".github/workflows/local-release.yml": "61700a06fad64b396921c9c29a0feb8a4570fdac19b03c3dbe93c61fbe76665c",
+    ".github/workflows/local-release.yml": "95a838db217fb9ec7f7f23069e7f27bb80015139ffa0d1d94cec7f3e49a429a9",
     ".github/workflows/local-wsl2-qualification.yml": "b8d4ba9f1e4ae1c540b0baa9c03cc0db6ecf3e5820eb2ff953a88730a6ec3382",
     ".gitignore": "d4dc45197c071ef2c56650868057ae51b5af9754410e6a9bf7fecf4ee725bbb3",
     "AGENTS.md": "fc36ce3902e88a62a98871fd08465981b5bec8c24ea8297bbc96ae4d9a3a1d9a",
