@@ -417,7 +417,14 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
     const observer = new ResizeObserver(entries => {
       const width = element.clientWidth, height = element.querySelector('.workflow-panes')?.clientHeight ?? entries[0].contentRect.height;
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => { setContainerWidth(width); setContainerHeight(height); });
+      frame = requestAnimationFrame(() => {
+        // ResizeObserver can report the same box repeatedly while split panes
+        // settle. Avoid a no-op React commit: rendering the workspace from
+        // inside observer delivery can itself schedule another delivery and
+        // surface the browser's "undelivered notifications" warning.
+        setContainerWidth(previous => previous === width ? previous : width);
+        setContainerHeight(previous => previous === height ? previous : height);
+      });
     });
     observer.observe(element); const panes = element.querySelector('.workflow-panes'); if (panes) observer.observe(panes); return () => { observer.disconnect(); cancelAnimationFrame(frame); };
   }, []);

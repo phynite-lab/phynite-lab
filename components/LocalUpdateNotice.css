@@ -1,0 +1,13 @@
+.local-update-notice { position: fixed; right: 20px; bottom: 20px; z-index: 160; width: min(360px, calc(100vw - 32px)); padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); box-shadow: 0 8px 32px #0002; font-size: 13px; }
+.local-update-heading { display: flex; gap: 8px; align-items: center; padding-right: 20px; }
+.local-update-heading svg { flex: none; }
+.local-update-heading strong { font-size: 13px; }
+.local-update-notice p { margin: 8px 0; color: var(--muted-ink); }
+.local-update-notice code { display: block; overflow-wrap: anywhere; padding: 10px; border-radius: 8px; background: var(--surface-subtle); font-size: 12px; user-select: all; }
+.local-update-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0; }
+.local-update-actions a { color: inherit; text-underline-offset: 3px; }
+.local-update-actions button { display: inline-flex; align-items: center; gap: 6px; }
+.local-update-notice small { display: block; color: var(--muted-ink); line-height: 1.5; }
+.local-update-dismiss { position: absolute; top: 9px; right: 9px; display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 6px; background: transparent; color: var(--muted-ink); cursor: pointer; }
+.local-update-dismiss:hover { background: var(--surface-subtle); color: var(--ink); }
+@media (max-width: 600px) { .local-update-notice { right: 16px; bottom: 16px; padding: 16px; } }

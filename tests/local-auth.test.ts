@@ -31,6 +31,33 @@ async function compiled(file: string): Promise<string> {
 const login = (await import(await compiled('../app/api/auth/login/route.ts'))).POST as (request: NextRequest) => Promise<Response>;
 const logout = (await import(await compiled('../app/api/auth/logout/route.ts'))).POST as (request: NextRequest) => Promise<Response>;
 const session = (await import(await compiled('../app/api/auth/session/route.ts'))).GET as (request: NextRequest) => Promise<Response>;
+const localRoute = await import(await compiled('../app/api/local/[...path]/route.ts'));
+
+test('npm update route is local-only, read-only and never forwards a service token to npm', async t => {
+  fixture(t);
+  const oldVersion = process.env.PHYNITE_RELEASE_VERSION;
+  t.after(() => { if (oldVersion === undefined) delete process.env.PHYNITE_RELEASE_VERSION; else process.env.PHYNITE_RELEASE_VERSION = oldVersion; });
+  process.env.PHYNITE_RELEASE_VERSION = '0.1.1';
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', async (url: string, init: RequestInit) => {
+    calls++;
+    assert.equal(url, 'https://registry.npmjs.org/phynite-lab/latest');
+    assert.equal(new Headers(init.headers).get('authorization'), null);
+    return Response.json({ name: 'phynite-lab', version: '0.1.2' });
+  });
+  const context = { params: Promise.resolve({ path: ['updates'] }) };
+  process.env.PHYNITE_BUILD_TARGET = 'hosted';
+  assert.equal((await localRoute.GET(new NextRequest('http://127.0.0.1:3000/api/local/updates'), context)).status, 404);
+  assert.equal(calls, 0);
+  process.env.PHYNITE_BUILD_TARGET = 'local';
+  assert.equal((await localRoute.POST(request('/api/local/updates'), context)).status, 404);
+  assert.equal(calls, 0);
+  const response = await localRoute.GET(new NextRequest('http://127.0.0.1:3000/api/local/updates'), context);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.equal((await response.json()).status, 'available');
+  assert.equal(calls, 1);
+});
 
 function fixture(t: TestContext) {
   for (const [key, value] of Object.entries({

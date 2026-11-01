@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { NativeAiRegistry } from '../packages/phynite-lab/lib/native-ai.mjs';
 import { createAgyPolicy } from '../packages/phynite-lab/lib/agy-policy.mjs';
@@ -31,6 +31,48 @@ for await (const line of console) { /* Should never receive a prompt when tools 
 
 async function executable(dir, name, source) { const path = join(dir, name); await writeFile(path, source, { mode: 0o700 }); await chmod(path, 0o700); return path; }
 
+test('CLI discovery finds user npm bins and the Antigravity alias without shell PATH setup', { concurrency: false }, async () => {
+  const dir = await mkdtemp('/tmp/phynite-native-path-test-');
+  const home = process.env.HOME, path = process.env.PATH;
+  const bin = join(dir, '.local/share/pnpm');
+  await mkdir(bin, { recursive: true });
+  await executable(bin, 'codex', codexStub);
+  await executable(bin, 'antigravity', agyStub);
+  const registry = new NativeAiRegistry({ dataDir: join(dir, 'data') });
+  try {
+    process.env.HOME = dir; process.env.PATH = '';
+    assert.equal((await registry.detect('codex')).command, join(bin, 'codex'));
+    assert.equal((await registry.detect('antigravity')).command, join(bin, 'antigravity'));
+    const added = await registry.addAccount('antigravity', 'Personal');
+    assert.ok(added.command.includes(join(bin, 'antigravity')));
+    const status = await registry.status();
+    assert.equal(status.providers.find(item => item.id === 'antigravity').accounts.find(item => item.id === added.account.id).loginCommand, added.command);
+  } finally {
+    if (home === undefined) delete process.env.HOME; else process.env.HOME = home;
+    if (path === undefined) delete process.env.PATH; else process.env.PATH = path;
+    await registry.close(); await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('Antigravity login completes while restricted model checks continue in background', async () => {
+  const dir = await mkdtemp('/tmp/phynite-native-login-test-');
+  const registry = new NativeAiRegistry({ dataDir: dir });
+  registry.version = async () => '1.4.11';
+  registry.agyModels = async () => [{ id: 'antigravity/gemini-synthetic', provider: 'antigravity', name: 'Synthetic', available: false }];
+  let release;
+  const blocked = new Promise(resolve => { release = resolve; });
+  let probing = false;
+  registry.probeModels = async () => { probing = true; await blocked; };
+  registry.probe = async () => { throw new Error('Login must not wait for inference'); };
+  try {
+    const result = await registry.login('antigravity');
+    assert.equal(result.connected, true);
+    assert.equal(result.verified, false);
+    assert.equal(probing, true);
+    assert.equal((await registry.status()).providers.find(item => item.id === 'antigravity').optedIn, true);
+  } finally { release(); await registry.close(); await rm(dir, { recursive: true, force: true }); }
+});
+
 test('status is detection-only and catalog is persisted atomically', async () => {
   const dir = await mkdtemp('/tmp/phynite-native-test-'), bin = await mkdtemp('/tmp/phynite-native-bin-');
   const codex = await executable(bin, 'codex', codexStub), registry = new NativeAiRegistry({ dataDir: dir, executables: { codex } });
@@ -43,6 +85,21 @@ test('status is detection-only and catalog is persisted atomically', async () =>
   assert.equal(persisted.models[0].available, false);
   await registry.disconnect('codex');
   await registry.close();
+});
+
+test('reviewed CLI minor lines accept compatible patch releases and reject new protocol lines', async () => {
+  const dir = await mkdtemp('/tmp/phynite-native-version-test-'), bin = await mkdtemp('/tmp/phynite-native-version-bin-');
+  const compatible = await executable(bin, 'codex-compatible', codexStub.replace('0.162.1', '0.162.2'));
+  const registry = new NativeAiRegistry({ dataDir: dir, executables: { codex: compatible } });
+  const cwd = await registry.scratch();
+  assert.equal(await registry.version('codex', cwd), '0.162.2');
+  await rm(cwd, { recursive: true, force: true });
+  const unsupported = await executable(bin, 'codex-unsupported', codexStub.replace('0.162.1', '0.163.0'));
+  const other = new NativeAiRegistry({ dataDir: `${dir}-other`, executables: { codex: unsupported } });
+  const otherCwd = await other.scratch();
+  await assert.rejects(other.version('codex', otherCwd), { code: 'UNVERIFIED_VERSION' });
+  await rm(otherCwd, { recursive: true, force: true });
+  await registry.close(); await other.close();
 });
 
 test('Codex usage refresh reports provider windows and real reset timestamps', async () => {

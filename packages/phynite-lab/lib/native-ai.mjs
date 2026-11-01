@@ -7,7 +7,19 @@ import { createAgyPolicy } from './agy-policy.mjs';
 
 // This adapter never exports, copies, or reads CLI authentication files. The CLI
 // owns sign-in. Inference is an explicitly opted-in operation through that CLI.
-const VERIFIED_VERSIONS = { codex: ['0.162.1'], antigravity: ['1.4.10', '1.4.11'] };
+// The wire protocols are verified by the handshake below. Keep the version
+// gate at the reviewed minor line so a patch release from the official CLI
+// does not strand Linux users, while an unrelated major/minor protocol cannot
+// enter the bridge without a new review.
+const VERIFIED_VERSION_RANGES = {
+  codex: { minimum: [0, 162, 1], maximumExclusive: [0, 163, 0] },
+  antigravity: { minimum: [1, 4, 10], maximumExclusive: [1, 5, 0] },
+};
+const shellQuote = value => `'${value.replaceAll("'", "'\\''")}'`;
+function accountLoginCommand(provider, homeDir, executable) {
+  const command = shellQuote(executable?.command ?? (provider === 'codex' ? 'codex' : 'agy'));
+  return provider === 'codex' ? `CODEX_HOME=${shellQuote(homeDir)} ${command} login` : `HOME=${shellQuote(homeDir)} XDG_CONFIG_HOME=${shellQuote(join(homeDir, '.config'))} ${command}`;
+}
 const MAX_BYTES = 12 * 1024 * 1024;
 const MAX_LINE = 2 * 1024 * 1024;
 const MAX_INPUT = 4 * 1024 * 1024;
@@ -40,7 +52,31 @@ async function executable(spec, fallback) {
   const command = typeof value === 'string' ? value : value?.command;
   const args = typeof value === 'string' ? [] : value?.args ?? [];
   if (typeof command !== 'string' || !Array.isArray(args) || args.some((item) => typeof item !== 'string')) throw error('INVALID_EXECUTABLE', 'Invalid CLI executable configuration.');
-  const candidates = isAbsolute(command) || command.includes('/') ? [resolve(command)] : (process.env.PATH ?? '').split(delimiter).filter(Boolean).map((part) => join(part, command));
+  const searchPath = (process.env.PATH ?? '').split(delimiter).filter(Boolean);
+  // Desktop launchers and shells on Linux frequently do not export the npm
+  // user bin directory. Include only conventional per-user/system bin paths;
+  // the selected executable is still required to be executable before use.
+  if (!isAbsolute(command) && !command.includes('/')) {
+    const home = process.env.HOME;
+    const fallbackDirs = [
+      home && join(home, '.local', 'bin'),
+      home && join(home, '.local', 'share', 'pnpm'),
+      home && join(home, '.local', 'share', 'npm', 'bin'),
+      home && join(home, '.config', 'npm', 'bin'),
+      home && join(home, '.npm', 'bin'),
+      home && join(home, '.bun', 'bin'),
+      home && join(home, '.volta', 'bin'),
+      home && join(home, '.nvm', 'current', 'bin'),
+      home && join(home, '.npm-global', 'bin'),
+      dirname(process.execPath),
+      process.platform === 'linux' ? '/usr/local/bin' : null,
+      process.platform === 'linux' ? '/usr/bin' : null,
+      process.platform === 'linux' ? '/snap/bin' : null,
+      process.platform === 'darwin' ? '/opt/homebrew/bin' : null,
+    ].filter((part) => typeof part === 'string');
+    for (const part of fallbackDirs) if (!searchPath.includes(part)) searchPath.push(part);
+  }
+  const candidates = isAbsolute(command) || command.includes('/') ? [resolve(command)] : searchPath.map((part) => join(part, command));
   for (const path of candidates) {
     try { await access(path, constants.X_OK); return { command: path, args }; } catch { /* Try the next PATH entry. */ }
   }
@@ -312,7 +348,16 @@ export class NativeAiRegistry {
     this.writes = write;
     return write;
   }
-  async detect(provider) { return executable(this.executables[provider] ?? (provider === 'antigravity' ? this.executables.agy : undefined), provider === 'codex' ? 'codex' : 'agy'); }
+  async detect(provider) {
+    const configured = this.executables[provider] ?? (provider === 'antigravity' ? this.executables.agy : undefined);
+    if (configured) return executable(configured);
+    const candidates = provider === 'codex' ? ['codex'] : ['agy', 'antigravity'];
+    for (const candidate of candidates) {
+      const found = await executable(undefined, candidate);
+      if (found) return found;
+    }
+    return null;
+  }
   providerControl(provider) {
     if (!this.providerControls.has(provider)) this.providerControls.set(provider, new AbortController());
     return this.providerControls.get(provider);
@@ -324,7 +369,7 @@ export class NativeAiRegistry {
     for (const id of ['codex', 'antigravity']) {
       const detected = await this.detect(id);
       const saved = this.state.providers[id];
-      const accounts = (this.state.accounts[id] ?? []).map(account => ({ ...account, active: account.id === this.state.activeAccounts[id], quota: account.quota ?? { remaining: null, limit: null, resetAt: null, source: 'not_reported_by_cli' } }));
+      const accounts = (this.state.accounts[id] ?? []).map(account => ({ ...account, ...(account.homeDir ? { loginCommand: accountLoginCommand(id, account.homeDir, detected) } : {}), active: account.id === this.state.activeAccounts[id], quota: account.quota ?? { remaining: null, limit: null, resetAt: null, source: 'not_reported_by_cli' } }));
       providers.push({ id, installed: Boolean(detected), optedIn: saved?.optedIn === true, status: this.logins.has(id) ? 'login_pending' : saved?.optedIn ? saved.status ?? 'connected' : 'disconnected', checkingModels: this.modelRefreshes.has(id) || this.probeJobs.has(id), version: saved?.version ?? null, checkedAt: saved?.checkedAt ?? null, toolsVerified: this.catalog.models.some((model) => model.provider === id && model.available && this.catalog.capabilities.models[model.id]?.tools === true), activeAccountId: this.state.activeAccounts[id], accounts, note: 'Status uses cached verification; connection checks occur only after explicit opt-in.' });
     }
     return { providers, models: structuredClone(this.catalog.models), capabilities: structuredClone(this.catalog.capabilities) };
@@ -480,7 +525,7 @@ export class NativeAiRegistry {
     this.state.accounts[provider] ??= [];
     this.state.accounts[provider].push(account);
     await this.save();
-    const command = provider === 'codex' ? `CODEX_HOME=${JSON.stringify(homeDir)} codex login` : `HOME=${JSON.stringify(homeDir)} XDG_CONFIG_HOME=${JSON.stringify(join(homeDir, '.config'))} agy`;
+    const command = accountLoginCommand(provider, homeDir, await this.detect(provider));
     return { account: { ...account, active: false }, command, instructions: `Run this command in a terminal to sign in ${clean}. Phynite never reads or copies the CLI session: ${command}` };
   }
   async switchAccount(providerValue, accountId) {
@@ -511,7 +556,12 @@ export class NativeAiRegistry {
   async version(provider, cwd, signal) {
     const output = await this.runText(provider, ['--version'], cwd, 20_000, signal);
     const version = /\b(\d+\.\d+\.\d+)\b/.exec(output)?.[1];
-    if (!VERIFIED_VERSIONS[provider].includes(version)) throw error('UNVERIFIED_VERSION', `Native ${provider} protocol version ${version ?? 'unknown'} has not been verified. Use the local gateway or a supported CLI version.`);
+    const parsed = version?.split('.').map(Number);
+    const range = VERIFIED_VERSION_RANGES[provider];
+    const compare = (left, right) => left[0] - right[0] || left[1] - right[1] || left[2] - right[2];
+    if (!parsed || parsed.length !== 3 || parsed.some(value => !Number.isSafeInteger(value)) || compare(parsed, range.minimum) < 0 || compare(parsed, range.maximumExclusive) >= 0) {
+      throw error('UNVERIFIED_VERSION', `Native ${provider} protocol version ${version ?? 'unknown'} has not been verified. Use a supported ${range.minimum.join('.')}–${range.maximumExclusive.join('.')} CLI line or the local gateway.`);
+    }
     return version;
   }
   async codexSession(cwd, signal, timeoutMs = this.timeoutMs) {
@@ -767,10 +817,13 @@ export class NativeAiRegistry {
           const version = await this.version(provider, cwd, control.signal);
           const models = await this.agyModels(cwd, control.signal);
           if (!current()) throw abortError();
-          return await this.activate(provider, models, version);
+          return await this.activate(provider, models, version, { verify: false });
         } finally { await rm(cwd, { recursive: true, force: true }); }
       } catch (reason) {
-        if (['AUTH_REQUIRED', 'CLI_EXIT', 'INVALID_PROTOCOL'].includes(reason.code)) return { provider, supported: true, status: 'manual_login_required', instructions: 'Open a terminal, run `agy`, complete the official sign-in flow, then press this login button again. Phynite never reads or copies the provider session.' };
+        if (['AUTH_REQUIRED', 'CLI_EXIT', 'INVALID_PROTOCOL'].includes(reason.code)) {
+          const detected = await this.detect(provider);
+          return { provider, supported: true, status: 'manual_login_required', instructions: `Open a terminal, run ${shellQuote(detected?.command ?? 'agy')}, complete the official sign-in flow, then press this login button again. Phynite never reads or copies the provider session.` };
+        }
         throw reason;
       }
     }
@@ -778,7 +831,7 @@ export class NativeAiRegistry {
     const cwd = await this.scratch();
     let session;
     try {
-      await this.version(provider, cwd, control.signal);
+      const version = await this.version(provider, cwd, control.signal);
       session = await this.codexSession(cwd, control.signal, 5 * 60_000);
       const auth = await session.request('account/login/start', { type: 'chatgpt' });
       if (!current()) throw abortError();
@@ -805,9 +858,9 @@ export class NativeAiRegistry {
             } catch { /* Sign-in remains usable when this optional endpoint is unavailable. */ }
             const models = await this.codexModels(session);
             if (!current() || this.logins.get(provider)?.session !== session) throw abortError();
-            // Login is the explicit opt-in. Automatically activate and verify
-            // the first model so the chat is ready when the browser returns.
-            await this.activate('codex', models, VERIFIED_VERSIONS.codex[0]);
+            // Complete authentication immediately. Restricted capability
+            // checks continue in the background and still fail closed.
+            await this.activate('codex', models, version, { verify: false });
             break;
           }
         } catch (reason) {

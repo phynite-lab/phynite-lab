@@ -14,6 +14,8 @@ from backend.local_api.desktop_server import DesktopApplication
 from backend.local_api.services import LocalServices
 from backend.local_api.archives import ProjectArchives, restore_snapshot
 from backend.local_api.snapshots import build_project_snapshot
+from backend.local_api.domain.api import PhyniteApi
+from backend.local_api.domain.project_workflow import ProjectWorkflowApi
 
 
 class LocalDesktopTests(unittest.TestCase):
@@ -87,6 +89,60 @@ class LocalDesktopTests(unittest.TestCase):
         self.assertEqual(self.app.services.get_item(services.owner, 'CALCULATION', 'active')['status'], 'FAILED')
         self.assertEqual(self.app.services.get_item(services.owner, 'CALCULATION', 'cancel')['status'], 'CANCELLED')
         self.assertEqual(self.app.services.get_item(services.owner, 'CALCULATION', 'queued')['status'], 'QUEUED')
+
+    def test_canvas_dft_dispatch_queues_real_local_calculation_and_rejects_cloud(self):
+        project = self.project()
+        structure = self.call('POST', f'/v1/projects/{project}/structures/upload-url', {'filename': 'silicon.in', 'contentType': 'text/plain'})['structure']['id']
+        self.app.services.compute_enabled = True
+        control = PhyniteApi(self.app.services)
+        workflow = ProjectWorkflowApi(control)
+        qe_input = "&CONTROL\n calculation='scf'\n/\n&SYSTEM\n ibrav=1,celldm(1)=10.2,nat=1,ntyp=1,ecutwfc=12\n/\n&ELECTRONS\n/\nATOMIC_SPECIES\nSi 28.085 Si.UPF\nATOMIC_POSITIONS crystal\nSi 0 0 0\nK_POINTS gamma\n"
+        payload = {'structureId': structure, 'calculationType': 'Total energy', 'qeInput': qe_input, 'inputFiles': {'scf.in': qe_input}, 'settings': {}, 'computeTarget': 'personal', 'vcpus': 1, 'memoryMiB': 2048}
+        node = {'id': 'scf', 'kind': 'scf', 'configuration': {'execution': payload}}
+        queued = workflow.submit(self.app.services.owner, project, 'run', node, [], 'attempt')
+        self.assertEqual(queued['status'], 'queued')
+        calculation = self.app.services.get_item(self.app.services.owner, 'CALCULATION', queued['jobId'])
+        self.assertEqual(calculation['status'], 'QUEUED')
+        self.assertEqual(calculation['computeBackend'], 'LOCAL_MAC')
+        stored = self.app.services.s3.get_object(Bucket=self.app.services.bucket, Key=calculation['inputKey'])['Body'].read()
+        self.assertEqual(json.loads(stored)['qeInput'], qe_input)
+        payload['computeTarget'] = 'shared'
+        with self.assertRaises(ApiError) as error:
+            workflow.submit(self.app.services.owner, project, 'run', node, [], 'cloud-attempt')
+        self.assertEqual(error.exception.code, 'INVALID_COMPUTE_TARGET')
+
+    def test_canvas_compiled_dft_passes_worker_protocol_and_exact_bound_inputs(self):
+        workflow = ProjectWorkflowApi(PhyniteApi(self.app.services))
+        node = {'id': 'scf', 'kind': 'scf', 'configuration': {'compilerVersion': 1}}
+        snapshot = {'workflow': {'version': 1}, 'compiler': {'sha256': 'reviewed'}}
+        owner = self.app.services.owner
+        workflow.put_new(owner, 'PROJECT_RUN', 'run', {'objectKey': 'snapshot', 'sha256': 'test'})
+        bound = {'structureId': 'actual-geometry', 'computeTarget': 'personal', 'inputFiles': {'scf.in': 'exact bound input'}}
+        with patch.object(workflow, 'read_json', return_value=snapshot), patch('backend.local_api.domain.workflow_structure.source_structure', return_value={'atoms': [{'species': 'Si'}]}), patch('backend.local_api.domain.workflow_compiler.invoke', return_value=bound), patch.object(workflow.api, 'create_calculation', return_value={'body': '{"calculation":{"id":"bound-job"}}'}) as create:
+            result = workflow.submit(owner, 'p', 'run', node, [{'result': {'resources': [{'kind': 'structure', 'id': 'actual-geometry'}]}}], 'bound-attempt')
+        self.assertEqual(result['jobId'], 'bound-job')
+        self.assertEqual(create.call_args.kwargs['workflow_protocol'], 1)
+        self.assertEqual(create.call_args.args[2]['inputFiles'], bound['inputFiles'])
+
+    def test_dead_worker_slot_recovers_with_backoff_without_stopping_active_peer(self):
+        environment = {'PATH': '/reviewed-runtime/bin'}
+        self.app.worker_environment = json.dumps(environment, sort_keys=True)
+        dead, live, replacement = Mock(), Mock(), Mock()
+        dead.poll.return_value = 1
+        live.poll.return_value = replacement.poll.return_value = None
+        self.app.workers = [dead, live]
+        self.app.worker_slots = {dead: 0, live: 1}
+        self.app.worker_started = {dead: 99, live: 99}
+        with patch('backend.local_api.desktop_server.time.monotonic', return_value=100), patch('backend.local_api.desktop_server.subprocess.Popen', return_value=replacement) as spawn:
+            self.app.maintain_workers(environment, 2, active=True)
+            spawn.assert_not_called()
+            self.assertEqual(self.app.workers, [live])
+        with patch('backend.local_api.desktop_server.time.monotonic', return_value=102), patch('backend.local_api.desktop_server.subprocess.Popen', return_value=replacement) as spawn:
+            self.app.maintain_workers(environment, 2, active=True)
+            self.assertEqual(spawn.call_count, 1)
+            self.assertEqual(self.app.worker_slots[replacement], 0)
+        live.terminate.assert_not_called()
+        self.app.workers.clear()
 
     def test_cloud_login_logout_preserve_local_identity_and_projects(self):
         project = self.project()

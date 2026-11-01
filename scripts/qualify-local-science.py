@@ -263,17 +263,24 @@ class ApplicationQualification:
                 upload = self.call("/v1/pseudopotentials/upload-url", {"filename": item["name"]})
                 self.upload(upload["upload"], self.fixture / item["name"])
                 pseudos[item["name"]] = upload["objectKey"]
-        graph = {"version": 1, "projectId": self.project, "nodes": [
-            {"id": "source", "kind": "structure", "name": "Pinned upstream structure", "position": {"x": 0, "y": 0}, "configuration": {}, "resources": [{"kind": "structure", "id": structure_id}]},
-            {"id": "scf", "kind": "scf", "name": "Pinned upstream SCF", "position": {"x": 300, "y": 0}, "configuration": {"qualification": {"fixtureId": fixture.get("id"), "inputSha256": digest(source)}}, "resources": []}], "edges": [], "groups": []}
-        self.call(f"/v1/projects/{self.project}/workflow", {"baseRevision": 0, "workflow": graph}, "PUT")
-        if self.call(f"/v1/projects/{self.project}/workflow").get("workflow") != graph:
-            raise ValueError("The actual application did not persist the scientific workflow configuration.")
         self.payload = {"structureId": structure_id, "calculationType": "Total energy", "name": "Unchanged upstream QE reference",
                         "qeInput": text, "inputFiles": {"scf.in": text}, "settings": {}, "pseudopotentials": pseudos,
                         "computeTarget": "personal", "vcpus": 1, "memoryMiB": 2048}
-        submitted = self.call(f"/v1/projects/{self.project}/calculations", self.payload)["calculation"]
-        if submitted.get("status") != "QUEUED" or submitted.get("computeBackend") != "LOCAL_MAC":
+        graph = {"version": 1, "projectId": self.project, "nodes": [
+            {"id": "source", "kind": "structure", "name": "Pinned upstream structure", "position": {"x": 0, "y": 0}, "configuration": {}, "resources": [{"kind": "structure", "id": structure_id}]},
+            {"id": "scf", "kind": "scf", "name": "Pinned upstream SCF", "position": {"x": 300, "y": 0}, "configuration": {"execution": self.payload, "qualification": {"fixtureId": fixture.get("id"), "inputSha256": digest(source)}}, "resources": []}], "edges": [{"id": "source-scf", "source": "source", "target": "scf", "port": "structure"}], "groups": []}
+        self.call(f"/v1/projects/{self.project}/workflow", {"baseRevision": 0, "workflow": graph}, "PUT")
+        if self.call(f"/v1/projects/{self.project}/workflow").get("workflow") != graph:
+            raise ValueError("The actual application did not persist the scientific workflow configuration.")
+        planned = self.call(f"/v1/projects/{self.project}/workflow/plan", {"revision": 1, "targets": ["scf"]})["plan"]
+        if planned.get("errors"):
+            raise ValueError("The real Canvas scientific run plan was rejected: " + json.dumps(planned["errors"]))
+        run = self.call(f"/v1/projects/{self.project}/workflow/runs", {"revision": 1, "targets": ["scf"], "idempotencyKey": "qualification_canvas_scf", "compilerSha256": planned.get("compilerSha256")})
+        attempt = next((item for item in run["run"]["attempts"] if item["nodeId"] == "scf"), {})
+        if not attempt.get("jobId"):
+            raise ValueError("The real Canvas did not dispatch the DFT job: " + json.dumps(attempt))
+        submitted = self.call(f"/v1/calculations/{attempt['jobId']}")["calculation"]
+        if submitted.get("status") not in {"QUEUED", "RUNNING", "COMPLETED"} or submitted.get("computeBackend") != "LOCAL_MAC":
             raise ValueError("The application's real Run submission did not create an owned local queue job.")
         self.completed = submitted["id"]
         history = [{key: submitted.get(key) for key in ("id", "status", "createdAt")}]

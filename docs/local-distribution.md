@@ -52,6 +52,14 @@ the local app through `xdg-open`; use `phynite-lab --no-open` and the printed UR
 if no default browser is configured. Saved data stays in `~/.phynite-lab` across
 updates.
 
+Packaged local releases check npm for a newer version in the background (at most
+once every six hours after a successful check). The web notice shows the installed
+and available versions, release notes, and a copyable
+`npm install -g phynite-lab@latest` command. Finish or cancel active jobs, stop the
+app, update in the terminal, and reopen it. Updates are never installed
+automatically. Offline checks do not block local work; the request sends no
+project data or account credentials. Development checkouts do not check npm.
+
 Unprivileged user namespaces must be available in the running kernel and policy.
 Setup's real write/network confinement probe determines availability; a disabled
 namespace or security-policy restriction blocks manual MD and runtime setup with
