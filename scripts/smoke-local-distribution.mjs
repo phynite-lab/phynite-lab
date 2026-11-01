@@ -239,8 +239,8 @@ try {
   // The workspace preserves the full editor layout in the query string. Assert
   // the project pathname independently so a valid `?layout=full` URL does not
   // look like a failed navigation.
+  await expect.poll(() => new URL(page.url()).pathname).toMatch(/^\/projects\/[A-Za-z0-9_-]+$/);
   const projectPath = new URL(page.url()).pathname;
-  assert.match(projectPath, /^\/projects\/[A-Za-z0-9_-]+$/);
   const project = projectPath.split('/').at(-1);
   await expect(page.locator('.workflow-canvas-area')).toHaveAttribute('data-ready', 'true');
   const structure = { name: 'Exact silicon input', atoms: [{ id: 'si-1', species: 'Si', x: 0, y: 0, z: 0 }], lattice: { a: 5.43, b: 5.43, c: 5.43, alpha: 90, beta: 90, gamma: 90 }, periodic: [true, true, true], units: 'angstrom' };
