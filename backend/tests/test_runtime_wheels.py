@@ -117,7 +117,9 @@ class WheelRuntimeTests(unittest.TestCase):
         metadata.mkdir(parents=True)
         binary = metadata.parent / "reviewed_fixture/native.so"
         binary.parent.mkdir()
-        binary.write_bytes(b"\x7fELFfixture before relocation")
+        # Minimal valid ELF64 ET_DYN header; the remaining bytes are a
+        # disposable fixture because patchelf is mocked below.
+        binary.write_bytes(b"\x7fELF" + b"\x02\x01\x01\x00" + b"\x00" * 8 + b"\x03\x00" + b"\x00" * 20 + b"fixture before relocation")
         (metadata / "RECORD").write_text("reviewed_fixture/native.so,,\n")
         (prefix / "bin").mkdir()
         (prefix / "bin/patchelf").write_text("unit-test fixture")
@@ -126,7 +128,7 @@ class WheelRuntimeTests(unittest.TestCase):
             commands.append(argv)
             if "--print-rpath" in argv:
                 return subprocess.CompletedProcess(argv, 0, "$ORIGIN/../:$ORIGIN/qt:/build/upstream-qt/lib\n")
-            binary.write_bytes(b"\x7fELFfixture after relocation")
+            binary.write_bytes(b"\x7fELF" + b"\x02\x01\x01\x00" + b"\x00" * 8 + b"\x03\x00" + b"\x00" * 20 + b"fixture after relocation")
             return subprocess.CompletedProcess(argv, 0)
         with mock.patch("backend.local_api.conda_runtime.subprocess.run", side_effect=patch):
             count = _repair_linux_wheel_libraries(manager, release, [{"distInfo": metadata.relative_to(prefix).as_posix()}], {})
@@ -139,6 +141,25 @@ class WheelRuntimeTests(unittest.TestCase):
         for bad in ["$ORIGIN/../../../../../../outside", "$ORIGINevil", "relative/host-library"]:
             with self.subTest(rpath=bad), mock.patch("backend.local_api.conda_runtime.subprocess.run", return_value=subprocess.CompletedProcess([], 0, bad)), self.assertRaises(RuntimeInstallError):
                 _repair_linux_wheel_libraries(manager, release, [{"distInfo": metadata.relative_to(prefix).as_posix()}], {})
+
+    def test_relocatable_wheel_objects_are_not_sent_to_patchelf(self):
+        manager = self.manager()
+        release = self.root / "relocatable"
+        prefix = release / "env"
+        metadata = prefix / "lib/python3.12/site-packages/reviewed_fixture-1.0.dist-info"
+        metadata.mkdir(parents=True)
+        binary = metadata.parent / "reviewed_fixture/build-input.o"
+        binary.parent.mkdir()
+        # ELF64 little-endian ET_REL (e_type=1), as shipped by PySide's Qt
+        # QML resource build directories.
+        binary.write_bytes(b"\x7fELF" + b"\x02\x01\x01\x00" + b"\x00" * 8 + b"\x01\x00" + b"\x00" * 20)
+        (metadata / "RECORD").write_text("reviewed_fixture/build-input.o,,\n")
+        (prefix / "bin").mkdir()
+        (prefix / "bin/patchelf").write_text("unit-test fixture")
+        with mock.patch("backend.local_api.conda_runtime.subprocess.run") as run:
+            self.assertEqual(_repair_linux_wheel_libraries(manager, release, [{"distInfo": metadata.relative_to(prefix).as_posix()}], {}), 0)
+            run.assert_not_called()
+        self.assertEqual(binary.read_bytes()[16:18], b"\x01\x00")
 
     def test_wrong_origin_platform_or_identity_never_downloads(self):
         original = json.loads(json.dumps(self.wheel_record))

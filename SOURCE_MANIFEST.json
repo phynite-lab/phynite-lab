@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "upstreamCommit": "497aa8105feb8683513a5f7f2349ff2dde40d4a9",
+  "upstreamCommit": "7eab02507b1772a1ad1f621ce327d9a85c422cc2",
   "files": {
     ".github/actionlint.yaml": "0c504353abd618e30376593b3198fc1fc9c69641d3eeb681e5c1cf4160dce350",
     ".github/scripts/native-ci-apparmor.py": "454d74d30f66d12f58ee3b8cd75ebf83200b33b5e01d87e9c518b49e826ff32a",
@@ -160,7 +160,7 @@
     "backend/local_api/bundles.py": "29c5d3900d0db29af2f523aec61ff2f0312064c1477b6ffdcc067a045d3cec18",
     "backend/local_api/cloud_client.py": "5aa6ddb062e24fd652d2cf250dcdee6d1f15c8e19626d6c65ff8886e84a6c517",
     "backend/local_api/cloud_compute.py": "0025698375ca5191a959e782a977c28e6ca1f1ce1cc6b4dbc8e767d9943ccc46",
-    "backend/local_api/conda_runtime.py": "430304bcc4172f01661f74a82cf6c9fbdd562e5dcabbb69120350a8833f28bc8",
+    "backend/local_api/conda_runtime.py": "bbd848d8f93efc5f664d4a7a7f08e049504501966b9714c5ab8cd8e972b4ffbd",
     "backend/local_api/connections.py": "941094b1c68efcf82fa181ded58a23af966d0c33679f9205287a9ec647a2b7b3",
     "backend/local_api/desktop_server.py": "7e3f94a7edf48c9d047c0d9c59c7820c168d8a6f67abfce4f884859b64a40620",
     "backend/local_api/domain/__init__.py": "b3bc42649c7f7a87f40400aeb4803385be2fbcd5899bd8ef8e37c3f4658b324a",
@@ -250,7 +250,7 @@
     "backend/tests/test_native_core_notices.py": "98dbf04f586cafb72193408e05c7c663fb4ccd9ba18a19a9042ed803e22ea17a",
     "backend/tests/test_public_local_core.py": "6f1566192a1619b5691617e896107e0a4ac9ae77e152af3b32d2e02ae7151e57",
     "backend/tests/test_runtime_release.py": "d8fb102f5bb5055d5a62c1fadd74666fdab495abe933e6aa348fcccaa0c11a9a",
-    "backend/tests/test_runtime_wheels.py": "e33c2fde8a5e0a76aa49e509347ced97d6c57a21643e21e183c358cab3e63712",
+    "backend/tests/test_runtime_wheels.py": "1867168956a95bb398d8604e79f91346534877b237fcdcb78c9287858ed00a82",
     "components/AccountMenu.tsx": "d0dc797ccfdbe12a92d881cdd27aaa1f91b692c4daf85deababa746a074432ea",
     "components/AddFigureDialog.tsx": "961dfdeb21c978d0de63a708d23a68470e6fff54aa9fc2e35a3c09c8804b97f6",
     "components/AiActionCard.tsx": "2bea764221b692c8963d7e119c3405b9d3e0ef903234a63efe7a131a3244636e",

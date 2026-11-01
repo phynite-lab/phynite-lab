@@ -17,6 +17,7 @@ import os
 import platform
 import re
 import shutil
+import struct
 import subprocess
 import tarfile
 import zipfile
@@ -167,6 +168,33 @@ def _repair_linux_wheel_libraries(manager, release: Path, inventory: list[dict],
         raise RuntimeInstallError("The reviewed wheel overlay needs its pinned runtime patchelf for native-library relocation.")
     changed = []
     seen = set()
+
+    def elf_type(path: Path) -> int | None:
+        """Return the ELF file type, or ``None`` for an invalid/truncated header.
+
+        Wheels may include Qt's build-time relocatable objects alongside the
+        runtime shared libraries.  ``patchelf`` quite correctly rejects those
+        ``ET_REL`` objects because they have no dynamic loader metadata.  Read
+        the small ELF header ourselves so they can be audited without treating
+        them as runtime binaries.  Unknown/invalid headers keep the previous
+        fail-closed behaviour by returning ``None`` and proceeding to the
+        existing ``patchelf`` check.
+        """
+        try:
+            with path.open("rb") as source:
+                header = source.read(20)
+        except OSError:
+            return None
+        if len(header) < 18 or header[:4] != b"\x7fELF":
+            return None
+        endian = {1: "<", 2: ">"}.get(header[5])
+        if endian is None:
+            return None
+        try:
+            return struct.unpack_from(endian + "H", header, 16)[0]
+        except struct.error:
+            return None
+
     with (release / "wheel-relocation.log").open("w", encoding="utf-8") as log:
         for package in inventory:
             metadata = prefix / str(_relative(package["distInfo"]))
@@ -188,6 +216,11 @@ def _repair_linux_wheel_libraries(manager, release: Path, inventory: list[dict],
                 with binary.open("rb") as source:
                     if source.read(4) != b"\x7fELF":
                         continue
+                # ET_REL objects are build-time inputs and never participate
+                # in dynamic loading.  Leave them byte-for-byte unchanged;
+                # attempting to patch them makes ARM64 PySide wheels fail.
+                if elf_type(binary) == 1:
+                    continue
                 argv = manager.sandbox.command(release, [str(patcher), "--print-rpath", str(binary)])
                 result = subprocess.run(argv, cwd=release, env=environment, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30, check=False)
                 if result.returncode:
