@@ -21,6 +21,7 @@ import { mergeStudioProjects, type StudioProjectItem } from '@/lib/project-navig
 import { phyniteProjects, type PhyniteProject } from '@/lib/phynite-api';
 import { AccountMenu } from './AccountMenu';
 import { AiWorkspaceChangeNotice } from './AiWorkspaceChangeNotice';
+import { LocalUpdateNotice } from './LocalUpdateNotice';
 import { BrandLockup } from './BrandLockup';
 import { ResearchShellContext, type ResearchShellState, type SidebarSearch } from './ResearchShellContext';
 import { observeBrowserNavigation } from '@/lib/browser-navigation';
@@ -148,7 +149,12 @@ function ResearchApplicationShell({ children }: { children: ReactNode }) {
     let frame = 0;
     const update = () => {
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => setContentWidth(target.clientWidth));
+      frame = requestAnimationFrame(() => {
+        const width = target.clientWidth;
+        // Keep observer delivery passive when CSS/layout did not actually
+        // change the available content width.
+        setContentWidth(previous => previous === width ? previous : width);
+      });
     };
     update();
     const observer = new ResizeObserver(update);
@@ -330,6 +336,7 @@ function ResearchApplicationShell({ children }: { children: ReactNode }) {
   </div>);
   return <ResearchShellContext.Provider value={value}><WorkspaceCloudSyncContext.Provider value={{ owner, state: cloud }}>
     <div className="research-app-shell" data-project-header={projectWorkspace} data-research-theme={theme} data-docked={docked} data-settings={settingsSidebar} data-preview={Boolean(preview)} data-mobile-open={mobileOpen} style={{ '--research-sidebar-width': `${settingsSidebar ? 280 : width}px` } as CSSProperties}>
+      {session?.mode === 'local' && <LocalUpdateNotice inert={mobileOpen} />}
       <div ref={setWorkspaceHeaderHost} className="research-workspace-header" hidden={!projectWorkspace} inert={mobileOpen}>
         {mobileLayout && projectWorkspace && <div className="research-project-account-actions"><div ref={setWorkspaceResourcesHost} className="research-resources-host" /><AccountMenu session={session!} variant="mobile" /></div>}
       </div>

@@ -61,7 +61,8 @@ class GatewayRegistry:
         with self.lock:
             config = self._read()
             credential = self.vault.read("ai:gateway")
-            return {"configured": bool(config), "baseUrl": config.get("baseUrl"), "hasCredential": bool(credential and credential.get("token")), "credentialStorage": "os-keychain" if self.vault.persistent else "session-only", "models": config.get("models", []), "capabilities": config.get("capabilities", {"models": {}}), "protocol": "anthropic-messages", "connectors": self.official_connectors()}
+            configured = bool(config)
+            return {"configured": configured, "baseUrl": config.get("baseUrl"), "hasCredential": bool(credential and credential.get("token")), "credentialStorage": "os-keychain" if self.vault.persistent else "session-only", "connectionStatus": config.get("connectionStatus", "not_checked" if configured else "not_configured"), "checkedAt": config.get("checkedAt"), "models": config.get("models", []), "capabilities": config.get("capabilities", {"models": {}}), "protocol": "anthropic-messages", "connectors": self.official_connectors()}
 
     @staticmethod
     def official_connectors() -> list[dict[str, Any]]:
@@ -85,7 +86,7 @@ class GatewayRegistry:
                 else:
                     self.vault.delete("ai:gateway")
             # Changing origin/credential invalidates prior capability evidence.
-            config = previous if previous.get("baseUrl") == base and token is None else {"baseUrl": base, "models": [], "capabilities": {"models": {}}}
+            config = previous if previous.get("baseUrl") == base and token is None else {"baseUrl": base, "models": [], "capabilities": {"models": {}}, "connectionStatus": "not_checked", "checkedAt": None}
             self._write(config)
             return self.status()
 
@@ -106,9 +107,20 @@ class GatewayRegistry:
         try:
             return self.opener.open(Request(config["baseUrl"] + path, data=json.dumps(payload, allow_nan=False).encode() if payload is not None else None, headers=self._headers(), method="POST" if payload is not None else "GET"), timeout=30)
         except HTTPError as exc:
+            self._connection_failure('auth_required' if exc.code in {401, 403} else 'unavailable')
             raise CloudError(exc.code, "AI_GATEWAY_AUTH_FAILED" if exc.code in {401, 403} else "AI_GATEWAY_UNAVAILABLE", "The gateway rejected its credential." if exc.code in {401, 403} else "The gateway request could not complete.") from None
         except OSError:
+            self._connection_failure('unavailable')
             raise CloudError(503, "AI_GATEWAY_UNAVAILABLE", "The configured gateway is unavailable. No other provider was contacted.") from None
+
+    def _connection_failure(self, status: str) -> None:
+        with self.lock:
+            config = self._read()
+            if config:
+                checked = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                models = {identifier: {"available": False, "text": False, "streaming": False, "tools": False, "images": False, "pdf": False, "efforts": ["auto"]} for identifier in config.get("capabilities", {}).get("models", {})}
+                config.update(connectionStatus=status, checkedAt=checked, capabilities={"models": models, "checkedAt": checked})
+                self._write(config)
 
     def discover(self) -> dict[str, Any]:
         with self.lock, self._open("/v1/models") as reply:
@@ -127,6 +139,8 @@ class GatewayRegistry:
             config = self._read()
             config["models"] = models
             config["capabilities"] = {"models": {}}
+            config["connectionStatus"] = "connected"
+            config["checkedAt"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
             self._write(config)
             return self.status()
 
@@ -261,6 +275,7 @@ class GatewayRegistry:
             good_tool = len(calls) == 1 and calls[0]["name"] == "phynite_probe" and calls[0]["input"] == {"nonce": nonce} and tool_reason == "tool_use"
             capability = {"available": good_text and good_tool, "text": good_text, "streaming": bool(text_reason and tool_reason), "tools": good_tool, "images": False, "pdf": False, "efforts": ["auto"]}
             report["models"][model_id] = capability
+            config["connectionStatus"] = "connected"
             report["checkedAt"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
             config["capabilities"] = report
             self._write(config)

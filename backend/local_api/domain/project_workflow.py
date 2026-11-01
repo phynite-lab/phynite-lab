@@ -688,7 +688,19 @@ class ProjectWorkflowApi:
             payload = invoke('compileBoundDft', [frozen, node['id'], structure, structure_id], snapshot['compiler'])
             payload['idempotencyKey'] = 'wf_' + hashlib.sha256(attempt_id.encode()).hexdigest()[:60]
         if kind in DFT_TYPES:
-            raise ApiError(400, 'Submit online compute through the optional Cloud connection. This workflow runner executes on Your computer.', 'INVALID_COMPUTE_TARGET')
+            # Canvas DFT nodes use the same owner-scoped local calculation
+            # admission as the standalone DFT form.  The workflow runner used
+            # to reject every DFT node here, even when the node explicitly
+            # targeted the user's computer, so a valid local workflow stopped
+            # after its structure prerequisite with INVALID_COMPUTE_TARGET.
+            # Shared/cloud DFT is still rejected by the plan and must go
+            # through the cloud submission flow with its own transfer review.
+            if payload.get('computeTarget', 'personal') != 'personal':
+                raise ApiError(400, 'Submit online compute through the optional Cloud connection. This workflow runner executes on Your computer.', 'INVALID_COMPUTE_TARGET')
+            payload['computeTarget'] = 'personal'
+            workflow_protocol = 1 if node['configuration'].get('compilerVersion') == 1 else 0
+            result = json.loads(self.api.create_calculation(owner, project, payload, workflow_protocol=workflow_protocol)['body'])['calculation']
+            return {'status': 'queued', 'jobId': result['id'], 'jobKind': 'CALCULATION'}
         if kind == 'md':
             if payload.get('computeTarget', 'personal') != 'personal':
                 fail('MD runs on Your computer only.')

@@ -3,12 +3,16 @@ import { accessTokenFrom, authErrorResponse, backendFetch } from '@/lib/auth-ser
 import { localAppMode } from '@/lib/local-runtime';
 import { mutationFailure, readBodyBytes, requestBodyLimit } from '@/lib/request-security';
 import { localAiFetch } from '@/lib/local-ai';
+import { checkLocalUpdate } from '@/lib/local-updates';
 
 async function proxy(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   if (!localAppMode()) return NextResponse.json({ error: 'Not found.', code: 'NOT_FOUND' }, { status: 404 });
   try {
     const failure = mutationFailure(request); if (failure) throw failure;
     const { path } = await context.params;
+    if (path.length === 1 && path[0] === 'updates' && request.method === 'GET') {
+      return NextResponse.json(await checkLocalUpdate(process.env.PHYNITE_RELEASE_VERSION), { headers: { 'Cache-Control': 'no-store' } });
+    }
     if (path[0] === 'ai' && path.length === 2 && (['status', 'accounts', 'usage'].includes(path[1]) && request.method === 'GET' || ['connect', 'login', 'disconnect', 'models', 'probe', 'accounts'].includes(path[1]) && request.method === 'POST')) {
       const body = request.method === 'GET' ? undefined : await readBodyBytes(request, 16000);
       const upstream = await localAiFetch(`/${path[1]}`, { method: request.method, body, headers: body ? { 'Content-Type': 'application/json' } : undefined, signal: request.signal });

@@ -151,6 +151,19 @@ class ConnectionsFacadeTests(unittest.TestCase):
         self.assertEqual(result["state"], "pending")
         self.cloud.request.assert_not_called()
 
+    def test_gateway_routes_discover_then_activate_only_actual_verified_models(self):
+        self.facade.gateway.opener = ProbeGateway()
+        saved = self.call('/__local/gateway', {'baseUrl': 'http://127.0.0.1:20128'}, method='PUT')
+        self.assertEqual(saved['connectionStatus'], 'not_checked')
+        discovered = self.call('/__local/gateway/discover')
+        self.assertEqual(discovered['models'], [{'id': 'provider/model', 'available': False}])
+        checked = self.call('/__local/gateway/probe', {'modelId': 'provider/model'})
+        self.assertEqual(checked['connectionStatus'], 'connected')
+        self.assertEqual(checked['models'][0]['id'], 'provider/model')
+        self.assertTrue(checked['models'][0]['available'])
+        self.assertTrue(checked['models'][0]['tools'])
+        self.cloud.request.assert_not_called()
+
     def test_download_preserves_dirty_project_before_outbox_was_created(self):
         with self.assertRaises(ApiError) as error:
             self.call("/__local/sync/p1/download")
@@ -269,6 +282,8 @@ class VaultAndGatewayTests(unittest.TestCase):
             registry = GatewayRegistry(Path(directory), CredentialVault(Path(directory)), opener=ProbeGateway())
             registry.configure("http://127.0.0.1:20128")
             registry.discover()
+            self.assertEqual(registry.status()['connectionStatus'], 'connected')
+            self.assertIsNotNone(registry.status()['checkedAt'])
             capability = registry.probe("provider/model")["capabilities"]["models"]["provider/model"]
             self.assertTrue(capability["available"])
             self.assertTrue(capability["tools"])
@@ -355,6 +370,20 @@ process.stdout.write(JSON.stringify({blocks:parsed.map(result=>result.content[0]
             self.assertEqual(opener.open.call_count, 1)
             self.assertEqual(opener.open.call_args.args[0].full_url, "http://127.0.0.1:20128/v1/models")
             self.assertFalse(registry.status()["capabilities"]["models"])
+            self.assertEqual(registry.status()['connectionStatus'], 'auth_required')
+
+    def test_failed_gateway_recheck_cannot_retain_connected_badge_or_capabilities(self):
+        opener = ProbeGateway()
+        with tempfile.TemporaryDirectory() as directory, mock.patch("backend.local_api.vault._system_backend", return_value=None):
+            registry = GatewayRegistry(Path(directory), CredentialVault(Path(directory)), opener=opener)
+            registry.configure("http://127.0.0.1:20128")
+            registry.discover()
+            registry.probe('provider/model')
+            with mock.patch.object(opener, 'open', side_effect=OSError('offline')):
+                with self.assertRaises(CloudError):
+                    registry.discover()
+            self.assertEqual(registry.status()['connectionStatus'], 'unavailable')
+            self.assertFalse(registry.status()['capabilities']['models']['provider/model']['available'])
 
 class CloudLocalDomainTests(unittest.TestCase):
     def setUp(self):

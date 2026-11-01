@@ -47,6 +47,10 @@ class DesktopApplication:
         self.token = secrets.token_urlsafe(48)
         self.closed = threading.Event()
         self.workers: list[subprocess.Popen] = []
+        self.worker_slots: dict[subprocess.Popen, int] = {}
+        self.worker_started: dict[subprocess.Popen, float] = {}
+        self.worker_failures = 0
+        self.worker_retry_at = 0.0
         self.worker_environment: str | None = None
         self.runtime = self.scheduler = None
         # The legacy Python control-plane contract reads AI catalogues from
@@ -124,6 +128,52 @@ class DesktopApplication:
             except subprocess.TimeoutExpired:
                 process.kill(); process.wait(timeout=5)
         self.workers.clear()
+        self.worker_slots.clear()
+        self.worker_started.clear()
+
+    def maintain_workers(self, environment: dict, maximum: int, active: bool):
+        now = time.monotonic()
+        failed = [process for process in self.workers if process.poll() is not None]
+        for process in failed:
+            if now - self.worker_started.pop(process, now) >= 60:
+                self.worker_failures = 0
+            self.worker_slots.pop(process, None)
+        self.workers = [process for process in self.workers if process not in failed]
+        if failed:
+            self.worker_failures += 1
+            self.worker_retry_at = now + min(60, 2 ** min(self.worker_failures, 6))
+            if not self.workers:
+                self.services.compute_enabled = False
+                self.services.update_item(self.services.owner, 'PERSONAL_WORKER', 'primary', {'lastSeenAtEpoch': 0})
+        signature = json.dumps(environment, sort_keys=True)
+        changed = self.worker_environment != signature
+        if changed or len(self.workers) > maximum:
+            if active:
+                return
+            self.stop_workers()
+            self.worker_environment = signature
+            if changed:
+                self.worker_failures = 0
+                self.worker_retry_at = 0
+        if now < self.worker_retry_at:
+            return
+        while len(self.workers) < maximum:
+            used = {self.worker_slots.get(process, index) for index, process in enumerate(self.workers)}
+            slot = next(index for index in range(maximum) if index not in used)
+            command = [sys.executable, '--worker'] if getattr(sys, 'frozen', False) else [sys.executable, str(Path(__file__).resolve()), '--worker']
+            env = {**os.environ, **environment, 'PHYNITE_APP_MODE': 'local', 'PHYNITE_DATA_DIR': str(self.data_dir), 'PHYNITE_API_URL': self.origin, 'PHYNITE_LOCAL_WORKER_TOKEN': self.services.worker_token}
+            log = self.data_dir / 'logs'
+            log.mkdir(mode=0o700, exist_ok=True)
+            try:
+                with (log / f'worker-{slot}.log').open('ab') as output:
+                    process = subprocess.Popen([*command, '--runtime', 'native', '--work-dir', str(self.data_dir / 'work' / f'worker-{slot}'), '--pseudo-root', str(self.data_dir / 'pseudopotentials'), '--poll-seconds', '2'], env=env, stdout=output, stderr=subprocess.STDOUT)
+            except OSError:
+                self.worker_failures += 1
+                self.worker_retry_at = now + min(60, 2 ** min(self.worker_failures, 6))
+                raise
+            self.workers.append(process)
+            self.worker_slots[process] = slot
+            self.worker_started[process] = now
 
     def maintain(self):
         while not self.closed.wait(1):
@@ -147,28 +197,15 @@ class DesktopApplication:
                 defaults = {kind: {'vcpus': selected['vcpus'], 'memoryMiB': selected['memoryMiB']} for kind in ('qe', 'md-simulation', 'md-analysis')}
                 if account.get('personalDefaults') != defaults:
                     self.services.update_item(self.services.owner, 'ACCOUNT', 'primary', {'personalDefaults': defaults})
-                signature = json.dumps(environment, sort_keys=True)
                 if not ready:
                     continue
                 active = any(item.get('status') in {'RUNNING', 'CANCEL_REQUESTED'} for kind in ('CALCULATION', 'MD_SIMULATION', 'MD_ANALYSIS') for item in self.services.list_owner_items(self.services.owner, kind))
-                changed = self.worker_environment != signature or len(self.workers) != selected['maxParallelJobs']
-                if changed and not active:
-                    self.stop_workers(); self.worker_environment = signature
-                if changed and active:
-                    continue
-                while len(self.workers) < selected['maxParallelJobs']:
-                    slot = len(self.workers)
-                    command = [sys.executable, '--worker'] if getattr(sys, 'frozen', False) else [sys.executable, str(Path(__file__).resolve()), '--worker']
-                    env = {**os.environ, **environment, 'PHYNITE_APP_MODE': 'local', 'PHYNITE_DATA_DIR': str(self.data_dir), 'PHYNITE_API_URL': self.origin, 'PHYNITE_LOCAL_WORKER_TOKEN': self.services.worker_token}
-                    # Tokens stay in a private process environment, never argv/logs.
-                    log = (self.data_dir / 'logs'); log.mkdir(mode=0o700, exist_ok=True)
-                    with (log / f'worker-{slot}.log').open('ab') as output:
-                        process = subprocess.Popen([*command, '--runtime', 'native', '--work-dir', str(self.data_dir / 'work' / f'worker-{slot}'), '--pseudo-root', str(self.data_dir / 'pseudopotentials'), '--poll-seconds', '2'], env=env, stdout=output, stderr=subprocess.STDOUT)
-                    self.workers.append(process)
-                # A failed validation remains visible in worker logs; do not loop
-                # restarting a broken runtime or replay an interrupted job.
+                # Replace crashed slots even while another job is running.
+                # Failed startup uses bounded backoff; lease reconciliation
+                # above still never replays interrupted scientific jobs.
+                self.maintain_workers(environment, selected['maxParallelJobs'], active)
             except Exception as error:
-                print(f'Local runtime monitor: {type(error).__name__}', file=sys.stderr, flush=True)
+                print(f'Local runtime monitor: {type(error).__name__}: {error}', file=sys.stderr, flush=True)
 
     def publish_transport(self):
         descriptor = os.open(self.data_dir / "core-service.json", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
