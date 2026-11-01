@@ -5,20 +5,24 @@ import type { ProjectWorkflow } from '@/lib/project-workflow';
 export function useWorkflowEditor(owner: string, project: string, graph: ProjectWorkflow, ready: boolean) {
   const [state, dispatch] = useReducer(workflowEditorReducer, initialWorkflowEditorState);
   const [hydrated, setHydrated] = useState(false);
-  const latest = useRef({ graph, state });
-  useEffect(() => { latest.current = { graph, state }; }, [graph, state]);
+  const latest = useRef({ graph, state, hydrated });
+  useEffect(() => { latest.current = { graph, state, hydrated }; }, [graph, state, hydrated]);
+  const pendingNavigation = useRef<string | null>(null);
   const key = `phynite:workflow-editor:v2:${owner}:${project}`;
   useEffect(() => {
     if (!ready || hydrated) return;
     let saved: unknown = null;
     try { saved = JSON.parse(localStorage.getItem(key) ?? localStorage.getItem(`phynite:workflow-editor:v1:${owner}:${project}`) ?? 'null'); } catch {}
-    const params = new URLSearchParams(location.search);
+    const params = new URLSearchParams(pendingNavigation.current ?? location.search);
+    // A traversal to the bare project URL selects Canvas, even while loading.
+    if (pendingNavigation.current !== null && !params.has('tab') && !params.has('popup')) params.set('tab', 'canvas');
     if (!params.has('tab') && !params.has('popup')) {
       const legacy = graph.nodes.find(node => params.get('legacy-view') === 'figures' ? node.legacy?.editor === 'figures' : params.get('legacy-trajectory') ? node.resources.some(ref => ref.id === params.get('legacy-trajectory')) : params.get('legacy-component') ? node.legacy?.componentId === params.get('legacy-component') : params.get('legacy-material') ? node.legacy?.materialId === params.get('legacy-material') : false);
       if (legacy) params.set('tab', legacy.id);
     }
     const restored = restoreWorkflowEditor(saved, graph.nodes.map(node => node.id), params.toString(), graph.edges.map(edge => edge.id));
     queueMicrotask(() => { dispatch({ type: 'restore', state: restored }); setHydrated(true); });
+    pendingNavigation.current = null;
     const search = workflowEditorSearch(location.search, restored);
     history.replaceState(history.state, '', location.pathname + search);
   }, [ready, hydrated, graph.nodes, graph.edges, owner, project, key]);
@@ -34,6 +38,7 @@ export function useWorkflowEditor(owner: string, project: string, graph: Project
   }, [hydrated, state]);
   useEffect(() => {
     const restore = () => {
+      if (!latest.current.hydrated) { pendingNavigation.current = location.search; return; }
       const search = new URLSearchParams(location.search); if (!search.has('tab') && !search.has('popup')) search.set('tab','canvas');
       const restored = restoreWorkflowEditor(latest.current.state, latest.current.graph.nodes.map(node => node.id), search.toString());
       const normalized = workflowEditorSearch(location.search, restored);

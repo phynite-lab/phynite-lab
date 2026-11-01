@@ -28,7 +28,7 @@ Do not assemble a release using stale cores or application output from another
 commit or platform. Solver scientific libraries belong in the optional runtime,
 not the npm package. Do not include restricted pseudopotentials or potentials.
 
-The 0.1.2 npm release ships `darwin-arm64` (macOS Apple Silicon), `darwin-x64`
+The 0.1.3 npm release ships `darwin-arm64` (macOS Apple Silicon), `darwin-x64`
 (macOS Intel), `linux-arm64`, and `linux-x64` (glibc >=2.39, including current
 Omarchy/Arch Linux). Windows WSL2 uses the Linux x64 package because WSL2 reports
 that native platform to Node and npm. Each native package is built and qualified
@@ -145,8 +145,8 @@ process fixtures are rejected by executable magic. It never downloads a browser.
 
 ```sh
 node scripts/smoke-local-distribution.mjs \
-  --tarball /path/to/tarballs/phynite-lab-0.1.2.tgz \
-  --runtime-tarball /path/to/tarballs/phynite-lab-runtime-darwin-arm64-0.1.2.tgz \
+  --tarball /path/to/tarballs/phynite-lab-0.1.3.tgz \
+  --runtime-tarball /path/to/tarballs/phynite-lab-runtime-darwin-arm64-0.1.3.tgz \
   --output /path/to/new-evidence
 ```
 
