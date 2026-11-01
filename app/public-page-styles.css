@@ -1,0 +1,4 @@
+/* Public route styles are loaded by server pages, avoiding CSS-only JS preload references. */
+@import "./lab-ui.css";
+@import "./public-pages.css";
+@import "./public-design.css";

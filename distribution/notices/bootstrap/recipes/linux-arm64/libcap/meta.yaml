@@ -1,0 +1,68 @@
+# This file created by conda-build 26.7.0
+# meta.yaml template originally from:
+# /home/conda/recipe_root, last modified Thu Aug  6 14:16:36 2026
+# ------------------------------------------------
+
+package:
+  name: libcap
+  version: '2.78'
+source:
+  url: https://mirrors.edge.kernel.org/pub/linux/libs/security/linux-privs/libcap2/libcap-2.78.tar.xz
+  sha256: 0d621e562fd932ccf67b9660fb018e468a683d7b827541df27813228c996bb11
+build:
+  number: '1'
+  run_exports:
+    - libcap >=2.78,<2.79.0a0
+  string: hfcc8634_1
+requirements:
+  build:
+    - _openmp_mutex 4.5 20_gnu
+    - binutils_impl_linux-aarch64 2.46.1 default_h5f4c503_102
+    - binutils_linux-aarch64 2.46.1 default_hf1166c9_102
+    - bzip2 1.0.8 h4777abc_10
+    - gcc_impl_linux-aarch64 14.4.0 hb6a19a8_1
+    - gcc_linux-aarch64 14.4.0 hab84b30_0
+    - kernel-headers_linux-aarch64 4.18.0 h05a177a_18
+    - ld_impl_linux-aarch64 2.46.1 default_h1979696_102
+    - libffi 3.5.2 h376a255_0
+    - libgcc 16.1.0 h205dda4_1
+    - libgcc-devel_linux-aarch64 14.4.0 ha8b83fe_101
+    - libgcc-ng 16.1.0 he9431aa_1
+    - libglib 2.88.3 h96a7f82_0
+    - libgomp 16.1.0 h8acb6b2_1
+    - libiconv 1.18 h90929bb_2
+    - libsanitizer 14.4.0 h5c092e3_1
+    - libstdcxx 16.1.0 hef695bb_1
+    - libstdcxx-devel_linux-aarch64 14.4.0 hc896aa5_101
+    - libzlib 1.3.2 hdc9db2a_3
+    - make 4.4.1 he30d5cf_3
+    - pcre2 10.47 hf841c20_0
+    - pkg-config 0.29.2 hce167ba_1009
+    - sysroot_linux-aarch64 2.17 h68829e0_18
+    - tzdata 2026c h151e31d_0
+    - zstd 1.5.7 h85ac4a6_6
+  host:
+    - _openmp_mutex 4.5 20_gnu
+    - libgcc 16.1.0 h205dda4_1
+    - libgomp 16.1.0 h8acb6b2_1
+  run:
+    - libgcc >=14
+test:
+  commands:
+    - test -f "$PREFIX/lib/libcap.so"
+about:
+  home: https://directory.fsf.org/wiki/Libcap
+  license: BSD-3-Clause
+  license_family: BSD
+  license_file: License
+  summary: Implements the user-space interfaces to the POSIX 1003.1e capabilities
+    available in Linux kernels
+extra:
+  recipe-maintainers:
+    - ehfd
+    - scopatz
+  final: true
+  copy_test_source_files: true
+  flow_run_id: github_31109997179
+  remote_url: https://github.com/conda-forge/libcap-feedstock
+  sha: e5a4f7c9a9ca78963b89324b60f12e216df73536

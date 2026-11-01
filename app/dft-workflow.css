@@ -1,0 +1,46 @@
+.dft-workflow { position: relative; display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; height: 100%; outline: none; color: var(--ink); background: var(--surface); font-family: var(--font-ui); }
+.dft-workflow .react-flow { flex: 1; min-height: 240px; --xy-background-color: var(--surface); --xy-background-pattern-dots-color: var(--line-strong); --xy-edge-stroke: var(--muted-ink); --xy-edge-stroke-selected: var(--accent); --xy-controls-button-background-color: var(--surface); --xy-controls-button-color: var(--ink); --xy-controls-button-border-color: var(--line); --xy-minimap-background-color: var(--surface); --xy-minimap-mask-background-color: var(--surface-subtle); }
+.dft-flow-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 3px; padding: 7px 10px; border-bottom: 1px solid var(--line); z-index: 5; background: var(--surface); }
+.dft-workflow button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 30px; padding: 5px 8px; border-radius: 5px; font-size: 11px; color: var(--ink); cursor: pointer; }
+.dft-workflow button:hover { background: var(--surface-subtle); }
+.dft-workflow button:focus-visible, .dft-workflow input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dft-workflow button:disabled { opacity: .35; cursor: default; }
+.dft-flow-toolbar > span { width: 1px; height: 18px; margin: 0 3px; background: var(--line); }
+.dft-flow-toolbar label { display: flex; align-items: center; gap: 4px; padding: 5px; font-size: 10px; }
+.dft-flow-toolbar input { accent-color: var(--accent); }
+.dft-flow-toolbar .dft-flow-run { margin-left: auto; background: var(--accent); color: var(--on-accent); }
+.dft-flow-node { width: 240px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); box-shadow: 0 2px 5px #0000000a; }
+.dft-flow-node.is-selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.dft-flow-node header { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px 3px; gap: 6px; }
+.dft-flow-kind { color: var(--muted-ink); font-size: 9px; font-weight: 500; }
+.dft-flow-status { color: var(--muted-ink); font-size: 9px; white-space: nowrap; }
+.dft-flow-status[data-status='Outdated'] { color: var(--status-warning, #d79021); }
+.dft-flow-status[data-status='Completed'] { color: #44825a; }
+.dft-flow-status[data-status='Failed'], .dft-flow-status[data-status='Blocked'] { color: #b94b51; }
+.dft-workflow .dft-flow-name { display: block; max-width: 100%; padding: 2px 12px; min-height: 23px; font-size: 12px; font-weight: 600; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dft-flow-node p { margin: 2px 12px 9px; font-size: 10px; color: var(--muted-ink); }
+.dft-flow-node .dft-flow-error { color: #b94b51; }
+.dft-flow-node footer { display: flex; justify-content: space-between; border-top: 1px solid var(--line); padding: 2px 4px; }
+.dft-flow-node footer button { font-size: 10px; color: var(--muted-ink); }
+.dft-flow-node .react-flow__handle { width: 9px; height: 9px; border: 2px solid var(--surface); background: var(--accent); }
+.dft-flow-guide { position: absolute; background: var(--accent); opacity: .6; pointer-events: none; z-index: 8; }
+.dft-flow-menu, .dft-flow-help { position: absolute; z-index: 15; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 5px; box-shadow: 0 8px 30px #0002; }
+.dft-flow-menu { width: 216px; max-height: calc(100% - 55px); overflow-y: auto; }
+.dft-flow-menu button { display: flex; width: 100%; justify-content: flex-start; text-align: left; }
+.dft-flow-help { right: 12px; top: 58px; padding: 18px; width: min(380px, calc(100% - 24px)); }
+.dft-flow-help > button { float: right; }
+.dft-flow-help h2 { font-size: 14px; font-weight: 600; margin-bottom: 15px; }
+.dft-flow-help dl { display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; font-size: 11px; }
+.dft-flow-help dd { font-family: var(--font-code); font-size: 10px; }
+.dft-flow-help p { color: var(--muted-ink); font-size: 11px; line-height: 1.7; margin-top: 14px; }
+.dft-flow-notice { position: absolute; z-index: 12; top: 70px; left: 12px; right: 12px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); font-size: 11px; }
+.dft-flow-notice button { float: right; }
+.dft-flow-selection { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 6; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 6px; max-width: calc(100% - 130px); border: 1px solid var(--line); border-radius: 7px; background: var(--surface); box-shadow: 0 3px 15px #0001; }
+.dft-flow-selection input { width: 150px; padding: 6px; background: var(--surface-subtle); color: var(--ink); font-size: 11px; border-radius: 4px; }
+.dft-flow-selection > div { min-width: 160px; }
+.dft-flow-empty { position: absolute; pointer-events: none; inset: 75px 20px 20px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; text-align: center; }
+.dft-flow-empty h2 { font-size: 18px; font-weight: 600; }.dft-flow-empty p { color: var(--muted-ink); font-size: 12px; }.dft-flow-empty button { pointer-events: auto; background: var(--accent); color: var(--on-accent); }
+.dft-view-tabs { display: flex; gap: 3px; padding: 5px 10px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.dft-view-tabs button { padding: 5px 11px; border-radius: 5px; color: var(--muted-ink); font-size: 11px; }.dft-view-tabs button[aria-selected='true'] { background: var(--surface-subtle); color: var(--ink); font-weight: 600; }
+@media(max-width: 720px) { .dft-flow-toolbar { gap: 1px; padding: 5px; }.dft-flow-toolbar button { min-height: 34px; padding: 5px 7px; }.dft-flow-toolbar .dft-flow-run { margin-left: 0; }.dft-flow-selection { bottom: 70px; width: calc(100% - 20px); max-width: none; }.dft-workflow .react-flow__minimap { width: 100px; height: 65px; }.dft-flow-node { touch-action: none; } }
+@media(prefers-reduced-motion: reduce) { .dft-workflow * { transition: none !important; animation: none !important; } }

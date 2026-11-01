@@ -1,0 +1,233 @@
+/* One restrained dark presentation for public pages; workspace themes remain independent. */
+body:has(main.public-experience) {
+  --canvas: #0a0a0a;
+  --surface: #111215;
+  --surface-subtle: #151619;
+  --raised: #202226;
+  --line: #282a2e;
+  --line-strong: #44474d;
+  --ink: #f2f1ed;
+  --quanta-blue: #7da2ff;
+  --muted-ink: #9b9da4;
+  --silicon: #a8adb7;
+  --accent: #f2f1ed;
+  --accent-strong: #d6d5d1;
+  --accent-soft: #202226;
+  --on-accent: #0a0a0a;
+  --glass: rgba(17,18,21,.9);
+  --public-nav-glass: linear-gradient(115deg,rgba(255,255,255,.022),rgba(255,255,255,.004) 42%,rgba(255,255,255,.012)), rgba(6,6,6,.82);
+  --public-nav-edge: inset 0 1px 0 #ffffff06, inset 0 -1px 0 #0004;
+  --field-focus-surface: #202226;
+  --font-ui: 'Geist Public', Arial, sans-serif;
+  --font-display: 'SpaceGrotesk Public', 'Geist Public', sans-serif;
+  --font-code: 'GeistMono Public', monospace;
+  color-scheme: dark;
+  color: var(--ink);
+  background: var(--canvas);
+}
+main.public-experience { min-width: 0; font-family: var(--font-ui); color: var(--ink); background: var(--canvas); }
+main.public-experience :is(a,button,summary,[tabindex]):focus-visible { outline: 2px solid var(--silicon); outline-offset: 4px; }
+main.public-experience :is(input,textarea,select):focus-visible { outline: 2px solid var(--silicon); outline-offset: 3px; }
+main.public-experience .public-navigation-header {
+  position: sticky; top: 0 !important; z-index: 100; width: 100% !important;
+  height: 64px !important; min-height: 64px !important; margin: 0;
+  padding: 0 max(32px,calc((100% - 1120px) / 2)) !important; border-radius: 0;
+}
+/* Keep the public header flush to the viewport across legacy theme rules. */
+main.public-experience header.studio-public-header.public-navigation-header {
+  border: 0 !important; border-bottom: 1px solid var(--line) !important;
+  background: transparent !important;
+  box-shadow: var(--public-nav-edge) !important;
+}
+/* Keep blur on a sibling layer so the mobile menu can sample the page behind it. */
+main.public-experience header.studio-public-header.public-navigation-header::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: var(--public-nav-glass);
+  -webkit-backdrop-filter: blur(28px) saturate(1.15) brightness(.78);
+  backdrop-filter: blur(28px) saturate(1.15) brightness(.78);
+}
+/* Only the homepage floats its header over the first viewport. */
+main.public-experience header.studio-public-header.public-navigation-header[data-hero-overlay='true'] {
+  position: fixed !important; left: 0; right: 0;
+  border-bottom: 0 !important; box-shadow: none !important;
+}
+main.public-experience header.studio-public-header.public-navigation-header[data-hero-overlay='true']::before {
+  background: transparent !important;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+main.public-experience header.studio-public-header.public-navigation-header[data-hero-overlay='true'] .orca-nav-links a { color: var(--ink); }
+main.public-experience header.studio-public-header.public-navigation-header[data-hero-overlay='true']:is([data-scrolled='true'],[data-menu-open='true']) {
+  border-bottom: 1px solid var(--line) !important;
+  box-shadow: var(--public-nav-edge) !important;
+}
+main.public-experience header.studio-public-header.public-navigation-header[data-hero-overlay='true']:is([data-scrolled='true'],[data-menu-open='true'])::before {
+  background: var(--public-nav-glass) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(1.15) brightness(.78);
+  backdrop-filter: blur(28px) saturate(1.15) brightness(.78);
+}
+.public-navigation-header .orca-nav-brand { flex-shrink: 0; }
+main.public-experience .public-navigation-header .phynite-wordmark { font-size: 21px !important; }
+.public-navigation-header .orca-nav-links { gap: 24px; margin-inline: auto; }
+.public-navigation-header .orca-nav-links a { color: var(--muted-ink); font: 400 12px/1.6 var(--font-ui); }
+.public-navigation-header .orca-nav-links a:hover { color: var(--ink); }
+main.public-experience .public-navigation-header .orca-social-link { display: none !important; }
+main.public-experience .public-navigation-header .orca-social-link.orca-discord-link { display: inline-flex !important; width: 32px; height: 32px; flex-shrink: 0; }
+.public-navigation-header .orca-nav-actions { gap: 18px; }
+.public-navigation-header .public-preferences { display: flex; align-items: center; }
+.public-navigation-header .region-trigger { width: 32px; height: 32px; }
+.public-navigation-header .public-signin { color: var(--muted-ink); white-space: nowrap; font: 400 12px/1.6 var(--font-ui); }
+.public-navigation-header .public-signin:hover { color: var(--ink); }
+main.public-experience .public-navigation-header .orca-btn-primary { min-height: 36px; padding: 0 13px !important; border-radius: 6px !important; background: var(--accent); color: var(--on-accent); font-size: 12px !important; white-space: nowrap; flex-shrink: 0; }
+.public-navigation-header .public-mobile-signin { display: none; }
+.public-experience :is(.section-label,.lab-eyebrow) { color: var(--muted-ink); font: 400 10px/1.8 var(--font-code); text-transform: uppercase; letter-spacing: .08em; }
+.public-product-preview { min-width: 0; margin: 28px 0; }
+.public-product-frame { overflow: hidden; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
+.public-product-frame img { display: block; width: 100%; height: auto; }
+.public-product-preview figcaption { margin-top: 12px; color: var(--muted-ink); font: 10px/1.7 var(--font-code); }
+
+/* Sign in stays centered on the task. All existing authentication states share this surface. */
+main.public-experience.auth-page .auth-layout { display: block; width: min(400px,calc(100% - 40px)); min-height: 0; margin: 0 auto; padding: 76px 0 70px; }
+.public-experience .auth-form-surface { width: 100%; min-width: 0; }
+.public-experience .auth-panel { width: 100%; max-width: none; padding: 0; }
+.public-experience .auth-eyebrow { padding: 0; border: 0; min-height: 0; margin: 0 0 18px; font: 10px/1.7 var(--font-code); text-transform: uppercase; letter-spacing: .07em; }
+.public-experience .auth-panel #auth-title { font: 500 36px/1.15 var(--font-display); letter-spacing: -.045em; }
+.public-experience .auth-description { margin-top: 16px; color: var(--muted-ink); font-size: 13px; line-height: 1.7; }
+.public-experience .auth-form { margin-top: 30px; }
+.public-experience .auth-form > input { min-height: 46px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); font: 14px/1.5 var(--font-ui); }
+.public-experience .auth-form :is(label,.auth-password-label) { font-size: 12px; }
+.public-experience .auth-submit { min-height: 45px; border: 1px solid var(--accent); border-radius: 6px; color: var(--on-accent); background: var(--accent); font-size: 13px; }
+.public-experience .auth-submit:disabled { opacity: .45; }
+.public-experience .auth-invitation { margin-top: 20px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); padding: 14px; font: 12px/1.7 var(--font-ui); }
+.public-experience .auth-switch { font: 12px/1.7 var(--font-ui); }
+.public-experience .auth-invite-error-content { width: min(580px,calc(100% - 40px)); margin: 76px auto; }
+.auth-session-gate { min-width: 0; padding: 0; margin: 0; border: 0; }
+.auth-session-status { min-height: 0; color: var(--muted-ink); font: 11px/1.8 var(--font-ui); }
+.auth-session-status:empty { display: none; }
+
+/* Demo and contact use the real inquiry form and scheduling confirmation by email. */
+.waitlist-request-layout, main.public-experience .contact-studio-layout { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); align-items: start; gap: 90px; width: min(1040px,calc(100% - 64px)); margin: 0 auto; padding: 78px 0 84px; }
+.waitlist-request-intro h1, .public-experience .contact-studio-intro h1 { margin-top: 18px; font: 500 clamp(40px,5vw,60px)/1.08 var(--font-display); letter-spacing: -.05em; }
+.waitlist-request-intro h1 span { color: var(--muted-ink); }
+.waitlist-request-intro > p:not(.section-label), .public-experience .contact-studio-intro > p:not(.lab-eyebrow) { max-width: 430px; margin-top: 24px; color: var(--muted-ink); font: 15px/1.75 var(--font-ui); }
+.waitlist-request-intro ul { display: grid; gap: 14px; margin: 28px 0 0; padding: 0; list-style: none; }
+.waitlist-request-intro li { display: flex; align-items: flex-start; gap: 12px; color: var(--muted-ink); font: 12px/1.7 var(--font-ui); }
+.waitlist-request-intro li svg { flex-shrink: 0; color: var(--silicon); margin-top: 3px; }
+.waitlist-request-intro .public-product-preview { margin: 34px 0 22px; }
+.waitlist-request-signin { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); font: 12px/1.7 var(--font-ui); }
+.public-experience .contact-studio-form { min-width: 0; margin: 0; padding: 28px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.public-experience .contact-studio-form .lab-section-heading { padding: 0; margin-bottom: 26px; border: 0; }
+.public-experience .contact-studio-form .lab-section-heading h2 { font: 500 25px/1.3 var(--font-display); letter-spacing: -.035em; }
+.public-experience .contact-studio-form .lab-section-heading p { margin-top: 10px; color: var(--muted-ink); font: 12px/1.7 var(--font-ui); }
+.public-experience .contact-studio-form .lab-form-grid { gap: 20px 16px; }
+.public-experience .contact-studio-form :is(.lab-field,.ui-select-label) { font: var(--text-label)/1.6 var(--font-ui); }
+.public-experience .contact-studio-form :is(input,textarea,.ui-select-trigger) { min-height: 44px; border: 1px solid var(--line); border-radius: 6px; background: var(--canvas); color: var(--ink); font: var(--text-body)/1.6 var(--font-ui); }
+.public-experience .contact-studio-form :is(input,textarea) { padding: 10px 12px; }
+.public-experience .contact-studio-form .ui-select { --select-value-size: var(--text-body); --select-bg: var(--canvas); --select-bg-hover: var(--raised); --select-border: var(--line); --select-border-active: var(--silicon); --select-text: var(--ink); --select-muted: var(--muted-ink); }
+.public-experience .contact-studio-form .ui-select-trigger { height: 44px; padding: 0; border-radius: var(--control-radius) !important; margin-top: 7px; }
+.public-experience .contact-form-actions { display: flex; flex-direction: column; align-items: stretch; gap: 20px; }
+.public-experience .contact-form-actions p { font: var(--text-caption)/1.7 var(--font-ui); color: var(--muted-ink); }
+.public-experience .contact-form-actions a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.public-experience .contact-form-actions .lab-button { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; width: 100%; padding: 10px 16px; border: 1px solid var(--accent); border-radius: 6px; justify-content: center; background: var(--accent); color: var(--on-accent); font: 500 var(--text-body)/1.5 var(--font-ui); }
+.public-experience .contact-form-actions .lab-button:hover:not(:disabled) { background: var(--accent-strong); }
+.public-experience .contact-form-actions .lab-button:disabled { opacity: .5; cursor: wait; }
+.public-experience .contact-studio-topic { padding-block: 22px; gap: 16px; }
+.public-experience .contact-studio-topic h2 { font: 500 16px/1.4 var(--font-display); }
+.public-experience .contact-studio-topic p { font: 13px/1.75 var(--font-ui); }
+.public-experience .contact-form-notice { padding: 14px; border: 1px solid var(--line-strong); border-radius: 6px; font: 12px/1.75 var(--font-ui); }
+
+/* Pricing, docs, and policy pages retain their content in the same quiet visual system. */
+main.public-experience :is(.pricing-page-hero,.pricing-page-body) { width: min(1040px,calc(100% - 64px)); padding-inline: 0; }
+.public-experience .pricing-page-hero { padding-top: 76px; }
+.public-experience .pricing-page-hero h1 { font: 500 clamp(42px,5.5vw,64px)/1.08 var(--font-display); letter-spacing: -.05em; }
+.public-experience .pricing-page-hero > p:not(.section-label) { color: var(--muted-ink); max-width: 620px; font: 15px/1.75 var(--font-ui); }
+.public-experience .pricing-page-hero nav a { border-radius: 6px; font-size: 12px; background: var(--surface); }
+.public-experience .price-section-heading h2, .public-experience .price-faq h2 { font: 500 clamp(28px,3.5vw,42px)/1.2 var(--font-display); letter-spacing: -.035em; }
+.public-experience .public-plan { border-radius: 10px; padding: 28px; background: var(--canvas); }
+.public-experience .public-plan[data-featured='true'] { background: var(--surface); border-color: var(--line-strong); }
+.public-experience .price-button { border-radius: 6px; }
+.public-experience .storage-plan-grid article { display: flex; flex-direction: column; border-radius: 10px; background: var(--surface); padding: 28px; }
+.public-experience .storage-plan-grid article > small { font: 11px/1.8 var(--font-ui); color: var(--muted-ink); }
+.public-experience .storage-plan-grid article > a { margin-top: 22px; }
+.public-experience .compute-estimator { border-radius: 10px; background: var(--surface); }
+.public-experience .estimate-controls input, .public-experience .estimate-controls select { background: var(--canvas); border-radius: 6px; }
+.public-policy-heading,.public-policy-layout { width: min(1040px,calc(100% - 64px)); margin-inline: auto; }
+.public-policy-heading { padding: 76px 0 44px; }
+.public-policy-heading h1 { margin-top: 18px; font: 500 clamp(38px,5vw,56px)/1.1 var(--font-display); letter-spacing: -.045em; }
+.public-policy-heading .policy-date { margin-top: 20px; }
+.public-policy-layout { display: grid; grid-template-columns: 210px minmax(0,1fr); gap: 72px; padding-bottom: 80px; align-items: start; }
+.public-policy-navigation { position: sticky; top: 108px; min-width: 0; font: 12px/1.7 var(--font-ui); }
+.public-policy-navigation > p { margin-bottom: 20px; color: var(--muted-ink); }
+.public-policy-navigation nav { display: grid; gap: 14px; }
+.public-policy-navigation a { color: var(--muted-ink); }
+.public-policy-navigation a:hover { color: var(--ink); }
+.public-policy-contact { display: inline-block; margin-top: 26px; }
+.public-policy-layout .policy-content { min-width: 0; max-width: none; margin: 0; padding: 0; }
+.public-policy-layout .policy-content section { scroll-margin-top: 108px; }
+.public-policy-layout .policy-content section:first-child { margin-top: 0; }
+.public-experience.guide-public .docs-article-heading h1 { font-family: var(--font-display); font-weight: 500; letter-spacing: -.04em; }
+.public-experience.guide-public .docs-search { border-radius: 6px; background: var(--surface); }
+.public-design-footer { padding-block: 42px 0; }
+.public-design-footer .footer-inner { width: min(1120px,100%); margin-inline: auto; }
+.public-design-footer .footer-primary { padding-top: 0; gap: 72px; }
+.site-footer.public-design-footer .footer-links { grid-template-columns: repeat(3,minmax(0,1fr)) !important; }
+.public-design-footer .footer-brand p { max-width: 26ch; font-size: 12px; }
+.public-design-footer .footer-action { border-radius: 6px; font-size: 12px; }
+.public-design-footer .footer-link-group > p { color: var(--ink); }
+.public-design-footer .footer-link-group a { color: var(--muted-ink); }
+.public-design-footer .footer-link-group a:hover { color: var(--ink); }
+@media (max-width: 960px) {
+  main.public-experience .public-navigation-header { height: 60px !important; min-height: 60px !important; padding-inline: 20px !important; }
+  main.public-experience .public-navigation-header .orca-nav-links { top: 100% !important; left: 0; right: 0; width: 100%; padding: 20px !important; border: 0 !important; border-bottom: 1px solid var(--line) !important; border-radius: 0; background: var(--public-nav-glass) !important; -webkit-backdrop-filter: blur(28px) saturate(1.15) brightness(.78); backdrop-filter: blur(28px) saturate(1.15) brightness(.78); box-shadow: var(--public-nav-edge) !important; }
+  .public-navigation-header nav[data-open='true'] .public-mobile-signin { display: block; }
+  .public-navigation-header .public-signin { display: none; }
+  .public-navigation-header .orca-nav-actions { gap: 12px; }
+  .waitlist-request-layout,main.public-experience .contact-studio-layout { gap: 40px; }
+}
+@media (max-width: 800px) {
+  .waitlist-request-layout,main.public-experience .contact-studio-layout { grid-template-columns: 1fr; width: min(580px,calc(100% - 40px)); gap: 36px; padding-block: 50px; }
+  .waitlist-request-intro .public-product-preview { display: none; }
+  .waitlist-request-intro ul { gap: 10px; }
+  .public-policy-layout { grid-template-columns: 1fr; gap: 36px; }
+  .public-policy-navigation { position: static; padding-bottom: 24px; border-bottom: 1px solid var(--line); }
+  .public-design-footer .footer-primary { gap: 36px; }
+}
+@media (max-width: 560px) {
+  main.public-experience .public-navigation-header .phynite-wordmark { font-size: 18px !important; }
+  .public-navigation-header .public-preferences { display: none; }
+  main.public-experience .public-navigation-header .orca-nav-actions { gap: 8px !important; }
+  main.public-experience .public-navigation-header .orca-btn-primary { padding-inline: 10px !important; font-size: 11px !important; }
+  .public-navigation-header .orca-btn-primary svg { display: none; }
+  main.public-experience .public-navigation-header .orca-btn-primary { display: inline-flex !important; }
+  main.public-experience.auth-page .auth-layout { padding-block: 54px; }
+  .public-experience .auth-panel #auth-title { font-size: 32px; }
+  .public-experience .contact-studio-form { padding: 24px 20px; }
+  .public-experience :is(.contact-studio-form,.auth-form) :is(input:not([type="checkbox"]),textarea,.ui-select-trigger) { font-size: var(--text-reading); }
+  .public-experience .contact-studio-form .ui-select { --select-value-size: var(--text-reading); }
+  main.public-experience :is(.pricing-page-hero,.pricing-page-body),.public-policy-heading,.public-policy-layout { width: calc(100% - 40px); }
+  .public-experience .pricing-page-hero,.public-policy-heading { padding-top: 48px; }
+  .site-footer.public-design-footer .footer-links { grid-template-columns: repeat(2,minmax(0,1fr)) !important; gap: 30px; }
+  .public-design-footer .footer-primary { padding-bottom: 12px; }
+}
+@media (max-width: 360px) {
+  main.public-experience .public-navigation-header .phynite-wordmark { display: none; }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  main.public-experience header.studio-public-header.public-navigation-header::before,
+  main.public-experience .public-navigation-header nav[data-open='true'] { background: #090909 !important; }
+  main.public-experience header.studio-public-header.public-navigation-header[data-hero-overlay='true']:is([data-scrolled='true'],[data-menu-open='true'])::before { background: #090909 !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  main.public-experience *,main.public-experience *::before,main.public-experience *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
+  .public-product-motion { transform: none !important; }
+}
+
+.pricing-paid .pricing-page-hero { padding-top: 112px; padding-bottom: 38px; }
+.pricing-paid .pricing-page-hero h1 { max-width: 940px; font-size: clamp(38px, 5.2vw, 70px); line-height: 1.08; }
+.pricing-paid .pricing-page-body > section { padding-top: 42px; padding-bottom: 42px; }
+.pricing-paid .compute-estimator { border-radius: 5px; }
+.pricing-paid .estimate-total strong { display: flex; align-items: center; gap: 12px; font-family: var(--font-geist-mono), monospace; }
+.pricing-paid .estimate-total dl { margin-bottom: 24px; }
+.pricing-paid .public-plan { border-radius: 5px; }
+.pricing-paid .public-plan-price { font-size: clamp(24px, 3vw, 36px); }
+.pricing-paid .quanta-section h2 { display: flex; align-items: center; gap: 12px; }
+@media (max-width: 640px) { .pricing-paid .pricing-page-hero { padding-top: 100px; padding-bottom: 24px; } .pricing-paid .pricing-page-body > section { padding-top: 28px; padding-bottom: 28px; } }

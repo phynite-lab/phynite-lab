@@ -1,0 +1,15 @@
+{
+  "repository": "https://github.com/jauhar-nr/md-prototype",
+  "commit": "fcef385d046c2425a008e798273213c073bc9ef6",
+  "files": {
+    "web-viewer/src/components/TrajectoryCanvas.tsx": "8deb0923a308d3db58128ccdf7b7e52e8839ec385fb0c95dca29c338a391f3dd",
+    "web-viewer/src/components/CanvasToolbar.tsx": "88c9c9e9b54f1cc87c6cdbe1bd59289f4655b423c380c29b4b953c467253c7a6",
+    "web-viewer/src/components/RightInspectorPanel.tsx": "3b98a580b0dbcbeb987694cfdc62e6d6c006aa91838daf152fefe0ce6b29bce2",
+    "web-viewer/src/components/ProjectStructureSidebar.tsx": "af2e8bbc5e508b4a9633f1ff4894624aff5f9b47a1bea21be909cdd44c64a171",
+    "web-viewer/src/components/TimeScrubber.tsx": "99a5a0a91aef942f8692fff7e192bb75bf46ae3c6b511a59ae15ce0a0a302eef",
+    "web-viewer/src/components/RdfChart.tsx": "c2ff5653ff0b774422d56cab289d426e4cbf57dac581a2912512e6fe95c9be6e",
+    "web-viewer/src/components/TimeSeriesChart.tsx": "964996ee8c4778e77b94922268e043906dc7168c661459a7ad825c00dfa117e0",
+    "web-viewer/src/types/trajectory.ts": "b300cf4b8388da44c999d155b21204b11b131e385fae79ff2e1f84bd5bff1140",
+    "web-viewer/src/utils/colormaps.ts": "aa265843f7be98dfcfffbb3d472b7899024995023688873600ebe83dfe73f95f"
+  }
+}

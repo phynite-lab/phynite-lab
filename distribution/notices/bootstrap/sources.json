@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "scope": "Packaged Linux bubblewrap bootstrap only; scientific runtime notices are separate.",
+  "components": {
+    "bubblewrap": {
+      "version": "0.13.1",
+      "licenseMetadata": "LGPL-2.0-or-later",
+      "upstreamArchive": {
+        "url": "https://github.com/containers/bubblewrap/archive/refs/tags/v0.13.1.tar.gz",
+        "sha256": "b5cdc362b4bbe8906318ec68418de1fb050a8c6701534a81c0e94088ad74c22e",
+        "sizeBytes": 149135,
+        "localPath": "distribution/sources/bootstrap/bubblewrap-0.13.1.tar.gz"
+      },
+      "buildRecipe": {
+        "repository": "https://github.com/conda-forge/bubblewrap-feedstock",
+        "commit": "4c35b3826535ecd25c5c43821a29c9baad387814",
+        "includedRecipe": "recipes/bubblewrap-recipe.yaml",
+        "perTargetMetadata": {
+          "linux-arm64": "recipes/linux-arm64/bubblewrap",
+          "linux-x64": "recipes/linux-x64/bubblewrap"
+        }
+      },
+      "licenseText": "bubblewrap-COPYING.txt",
+      "copyrightNotices": "bubblewrap-COPYRIGHT.txt",
+      "packages": {
+        "linux-arm64": {
+          "name": "bubblewrap",
+          "version": "0.13.1",
+          "build": "hfe774f5_0",
+          "license": "LGPL-2.0-or-later",
+          "url": "https://conda.anaconda.org/conda-forge/linux-aarch64/bubblewrap-0.13.1-hfe774f5_0.conda",
+          "sha256": "4290eb42ec2a0353d6e66096565e3c35d181d1f7f1e98ad729308cbf18a643f8",
+          "sizeBytes": 56801
+        },
+        "linux-x64": {
+          "name": "bubblewrap",
+          "version": "0.13.1",
+          "build": "haf0a511_0",
+          "license": "LGPL-2.0-or-later",
+          "url": "https://conda.anaconda.org/conda-forge/linux-64/bubblewrap-0.13.1-haf0a511_0.conda",
+          "sha256": "32ceb8953a90ef961d6111a097ef23b5c9fda051c2e03e2735f40ced2fde7357",
+          "sizeBytes": 53326
+        }
+      },
+      "licenseTextSha256": "dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551"
+    },
+    "libcap": {
+      "version": "2.78",
+      "licenseMetadata": "BSD-3-Clause OR GPL-2.0-only",
+      "distributionLicenseOption": "BSD-3-Clause",
+      "upstreamArchive": {
+        "url": "https://mirrors.edge.kernel.org/pub/linux/libs/security/linux-privs/libcap2/libcap-2.78.tar.xz",
+        "sha256": "0d621e562fd932ccf67b9660fb018e468a683d7b827541df27813228c996bb11",
+        "sizeBytes": 201040,
+        "localPath": "distribution/sources/bootstrap/libcap-2.78.tar.xz"
+      },
+      "buildRecipe": {
+        "repository": "https://github.com/conda-forge/libcap-feedstock",
+        "commit": "e5a4f7c9a9ca78963b89324b60f12e216df73536",
+        "includedRecipe": "recipes/libcap-meta.yaml.template",
+        "includedBuildScript": "recipes/libcap-build.sh",
+        "perTargetMetadata": {
+          "linux-arm64": "recipes/linux-arm64/libcap",
+          "linux-x64": "recipes/linux-x64/libcap"
+        }
+      },
+      "licenseText": "libcap-LICENSE.txt",
+      "copyrightNotices": "libcap-COPYRIGHT.txt",
+      "packages": {
+        "linux-arm64": {
+          "name": "libcap",
+          "version": "2.78",
+          "build": "hfcc8634_1",
+          "license": "BSD-3-Clause",
+          "url": "https://conda.anaconda.org/conda-forge/linux-aarch64/libcap-2.78-hfcc8634_1.conda",
+          "sha256": "6487e7644d062e18d389c11a9a3183e5a71c2652d05fdd88dbd063ad09f7ad4b",
+          "sizeBytes": 108530
+        },
+        "linux-x64": {
+          "name": "libcap",
+          "version": "2.78",
+          "build": "h084b8d7_1",
+          "license": "BSD-3-Clause",
+          "url": "https://conda.anaconda.org/conda-forge/linux-64/libcap-2.78-h084b8d7_1.conda",
+          "sha256": "8cb25174d6b6fac95d31e86cfe41faffc8ee9dacbf2bfd22e6c23377e8f338c1",
+          "sizeBytes": 124306
+        }
+      },
+      "licenseTextSha256": "68467e731f4744bd6e0bb69e8df9c3a994e09cd6b203d0c41327ac6d079c581d"
+    }
+  },
+  "phyniteBuildScript": "scripts/build-native-bootstrap.py",
+  "modifications": [
+    "The Phynite builder changes ELF RPATH to relative $ORIGIN paths and copies prefix-owned shared libraries.",
+    "No upstream program source is modified by that relocation. Actual packaged file hashes are in bootstrap/manifest.json."
+  ],
+  "releaseSourceAssets": [
+    "Publish the exact bubblewrap upstream source archive and the complete matching build/installation/relocation scripts with each binary release.",
+    "Retain the exact per-platform conda info/recipe metadata collected by the builder; it identifies build flags, package versions and any recipe changes.",
+    "Provide equivalent access to corresponding source alongside the binary download; upstream hyperlinks alone are not the release source delivery."
+  ],
+  "staticDependencyInspection": {
+    "method": "DT_NEEDED inspection of both SHA-256-verified original conda ELF payloads; not native execution qualification",
+    "bwrap": [
+      "libcap.so.2",
+      "system glibc and ELF loader"
+    ],
+    "libcap.so.2": [
+      "system glibc and ELF loader"
+    ]
+  },
+  "releaseSourceFiles": [
+    "distribution/sources/bootstrap/bubblewrap-0.13.1.tar.gz",
+    "distribution/sources/bootstrap/libcap-2.78.tar.xz",
+    "distribution/notices/bootstrap/",
+    "scripts/build-native-bootstrap.py",
+    "backend/local_api/native-bootstrap-lock.json",
+    "backend/local_api/sandbox.py"
+  ]
+}

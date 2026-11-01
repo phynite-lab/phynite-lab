@@ -1,0 +1,44 @@
+{
+  "blocks": [
+    {
+      "id": "thermal-stage",
+      "kind": "thermostat",
+      "enabled": true,
+      "params": {
+        "style": "nvt",
+        "timestepFs": 1,
+        "totalSteps": 250,
+        "tempStartK": 300,
+        "tempEndK": 450,
+        "dampingPs": 0.1,
+        "seed": 4928459
+      }
+    },
+    {
+      "id": "rdf-stage",
+      "kind": "analysis",
+      "enabled": true,
+      "params": {
+        "style": "rdf",
+        "totalSteps": 250,
+        "sampleEvery": 25,
+        "cutoffAngstrom": 6.5,
+        "bins": 128,
+        "neighbors": 12
+      }
+    },
+    {
+      "id": "min-stage",
+      "kind": "minimize",
+      "enabled": true,
+      "params": {
+        "style": "cg",
+        "energyTolerance": 1e-08,
+        "forceTolerance": 1e-10,
+        "maxIterations": 10000,
+        "maxEvaluations": 100000
+      }
+    }
+  ],
+  "expected": "# Block 1: Temperature control\nprint \"PHYNITE_BLOCK_BEGIN 001 thermal-stage thermostat\"\ntimestep 0.001\nfix ph_block_001 all nvt temp 300 450 0.1\nrun 250\nprint \"PHYNITE_BLOCK_END 001 thermal-stage thermostat\"\n\n# Block 2: Analysis\nprint \"PHYNITE_BLOCK_BEGIN 002 rdf-stage analysis\"\ncomm_modify cutoff 8.5\ncompute ph_block_002 all rdf 128 cutoff 6.5\nfix ph_block_002_avg all ave/time 25 1 25 c_ph_block_002[*] file data/rdf-block-002-rdf-stage.dat mode vector\nrun 250\nunfix ph_block_002_avg\nuncompute ph_block_002\nprint \"PHYNITE_BLOCK_END 002 rdf-stage analysis\"\nunfix ph_block_001\n\n# Block 3: Minimize\nprint \"PHYNITE_BLOCK_BEGIN 003 min-stage minimize\"\nmin_style cg\nminimize 1e-8 1e-10 10000 100000\nprint \"PHYNITE_BLOCK_END 003 min-stage minimize\""
+}

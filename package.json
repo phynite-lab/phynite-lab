@@ -1,0 +1,92 @@
+{
+  "name": "phynite-lab-source",
+  "version": "0.1.2",
+  "private": true,
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "dev": "PHYNITE_APP_MODE=local vinext dev --config vite.local.config.ts",
+    "dev:local": "node scripts/start-local-dev.mjs",
+    "prepare:workflow": "node scripts/build-workflow-compiler.mjs --local",
+    "prepare:downloads": "node --experimental-strip-types scripts/build-user-guide.mjs",
+    "prebuild": "npm run prepare:workflow && npm run prepare:downloads",
+    "predev": "npm run prepare:workflow",
+    "build": "PHYNITE_APP_MODE=local vinext build --config vite.local.config.ts",
+    "build:local": "npm run build",
+    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern work",
+    "typecheck": "tsc --noEmit --incremental false",
+    "test:structures": "node --experimental-strip-types --test tests/*.test.ts",
+    "test:native-ai": "node --test tests/native-ai.test.mjs",
+    "build:core": "python3 scripts/build-local-core.py",
+    "package:local": "node scripts/package-local.mjs"
+  },
+  "dependencies": {
+    "@noble/hashes": "2.4.0",
+    "@radix-ui/react-collapsible": "^1.1.20",
+    "@radix-ui/react-slider": "^1.4.7",
+    "@radix-ui/react-slot": "^1.3.3",
+    "@radix-ui/react-switch": "^1.3.7",
+    "@radix-ui/react-tabs": "^1.1.21",
+    "@react-three/drei": "^10.7.8",
+    "@react-three/fiber": "^9.7.0",
+    "@xyflow/react": "12.12.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "fflate": "^0.8.3",
+    "framer-motion": "^13.1.1",
+    "jspdf": "^4.2.1",
+    "katex": "0.16.47",
+    "lucide-react": "^1.34.0",
+    "motion": "^13.1.1",
+    "next": "16.4.3",
+    "postal-mime": "4.0.8",
+    "qrcode": "1.5.4",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-icons": "^5.7.0",
+    "react-markdown": "10.1.0",
+    "react-server-dom-webpack": "19.2.8",
+    "recharts": "^3.10.1",
+    "rehype-katex": "7.0.1",
+    "remark-gfm": "4.0.1",
+    "remark-math": "6.0.0",
+    "svg2pdf.js": "^2.8.1",
+    "tailwind-merge": "^3.6.0",
+    "three": "^0.185.1",
+    "vinext": "1.0.0",
+    "web-vitals": "5.3.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261019.1",
+    "@playwright/test": "1.63.0",
+    "@tailwindcss/postcss": "4.2.1",
+    "@types/node": "22.19.19",
+    "@types/qrcode": "1.5.6",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "@vitejs/plugin-rsc": "0.5.34",
+    "esbuild": "0.28.1",
+    "eslint": "9.39.4",
+    "eslint-config-next": "16.2.6",
+    "fake-indexeddb": "^6.2.5",
+    "tailwindcss": "4.2.1",
+    "typescript": "5.9.3",
+    "vite": "8.3.5"
+  },
+  "type": "module",
+  "overrides": {
+    "satori": {
+      "fflate": "0.7.5"
+    },
+    "miniflare": {
+      "undici": "7.30.1"
+    }
+  },
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/phynite-lab/phynite-lab.git"
+  }
+}

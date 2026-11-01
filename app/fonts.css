@@ -1,0 +1,18 @@
+@font-face { font-family: Geist; src: url('/fonts/Geist-basic-variable.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; unicode-range: U+0000-00FF, U+2000-206F, U+2190-21FF, U+FEFF, U+FFFD; }
+@font-face { font-family: 'Geist Mono'; src: url('/fonts/GeistMono-basic-variable.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; unicode-range: U+0000-00FF, U+2000-206F, U+2190-21FF, U+FEFF, U+FFFD; }
+@font-face { font-family: Geist; src: url('/fonts/Geist-latin-variable.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; unicode-range: U+0100-024F, U+2070-218F, U+2200-22FF; }
+@font-face { font-family: 'Geist Mono'; src: url('/fonts/GeistMono-latin-variable.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; unicode-range: U+0100-024F, U+2070-218F, U+2200-22FF; }
+:root { --font-geist-sans: Geist, Arial, sans-serif; --font-geist-mono: 'Geist Mono', monospace; }
+
+/* Greek, Cyrillic and scientific symbols retain the unmodified full font. */
+@font-face { font-family: Geist; src: url('/fonts/Geist-variable.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; unicode-range: U+0250-1FFF, U+2300-FEFE; }
+@font-face { font-family: 'Geist Mono'; src: url('/fonts/GeistMono-variable.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; unicode-range: U+0250-1FFF, U+2300-FEFE; }
+
+@font-face { font-family: "Geist Public"; src: url("/fonts/Geist-public-variable.woff2") format("woff2"); font-weight: 400 600; font-display: swap; }
+@font-face { font-family: "GeistMono Public"; src: url("/fonts/GeistMono-public-variable.woff2") format("woff2"); font-weight: 400 600; font-display: swap; }
+@font-face { font-family: "SpaceGrotesk Public"; src: url("/fonts/SpaceGrotesk-public-variable.woff2") format("woff2"); font-weight: 500 700; font-display: swap; }
+:root:has(.studio-home--landing) {
+  --font-geist-sans: "Geist Public", Arial, sans-serif;
+  --font-geist-mono: "GeistMono Public", monospace;
+  --font-display: "SpaceGrotesk Public", "Geist Public", sans-serif;
+}

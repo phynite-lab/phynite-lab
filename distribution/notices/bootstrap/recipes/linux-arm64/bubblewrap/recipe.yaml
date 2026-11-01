@@ -1,0 +1,49 @@
+context:
+  name: bubblewrap
+  version: "0.13.1"
+
+package:
+  name: ${{ name|lower }}
+  version: ${{ version }}
+
+source:
+  url: https://github.com/containers/bubblewrap/archive/refs/tags/v${{ version }}.tar.gz
+  sha256: b5cdc362b4bbe8906318ec68418de1fb050a8c6701534a81c0e94088ad74c22e
+
+build:
+  number: 0
+  skip:
+    - not linux
+  script: |
+    meson _builddir -Dselinux=disabled ${MESON_ARGS}
+    meson compile -C _builddir
+    meson test -C _builddir
+    meson install -C _builddir
+    # Pixi: prevent CONDA_PREFIX from leaking into sandboxed processes
+    mkdir -p ${PREFIX}/etc/pixi/bwrap
+    touch ${PREFIX}/etc/pixi/bwrap/global-ignore-conda-prefix
+
+requirements:
+  build:
+    - ${{ compiler('c') }}
+    - ${{ stdlib('c') }}
+    - pkg-config
+    - meson
+    - ninja
+  host:
+    - libcap
+
+tests:
+  - script:
+      - bwrap --help
+
+about:
+  homepage: https://github.com/containers/bubblewrap
+  repository: https://github.com/containers/bubblewrap
+  license: LGPL-2.0-or-later
+  license_file: COPYING
+  summary: Unprivileged sandboxing tool
+
+extra:
+  recipe-maintainers:
+    - wolfv

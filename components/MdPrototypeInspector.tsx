@@ -1,0 +1,26 @@
+'use client';
+import { useMemo } from 'react';
+import { RightInspectorPanel } from './md-prototype/components/RightInspectorPanel';
+import type { TrajectoryMetrics } from './md-prototype/types/trajectory';
+import type { MdAnalysis, MdFrame, MdSettings } from '@/lib/md-types';
+import { fromPrototypeModifier, prototypeInfo, toPrototypeFrame, toPrototypeModifier } from '@/lib/md-prototype-adapter';
+import { isMdElement } from '@/lib/md-workspace';
+
+export type MdPanel = 'inspect' | 'simulate';
+export function MdPrototypeInspector({ analysis, frames, settings, onSettings, panel, onPanel, current, onSeek, mappedSpecies, filename, metrics, onComputeMetrics, onCancelMetrics, metricsBusy, metricsStatus, onExportGlb, onExportData, exporting, exportingFormat, exportDisabledReason, hasActiveTrajectory = true, width, onWidthChange, sidebarWidth, simulationContent, computeContent }: {
+  analysis: MdAnalysis; frames: MdFrame[]; settings: MdSettings; onSettings: (patch: Partial<MdSettings>) => void; panel: MdPanel; onPanel: (panel: MdPanel) => void; current: number; onSeek: (frame: number) => void; mappedSpecies: string[]; filename: string; metrics: TrajectoryMetrics;
+  onComputeMetrics: () => void; onCancelMetrics: () => void; metricsBusy: boolean; metricsStatus: string; onExportGlb: () => void; onExportData?: (format: 'xyz' | 'dump' | 'cif' | 'poscar' | 'xsf' | 'png' | 'glb') => void; exporting: boolean; exportingFormat?: 'xyz' | 'dump' | 'cif' | 'poscar' | 'xsf' | 'png' | 'glb' | null; exportDisabledReason?: (format: 'xyz' | 'dump' | 'cif' | 'poscar' | 'xsf' | 'png' | 'glb') => string | undefined; hasActiveTrajectory?: boolean;
+  width?: number; onWidthChange?: (width: number) => void; sidebarWidth?: number; simulationContent?: React.ReactNode; computeContent?: React.ReactNode;
+}) {
+  const data = useMemo(() => {
+    if (!hasActiveTrajectory) return null;
+    const frame = toPrototypeFrame(analysis, settings, frames.length);
+    return { ...frame, cell: { ...frame.cell, pbc: settings.periodic ?? frame.cell.pbc } };
+  }, [hasActiveTrajectory, analysis, settings, frames.length]);
+  const hasBonds = settings.modifiers.some(m => m.kind === 'bonds' && m.enabled);
+  const toggleBonds = (showBonds: boolean) => onSettings({ showBonds, ...(showBonds && !hasBonds ? { modifiers: settings.modifiers.some(m => m.kind === 'bonds') ? settings.modifiers.map(m => m.kind === 'bonds' ? { ...m, enabled: true } : m) : settings.modifiers.length < 24 ? [...settings.modifiers, { id: crypto.randomUUID(), kind: 'bonds' as const, enabled: true, params: { cutoff: 2.8 } }] : settings.modifiers } : {}) });
+  return <RightInspectorPanel width={width} onWidthChange={onWidthChange} sidebarWidth={sidebarWidth} canSimulate={hasActiveTrajectory} simulationContent={simulationContent} computeContent={computeContent} frameData={data} trajInfo={hasActiveTrajectory && data ? prototypeInfo(data, filename, settings) : null} metrics={hasActiveTrajectory ? metrics : null} modifiers={settings.modifiers.map(toPrototypeModifier)} onModifiersChange={items => onSettings({ modifiers: items.map(fromPrototypeModifier) })} colorProperty={hasActiveTrajectory && (settings.colorBy === 'Species' || Object.hasOwn(analysis.frame.properties, settings.colorBy)) ? settings.colorBy : 'Species'} onColorPropertyChange={colorBy => onSettings({ colorBy })} colormap={settings.palette} onColormapChange={palette => onSettings({ palette: palette as MdSettings['palette'] })} availableProperties={['Species', ...(hasActiveTrajectory ? Object.keys(analysis.frame.properties) : [])]} hideBulkCrystal={settings.hideBulk} onHideBulkToggle={hideBulk => onSettings({ hideBulk })} canAddBonds={hasBonds || settings.modifiers.some(m => m.kind === 'bonds') || settings.modifiers.length < 24} showBonds={settings.showBonds && hasBonds} onToggleBonds={toggleBonds} showCellBox={settings.showCell} onToggleCellBox={showCell => onSettings({ showCell })} onExportGlb={onExportGlb} isExportingGlb={exporting} onExportData={onExportData} isExporting={exporting} exportingFormat={exportingFormat} exportDisabledReason={exportDisabledReason} atomScale={settings.atomScale} onAtomScaleChange={atomScale => onSettings({ atomScale })} currentFrame={current} onSeekFrame={onSeek} panel={panel} onPanel={onPanel} onPeriodicChange={periodic => onSettings({ periodic })} onComputeMetrics={onComputeMetrics} onCancelMetrics={onCancelMetrics} metricsBusy={metricsBusy} metricsStatus={metricsStatus} extraDisplay={<div className="md-prototype-extra">
+    {mappedSpecies.some(s => !isMdElement(s)) && <details><summary>Map particle types to elements</summary>{mappedSpecies.filter(s => !isMdElement(s)).map(s => <label className="md-field" key={s}><span>Type {s}</span><input aria-label={'Element for type ' + s} placeholder="e.g. Cu" value={settings.typeMap[s] ?? ''} onChange={e => onSettings({ typeMap: { ...settings.typeMap, [s]: e.target.value } })} /></label>)}</details>}
+    <label className="md-field"><span>Simulation timestep · ps</span><input type="number" min="0.000001" step="0.001" placeholder="Set to show physical time" value={settings.timeStepPs ?? ''} onChange={e => onSettings({ timeStepPs: e.target.value && Number.isFinite(Number(e.target.value)) && Number(e.target.value) > 0 ? Number(e.target.value) : null })} /></label>
+  </div>} />;
+}

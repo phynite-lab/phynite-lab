@@ -1,0 +1,10 @@
+# Explicit local build dependencies. Hosted authentication, encryption and billing SDKs are excluded.
+-r ../backend/local_api/requirements.txt
+PyInstaller==6.16.0
+keyring==25.6.0
+# Parse bounded user-provided AI evidence without executing documents.
+pypdf==6.21.2
+python-docx==1.2.0
+lxml==6.1.3
+openpyxl==3.1.5
+Pillow==13.0.0
