@@ -241,8 +241,13 @@ def _repair_linux_wheel_libraries(manager, release: Path, inventory: list[dict],
                             paths.append(value)
                     else:
                         raise RuntimeInstallError("A wheel library has an unsupported native search path.")
+                # Keep sibling libraries shipped by one wheel package (for
+                # example OVITO's libavcodec/libswresample set) resolvable
+                # after relocation.  A dependent ELF's own $ORIGIN is not
+                # inherited from its parent, so retaining only the shared
+                # prefix path would still fail at import time.
                 local = "$ORIGIN/" + os.path.relpath(prefix / "lib", binary.parent)
-                paths = list(dict.fromkeys([*paths, local]))
+                paths = list(dict.fromkeys(["$ORIGIN", *paths, local]))
                 argv = manager.sandbox.command(release, [str(patcher), "--set-rpath", ":".join(paths), str(binary)])
                 result = subprocess.run(argv, cwd=release, env=environment, stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, timeout=30, check=False)
                 if result.returncode:

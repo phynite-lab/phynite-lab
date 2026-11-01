@@ -134,7 +134,7 @@ class WheelRuntimeTests(unittest.TestCase):
             count = _repair_linux_wheel_libraries(manager, release, [{"distInfo": metadata.relative_to(prefix).as_posix()}], {})
         self.assertEqual(count, 1)
         setting = commands[1][commands[1].index("--set-rpath") + 1]
-        self.assertEqual(setting, "$ORIGIN/../:$ORIGIN/qt:$ORIGIN/../../..")
+        self.assertEqual(setting, "$ORIGIN:$ORIGIN/../:$ORIGIN/qt:$ORIGIN/../../..")
         audit = json.loads((release / "wheel-library-relocation.json").read_text())
         self.assertEqual(audit["files"][0]["sha256"], hashlib.sha256(binary.read_bytes()).hexdigest())
         self.assertNotIn("LD_LIBRARY_PATH", setting)
