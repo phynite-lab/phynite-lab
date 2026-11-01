@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "upstreamCommit": "86ee14873ad5e7fe8152b1de19e3a138aa9f802c",
+  "upstreamCommit": "3b7871f3f20ed18e4bbaf9ad5b03fd89c967c1a9",
   "files": {
     ".github/actionlint.yaml": "0c504353abd618e30376593b3198fc1fc9c69641d3eeb681e5c1cf4160dce350",
     ".github/scripts/native-ci-apparmor.py": "454d74d30f66d12f58ee3b8cd75ebf83200b33b5e01d87e9c518b49e826ff32a",
@@ -666,7 +666,7 @@
     "scripts/lock-native-runtime.py": "401bcd9cd5b0cfe0056f288e8db59ff29c5217086a5d2edc622a0733a237db14",
     "scripts/lxml_native_sources.py": "b5ffe0dc7402c4956985d0a1a6ada4c328482eaf7c2764b6f0499d7e61a33519",
     "scripts/package-local.mjs": "40849e5185e38ccacb3f4f76b26a73ee41fe7b424d67d9024a7ae14d43e4029f",
-    "scripts/publish-local-release.mjs": "d56222d377bf1e97b4b0d3a87c147ca09b5ca97bb6f217e6e957eef0068a8819",
+    "scripts/publish-local-release.mjs": "5921469f1df1a85ef28cd4d7d4a7f7147aa0d50ffbea40645647ad3dc9b95c69",
     "scripts/qualify-local-science.py": "94c9dcda83761ab83b07a077f6b50607d479bf9bdb227c43ec3439c2b3b3d290",
     "scripts/rebuild-lxml-native.py": "dff34d4bb1cc4201a5f78b75665623c6a746cf92c6ee6b3ba107e431d585c5ac",
     "scripts/smoke-local-distribution.mjs": "f6c523c4d6cd7306084d6768cb8d15300fe79c5be4e7d61511cae8e61b7018fb",
@@ -776,6 +776,7 @@
     "tests/workspace-resources.test.ts": "cad68fe60657aa292edf0f70438845f67a7cee04cf6ade3ccbc57ea392ded54a",
     "tsconfig.json": "2461f0664b2e17bb3619cc6f1ad861950b4da16fd6e7e6d60b2d33bbfe0d702f",
     "vite.config.ts": "b9713ed5c6fa91816fd213c9dba6d3c2f11aec7d334b1d37c258f4245dc337d3",
-    "vite.local.config.ts": "e04723f84f54907c4efc125989876f88ce408bcf37d120b717e9016673a78105"
+    "vite.local.config.ts": "e04723f84f54907c4efc125989876f88ce408bcf37d120b717e9016673a78105",
+    "SOURCE_MANIFEST.json": "a967b880b2df10c78bf0b87994e3e6569fe4d27cd650e14a0e9e91a6295877e2"
   }
 }

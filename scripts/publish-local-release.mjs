@@ -18,6 +18,19 @@ function npm(args) {
   });
 }
 
+function npmPublicationArgs(filename, { provenance = false } = {}) {
+  return [
+    'publish', filename, '--access', 'public', '--ignore-scripts',
+    '--fetch-retries', '5', '--fetch-retry-maxtimeout', '120000', '--fetch-timeout', '900000',
+    ...(provenance ? ['--provenance'] : []),
+  ];
+}
+
+function boundedNpmDiagnostics(result) {
+  const output = `${result.stderr}\n${result.stdout}`.trim().replace(/\s+/g, ' ');
+  return output.slice(0, 600) || 'npm returned no diagnostic output.';
+}
+
 async function integrity(path) {
   const hash = createHash('sha512');
   for await (const chunk of createReadStream(path)) hash.update(chunk);
@@ -61,8 +74,8 @@ export async function publishLocalRelease(inventory, { confirmVersion, publish =
     const item = packages.get(name);
     if (await sha256(item.filename) !== item.sha256) throw new Error('Tarball changed after release qualification. Publication aborted.');
     if (!present.has(name)) {
-      const result = await npm(['publish', item.filename, '--access', 'public', '--ignore-scripts', ...(provenance ? ['--provenance'] : [])]);
-      if (result.code !== 0) throw new Error(`npm publication failed for ${name}; earlier platform packages may exist. No later package was published. Inspect npm authentication or registry status, then rerun the same verified inventory.`);
+      const result = await npm(npmPublicationArgs(item.filename, { provenance }));
+      if (result.code !== 0) throw new Error(`npm publication failed for ${name}; earlier platform packages may exist. No later package was published. ${boundedNpmDiagnostics(result)}`);
     }
     // The launcher is reached only after each native dependency is available
     // with exactly the same bytes that passed its qualification gates.
