@@ -1,10 +1,11 @@
 /** Offline release evidence gate. Reading a report is never solver qualification. */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { createReadStream } from 'node:fs';
-import { cp, lstat, mkdir, readFile, realpath, readdir, writeFile } from 'node:fs/promises';
+import { createReadStream, rmSync } from 'node:fs';
+import { cp, lstat, mkdir, mkdtemp, readFile, realpath, readdir, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createGunzip } from 'node:zlib';
 import { pipeline } from 'node:stream/promises';
@@ -67,9 +68,52 @@ function run(executable, args, input) {
   });
 }
 
-async function tarMember(path, member) { return run('tar', ['-xOf', path, '--', member]); }
+// Release archives are validated for safe regular-file entries before this
+// cache is populated. Reusing one extraction avoids decompressing the same
+// npm/source archive once per bundled asset or notice checksum.
+const archiveCaches = new Map();
+async function cacheArchive(path) {
+  if (archiveCaches.has(path)) return archiveCaches.get(path);
+  const root = await mkdtemp(join(tmpdir(), 'phynite-release-archive-'));
+  try {
+    await run('tar', ['-xzf', path, '-C', root]);
+  } catch (error) {
+    rmSync(root, { recursive: true, force: true });
+    throw error;
+  }
+  archiveCaches.set(path, root);
+  return root;
+}
+
+function cachedMember(root, member) {
+  if (typeof member !== 'string' || !member || member.startsWith('/') || member.includes('\\') || member.split('/').some(part => !part || part === '.' || part === '..')) fail('Unsafe cached archive member.');
+  const path = resolve(root, member);
+  if (!path.startsWith(root + '/')) fail('Cached archive member escaped its extraction directory.');
+  return path;
+}
+
+async function readCachedOrTar(path, member) {
+  const root = archiveCaches.get(path);
+  if (!root) return run('tar', ['-xOf', path, '--', member]);
+  const file = cachedMember(root, member), info = await lstat(file);
+  if (!info.isFile() || info.isSymbolicLink()) fail('Cached archive member is not a regular file.');
+  return readFile(file, 'utf8');
+}
+
+async function disposeArchiveCaches() {
+  for (const root of archiveCaches.values()) rmSync(root, { recursive: true, force: true });
+  archiveCaches.clear();
+}
+
+async function tarMember(path, member) { return readCachedOrTar(path, member); }
 
 async function tarMemberDigest(path, member) {
+  const root = archiveCaches.get(path);
+  if (root) {
+    const file = cachedMember(root, member), info = await lstat(file);
+    if (!info.isFile() || info.isSymbolicLink() || info.size > 512 * 1024 * 1024) fail('A required release archive member is missing or exceeds its size limit.');
+    return { sha256: await sha256(file), bytes: info.size };
+  }
   return new Promise((accept, reject) => {
     const child = spawn('tar', ['-xOf', path, '--', member], { stdio: ['ignore', 'pipe', 'pipe'] }), hash = createHash('sha256');
     let bytes = 0, oversized = false;
@@ -130,6 +174,7 @@ async function verifyPackage(path, item, release, expectedLicense) {
   const entries = (await run('tar', ['-tzf', path])).trim().split('\n');
   if ((await run('tar', ['-tvzf', path])).trim().split('\n').some(entry => !/^[-d]/.test(entry) || /[sS]/.test(entry[3] + entry[6]))) fail(`${item.name}: npm archive links, setuid/setgid or special files are forbidden.`);
   if (entries.some(entry => !entry.startsWith('package/') || entry.includes('\\') || entry.split('/').includes('..') || prohibitedDistributionPath(entry))) fail(`${item.name}: unsafe or prohibited npm archive entry.`);
+  await cacheArchive(path);
   if (metadata.name !== item.name || metadata.version !== release.version || metadata.license !== 'AGPL-3.0-only'
       || license !== expectedLicense || !license.includes('GNU AFFERO GENERAL PUBLIC LICENSE') || !license.includes('Version 3, 19 November 2007') || !notices.trim()) fail(`${item.name}: invalid package identity, license or notices.`);
   if (['preinstall', 'install', 'postinstall', 'prepare'].some(name => metadata.scripts?.[name])) fail(`${item.name}: installation lifecycle scripts are forbidden.`);
@@ -232,7 +277,7 @@ async function verifyEvidence(root, item, kind, release, packages) {
  * @param {string} inventoryPath
  * @param {{version?: string, sourceCommit?: string}} [expected]
  */
-export async function verifyLocalRelease(inventoryPath, expected = {}) {
+async function verifyLocalReleaseInternal(inventoryPath, expected = {}) {
   const path = resolve(inventoryPath), root = dirname(path), release = await json(path);
   if (release.schemaVersion !== 1 || release.format !== 'phynite-local-release-candidate' || !VERSION.test(release.version ?? '') || release.source?.repository !== RELEASE_REPOSITORY || !COMMIT.test(release.source?.commit ?? '')) fail('Invalid public release inventory identity.');
   if (expected.version && release.version !== expected.version || expected.sourceCommit && release.source.commit !== expected.sourceCommit) fail('Release evidence does not match the explicitly requested public source commit/version.');
@@ -242,6 +287,7 @@ export async function verifyLocalRelease(inventoryPath, expected = {}) {
   const sourceEntries = (await run('tar', ['-tzf', archive])).trim().split('\n');
   if ((await run('tar', ['-tvzf', archive])).trim().split('\n').some(entry => !/^[-d]/.test(entry))) fail('Corresponding source cannot contain links or special files.');
   if (sourceEntries.some(entry => entry.startsWith('/') || entry.includes('\\') || entry.split('/').includes('..') || /^(?:backend\/(?:functions|md_compute|scripts)|workers|app\/developer)(?:\/|$)/.test(entry.split('/').slice(1).join('/')))) fail('Corresponding source contains an unsafe or private hosted path.');
+  await cacheArchive(archive);
   const sourceLicensePath = sourceEntries.find(entry => /^[^/]+\/LICENSE$/.test(entry));
   if (!sourceLicensePath) fail('The exact corresponding source archive is missing its root AGPL license.');
   const expectedLicense = await tarMember(archive, sourceLicensePath);
@@ -279,6 +325,15 @@ export async function verifyLocalRelease(inventoryPath, expected = {}) {
     await verifyEvidence(root, item, 'scientific', release, packages);
   }
   return { release, packages, sourceArchive: archive, inventoryPath: path };
+}
+
+export async function verifyLocalRelease(inventoryPath, expected = {}) {
+  await disposeArchiveCaches();
+  try {
+    return await verifyLocalReleaseInternal(inventoryPath, expected);
+  } finally {
+    await disposeArchiveCaches();
+  }
 }
 
 /**
