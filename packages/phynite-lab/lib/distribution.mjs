@@ -10,8 +10,9 @@ import { validateBundledNoticeIndex, validateBundledNoticeReport } from './bundl
 
 export const RELEASE_REPOSITORY = 'https://github.com/phynite-lab/phynite-lab';
 export const DISTRIBUTION_TARGETS = Object.freeze(['darwin-arm64', 'darwin-x64', 'linux-arm64', 'linux-x64']);
-// Release scope is narrower than the source/build target inventory.
-export const NPM_RELEASE_TARGETS = Object.freeze(['darwin-arm64', 'linux-x64']);
+// Every native target has a separately assembled npm package. WSL2 runs the
+// Linux x64 package because Node reports its native platform as linux-x64.
+export const NPM_RELEASE_TARGETS = Object.freeze([...DISTRIBUTION_TARGETS]);
 const VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 const HASH = /^[a-f0-9]{64}$/;
 

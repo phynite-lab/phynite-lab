@@ -11,10 +11,12 @@ npm install -g phynite-lab
 phynite-lab
 ```
 
-Requires Node.js 22.13 or later. Version 0.1.1 supports macOS Apple Silicon
-(M1 or later) and Linux x64 with glibc >=2.39, including current Omarchy/Arch Linux.
-Intel Macs, Linux ARM64 and Windows/WSL2 are not included. Linux qualification
-runs on Ubuntu 24.04; direct testing on an Omarchy desktop is not claimed.
+Requires Node.js 22.13 or later. Version 0.1.1 ships native packages for macOS
+Apple Silicon (`darwin-arm64`), macOS Intel (`darwin-x64`), Linux ARM64
+(`linux-arm64`) and Linux x64 (`linux-x64`, glibc >=2.39), including current
+Omarchy/Arch Linux. Windows is supported through WSL2, which uses the Linux x64
+package and launcher. Linux qualification runs on matching hosted runners;
+direct testing on an Omarchy desktop or Windows host is not claimed.
 npm selects the exact-version native platform optional package containing
 the production app, frozen local core and Linux sandbox; it does not require
 a global Python installation, AWS CLI, or Docker. Scientific solver runtimes are

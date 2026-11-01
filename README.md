@@ -25,7 +25,13 @@ phynite-lab doctor
 npm install -g phynite-lab@latest
 ```
 
-The 0.1.1 release targets **macOS Apple Silicon (M1 or later)** and **Linux x64**, including current Omarchy/Arch Linux with glibc >=2.39. Intel Macs, Linux ARM64 and Windows/WSL2 are not included. Linux requires unprivileged user namespaces; the verified bubblewrap sandbox is included. See the distribution guide for the test environment and Omarchy setup.
+The 0.1.1 release ships native packages for **macOS Apple Silicon** (`darwin-arm64`),
+**macOS Intel** (`darwin-x64`), **Linux ARM64** (`linux-arm64`) and **Linux x64**
+(`linux-x64`, glibc >=2.39), including current Omarchy/Arch Linux. Windows is
+supported through WSL2, which uses the Linux x64 package and launcher. Linux
+requires unprivileged user namespaces; the verified bubblewrap sandbox is included.
+The release is qualified on matching CI runners; direct testing on an Omarchy
+desktop or Windows host is not claimed. See the distribution guide for setup.
 
 ## Local work and optional Cloud
 

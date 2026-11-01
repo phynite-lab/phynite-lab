@@ -1,8 +1,9 @@
 /** Offline release evidence gate. Reading a report is never solver qualification. */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { createReadStream, rmSync } from 'node:fs';
+import { createReadStream } from 'node:fs';
 import { cp, lstat, mkdir, mkdtemp, readFile, realpath, readdir, writeFile } from 'node:fs/promises';
+import { rmSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -401,6 +402,6 @@ async function main() {
   const result = command === 'verify' && options['--inventory'] ? await verifyLocalRelease(options['--inventory'], { version: options['--version'], sourceCommit: options['--source-commit'] })
     : command === 'prepare' && options['--directory'] ? await prepareLocalRelease(options['--directory'], { version: options['--version'], sourceCommit: options['--source-commit'], sourceArchive: options['--source-archive'], deferWsl2Reason: options['--defer-wsl2-reason'] }) : fail('Expected prepare or verify with the required release evidence options.');
   assert.equal(result.release.evidence.length, requiredReleaseTargets(result.release.qualification).length);
-  console.log(`PASS: ${result.release.version}, source ${result.release.source.commit}; all released native gates verified (macOS Apple Silicon); exact source/package/evidence SHA-256 verified. No publication performed.`);
+  console.log(`PASS: ${result.release.version}, source ${result.release.source.commit}; all released native gates verified; exact source/package/evidence SHA-256 verified. No publication performed.`);
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

@@ -2,10 +2,14 @@
 
 A push runs source CI. A `release/**` branch push also builds and qualifies a native candidate without publishing. Publication is an explicit `Local native release` workflow dispatch against the public repository, with a version already committed in both package manifests. The release scripts never deploy the hosted application.
 
-The `0.1.1` release includes macOS Apple Silicon (`darwin-arm64`) and Linux x64 (`linux-x64`, glibc >=2.39). Linux builders use Ubuntu 24.04. Direct testing on an Omarchy desktop is not claimed. Intel Macs, Linux ARM64 and WSL2 are not included. The native workflow builds the exact public
+The `0.1.1` release includes macOS Apple Silicon (`darwin-arm64`), macOS Intel
+(`darwin-x64`), Linux ARM64 (`linux-arm64`) and Linux x64 (`linux-x64`, glibc
+>=2.39). Linux builders use Ubuntu 24.04 and its ARM64 hosted runner. Windows
+WSL2 uses the Linux x64 package because it reports that platform to Node and npm;
+direct testing on an Omarchy desktop or Windows host is not claimed. The native workflow builds the exact public
 commit, installs the launcher and matching platform tarball in a clean prefix, and requires
 all browser, persistence, scientific reference and sandbox checks to pass.
-`verified-release` contains the source archive, tarballs and checksummed evidence.
+`verified-release` contains the source archive, all four native tarballs and checksummed evidence.
 Normal pushes never publish. A maintainer can publish this same verified bundle
 using the official npm account or an explicitly configured trusted publisher.
 Native packages are published before the launcher; a partial release can resume
@@ -30,7 +34,7 @@ The publisher defaults to a verified dry run. `--publish` explicitly enables reg
 
 The inventory format is `phynite-local-release-candidate`, schema version 1. It
 identifies the release version, exact public source commit, SHA-256-bound
-`git archive` source tarball, the launcher and both platform runtime tarballs, and
+`git archive` source tarball, the launcher and all four platform runtime tarballs, and
 each actual target's smoke/scientific reports. Missing platform evidence, unshipped
 targets and qualification deferrals are rejected. No scientific gate is waived.
 
@@ -46,7 +50,7 @@ The local Vite build also records actual rendered dependency modules in `phynite
 
 Assembly verifies every emitted chunk/asset checksum, merges the original text into `THIRD_PARTY_NOTICES.md`, and writes a checksummed `bundled-notices.json` index. The installed launcher and publication gate require those report and output bindings. Discovery-only incomplete reports cannot be packaged. Preserve `distribution/notices/web` and the build plugin when exporting source; changing a dependency version requires reviewed matching source notices.
 
-The launcher uses the macOS system opener, a Linux desktop opener, or Windows browser interop when the actual Linux kernel identifies WSL2. A missing opener or nonzero exit falls back to another supported opener and ultimately prints the local address. WSL2 browser behavior still requires the native WSL2 acceptance run.
+The launcher uses the macOS system opener, a Linux desktop opener, or Windows browser interop when the actual Linux kernel identifies WSL2. A missing opener or nonzero exit falls back to another supported opener and ultimately prints the local address. WSL2 consumes the Linux x64 package; direct WSL2 acceptance is a follow-up environment check rather than a separate npm package.
 
 Scientific reports require runtime installation, a QE job submitted through the actual application queue/worker/artifact protocol, direct QE/Guided MD/manual MD/analysis reference runs, the sandbox probe and denials, cancel/resource/recovery and installation failure recovery. Each reference includes a successful process return code, exact input and output artifacts, provenance matching their hashes, and finite measured/expected values within an explicit tolerance. Reference contracts and licensed scientific fixtures are supplied separately by the producer; prohibited potential files are never bundled merely to satisfy a test.
 
@@ -56,4 +60,4 @@ Every native executable must still pass the real acceptance producer on its targ
 
 ## Registry acceptance after publication
 
-The workflow also checks a fresh global npm install, native startup, status/stop, project creation and restart persistence on macOS ARM64 and Linux x64 with an empty home and a Node-only PATH. Before a version is published, this job explicitly reports acceptance pending. Rerun its matrix jobs against the same source commit after initial publication; only their actual successful reports qualify registry installation. `verify-registry-install.mjs` uploads a sanitized report, not its temporary database, sessions or private process logs. The publisher waits up to ten minutes for npm staged-placeholder propagation, verifies the exact operational version integrity, and stops on authentication or different-byte failures.
+The workflow also checks a fresh global npm install, native startup, status/stop, project creation and restart persistence on all four native targets with an empty home and a Node-only PATH. Before a version is published, this job explicitly reports acceptance pending. Rerun its matrix jobs against the same source commit after initial publication; only their actual successful reports qualify registry installation. `verify-registry-install.mjs` uploads a sanitized report, not its temporary database, sessions or private process logs. The publisher waits up to ten minutes for npm staged-placeholder propagation, verifies the exact operational version integrity, and stops on authentication or different-byte failures.
