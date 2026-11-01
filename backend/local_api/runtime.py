@@ -158,7 +158,11 @@ class RuntimeManager:
                     raise RuntimeInstallError("Another process is installing a runtime.") from error
                 return self._install(component)
         except Exception as error:
-            self._progress = {**self._progress, "state": "failed", "error": str(error)[:500]}
+            # Keep a bounded native diagnostic in the same-origin status
+            # response. Runtime qualification failures often include the
+            # actual missing shared library or Python import traceback; the
+            # previous 500-byte cap could cut the message before that cause.
+            self._progress = {**self._progress, "state": "failed", "error": str(error)[:4096]}
             raise
         finally:
             self._mutex.release()
