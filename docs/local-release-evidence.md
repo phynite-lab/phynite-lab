@@ -2,7 +2,7 @@
 
 A push runs source CI. A `release/**` branch push also builds and qualifies a native candidate without publishing. Publication is an explicit `Local native release` workflow dispatch against the public repository, with a version already committed in both package manifests. The release scripts never deploy the hosted application.
 
-The `0.1.2` release includes macOS Apple Silicon (`darwin-arm64`), macOS Intel
+The `0.1.3` release includes macOS Apple Silicon (`darwin-arm64`), macOS Intel
 (`darwin-x64`), Linux ARM64 (`linux-arm64`) and Linux x64 (`linux-x64`, glibc
 >=2.39). Linux builders use Ubuntu 24.04 and its ARM64 hosted runner. Windows
 WSL2 uses the Linux x64 package because it reports that platform to Node and npm;
@@ -19,13 +19,13 @@ only when registry tarballs have identical SHA-512 integrity.
 
 ```bash
 node scripts/verify-local-release.mjs prepare \
-  --directory build/release --version 0.1.2 \
+  --directory build/release --version 0.1.3 \
   --source-commit FULL_PUBLIC_COMMIT --source-archive source.tar.gz
 node scripts/verify-local-release.mjs verify \
   --inventory build/release/release.json \
-  --version 0.1.2 --source-commit FULL_PUBLIC_COMMIT
+  --version 0.1.3 --source-commit FULL_PUBLIC_COMMIT
 node scripts/publish-local-release.mjs \
-  --inventory build/release/release.json --confirm-version 0.1.2
+  --inventory build/release/release.json --confirm-version 0.1.3
 ```
 
 For a first publication, npm must already know each package before its settings can be configured with a trusted publisher. After all required gates pass, download the complete verified bundle and use the maintainer's official `npm login` session with the publisher locally. Then configure trusted publishing for every released package name, the public repository and `local-release.yml`; later releases can use the workflow's OIDC identity. Do not create unqualified placeholder versions merely to configure npm. A two-factor authentication or publisher setup requirement remains an explicit account step; never embed a token in source or artifacts.

@@ -25,7 +25,7 @@ phynite-lab doctor
 npm install -g phynite-lab@latest
 ```
 
-The 0.1.2 release ships native packages for **macOS Apple Silicon** (`darwin-arm64`),
+The 0.1.3 release ships native packages for **macOS Apple Silicon** (`darwin-arm64`),
 **macOS Intel** (`darwin-x64`), **Linux ARM64** (`linux-arm64`) and **Linux x64**
 (`linux-x64`, glibc >=2.39), including current Omarchy/Arch Linux. Windows is
 supported through WSL2, which uses the Linux x64 package and launcher. Linux
