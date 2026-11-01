@@ -25,6 +25,7 @@ import { aiConversationInProject } from '@/lib/project-ai';
 import { aiRunElapsedSeconds } from '@/lib/ai-run-time';
 import { observeAiEvent } from '@/lib/ai-event-cursor';
 import { acceptAiDetail, saveAiSettings } from '@/lib/ai-settings';
+import { stopAiTurn } from '@/lib/ai-turn-control';
 import '@/app/ai.css';
 
 async function request<T>(path: string, body?: unknown, method = body === undefined ? 'GET' : 'POST'): Promise<T> {
@@ -487,7 +488,7 @@ function AiWorkspaceOwner({ owner, projectId, legacyProjectId, conversationId, v
     } catch (failure) { setError(failure, accepted ? 'request' : 'message'); if (!accepted) { setText(value => value ? `${message}\n${value}` : message); setFiles(value => [...selected, ...value]); setContexts(value => [...contexts, ...value].slice(0, 16)); setSourcePlan(sourcePlan); } }
     finally { enqueueLock.current = false; if (mounted.current) setEnqueueBusy(false); }
   };
-  const stop = async () => { stopRequested.current = true; foreground.current?.abort(); const value = current.current; if (!value) return; try { await request(`conversations/${value.conversation.id}/stop`, { runId: value.run?.id }); await load(value.conversation.id); } catch (failure) { setError(failure); } };
+  const stop = async () => { stopRequested.current = true; foreground.current?.abort(); const value = current.current; if (!value) return; try { await stopAiTurn(value.run, payload => request(`conversations/${value.conversation.id}/stop`, payload)); await load(value.conversation.id); } catch (failure) { setError(failure); } };
   const continueQueue = async (retryRunId?: string) => {
     if (!current.current || recoveryLock.current || retryRunId && enqueueLock.current) return;
     if (retryRunId && aiRetryRunId(current.current) !== retryRunId) return;

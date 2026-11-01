@@ -41,11 +41,14 @@ export function AiModelSettings({ portalOwner, open, onOpenChange, value, label,
   }, [open, placement.style.visibility]);
   const choose = async (button: HTMLButtonElement, dismiss: boolean) => {
     if (button.disabled) return;
+    // Saving disables this radio; keep Escape within the dialog while it waits.
+    const focusOwner = root.current;
+    focusOwner?.focus({ preventScroll: true });
     if (button.dataset.modelChoice !== undefined) await onModel(button.dataset.modelChoice);
     else if (button.dataset.effortChoice) await onEffort(button.dataset.effortChoice as AiEffort);
     if (!root.current?.isConnected) return;
     if (dismiss) close();
-    else requestAnimationFrame(() => { if (button.isConnected && !button.disabled) button.focus({ preventScroll: true }); });
+    else requestAnimationFrame(() => { if (document.activeElement === focusOwner && button.isConnected && !button.disabled) button.focus({ preventScroll: true }); });
   };
   const radioKeys = (event: KeyboardEvent<HTMLDivElement>) => {
     if (!['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
