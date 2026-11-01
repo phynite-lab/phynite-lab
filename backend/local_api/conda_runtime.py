@@ -335,7 +335,9 @@ print(json.dumps({'python':sys.version.split()[0],'imports':[m.__name__ for m in
         process = subprocess.run(command, cwd=release, env=environment, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=output, text=True, timeout=120, check=False)
         output.write(process.stdout)
     if process.returncode:
-        raise RuntimeInstallError("Scientific runtime import qualification failed. Inspect the retained qualification log; the previous runtime remains active.")
+        diagnostic = log.read_text(errors="replace")[-4096:].strip()
+        detail = f" Native diagnostic: {diagnostic}" if diagnostic else ""
+        raise RuntimeInstallError("Scientific runtime import qualification failed." + detail + " The previous runtime remains active.")
     try:
         result = json.loads(process.stdout)
         if result.get("passed") is not True:

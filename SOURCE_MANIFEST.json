@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "upstreamCommit": "7eab02507b1772a1ad1f621ce327d9a85c422cc2",
+  "upstreamCommit": "eec8b63f8d4ef881040d78a8e27d4fc55483d846",
   "files": {
     ".github/actionlint.yaml": "0c504353abd618e30376593b3198fc1fc9c69641d3eeb681e5c1cf4160dce350",
     ".github/scripts/native-ci-apparmor.py": "454d74d30f66d12f58ee3b8cd75ebf83200b33b5e01d87e9c518b49e826ff32a",
@@ -160,7 +160,7 @@
     "backend/local_api/bundles.py": "29c5d3900d0db29af2f523aec61ff2f0312064c1477b6ffdcc067a045d3cec18",
     "backend/local_api/cloud_client.py": "5aa6ddb062e24fd652d2cf250dcdee6d1f15c8e19626d6c65ff8886e84a6c517",
     "backend/local_api/cloud_compute.py": "0025698375ca5191a959e782a977c28e6ca1f1ce1cc6b4dbc8e767d9943ccc46",
-    "backend/local_api/conda_runtime.py": "bbd848d8f93efc5f664d4a7a7f08e049504501966b9714c5ab8cd8e972b4ffbd",
+    "backend/local_api/conda_runtime.py": "65300203f3f406d849767f3344b3c555ccafedd6c8bd4c2e20b65550480ec7f3",
     "backend/local_api/connections.py": "941094b1c68efcf82fa181ded58a23af966d0c33679f9205287a9ec647a2b7b3",
     "backend/local_api/desktop_server.py": "7e3f94a7edf48c9d047c0d9c59c7820c168d8a6f67abfce4f884859b64a40620",
     "backend/local_api/domain/__init__.py": "b3bc42649c7f7a87f40400aeb4803385be2fbcd5899bd8ef8e37c3f4658b324a",
