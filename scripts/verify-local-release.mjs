@@ -108,7 +108,7 @@ async function verifyLinuxBootstrap(item, sourceArchive, sourcePrefix, sourceEnt
   const noticePrefix = 'distribution/notices/bootstrap/';
   for (const entry of sourceEntries.filter(name => name.startsWith(sourcePrefix + noticePrefix) && !name.endsWith('/'))) {
     const relative = entry.slice((sourcePrefix + noticePrefix).length);
-    const original = await tarMemberDigest(sourceArchive, entry), packaged = await tarMemberDigest(item.filename, 'package/bootstrap/notices/' + relative);
+    const original = await tarMemberDigest(sourceArchive, entry), packaged = await tarMemberDigest(item.filename, 'package/bootstrap/notices/reviewed/' + relative);
     if (original.sha256 !== packaged.sha256) fail('Linux bootstrap notices differ from the corresponding source.');
   }
   const sources = JSON.parse(await tarMember(sourceArchive, sourcePrefix + noticePrefix + 'sources.json'));

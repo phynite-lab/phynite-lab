@@ -68,7 +68,8 @@ async function createFixture() {
         const bootstrap = join(directory, 'bootstrap');
         await mkdir(bootstrap);
         await writeFile(join(bootstrap, 'bwrap'), 'Synthetic test binary. Never native isolation evidence.');
-        await cp(join(source, 'distribution/notices/bootstrap'), join(bootstrap, 'notices'), { recursive: true });
+        await mkdir(join(bootstrap, 'notices'), { recursive: true });
+        await cp(join(source, 'distribution/notices/bootstrap'), join(bootstrap, 'notices/reviewed'), { recursive: true });
         const lock = JSON.parse(await readFile(join(source, 'backend/local_api/native-bootstrap-lock.json'), 'utf8'));
         await writeFile(join(bootstrap, 'source-lock.json'), JSON.stringify(lock.targets[target]));
         await writeFile(join(bootstrap, 'manifest.json'), JSON.stringify({ schemaVersion: 1, target, minimumGlibc: '2.39', tools: { bwrap: { executable: 'bwrap', sha256: await sha256(join(bootstrap, 'bwrap')), libraries: [] } }, notices: 'notices', sourceLock: 'source-lock.json' }));
