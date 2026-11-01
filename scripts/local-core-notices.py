@@ -15,12 +15,26 @@ from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
 
-ROOT_PACKAGES = ('boto3', 'python-quickjs-ng', 'psutil', 'keyring', 'PyInstaller',
-                 'pypdf', 'python-docx', 'openpyxl', 'Pillow')
+ROOT_PACKAGES = ('boto3', 'psutil', 'keyring', 'PyInstaller', 'pypdf',
+                 'python-docx', 'openpyxl', 'Pillow')
+QUICKJS_PACKAGES = ('python-quickjs-ng', 'quickjs')
+
+
+def installed(name: str) -> bool:
+    try:
+        metadata.version(name)
+    except metadata.PackageNotFoundError:
+        return False
+    return True
 
 
 def installed_notices() -> str:
     pending = list(ROOT_PACKAGES)
+    installed_quickjs = [name for name in QUICKJS_PACKAGES
+                         if installed(name)]
+    if len(installed_quickjs) != 1:
+        raise RuntimeError('Exactly one reviewed QuickJS provider must be installed: python-quickjs-ng or quickjs.')
+    pending.append(installed_quickjs[0])
     packages: dict[str, metadata.Distribution] = {}
     while pending:
         name = canonicalize_name(pending.pop())

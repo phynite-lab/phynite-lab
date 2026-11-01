@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "upstreamCommit": "e05f9c89496805609ef25850e1f758f452bf603b",
+  "upstreamCommit": "86ee14873ad5e7fe8152b1de19e3a138aa9f802c",
   "files": {
     ".github/actionlint.yaml": "0c504353abd618e30376593b3198fc1fc9c69641d3eeb681e5c1cf4160dce350",
     ".github/scripts/native-ci-apparmor.py": "454d74d30f66d12f58ee3b8cd75ebf83200b33b5e01d87e9c518b49e826ff32a",
@@ -205,7 +205,7 @@
     "backend/local_api/native-bootstrap-lock.json": "37b14b89cc6424d0a46768330b9e85cd98ff3636ad68aea1b9655fbb9f1104b4",
     "backend/local_api/public-core.json": "1d208f659b1a1adba7f3ade4866be1453c22883786f8ad50f2a062b52bbb1202",
     "backend/local_api/qualification.py": "4ed3715dea2210be34b7231fc609481af435215458407839b811c2ad586da82c",
-    "backend/local_api/requirements.txt": "c7240f53cec3e580339d18985fbe566c32883e55f22049fb2ac3fbfdc045bea3",
+    "backend/local_api/requirements.txt": "7a969250712b9b7e39926c210d249aef00e4afca37ec6ba06d012645008d4d64",
     "backend/local_api/runtime-manifest.json": "152859ddd605b0ce4eb4ff82b6311a85d9776e77716a015a1c9b25cee7f23775",
     "backend/local_api/runtime.py": "693dc35efd67b86c671b86ff8a786df9bb1ed74e1ca1f03e07c7bf401fbc8629",
     "backend/local_api/sandbox.py": "19e3bf4b7d0f02f9c1f41c75ff3018990c9c0d5fc77b78fc35aa815ba7f22006",
@@ -660,7 +660,7 @@
     "scripts/build-workflow-compiler.mjs": "d7cbff8de4c4a5add77e04806c644db86bfd7580db92777334b934f3126386d5",
     "scripts/bundled-js-notices.mjs": "98edc772f4acc6a9d4da78def826594709cdbdfbedc22421875533193d00a31e",
     "scripts/core_native_notices.py": "af43a9199f82aa64cf56e5f95db0679a56ce046200a6a095622dda888754c721",
-    "scripts/local-core-notices.py": "21eec118f53180911d9a68db9faa0db1bacfdfde495ed9f2ff84c3961c43cc4b",
+    "scripts/local-core-notices.py": "870276a09cbf2eee2b85743af3a675c1008adc92b5298de315d989c32e85abf7",
     "scripts/local-core-requirements.txt": "ca3e9f4cb25024ea124fe33347b5230862e2e83340e718755b8f14a5a9a408ee",
     "scripts/local-runtime-closure.mjs": "61fd6f10e955ee8d07f57b2132f026a42f56564403529ff5091db8a76e973cfb",
     "scripts/lock-native-runtime.py": "401bcd9cd5b0cfe0056f288e8db59ff29c5217086a5d2edc622a0733a237db14",
