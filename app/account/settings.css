@@ -200,7 +200,7 @@
 .local-ai-accounts-provider-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
 .local-ai-accounts-provider .local-ai-provider-identity { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .local-ai-accounts-provider .local-ai-provider-icon { display: grid; width: 36px; height: 36px; flex: none; place-items: center; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-subtle); color: var(--accent); }
-.local-ai-accounts-provider .local-ai-provider-icon svg { display: block; }
+.local-ai-accounts-provider .local-ai-provider-icon img { display: block; width: 21px; height: 21px; object-fit: contain; }
 .local-ai-accounts-provider .local-ai-provider-icon[data-provider="codex"] { color: var(--ink); background: color-mix(in srgb, #4b9bea 10%, var(--surface-subtle)); }
 .local-ai-accounts-provider .local-ai-provider-icon[data-provider="antigravity"] { color: #6f64f6; background: color-mix(in srgb, #8264ff 12%, var(--surface-subtle)); }
 .local-ai-accounts-provider h3 { margin: 0; font-size: 14px; font-weight: 600; }
