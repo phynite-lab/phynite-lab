@@ -23,10 +23,10 @@ Panduan ini menjelaskan antarmuka yang diimplementasikan. Gunakan bersama dokume
 - [Ekspor dan reproduksibilitas figur](#export)
 - [Prosedur: menyiapkan figur publikasi](#publication)
 - [Penyimpanan otomatis dan banyak perangkat](#saving)
-- [Profil, pemakaian, dan paket](#account)
+- [Pengaturan, akun, profil, dan pemakaian](#account)
 - [Mengelola paket, tagihan, dan pemakaian](#billing)
-- [Menghubungkan komputer melalui Phynite Compute](#local-compute)
-- [Bahasa, wilayah, dan aksesibilitas](#language)
+- [Komputasi di komputer sendiri: aplikasi native dan worker website](#local-compute)
+- [Tampilan, bahasa, dan aksesibilitas](#language)
 - [Pintasan keyboard dan pointer](#shortcuts)
 - [Referensi: parameter kalkulasi dan satuan](#field-reference)
 - [Pemecahan masalah dan pemulihan](#troubleshooting)
@@ -42,12 +42,12 @@ Project menampung satu studi material: struktur, pengaturan kalkulasi, riwayat e
 
 ### Alur kerja lengkap
 
-1. Masuk ke akun. Workspace menampilkan project dan alat riset. Membuka beranda saat sudah masuk akan mengarahkan Anda kembali ke Workspace.
+1. Buka aplikasi lokal tanpa login, atau masuk saat memakai website hosted. Workspace menampilkan project dan alat riset; identitas lokal terpisah dari login Phynite Cloud opsional.
 2. Pilih Project baru, beri nama yang menjelaskan studi, lalu buka project tersebut. Project juga dapat dibuat dari panel Project di DFT Lab.
 3. Impor struktur, bangun sel, atau ambil dari Materials Project. Periksa satuan, vektor kisi, spesies, dan jumlah atom.
 4. Periksa geometri ruang nyata. Tentukan arah periodik untuk tampilan dan tambahkan vakum secara eksplisit bila model slab, kawat, atau molekul membutuhkannya.
 5. Buka Calculate dan tambahkan Total energy atau Structural relaxation. Periksa input, okupansi, pseudopotensial, cutoff, dan mesh k.
-6. Pilih tujuan komputasi. Phynite Cloud menyediakan paid Quanta atau grant pilot admin, lalu pilihan CPU dan RAM yang tersedia. Your computer memerlukan worker pribadi yang aktif.
+6. Pilih tujuan komputasi. Aplikasi npm memakai runtime pada Pengaturan → Komputasi untuk Komputer Anda; website hosted memakai worker pribadi terhubung. Phynite Cloud opsional memakai Quanta atau grant pilot serta profil CPU/RAM yang tersedia.
 7. Jalankan dan ikuti Log. Status Completed tidak otomatis berarti hasil konvergen secara fisik; periksa energi, gaya, konvergensi, dan pesan solver.
 8. Tambahkan kalkulasi band, DOS, fonon, atau transport sesuai kebutuhan. Pilih hasil relaksasi yang kompatibel sebagai sumber struktur bila diperlukan.
 9. Pada hasil yang memiliki data plot, pilih Open in Figure Lab. Figur aktif yang sudah memakai hasil tersebut dibuka kembali, atau data numeriknya diimpor untuk membuat figur.
@@ -62,8 +62,8 @@ Project menampung satu studi material: struktur, pengaturan kalkulasi, riwayat e
 | DFT Lab / Inspect | Memeriksa dan mengubah geometri. |
 | DFT Lab / Calculate | Mengatur kalkulasi, dependensi, eksekusi, dan log. |
 | Figure Lab | Membandingkan data, mengatur panel, dan mengekspor figur. |
-| Account | Profil, preferensi, dan koneksi komputer pribadi. |
-| Billing | Paket, alokasi, waktu komputasi, dan penyimpanan. |
+| Pengaturan | Halaman tampilan, notifikasi, keyboard, compute, akun provider AI, Akun, Pemakaian, dan Penyimpanan terpisah. |
+| Tagihan | Pembelian cloud serta faktur pada website Phynite; mode lokal membuka situs hosted. |
 
 ### Sebelum menyebut hasil final
 
@@ -87,8 +87,8 @@ Selesaikan kalkulasi keadaan dasar kecil sebelum menjalankan studi besar. Tutori
 
 ### Sebelum mulai
 
-- Masuk dengan akun undangan yang akan menjadi pemilik project dan hasil.
-- Hubungkan komputer Anda melalui Docker. Pertahankan Docker berjalan dan komputer tidak tidur. Terminal boleh ditutup setelah kontainer berjalan di latar belakang.
+- Buka aplikasi lokal tanpa login, atau masuk ke website hosted dengan akun pemilik project.
+- Pada aplikasi npm, pasang DFT di Pengaturan → Komputasi dan pertahankan CLI berjalan. Pada website hosted, hubungkan Komputer Anda melalui worker berpasangan dan pertahankan Docker aktif.
 - Siapkan struktur silikon diamond-cubic dalam CIF, POSCAR, atau format lain yang didukung. Simpan sumber serta parameter kisinya.
 - Gunakan sel primitif dua atom untuk latihan. Sel konvensional delapan atom juga valid secara fisik, tetapi energi total, vektor resiprok, dan biayanya berbeda.
 
@@ -148,7 +148,7 @@ Gunakan sistem argon kecil untuk mempelajari alur struktur, pengaturan, eksekusi
 
 ### Siapkan komputer dan struktur
 
-1. Masuk dengan akun yang diundang dan hubungkan Komputer Anda di Akun. Biarkan worker dan Docker berjalan.
+1. Pada aplikasi npm, pasang MD/analisis di Pengaturan → Komputasi dan pertahankan CLI berjalan; login Phynite tidak diperlukan. Website hosted memakai akun yang masuk serta worker pribadi terhubung.
 2. Buka MD Lab dan buat project bernama Ekuilibrasi argon.
 3. Impor atau bangun struktur argon kecil dengan kotak periodik yang sesuai secara fisik. Periksa jumlah atom, identitas unsur, koordinat, ukuran kotak, satuan, dan massa atom. XYZ dengan spesies Ar atau berkas data LAMMPS yang memuat Masses dapat dipakai; dump yang hanya berisi nomor tipe tidak punya massa untuk dinamika.
 4. Simpan berkas struktur asli serta sumbernya. Pengulangan tampilan tidak menambah atom dalam simulasi.
@@ -520,7 +520,7 @@ cutoff_Ry,k_mesh,energy_Ry,atoms,delta_meV_per_atom,run_id
 
 ## Eksekusi, sumber daya, dan pembatalan
 
-Run melewati persiapan, antrean, eksekusi worker, unggah, dan penyelesaian. Log menunjukkan tahap yang sedang berlangsung dan bagian yang perlu diperiksa.
+Run melewati persiapan, antrean, eksekusi, penyimpanan hasil, dan penyelesaian. Hasil native tersimpan lokal; job hosted juga mengunggah artefak wajib. Log menunjukkan tahap yang memerlukan pemeriksaan.
 
 ### Membaca status
 
@@ -529,24 +529,24 @@ Run melewati persiapan, antrean, eksekusi worker, unggah, dan penyelesaian. Log 
 | Draft / Ready | Konfigurasi ada; solver belum tentu berjalan. | Periksa input lalu jalankan. |
 | Queued | Menunggu worker atau dependensi. | Periksa tujuan, koneksi, dan prasyarat. |
 | Running | Worker sudah mengambil job. | Periksa tahap, log, dan alokasi. |
-| Completed | Hasil diunggah dan diterima. | Periksa konvergensi dan validitas ilmiah. |
-| Failed | Persiapan, solver, atau unggah gagal. | Baca penyebab dan log sebelum mengulang. |
+| Completed | Hasil wajib tersimpan dan diterima secara lokal atau oleh layanan hosted. | Periksa konvergensi dan validitas ilmiah. |
+| Failed | Persiapan, solver, penyimpanan lokal, atau unggah hosted gagal. | Baca penyebab dan log sebelum mengulang. |
 | Cancellation requested | Permintaan berhenti dikirim ke worker. | Tunggu heartbeat dan status akhir. |
 | Cancelled | Run dihentikan atau dikeluarkan dari antrean. | Simpan log yang berguna; buat run baru bila perlu. |
 
 ### Arti core dan RAM
 
-Core menunjukkan alokasi vCPU atau proses worker. RAM menunjukkan batas memori yang dikonfigurasi. Keduanya bukan pengukuran utilisasi CPU atau RAM fisik terpasang.
+Core menunjukkan alokasi vCPU atau proses worker. RAM menunjukkan anggaran job terkonfigurasi. Keduanya bukan pengukuran utilisasi atau memori fisik. Watchdog memori native adalah anggaran terpantau, bukan hard limit sistem operasi.
 
 Buka detail sumber daya di Log untuk alokasi backend, durasi, proses MPI, serta estimasi memori dan waktu QE bila tersedia. Data historis yang tidak dilaporkan tidak diisi dengan tebakan.
 
-Worker lokal tetap mengikuti batas job pada layanan. Batas saat ini terlihat di akun dan tujuan komputasi. Permintaan di atas batas ditolak, bukan diam-diam diubah.
+Job native mengikuti kapasitas scheduler pada Pengaturan → Komputasi. Worker pribadi hosted juga mengikuti batas job layanan. Permintaan tidak didukung ditolak tanpa mengubah input ilmiah diam-diam.
 
 ### Membatalkan run
 
 - Job yang masih antre dapat dikeluarkan dari antrean.
-- Pembatalan run aktif diterima melalui heartbeat worker sehingga tidak seketika.
-- Menutup browser tidak membatalkan kalkulasi yang sudah dikirim.
+- Pembatalan bersifat asinkron. Supervisor proses lokal atau worker hosted mengonfirmasinya sebelum status akhir.
+- Menutup browser tidak membatalkan kalkulasi yang sudah dikirim. Pertahankan CLI native atau worker hosted; periksa job terinterupsi setelah restart sebelum mengirim ulang.
 - Mencabut kredensial komputer dapat mengganggu unggah hasil. Gunakan pembatalan kalkulasi sebelum mengganti koneksi ketika ada run aktif.
 
 ### Topik terkait
@@ -875,7 +875,7 @@ Siapkan perbandingan fisik terlebih dahulu, kemudian geometri halaman, tipografi
 
 ### Ekspor dan pemeriksaan
 
-1. Tunggu status cloud Figure Lab mengonfirmasi edit terbaru.
+1. Tunggu Figure Lab mengonfirmasi penyimpanan terbaru. Pekerjaan native lokal tetap pada komputer ini; perangkat lain memerlukan ekspor portabel atau Cloud Sync aktif dan terkonfirmasi secara eksplisit.
 2. Pilih PDF/SVG untuk vektor atau tentukan ukuran fisik serta DPI sebelum PNG.
 3. Buka hasil pada aplikasi manuskrip. Periksa skala fisik, simbol Yunani, font, label panel, dan clipping.
 4. Ekspor Source package terpisah. Simpan di samping figur dan input simulasi yang dijalankan.
@@ -906,7 +906,7 @@ Source package dan ID run:
 
 ## Penyimpanan otomatis dan banyak perangkat
 
-Editor DFT Lab dan Figure Lab menampilkan status penyimpanan yang relevan dengan dokumen aktif. Dashboard Workspace tidak menampilkan Saved to cloud; sinkronisasi project tetap berjalan di belakang layar.
+DFT Lab dan Figure Lab menampilkan status penyimpanan dokumen aktif. Aplikasi npm menyimpan project pada SQLite/filesystem; storage browser memuat draft pemulihan. Project lokal tidak diunggah otomatis. Status cloud berikut berlaku untuk website hosted atau project dengan Cloud Sync aktif secara eksplisit.
 
 ### Arti status editor
 
@@ -949,84 +949,110 @@ Tidak ada tombol Save revision yang wajib. Ctrl/Cmd+S merupakan checkpoint histo
 
 ### Topik terkait
 
-- [Profil, pemakaian, dan paket](#account)
-- [Menghubungkan komputer melalui Phynite Compute](#local-compute)
+- [Pengaturan, akun, profil, dan pemakaian](#account)
+- [Komputasi di komputer sendiri: aplikasi native dan worker website](#local-compute)
 - [Mengelola paket, tagihan, dan pemakaian](#billing)
 
 <a id="account"></a>
 
-## Profil, pemakaian, dan paket
+## Pengaturan, akun, profil, dan pemakaian
 
-Account mengelola identitas riset, preferensi, pemakaian, dan koneksi komputer. Billing menyediakan tampilan khusus untuk paket serta pengukuran sumber daya.
+Pengaturan memisahkan preferensi browser, compute ilmiah, akun provider AI, dan login Phynite Cloud opsional. Pemakaian berasal dari record eksekusi/provider nyata; pengukuran yang tidak ada tidak dibuat-buat.
 
-### Mengedit profil
+### Memilih halaman pengaturan
 
-1. Buka menu avatar, pilih Profil, lalu Edit profil. Profil hanya terlihat oleh akun Anda.
-2. Isi nama tampilan, institusi, peran, dan bidang riset.
-3. Pilih foto JPG, PNG, atau WebP hingga 20 MB. Crop, perbesar, dan putar foto; browser menyimpan gambar 256 piksel terkompresi.
-4. Periksa preview dan pilih Save profile. Menghapus foto baru diterapkan setelah profil disimpan.
-5. Buka Pengaturan → Tampilan & bahasa untuk menyimpan default akun. Perangkat ini dapat mengikuti default akun atau memakai override Terang/Gelap. Tema perangkat dan bahasa browser langsung berlaku di luar formulir Simpan/Batal akun.
-
-### Navigasi pengaturan akun
-
-Menu avatar mengelompokkan Profil, Pengaturan, Pemakaian, dan Tagihan, lalu Harga, Bantuan, dan Keluar. Profil menampilkan job tersimpan, selesai, aktif saat pengukuran, waktu run tercatat, dan lima job terbaru. Waktu atau alokasi yang belum tercatat tidak tersedia; inventaris storage diukur terpisah.
-
-Di atas 960px, sidebar Pengaturan menetap pada lebar 280px tanpa mengubah docking atau lebar workspace. Pencarian menemukan halaman dan kontrol pengaturan. Pada mobile, gunakan drawer navigasi; tutup melalui Escape, tombol tutup, atau latar. Menu akun mendukung tombol panah, Home, End, dan Escape. Draft memerlukan keputusan sebelum navigasi atau keluar.
-
-### Menentukan username untuk masuk
-
-1. Buat akun dengan email dan verifikasi email terlebih dahulu.
-2. Buka Pengaturan → Profil riset. Nama tampilan boleh mengandung spasi dan tidak harus unik.
-3. Pada Username, masukkan 3–30 karakter dengan awalan huruf atau angka. Huruf, angka, titik, tanda hubung, dan garis bawah didukung; nama yang dicadangkan tidak dapat dipakai.
-4. Pilih Simpan username. Aksi ini terpisah dari menyimpan identitas riset. Layanan memeriksa keunikan tanpa membedakan huruf besar dan kecil. Pilih nama lain jika sudah digunakan.
-5. Saat masuk berikutnya, gunakan username tersebut atau email dengan password yang sama. Setelah username diganti, nama lama berhenti berlaku dan dapat dipakai akun lain. Pemulihan password selalu memakai email terverifikasi.
-
-> Username tidak membuat akun baru, membagikan project, atau mengganti email. Akun lama tetap dapat masuk melalui email dan menambahkan username kapan diperlukan.
-
-### Menelusuri riwayat kalkulasi
-
-Buka Pemakaian & penyimpanan lalu Kalkulasi terbaru. Setiap halaman menampilkan enam catatan berdasarkan waktu pembuatan, terbaru dahulu. Baris mencantumkan tanggal dan waktu lokal, jenis kalkulasi, tujuan, alokasi core dan RAM, serta status.
-
-Berikutnya dan Sebelumnya mengganti halaman tabel. Total sumber daya berlaku untuk seluruh akun, bukan hanya enam baris yang terlihat. Perbarui memuat ulang pengukuran dan halaman tabel aktif. Waktu yang tidak tercatat ditandai tidak tersedia, bukan diperkirakan.
-
-### Membaca pengukuran
-
-| Metrik | Perhitungan |
+| Halaman | Yang diatur |
 | --- | --- |
-| Current cloud files | Ukuran objek cloud versi saat ini milik akun; tidak termasuk versi lama, metadata, atau disk lokal. |
-| Recorded run time | Waktu worker mulai sampai selesai, termasuk persiapan dan unggah. Run gagal/batal ikut dihitung jika timestamp lengkap. |
-| Allocated CPU-hours | Durasi tercatat dikalikan core alokasi lalu dibagi 3600; bukan utilisasi CPU. |
-| On your computer | Durasi run dengan tujuan worker pribadi. |
-| Last 30 days | Durasi run yang selesai dalam 30 hari terakhir. |
-| Unmeasured runs | Run terminal tanpa waktu valid; dikecualikan dari jumlah durasi. |
+| Tampilan & bahasa | Tema, aksen, kepadatan, ukuran teks antarmuka/kode, reduced motion, dan bahasa pada browser ini. |
+| Pintasan keyboard | Binding aplikasi yang didukung dan disimpan pada browser ini. |
+| Notifikasi | Alert job/runtime lokal dan izin desktop; preferensi pengiriman hosted pada website. |
+| Komputasi | Instalasi runtime native serta CPU/RAM/job paralel lokal; worker dan default akun pada website. |
+| Akun provider AI | Login AI sendiri, akun aktif, status koneksi/model, batas terlapor, dan waktu reset. |
+| Akun | Login/logout Phynite Cloud opsional dan sync per project; terpisah dari login AI. |
+| Pemakaian / Penyimpanan | Pengukuran job serta pemakaian provider / arsip project dan inventaris penyimpanan. |
+| Profil riset / Privasi & sesi | Identitas Phynite terhubung / privasi serta sesi sesuai mode. |
 
-### Pilihan paket
+### Navigasi tanpa menu ganda
 
-Free mencakup total storage cloud 10 GiB, persiapan struktur, project pribadi, Figure Lab, serta simulasi DFT dan MD pada komputer sendiri yang terhubung. Akun early access dapat memakai Cloud berbayar dengan Quanta produksi terverifikasi.
+Pengaturan memakai satu sidebar kategori dan pencarian. Akun berada setelah Akun provider AI. Pada mobile, buka drawer navigasi; Escape, tombol tutup, atau backdrop menutupnya. Menu akun mendukung navigasi keyboard. Bookmark Runtime lokal & cloud lama diarahkan ke kategori yang sesuai.
 
-Paid Cloud mendukung seluruh workflow DFT, LAMMPS Guided/manual, dan OVITO dengan vCPU dan RAM tersedia yang Anda pilih. Job paid berjalan paralel sesuai pendanaan dan kapasitas region. Pilot memakai grant admin terpisah dengan CPU/RAM, budget operasional, jumlah job, dan masa berlaku; grant lama tetap 2 vCPU, 6 GiB, dan 15 menit, satu slot global tanpa memotong Quanta.
+Workspace lokal yang belum login menampilkan aksi pengaturan serta koneksi tanpa profil pengguna palsu. Setelah akun Phynite terhubung, Profil membuka halaman profil tersendiri dengan aksi Edit profil.
 
-Komputer Anda menjadi tujuan awal akun Free baru. Hubungkan worker sebelum menjalankan simulasi. Pergantian tujuan tidak memindahkan run yang sudah ada.
+### Mengedit profil riset terhubung
 
-Pendaftaran publik tetap waitlist dan undangan. Akun early access membuka checkout Quanta dan storage dari Billing. Pembayaran produksi terverifikasi memperbarui saldo tersedia dan akses compute tanpa langsung menjalankan job. Institution membuka jalur konsultasi.
+1. Hubungkan akun Phynite Cloud sebelum membuka Profil; project lokal tetap tersedia tanpa login itu.
+2. Pilih Edit profil lalu isi nama tampilan, institusi, peran, dan bidang riset.
+3. Pilih foto JPG, PNG, atau WebP hingga 20 MB. Crop, perbesar, dan putar foto; browser menyimpan gambar 256 piksel terkompresi.
+4. Periksa preview lalu Simpan profil. Penghapusan foto berlaku setelah disimpan. Draft akun yang belum disimpan memerlukan keputusan sebelum navigasi.
+5. Gunakan Tampilan & bahasa untuk tampilan perangkat. Pilihan langsung berlaku dan tidak menjadi default akun cloud.
 
-> Komputasi lokal memakai perangkat, listrik, dan disk Anda. Internet tetap diperlukan untuk koordinasi, unduhan pseudopotensial bila perlu, serta sinkronisasi hasil. Batas storage dan transfer yang berlaku tetap digunakan.
+### Menentukan username login cloud
+
+1. Buat akun Phynite Cloud dengan email lalu verifikasi email, ketika pendaftaran tersedia.
+2. Buka editor profil riset. Nama tampilan boleh mengandung spasi dan tidak harus unik.
+3. Pada Username, masukkan 3–30 karakter dengan awalan huruf atau angka. Huruf, angka, titik, tanda hubung, dan garis bawah didukung; nama yang dicadangkan tidak dapat dipakai.
+4. Pilih Simpan username. Aksi ini terpisah dari menyimpan identitas riset; keunikan diperiksa tanpa membedakan huruf besar dan kecil.
+5. Saat login berikutnya, gunakan username atau email dengan password sama. Username lama berhenti berlaku setelah diganti dan dapat tersedia bagi akun lain. Pemulihan memakai email terverifikasi.
+
+> Username tidak membuat akun lain, membagikan project, atau mengubah email. Pekerjaan lokal native tidak memerlukan username login.
+
+### Mengatur compute sesuai lokasi eksekusi
+
+Pada aplikasi npm lokal, Komputasi memuat deteksi platform/kemampuan, instalasi runtime ilmiah, status isolasi, serta default CPU/RAM/job paralel. Pasang runtime sebelum menjalankan. Default baru berlaku bagi job berikutnya; override workspace berlaku untuk run terpilih. Compute native lokal tidak memerlukan Docker atau worker yang dipasangkan ke cloud.
+
+Pada website hosted, Komputasi mempertahankan default akun per workload, profil Cloud serta estimasi yang didukung, dan pairing worker pribadi. Simpan default adalah aksi eksplisit; Batal mengembalikan nilai tersimpan. MD tetap pada compute pribadi sampai layanan Cloud tersedia. Lebih banyak core belum tentu lebih cepat; bandingkan run pendek terkendali.
+
+### Menghubungkan AI dan membaca batasnya
+
+Akun provider AI mengelola login CLI/gateway provider resmi dengan akun sendiri. Login ini terpisah dari Phynite Cloud. Setelah autentikasi, penemuan model serta pemeriksaan kemampuan berjalan otomatis. Tools dan attachment memerlukan dukungan terverifikasi; perubahan Canvas tetap memakai approval serta validasi.
+
+Pilih akun provider aktif secara eksplisit. Pemakaian serta reset berasal dari provider: persentase, jendela waktu, dan tanggal ditampilkan hanya jika dilaporkan. Sisa token tidak disimpulkan. Provider terputus, rate-limit, atau tidak didukung menampilkan status nyata tanpa berpindah provider diam-diam.
+
+### Notifikasi pada perangkat ini
+
+Atur alert job selesai, job gagal/dibatalkan, dan instalasi runtime secara terpisah. Alert lokal mengamati perubahan status nyata selama aplikasi terbuka. Alert desktop opsional memerlukan izin browser dan dapat diperiksa melalui Kirim notifikasi uji.
+
+Preferensi lokal ini tetap pada browser ini. Preferensi tidak menjadwalkan cloud push atau email setelah aplikasi ditutup. Pengiriman email serta inbox hosted dikelola terpisah.
+
+### Membaca pemakaian dengan benar
+
+| Metrik | Interpretasi |
+| --- | --- |
+| Waktu run tercatat | Interval mulai-selesai valid; run gagal/dibatalkan dihitung bila kedua timestamp tersedia. Persiapan serta penyimpanan/unggah hasil dapat termasuk. |
+| Jam CPU teralokasi | Detik tercatat × core teralokasi / 3600. Ini alokasi, bukan aktivitas CPU nyata atau energi. |
+| File lokal / cloud | Inventaris penyimpanan berbeda. Pengukuran objek cloud tidak mencakup disk native; storage lokal bukan langganan cloud. |
+| Run belum terukur | Record tanpa waktu atau alokasi valid tetap tidak tersedia atau parsial, tidak dianggap nol. |
+| Batas AI dan reset | Pengukuran yang dilaporkan akun provider terpilih; terpisah dari jam CPU ilmiah dan tagihan Phynite. |
+
+### Riwayat dan salinan portabel
+
+Pemakaian menampilkan job serta catatan biaya tercatat dengan timestamp, status, tujuan, dan alokasi tersedia. Pagination mengubah baris terlihat; total seluruh akun tetap mencakup semua record terukur. Perbarui mengambil pengukuran baru.
+
+Penyimpanan memuat ekspor/impor arsip project native. Simpan struktur asli, input eksekusi, hasil tersedia, provenance, checksum, dan backup terpisah. Patuhi lisensi aset potensial. Draft browser membantu pemulihan dan bukan database native.
+
+### Cloud opsional dan tagihan website
+
+Akun menghubungkan atau memutus Phynite Cloud. Login mempertahankan identitas lokal dan tidak mengunggah project. Aktifkan Cloud Sync per project setelah meninjau cakupan transfer; compute cloud meninjau transfer input terpisah tanpa mengaktifkan sync. Logout mempertahankan data lokal dan menghentikan sync.
+
+Tagihan pada mode lokal membuka https://phynitelab.com/billing. Akses, harga, kuota, dan kapasitas Cloud mengikuti katalog hosted serta akun saat ini. Pembelian tidak menjalankan job otomatis. MD Cloud belum tersedia sampai layanannya didukung.
+
+> Eksekusi lokal memakai perangkat, listrik, dan disk sendiri. Setelah runtime serta potensial wajib terpasang, sains lokal dapat berjalan offline. AI provider, Cloud opsional, pencarian data eksternal, dan unduhan baru memerlukan koneksi masing-masing.
 
 ### Topik terkait
 
 - [Penyimpanan otomatis dan banyak perangkat](#saving)
-- [Menghubungkan komputer melalui Phynite Compute](#local-compute)
+- [Komputasi di komputer sendiri: aplikasi native dan worker website](#local-compute)
 - [Mengelola paket, tagihan, dan pemakaian](#billing)
 
 <a id="billing"></a>
 
 ## Mengelola paket, tagihan, dan pemakaian
 
-Tagihan & pemakaian menyatukan paket aktif, tujuan komputasi, catatan sumber daya, dan pilihan paket. Pengukuran sumber daya berbeda dari faktur pembayaran.
+Tagihan mengelola pembelian serta faktur Phynite Cloud pada website hosted. Aplikasi lokal membuka https://phynitelab.com/billing; compute lokal, akun AI, dan preferensi perangkat dikelola terpisah pada Pengaturan.
 
 ### Memeriksa akun
 
-1. Buka Tagihan pada header atau Tagihan & pemakaian pada navigasi studio.
+1. Buka Tagihan pada website Phynite. Dari aplikasi lokal, tautan membuka https://phynitelab.com/billing.
 2. Periksa paket aktif, status langganan, dan alokasi per run yang berasal dari akun.
 3. Pada Pemakaian tercatat, pilih Perbarui setelah kalkulasi selesai atau file cloud berubah.
 4. Baca penggunaan Figure Lab dan file cloud saat ini. Storage berbayar berbagi satu kuota total untuk file cloud dan reservasi upload.
@@ -1036,7 +1062,7 @@ Tagihan & pemakaian menyatukan paket aktif, tujuan komputasi, catatan sumber day
 
 | Paket | Aksi | Efek |
 | --- | --- | --- |
-| Free | Gunakan Free | Mencakup run DFT dan MD lokal. Komputer Anda menjadi tujuan awal akun Free baru; hubungkan worker sebelum menjalankan simulasi. |
+| Free | Gunakan Free | Mencakup run DFT dan MD lokal. Aplikasi npm memakai runtime native tanpa login; website hosted memakai worker pribadi terhubung. |
 | Cloud | Top-up Quanta | Akun early access memakai kredit produksi terverifikasi; pengunjung publik tetap melalui waitlist. Pembayaran tidak langsung menjalankan job. |
 | Enterprise | Diskusikan kebutuhan | Membuka kontak untuk kapasitas dan ketentuan institusi. |
 
@@ -1054,21 +1080,61 @@ Kuota Figure Lab mencakup dataset, dokumen figur, template, dan revisi. Mengarsi
 
 Billing membuka checkout Phynite pada /billing/checkout setelah aktivasi merchant. Pilih Direct Virtual Account atau QRIS saat tersedia; DOKU memproses pembayaran. Virtual Account menambah Rp4.000; QRIS tanpa surcharge. Quanta dijual Rp18.000 per Quanta, mulai 0,5 Quanta (harga dasar Rp9.000, melalui VA Rp13.000). /billing/payments/[id] menampilkan instruksi dan status terverifikasi; /billing/history memuat 20 pembelian per halaman dengan filter status. Invoice hosted lama mempertahankan nominalnya. Pesanan dibuat, aktivasi terverifikasi, percobaan gagal dan kedaluwarsa terkonfirmasi menghasilkan notifikasi inbox; email transaksi diaktifkan setelah verifikasi SES, dengan pengirim dan balasan support@phynitelab.com. Kegagalan email tidak membatalkan pembayaran. Halaman tidak menerima nomor kartu. Penerbitan faktur pajak belum terhubung.
 
-Akun early access memakai seluruh workflow Cloud dengan Quanta produksi terverifikasi sesuai saldo dan kapasitas. Pilot memakai grant admin; Institution mengikuti kesepakatan kapasitas. Komputasi lokal gratis, tetapi perangkat, internet, penyimpanan, dan listrik tetap menjadi tanggung jawab pengguna.
+Akun early access memakai workflow Cloud yang tersedia pada katalog saat ini dengan Quanta produksi terverifikasi sesuai saldo dan kapasitas. MD tetap pada compute pribadi sampai layanan Cloud didukung. Pilot memakai grant admin; Institution mengikuti kesepakatan kapasitas. Komputasi lokal gratis, tetapi perangkat, internet, penyimpanan, dan listrik tetap menjadi tanggung jawab pengguna.
 
 > Ekspor pemakaian dapat berisi nama dan ID kalkulasi. Bagikan hanya kepada kolaborator atau dukungan yang dituju.
 
 ### Topik terkait
 
 - [Penyimpanan otomatis dan banyak perangkat](#saving)
-- [Profil, pemakaian, dan paket](#account)
-- [Menghubungkan komputer melalui Phynite Compute](#local-compute)
+- [Pengaturan, akun, profil, dan pemakaian](#account)
+- [Komputasi di komputer sendiri: aplikasi native dan worker website](#local-compute)
 
 <a id="local-compute"></a>
 
-## Menghubungkan komputer melalui Phynite Compute
+## Komputasi di komputer sendiri: aplikasi native dan worker website
 
-Jalankan kalkulasi DFT dan dinamika molekuler pada komputer sendiri melalui satu koneksi Phynite. Unduh aplikasi pendamping untuk sistem operasi Anda, buka, lalu setujui koneksi pada akun. Phynite Compute menyiapkan runtime Quantum ESPRESSO, LAMMPS, dan OVITO terverifikasi secara otomatis.
+Aplikasi npm lokal menjalankan DFT, MD, dan analisis melalui runtime native tanpa login Phynite atau Docker. Setup berada di Pengaturan → Komputasi. Website hosted memakai alur worker terhubung yang berbeda, dijelaskan setelah bagian native.
+
+### Aplikasi native: instal dan buka
+
+Gunakan Node.js 22.13 atau lebih baru. Launcher membuka browser pada loopback dan menyimpan database, project, artefak, runtime, serta log di ~/.phynite-lab. Paket publik lengkap menyertakan core native; tidak memerlukan checkout source, Python global, Docker, AWS CLI, atau akun Phynite.
+
+Buka Pengaturan → Komputasi. Periksa platform terdeteksi, CPU/RAM, kemampuan solver terpasang, dan probe isolasi. Pilih DFT, MD/analisis, atau keduanya. Internet diperlukan untuk unduhan terverifikasi pertama; eksekusi ilmiah lokal dapat berjalan offline setelah runtime dan potensial wajib tersedia.
+
+Unduhan memakai versi serta checksum terkunci, staging, dan aktivasi atomik. Pembaruan gagal mempertahankan runtime sebelumnya. Pilih file potensial sesuai lisensi, identitas eksak, checksum, dan pemetaan unsur.
+
+```text
+npm install -g phynite-lab
+phynite-lab
+```
+
+- [Buka Komputasi](/account/compute)
+
+### Aplikasi native: resource, job, dan pemulihan
+
+1. Atur default CPU, anggaran RAM, dan job paralel pada Komputasi. Default mulai dari satu job, sekitar setengah core logis, dan maksimum setengah RAM fisik. Default baru berlaku untuk job berikutnya; override job tidak mengubah job aktif.
+2. Mulai dengan kalkulasi referensi kecil. Pilih Komputer Anda dan periksa Log sampai status akhir. Verifikasi keberhasilan solver, konvergensi, input, provenance, dan output numerik sebelum menafsirkan hasil.
+3. LAMMPS Guided dan manual mempertahankan pengaturan fisik terpilih. Input manual juga memerlukan probe sandbox native berhasil. Bila isolasi tidak tersedia, ikuti perbaikan yang ditampilkan; eksekusi manual tetap diblokir.
+4. Pertahankan CLI berjalan dan komputer aktif. Batalkan melalui log job dan tunggu status akhir. Setelah crash atau restart, periksa job terinterupsi; job tidak dijalankan ulang otomatis. Anggaran RAM yang dipantau tidak disebut hard limit sistem operasi.
+
+```text
+phynite-lab status
+phynite-lab doctor
+phynite-lab stop
+```
+
+### Aplikasi native: data, preferensi, dan koneksi opsional
+
+Data SQLite dan filesystem adalah salinan lokal utama. Gunakan Pengaturan → Penyimpanan untuk ekspor/impor arsip project dan simpan backup terpisah. Storage browser menampung draft pemulihan serta preferensi perangkat, bukan seluruh workspace native.
+
+Tampilan, bahasa, pintasan keyboard, dan pilihan notifikasi lokal tetap pada browser ini. Akun provider AI memakai login CLI/gateway Anda sendiri. Akun mengelola Phynite Cloud secara terpisah; login tidak mengunggah project. Cloud Sync diaktifkan per project, dan compute cloud meninjau transfer input sendiri tanpa mengaktifkan sync.
+
+Tagihan membuka website Phynite. Selesaikan atau batalkan job, hentikan aplikasi, perbarui dengan npm install -g phynite-lab@latest, lalu buka kembali. Pembaruan paket mempertahankan data di luar direktori instalasi.
+
+### Website hosted: hubungkan worker pribadi
+
+Instruksi kode koneksi, aplikasi pendamping, dan Docker berikut berlaku saat memakai website Phynite hosted. Aplikasi npm native tidak memerlukannya. Worker ini menerima job hosted dan mengunggah hasil ke akun yang sedang masuk.
 
 ### Rencanakan, tinjau, pantau, bandingkan
 
@@ -1090,7 +1156,7 @@ Jalankan kalkulasi DFT dan dinamika molekuler pada komputer sendiri melalui satu
 - [Quantum ESPRESSO: parallelization](https://www.quantum-espresso.org/Doc/pw_user_guide/node18.html)
 - [LAMMPS: measure performance](https://docs.lammps.org/stable/Speed_measure.html)
 
-### Sebelum memulai
+### Worker website: sebelum memulai
 
 Pilih CPU dan RAM per job pada pengaturan Compute atau drawer workspace, sesuai batas DFT, simulasi MD, atau analisis MD yang ditampilkan. Alokasi adalah resource yang diminta job. Worker baru juga melaporkan alokasi CPU/RAM yang diteruskan ke runtime saat diluncurkan; ini bukan utilisasi perangkat. Kebutuhannya bergantung pada atom, cutoff, k-point, band, dan jenis kalkulasi.
 
@@ -1167,7 +1233,7 @@ Menghentikan engine lokal atau menidurkan komputer dapat menginterupsi kalkulasi
 - [Hubungi dukungan](/contact)
 - [Diagnosis kalkulasi](#diagnostics)
 
-### Diagnostik manual lanjutan
+### Worker website: diagnostik Docker lanjutan
 
 Setup normal tidak memerlukan Terminal atau PowerShell. Dukungan mungkin meminta Anda menjalankan perintah bertanda versi atau membaca log layanan terbaru. Perintah ini memakai runtime Docker read-only dan non-root yang sama dengan launcher.
 
@@ -1192,56 +1258,67 @@ Pemilik komputer dapat memodifikasi perangkat lunaknya sendiri. Ikatan akun meli
 ### Topik terkait
 
 - [Penyimpanan otomatis dan banyak perangkat](#saving)
-- [Profil, pemakaian, dan paket](#account)
+- [Pengaturan, akun, profil, dan pemakaian](#account)
 - [Mengelola paket, tagihan, dan pemakaian](#billing)
 
 <a id="language"></a>
 
-## Bahasa, wilayah, dan aksesibilitas
+## Tampilan, bahasa, dan aksesibilitas
 
-Studio mendukung English dan Bahasa Indonesia. Tentukan bahasa secara eksplisit atau ikuti preferensi bahasa browser/perangkat.
+Pengaturan → Tampilan & bahasa mengatur browser ini. Tema, aksen, kepadatan, ukuran teks, motion, dan bahasa langsung berlaku tanpa mengubah akun Phynite atau input ilmiah.
+
+### Memilih tampilan
+
+1. Pilih Sistem, Terang, atau Gelap untuk browser ini. Sistem mengikuti warna OS; warna latar/teks kustom opsional memerlukan kontras minimal 4,5:1.
+2. Pilih aksen serta kepadatan nyaman/ringkas yang tersedia, lalu atur ukuran teks antarmuka dan kode dalam rentang yang ditampilkan.
+3. Aktifkan reduced motion bila diinginkan. Kembalikan default mengatur ulang kontrol perangkat.
+4. Nilai tersimpan pada browser serta origin situs ini. Perangkat, browser, atau port lokal lain dapat memakai pilihan berbeda; menghapus data situs meresetnya.
+
+> Skala teks antarmuka dan tema tidak mengubah dimensi ekspor figur, sampel plot, satuan, atau pengaturan solver.
 
 ### Memilih bahasa
 
-1. Di beranda, gunakan menu globe pada header. Di Workspace, gunakan tombol bahasa dengan bendera di footer atau buka Akun / Preferensi. DFT Lab dan Figure Lab tidak memakai footer; buka Preferensi melalui menu avatar editor.
-2. Pilih English atau Bahasa Indonesia untuk mengganti deteksi otomatis.
-3. Buka halaman lain atau muat ulang. Pilihan tersimpan pada browser ini.
+1. Buka Pengaturan → Tampilan & bahasa.
+2. Pilih English, Bahasa Indonesia, atau deteksi otomatis dari preferensi browser.
+3. Buka halaman lain atau muat ulang untuk memeriksa pilihan. Preferensi tetap pada browser ini dan bukan default akun cloud.
 
-### Cara deteksi otomatis
+### Deteksi bahasa otomatis
 
-Pilihan eksplisit yang tersimpan didahulukan. Dalam mode otomatis, Phynite membaca bahasa yang didukung sesuai urutan preferensi browser atau perangkat.
+Pilihan eksplisit didahulukan. Mode otomatis membaca bahasa browser/perangkat yang didukung sesuai urutannya. Respons server pertama dapat memakai header bahasa dan, pada website hosted, petunjuk negara edge. English menjadi fallback bila tidak ada bahasa didukung.
 
-Respons server awal membaca header bahasa browser. Jika tidak ada bahasa yang didukung, petunjuk negara dari edge hosting dapat memilih Bahasa Indonesia untuk Indonesia; pilihan akhirnya English bila petunjuk tidak tersedia.
-
-Phynite tidak meminta GPS atau memakai layanan lokasi IP terpisah untuk memilih bahasa. Jika negara terdeteksi menyarankan bahasa lain, popup menawarkan pergantian. Menutup saran diingat untuk negara itu. Perjalanan tidak mengubah pilihan eksplisit Anda. Preferensi berlaku per browser sehingga perangkat lain dapat memakai bahasa berbeda.
+Phynite tidak meminta GPS atau memakai layanan lokasi IP terpisah untuk memilih bahasa. Saran tidak menimpa pilihan eksplisit. Browser berbeda dapat memakai bahasa berbeda.
 
 ### Teks ilmiah dan data
 
-Nama DFT Lab dan Figure Lab, keyword solver, simbol kimia, serta tombol pintasan tetap mudah dikenali lintas bahasa. Kode ilmiah, sumber numerik, dan teks publikasi tidak diterjemahkan otomatis.
+Keyword solver, simbol kimia, label keyboard, data numerik, dan teks publikasi pengguna tidak diterjemahkan menjadi makna ilmiah lain. QE serta CSV mempertahankan sintaks parser.
 
-Tanggal dan durasi mengikuti bahasa antarmuka pada bagian yang menampilkannya. Angka pada input QE tetap memakai sintaks solver.
+Dokumentasi English memakai /guide/topik dan Indonesia /id/guide/topik. Pergantian bahasa mempertahankan topik aktif; unduhan memakai bahasa terpilih.
 
-Dokumentasi English memakai /guide/topik dan dokumentasi Indonesia memakai /id/guide/topik. Mengganti bahasa mempertahankan topik aktif. Unduh versi bahasa yang dipilih untuk referensi offline.
+### Keyboard, notifikasi, dan keterbacaan
 
-### Keyboard dan keterbacaan
-
-- Tab memindahkan fokus antartautan, tombol, dan field; cincin fokus menunjukkan kontrol aktif.
-- Enter atau Space mengaktifkan kontrol, Escape menutup menu atau dialog project.
-- Di dokumentasi, Primary+K atau / memfokuskan pencarian ketika di luar field.
-- Gunakan kontrol daftar isi mobile untuk menjelajah tanpa menutupi artikel terus-menerus.
-- Preferensi reduced motion perangkat diterapkan pada transisi studio dan animasi beranda.
+- Tab memindahkan fokus antarkontrol; cincin fokus menunjukkan kontrol aktif. Enter/Space mengaktifkan kontrol dan Escape menutup menu/dialog yang mendukung.
+- Sesuaikan hanya aksi aplikasi yang terdaftar dan bekerja pada Pengaturan → Pintasan keyboard. Pintasan editor mempertahankan konteksnya dan field teks memakai penyuntingan native.
+- Gunakan Pengaturan → Notifikasi untuk alert job/runtime lokal dan izin desktop opsional. Aplikasi harus tetap terbuka; pengaturan lokal tidak mengaktifkan pengiriman email cloud.
+- Pencarian dokumentasi memakai Primary+K atau / di luar field teks. Pada mobile, buka daftar isi saat diperlukan.
+- Pilihan reduced motion perangkat serta preferensi motion sistem operasi yang didukung mengurangi transisi dekoratif.
 
 ### Topik terkait
 
 - [Penyimpanan otomatis dan banyak perangkat](#saving)
-- [Profil, pemakaian, dan paket](#account)
-- [Menghubungkan komputer melalui Phynite Compute](#local-compute)
+- [Pengaturan, akun, profil, dan pemakaian](#account)
+- [Komputasi di komputer sendiri: aplikasi native dan worker website](#local-compute)
 
 <a id="shortcuts"></a>
 
 ## Pintasan keyboard dan pointer
 
 Primary berarti Command pada macOS dan Control pada Windows/Linux. Pintasan mengikuti editor aktif. Field teks mempertahankan perilaku edit teksnya.
+
+### Menyesuaikan pintasan aplikasi yang didukung
+
+Buka Pengaturan → Pintasan keyboard. Atur ulang kombinasi yang didukung untuk membuka Pengaturan, menutup/membuka sidebar, memfokuskan chat AI terbuka, atau mengirim pesan. Perubahan langsung berlaku pada browser ini; kembalikan default bila perlu.
+
+Tabel berikut menjelaskan default editor dan konteksnya. Binding aplikasi tidak mengganti penyuntingan teks native, operasi geometri, atau tombol aksesibilitas browser.
 
 ### DFT Lab
 
@@ -1400,11 +1477,11 @@ Identifikasi tahap pertama yang tidak selesai. Mengulang aksi hilir tidak memper
 | --- | --- | --- |
 | Project baru belum aktif | Pemuatan Workspace akun. | Tunggu atau muat ulang pada error cloud; jangan hapus edit yang belum tersinkron. |
 | Impor struktur gagal | Parser atau geometri. | Format, encoding, kisi, koordinat, dan okupansi. |
-| Run langsung ditolak | Validasi submit. | Pesan field, batas sumber daya, autentikasi, dan metode. |
+| Run langsung ditolak | Validasi submit. | Pesan field, status runtime/isolasi lokal, batas resource, serta metode; autentikasi cloud hanya untuk aksi cloud. |
 | Run tetap Queued | Worker atau dependensi. | Tujuan, heartbeat personal, kapasitas shared, dan pendahulu. |
 | Worker mulai tetapi QE keluar | Runtime atau input ilmiah. | Error solver pertama, pseudopotensial, spesies, sintaks, memori, dan disk. |
 | SCF tidak stabil | Self-consistency. | Geometri, okupansi, magnetisme, mixing, toleransi, dan keadaan hampir degenerat. |
-| Solver selesai, hasil belum tersedia | Unggah atau completion. | Jaringan, kredensial, dan status akhir; pertahankan worker aktif. |
+| Solver selesai, hasil belum tersedia | Penyimpanan atau unggah. | Disk/runtime lokal dan status akhir; jaringan/kredensial juga berlaku untuk unggah hosted. Pertahankan worker aktif. |
 | Open in Figure Lab gagal | Pengambilan sumber. | Retry; hasil lama mungkin membutuhkan file numerik asli. |
 | Overlay atau pasangan memberi peringatan | Perbandingan ilmiah. | Geometri, referensi energi, dan identitas path; gunakan panel mandiri bila perlu. |
 | Ekspor gagal | Renderer atau font. | Sambungkan internet, periksa ukuran raster, lalu coba lagi. |
@@ -1439,9 +1516,9 @@ Label ketersediaan membedakan fungsi yang dapat dijalankan saat ini dari rencana
 
 ### Molecular dynamics
 
-MD Lab mendukung simulasi LAMMPS Guided dan manual tervalidasi, serta analisis OVITO pada komputer pribadi atau Cloud yang memiliki pendanaan.
+MD Lab mendukung simulasi LAMMPS Guided dan input manual tervalidasi serta analisis OVITO pada komputer sendiri. Eksekusi MD Cloud belum tersedia sampai layanan itu didukung; pendanaan tidak mengaktifkannya.
 
-Pilih resource dan pendanaan pada drawer lab sebelum menjalankan. Input trajectory asli dipertahankan; sumber Cloud besar memakai multipart dan frame hasil dimuat sesuai kebutuhan dengan proteksi memori browser.
+Pilih resource pada drawer lab sebelum menjalankan. Input manual memerlukan isolasi terverifikasi. Input trajectory asli dipertahankan; frame hasil dimuat sesuai kebutuhan dengan proteksi memori browser.
 
 ### Komputasi terkelola
 
