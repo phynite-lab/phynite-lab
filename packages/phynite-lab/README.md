@@ -53,6 +53,36 @@ npm install -g phynite-lab@latest
 
 The first solver installation downloads the chosen runtime from the setup page.
 
+First run checklist: open **Settings → Compute**, verify the platform, solver
+capability, and isolation probe, install DFT or MD/analysis, install the required
+pseudopotentials (or provide exact UPF inputs), choose **Your computer** in the
+run review, and run a small reference calculation. Inspect the actual queued,
+running, and final state, the first solver error, execution log, provenance,
+checksums, and numerical output. A preflight failure occurs before the solver
+starts and therefore has no solver output; a runtime failure has a solver log
+and any artifacts that were retained.
+
+The default workspace is `~/.phynite-lab`; pass `--data-dir` to use another
+location. SQLite is the metadata store and the filesystem holds project
+artifacts, runtime installations, and logs. The local Storage page measures only
+inventoried project artifacts. It excludes SQLite metadata, installed solvers,
+logs, and unrelated files, and local mode has no fixed 10 GB quota or automatic
+seven-day cleanup. Available disk is the practical limit, so export important
+projects and keep a separate backup.
+
+QE intermediate state can dwarf the final output. `disk_io`, wavefunctions, and
+`tmp/` files may be needed for bands, DOS, phonons, projected workflows, or
+external interoperability. Keep them until downstream workflows finish and
+retain the exact input, pseudopotential identity/checksum, provenance, and state
+artifacts. Wannier90 remains an external/manual workflow unless an explicit
+integration is documented: [QE documentation](https://www.quantum-espresso.org/documentation/),
+[Wannier90 documentation](https://wannier.org/documentation/).
+
+Cloud storage is separate from this disk-backed workspace. Cloud accounts have
+their own quota, retention, and Trash behavior; signing in does not upload local
+projects, and Cloud Sync is enabled per project. Cloud compute uses a separate
+input-transfer review.
+
 Cloud and AI connections are optional and configured inside the application.
 Local AI uses the official Codex or Antigravity CLI already installed on this
 computer. Open **Settings → AI provider accounts** and sign in; models connect and

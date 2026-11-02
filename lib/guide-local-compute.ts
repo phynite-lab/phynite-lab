@@ -35,11 +35,47 @@ export function localComputeGuide(locale: Locale): GuideSection {
         code: 'phynite-lab status\nphynite-lab doctor\nphynite-lab stop',
       },
       {
+        title: t('First local calculation: the shortest safe path', 'Kalkulasi lokal pertama: alur aman paling singkat'),
+        steps: [
+          t('Install and start the app, then open Settings → Compute.', 'Instal dan jalankan aplikasi, lalu buka Pengaturan → Komputasi.'),
+          t('Install DFT or MD/analysis, or both. Wait for the pinned download, checksum verification, and atomic activation to finish.', 'Instal DFT atau MD/analisis, atau keduanya. Tunggu unduhan bertanda versi, verifikasi checksum, dan aktivasi atomik selesai.'),
+          t('Confirm the detected solver capability and a successful native isolation probe. Manual LAMMPS stays unavailable when the probe fails.', 'Pastikan kemampuan solver terdeteksi dan probe isolasi native berhasil. LAMMPS manual tetap tidak tersedia bila probe gagal.'),
+          t('Install the pseudopotential or potential files required by the selected elements and record their exact identity and checksum.', 'Instal file pseudopotensial atau potential yang diperlukan unsur terpilih dan catat identitas serta checksum eksaknya.'),
+          t('In the run review choose Your computer, submit a small reference calculation, and wait for a final state.', 'Pada tinjauan run pilih Komputer Anda, kirim kalkulasi referensi kecil, dan tunggu status akhir.'),
+          t('Read the queue and execution status, the first solver error when one exists, the convergence markers, provenance, checksums, and numerical result before scaling up.', 'Baca status antrean dan eksekusi, error solver pertama bila ada, penanda konvergensi, provenance, checksum, dan hasil numerik sebelum memperbesar kalkulasi.'),
+        ],
+        links: [
+          { label: t('Compute setup', 'Setup komputasi'), href: '/account/compute' },
+          { label: t('Calculation diagnostics', 'Diagnosis kalkulasi'), href: guidePath(locale, 'diagnostics') },
+        ],
+      },
+      {
         title: t('Native app: data, preferences, and optional connections', 'Aplikasi native: data, preferensi, dan koneksi opsional'),
         paragraphs: [
           t('SQLite and filesystem data are the primary local copy. Use Settings → Storage to export/import project archives, and keep independent backups. Browser storage holds recoverable drafts and device preferences, not the full native workspace.', 'Data SQLite dan filesystem adalah salinan lokal utama. Gunakan Pengaturan → Penyimpanan untuk ekspor/impor arsip project dan simpan backup terpisah. Storage browser menampung draft pemulihan serta preferensi perangkat, bukan seluruh workspace native.'),
           t('Appearance, language, keyboard shortcuts, and local notification choices stay in this browser. AI provider accounts use your own CLI/gateway login. Account manages Phynite Cloud separately; login does not upload projects. Cloud Sync is enabled per project, and cloud compute reviews its own input transfer without enabling sync.', 'Tampilan, bahasa, pintasan keyboard, dan pilihan notifikasi lokal tetap pada browser ini. Akun provider AI memakai login CLI/gateway Anda sendiri. Akun mengelola Phynite Cloud secara terpisah; login tidak mengunggah project. Cloud Sync diaktifkan per project, dan compute cloud meninjau transfer input sendiri tanpa mengaktifkan sync.'),
           t('Billing opens the Phynite website. Finish or cancel jobs, stop the app, update with npm install -g phynite-lab@latest, then reopen. Updating the package preserves data outside its installation directory.', 'Tagihan membuka website Phynite. Selesaikan atau batalkan job, hentikan aplikasi, perbarui dengan npm install -g phynite-lab@latest, lalu buka kembali. Pembaruan paket mempertahankan data di luar direktori instalasi.'),
+        ],
+      },
+      {
+        title: t('Local storage and large Quantum ESPRESSO state', 'Penyimpanan lokal dan state Quantum ESPRESSO yang besar'),
+        paragraphs: [
+          t('The default local workspace is ~/.phynite-lab; use phynite-lab --data-dir /path/to/workspace when another disk is appropriate. SQLite stores metadata and the filesystem stores project artifacts, runtime installations, and logs. The Storage page measures inventoried project artifacts only; database metadata, solver/runtime installations, logs, and unrelated files on the disk are outside that number.', 'Workspace lokal default adalah ~/.phynite-lab; gunakan phynite-lab --data-dir /path/to/workspace bila disk lain lebih sesuai. SQLite menyimpan metadata dan filesystem menyimpan artefak project, instalasi runtime, serta log. Halaman Penyimpanan hanya mengukur artefak project yang terinventarisasi; metadata database, instalasi solver/runtime, log, dan file lain di disk tidak termasuk angka itu.'),
+          t('Local mode has no fixed 10 GiB quota and no automatic seven-day cleanup. Its practical limit is the free space on the selected disk; runtime installers and logs consume that disk even when excluded from the inventory. Export/import project archives and an independent backup are required for important work.', 'Mode lokal tidak memiliki kuota tetap 10 GiB dan tidak melakukan pembersihan otomatis tujuh hari. Batas praktisnya adalah ruang kosong pada disk yang dipilih; installer runtime dan log tetap memakai disk walau tidak masuk inventaris. Ekspor/impor arsip project dan backup terpisah wajib untuk data penting.'),
+          t('Quantum ESPRESSO disk_io settings and intermediate state can be much larger than the final output. Wavefunction and tmp data may be required for bands, DOS, phonon, projected workflows, or external interoperability. Do not delete intermediate state until every downstream workflow is finished; keep the exact input, pseudopotential identity/checksum, provenance, and state artifacts together.', 'Pengaturan disk_io Quantum ESPRESSO dan state intermediate dapat jauh lebih besar daripada output akhir. Data wavefunction dan tmp mungkin diperlukan untuk band, DOS, phonon, workflow projected, atau interoperabilitas eksternal. Jangan menghapus state intermediate sebelum semua workflow lanjutan selesai; simpan input eksak, identitas/checksum pseudopotensial, provenance, dan artefak state bersama-sama.'),
+          t('Wannier90 is an external/manual workflow unless a separately documented native integration is available. Export the required Quantum ESPRESSO state and follow the official Wannier90 documentation; Phynite does not claim to run that tool natively here.', 'Wannier90 adalah workflow eksternal/manual kecuali ada integrasi native yang didokumentasikan terpisah. Ekspor state Quantum ESPRESSO yang diperlukan dan ikuti dokumentasi resmi Wannier90; Phynite tidak menyatakan menjalankan tool itu secara native di sini.'),
+        ],
+        table: {
+          headings: [t('Counted by local Storage', 'Dihitung oleh Penyimpanan lokal'), t('Not counted by local Storage', 'Tidak dihitung oleh Penyimpanan lokal')],
+          rows: [
+            [t('Inventoried project inputs, structures, configurations, results, trajectories, and exported artifacts.', 'Input project, struktur, konfigurasi, hasil, trajectory, dan artefak ekspor yang terinventarisasi.'), t('SQLite metadata, solver/runtime installation files, logs, browser cache, and unrelated files on the disk.', 'Metadata SQLite, file instalasi solver/runtime, log, cache browser, dan file lain yang tidak terkait project di disk.')],
+            [t('Completed artifacts retained in the project, including large QE state when it is recorded there.', 'Artefak selesai yang dipertahankan di project, termasuk state QE besar bila direkam di sana.'), t('Free space used by the operating system or by another application.', 'Ruang kosong yang dipakai sistem operasi atau aplikasi lain.')],
+          ],
+        },
+        links: [
+          { label: t('Storage settings', 'Pengaturan penyimpanan'), href: '/account/storage' },
+          { label: 'Quantum ESPRESSO documentation', href: 'https://www.quantum-espresso.org/documentation/' },
+          { label: 'Wannier90 documentation', href: 'https://wannier.org/documentation/' },
         ],
       },
       {
@@ -133,7 +169,7 @@ export function localComputeGuide(locale: Locale): GuideSection {
         },
         paragraphs: [
           t('The private Phynite Compute volume remembers the connection and downloaded libraries. Keep the computer awake and internet available while a calculation is active; the website may be closed.', 'Volume privat Phynite Compute menyimpan koneksi dan pustaka yang diunduh. Pertahankan komputer aktif dan internet tersedia selama kalkulasi berjalan; website boleh ditutup.'),
-          t('Stopping the local engine or putting the computer to sleep can interrupt a calculation. Restore connectivity and inspect the job state before sending a duplicate. Completed local work files are cleaned up after three days.', 'Menghentikan engine lokal atau menidurkan komputer dapat menginterupsi kalkulasi. Pulihkan koneksi dan periksa status job sebelum mengirim duplikat. File kerja lokal yang selesai dibersihkan setelah tiga hari.'),
+          t('Stopping the local engine or putting the computer to sleep can interrupt a calculation. Restore connectivity and inspect the job state before sending a duplicate. Local project artifacts remain on the selected data disk until you delete or export them; hosted worker retention and Trash rules are separate.', 'Menghentikan engine lokal atau menidurkan komputer dapat menginterupsi kalkulasi. Pulihkan koneksi dan periksa status job sebelum mengirim duplikat. Artefak project lokal tetap berada di disk data terpilih sampai Anda menghapus atau mengekspornya; retensi dan Trash hosted worker adalah aturan terpisah.'),
         ],
       },
       {
@@ -155,6 +191,8 @@ export function localComputeGuide(locale: Locale): GuideSection {
             [t('Code expired or was used', 'Kode kedaluwarsa atau telah digunakan'), t('Reopen the launcher to request and open the latest code.', 'Buka kembali launcher untuk meminta dan membuka kode terbaru.')],
             [t('Approved, but still Offline', 'Disetujui, tetapi masih Offline'), t('First-time library setup can take several minutes. Check service logs and refresh the connection afterward.', 'Setup pustaka pertama dapat memerlukan beberapa menit. Periksa log layanan lalu perbarui koneksi.')],
             [t('Job stays queued', 'Job tetap antre'), t('Check Connected status, Your computer destination, and completed dependencies. Do not submit a duplicate.', 'Periksa status Terhubung, tujuan Komputer Anda, dan dependensi selesai. Jangan kirim duplikat.')],
+            [t('Setup/preflight rejected before solver start', 'Setup/preflight ditolak sebelum solver mulai'), t('No solver log exists because the runtime did not start. Read the visible capability, isolation, potential, or input validation message, fix that prerequisite, then submit once.', 'Tidak ada log solver karena runtime belum mulai. Baca pesan kemampuan, isolasi, potential, atau validasi input yang terlihat, perbaiki prasyarat, lalu kirim sekali.')],
+            [t('Solver starts, then fails', 'Solver mulai lalu gagal'), t('Open the execution log and the first solver error, keep the failed provenance and artifacts, and check memory/disk/convergence before changing a scientific input.', 'Buka log eksekusi dan error solver pertama, pertahankan provenance serta artefak gagal, lalu periksa memori/disk/konvergensi sebelum mengubah input ilmiah.')],
             ['OOMKilled / exit 137', t('The calculation exceeded available memory. Reduce system size or bands only where scientifically appropriate.', 'Kalkulasi melebihi memori. Kurangi ukuran sistem atau jumlah band hanya jika sesuai secara ilmiah.')],
           ],
         },

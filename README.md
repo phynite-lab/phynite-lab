@@ -24,6 +24,15 @@ the separate setup installs the scientific solvers. The run review also offers
 installation when a solver is missing and blocks execution until the worker has
 validated it.
 
+For a first local run, follow this order: verify the detected platform, solver
+capability, and isolation probe; install the pseudopotential library or upload
+the exact UPF files required by the input; run a small reference calculation;
+then inspect the queued/running/final state, first solver error, execution log,
+provenance, checksums, and numerical result. A failure before the solver starts
+is a setup or preflight failure and has no solver output. A failure after start
+has an execution log and retained artifacts; read the first solver error before
+changing an input.
+
 For SSSP inputs, install the selected **Precision** or **Efficiency** library in
 the setup's **DFT pseudopotentials** section. Downloads come from the pinned
 official Materials Cloud release, retain its license notices, and are checked
@@ -59,6 +68,35 @@ Cloud Sync per project or submit a job to cloud compute after its transfer previ
 Local AI connections and cloud login are independent. The hosted backend and its
 deployment infrastructure are maintained separately and are not needed to build
 or run this application.
+
+### Local storage and large QE runs
+
+The default data directory is `~/.phynite-lab`; use `--data-dir` to choose another
+workspace. SQLite stores metadata and the filesystem stores project artifacts,
+runtime installations, and logs. The Storage page measures only inventoried
+project artifacts, so its number excludes database metadata, installed solvers,
+logs, and unrelated files on the disk. Local mode has no fixed 10 GB allowance or
+seven-day automatic cleanup: the practical limit is the user's available disk.
+Export important projects and keep an independent backup before deleting or
+replacing a workspace.
+
+Quantum ESPRESSO `disk_io` and intermediate state can be much larger than the
+final output. Wavefunctions and `tmp/` data may be required for bands, DOS,
+phonons, projected workflows, or interoperability with another program. Keep
+that state until every downstream workflow finishes, and preserve the exact
+input, pseudopotential identity/checksum, provenance, and state artifacts with
+the project. Wannier90 is an external/manual workflow unless a separately
+documented integration is installed; see the [Quantum ESPRESSO documentation](https://www.quantum-espresso.org/documentation/)
+and [Wannier90 documentation](https://wannier.org/documentation/).
+
+| Counted by local Storage | Not counted by local Storage |
+| --- | --- |
+| Inventoried project inputs, results, trajectories, and archives | SQLite metadata, solver/runtime installations, worker logs, browser cache, and unrelated disk files |
+
+Plan extra disk when a workflow retains wavefunctions, `tmp/`, checkpoints, or
+multiple trajectories. Cloud storage is separate: it has account quota,
+retention, and Trash rules. Cloud login never uploads a local project, and
+Cloud Sync is enabled explicitly per project.
 
 ## Build from source
 
