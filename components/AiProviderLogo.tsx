@@ -13,12 +13,15 @@ type LogoProps = SVGProps<SVGSVGElement> & { provider: AiProviderLogoId };
 export function AiProviderLogo({ provider, ...props }: LogoProps) {
   if (provider === 'codex') {
     return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
-      <path d="M12 2.75c1.25 0 2.28.46 3.08 1.38l1.07 1.23 1.62-.18c1.23-.14 2.28.24 3.16 1.12.88.88 1.26 1.93 1.12 3.16l-.18 1.62 1.23 1.07c.92.8 1.38 1.83 1.38 3.08s-.46 2.28-1.38 3.08l-1.23 1.07.18 1.62c.14 1.23-.24 2.28-1.12 3.16-.88.88-1.93 1.26-3.16 1.12l-1.62-.18-1.07 1.23C14.28 22.54 13.25 23 12 23s-2.28-.46-3.08-1.38l-1.07-1.23-1.62.18c-1.23.14-2.28-.24-3.16-1.12-.88-.88-1.26-1.93-1.12-3.16l.18-1.62-1.23-1.07C0 12.8-.46 11.77-.46 10.52s.46-2.28 1.38-3.08l1.23-1.07-.18-1.62c-.14-1.23.24-2.28 1.12-3.16.88-.88 1.93-1.26 3.16-1.12l1.62.18 1.07-1.23C9.72 3.21 10.75 2.75 12 2.75Z" transform="scale(.82) translate(2.6 2.6)" stroke="currentColor" strokeWidth="1.35" strokeLinejoin="round" />
-      <path d="M8.25 12.15 10.9 14.8l5.15-5.6" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" />
+      <defs><linearGradient id="codex-mark" x1="3" y1="20" x2="20" y2="4" gradientUnits="userSpaceOnUse"><stop stopColor="#2f80ed" /><stop offset=".5" stopColor="#32c7a5" /><stop offset="1" stopColor="#ff9f43" /></linearGradient></defs>
+      <path d="M4.1 18.75c2.65-.1 4.22-1.42 5.07-3.17l2.1-4.33c.92-1.9 2.12-3.05 4.2-3.19 1.93-.13 3.32.75 4.42 2.1" stroke="url(#codex-mark)" strokeWidth="2.85" strokeLinecap="round" />
+      <path d="M4.1 18.75c2.84.17 5.18-1.4 6.3-3.7l1.58-3.24c.72-1.47 1.75-2.42 3.2-2.55" stroke="url(#codex-mark)" strokeWidth="1.1" strokeLinecap="round" opacity=".4" />
+      <path d="M19.9 18.75c-2.65-.1-4.22-1.42-5.07-3.17l-1.18-2.42" stroke="url(#codex-mark)" strokeWidth="2.85" strokeLinecap="round" />
     </svg>;
   }
   return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
-    <path d="M12 2.5 14.55 8l5.95.7-4.36 4.08 1.14 5.85L12 15.72l-5.28 2.91 1.14-5.85L3.5 8.7l5.95-.7L12 2.5Z" stroke="currentColor" strokeWidth="1.35" strokeLinejoin="round" />
-    <path d="M12 9.1v5.8M9.1 11.35l5.8 3.35M14.9 11.35l-5.8 3.35" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" />
+    <defs><linearGradient id="antigravity-mark" x1="4" y1="4" x2="20" y2="21" gradientUnits="userSpaceOnUse"><stop stopColor="#a997ff" /><stop offset="1" stopColor="#4169f5" /></linearGradient></defs>
+    <path d="M6.4 17.65a5.3 5.3 0 0 1 .91-9.78 5.85 5.85 0 0 1 9.98 1.6 4.7 4.7 0 0 1 .82 8.18" fill="url(#antigravity-mark)" opacity=".9" />
+    <path d="m9.1 11.2 2.18 2.23-2.18 2.22M13.2 15.65h2.7" stroke="white" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round" />
   </svg>;
 }
