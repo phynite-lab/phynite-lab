@@ -126,7 +126,7 @@ async function visit(page, origin, path) {
   assert.equal(response?.status(), 200, `${path} must open without login.`);
   await expect(page.locator('body')).toBeVisible();
   await expect.poll(() => new URL(page.url()).pathname).toBe(path);
-  if (path === '/local') await expect(page.getByRole('heading', { name: 'Your computer', exact: true })).toBeVisible();
+  if (path === '/account/compute') await expect(page.getByRole('heading', { name: 'Compute', exact: true })).toBeVisible();
   if (path === '/workspace') await expect(page.getByRole('button', { name: 'New project', exact: true })).toBeEnabled();
 }
 
@@ -174,11 +174,11 @@ try {
   await expect(cloudLogin).toBeVisible();
   await expect(page.getByRole('menuitem', { name: 'Log out', exact: true })).toHaveCount(0);
   await cloudLogin.click();
-  await expect(page).toHaveURL(initial.origin + '/local#cloud');
+  await expect(page).toHaveURL(initial.origin + '/account/account#cloud');
   await expect(page.getByRole('heading', { name: 'Phynite Cloud', exact: true })).toBeInViewport();
   for (const path of ['/login', '/register']) {
     await page.goto(initial.origin + path, { waitUntil: 'domcontentloaded' });
-    await expect(page).toHaveURL(initial.origin + '/local#cloud');
+    await expect(page).toHaveURL(initial.origin + '/account/account#cloud');
     await expect(page.getByRole('heading', { name: 'Phynite Cloud', exact: true })).toBeInViewport();
     await expect(page.locator('.local-cloud-login-form').getByRole('button', { name: 'Sign in', exact: true })).toBeEnabled({ enabled: Boolean(manifest.cloud) });
   }
@@ -225,10 +225,11 @@ try {
   report.checks.push('With explicitly simulated cloud identity only: actual local logout endpoint keeps workspace open, removes the profile menu, restores Cloud login and supports a second disconnect after reconnection.');
   await visit(page, initial.origin, '/workspace');
   await page.screenshot({ path: join(output, 'desktop-workspace.png'), fullPage: true });
-  await visit(page, initial.origin, '/local');
+  await visit(page, initial.origin, '/account/compute');
   await expect(page.locator('.research-app-shell[data-settings="true"]')).toBeVisible();
   await expect(page.locator('.studio-mobile-header')).toHaveCount(0);
   await page.screenshot({ path: join(output, 'desktop-local.png'), fullPage: true });
+  await visit(page, initial.origin, '/account/account');
   await page.locator('#cloud').scrollIntoViewIfNeeded();
   await page.screenshot({ path: join(output, 'desktop-connections.png') });
   await visit(page, initial.origin, '/workspace');
@@ -292,7 +293,7 @@ try {
   const mobile = await contextFor(initial.origin, { width: 390, height: 844 });
   const mobilePage = await mobile.context.newPage();
   activePage = mobilePage;
-  for (const path of ['/workspace', '/local']) {
+  for (const path of ['/workspace', '/account/compute']) {
     await visit(mobilePage, initial.origin, path);
     assert.ok(await mobilePage.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${path} must fit a mobile viewport.`);
     await mobilePage.screenshot({ path: join(output, `mobile-${path.slice(1)}.png`), fullPage: true });
@@ -311,7 +312,7 @@ try {
       await expect(mobilePage.locator('.research-navigation')).toBeHidden();
       await expect(mobilePage.locator('.settings-local-navigation')).toHaveCount(0);
       await mobilePage.getByRole('button', { name: 'Open navigation', exact: true }).click();
-      await expect(mobilePage.getByRole('link', { name: 'Local runtime & cloud', exact: true })).toBeVisible();
+      await expect(mobilePage.getByRole('link', { name: 'Compute', exact: true })).toBeVisible();
       await mobilePage.locator('.research-drawer-close').click();
       await expect(mobilePage.locator('.research-navigation')).toBeHidden();
       await mobilePage.locator('#cloud').scrollIntoViewIfNeeded();
