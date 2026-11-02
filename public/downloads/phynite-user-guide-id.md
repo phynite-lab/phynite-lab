@@ -906,7 +906,7 @@ Source package dan ID run:
 
 ## Penyimpanan otomatis dan banyak perangkat
 
-DFT Lab dan Figure Lab menampilkan status penyimpanan dokumen aktif. Aplikasi npm menyimpan project pada SQLite/filesystem; storage browser memuat draft pemulihan. Project lokal tidak diunggah otomatis. Status cloud berikut berlaku untuk website hosted atau project dengan Cloud Sync aktif secara eksplisit.
+DFT Lab dan Figure Lab menampilkan status penyimpanan dokumen aktif. Aplikasi npm menyimpan project pada SQLite/filesystem; storage browser memuat draft pemulihan. Project lokal tidak diunggah otomatis dan tidak memiliki kuota tetap 10 GiB. Status cloud berikut berlaku untuk website hosted atau project dengan Cloud Sync aktif secara eksplisit.
 
 ### Arti status editor
 
@@ -917,6 +917,28 @@ DFT Lab dan Figure Lab menampilkan status penyimpanan dokumen aktif. Aplikasi np
 | Saved on device / Offline | Salinan browser ada, unggah belum selesai. | Jangan hapus data browser; sambungkan kembali. |
 | Sync pending | Salinan lokal disimpan selama unggah dicoba lagi. | Periksa jaringan dan batas penyimpanan. |
 | Sync conflict | Revisi cloud berbeda dari revisi yang diedit. | Periksa History sebelum memilih versi. |
+
+### Cakupan penyimpanan lokal
+
+Workspace lokal default adalah ~/.phynite-lab dan dapat dipindahkan dengan phynite-lab --data-dir /path/to/workspace. SQLite menyimpan metadata, sedangkan filesystem menyimpan artefak project, instalasi runtime, dan log. Pengaturan → Penyimpanan hanya mengukur artefak project yang terinventarisasi; metadata database, instalasi solver/runtime, log, cache browser, dan file lain di disk berada di luar pengukuran.
+
+Mode lokal dibatasi ruang kosong disk, bukan kuota hosted 10 GiB, dan artefak lokal tidak mendapat pembersihan otomatis tujuh hari. Installer runtime dan log tetap memakai disk. Ekspor/impor arsip project dan backup terpisah diperlukan untuk pekerjaan penting.
+
+| Dihitung oleh Penyimpanan lokal | Tidak dihitung oleh Penyimpanan lokal |
+| --- | --- |
+| Struktur, input, konfigurasi, hasil selesai, trajectory, dan artefak project yang terinventarisasi. | Metadata SQLite, instalasi solver/runtime, log, cache browser, dan file lain di disk. |
+| State intermediate besar bila disimpan sebagai artefak project. | Ruang kosong sistem operasi atau data milik aplikasi lain. |
+
+- [Pengaturan penyimpanan](/account/storage)
+
+### Data intermediate Quantum ESPRESSO
+
+Pilihan disk_io dan output intermediate QE dapat jauh lebih besar daripada hasil akhir. Data wavefunction/tmp mungkin diperlukan untuk band, DOS, fonon, workflow projected, atau interoperabilitas eksternal; jangan menghapusnya sebelum workflow lanjutan selesai. Simpan input eksak, identitas dan checksum pseudopotensial, provenance, serta artefak state bersama-sama.
+
+Wannier90 adalah workflow eksternal/manual kecuali ada integrasi native yang didokumentasikan terpisah. Ikuti dokumentasi resmi Quantum ESPRESSO dan Wannier90; panduan ini tidak menyatakan adanya runner Wannier90 native.
+
+- [Dokumentasi Quantum ESPRESSO](https://www.quantum-espresso.org/documentation/)
+- [Dokumentasi Wannier90](https://wannier.org/documentation/)
 
 ### Perilaku Figure Lab
 
@@ -941,11 +963,11 @@ Tidak ada tombol Save revision yang wajib. Ctrl/Cmd+S merupakan checkpoint histo
 
 ### Salinan portabel
 
-- Ekspor Source package untuk figur penting.
-- Simpan struktur asli dan input kalkulasi yang dijalankan.
+- Ekspor Source package untuk figur penting dan arsip project untuk studi lokal.
+- Simpan struktur asli, input kalkulasi, identitas/checksum pseudopotensial, provenance, dan state intermediate yang dibutuhkan workflow lanjutan.
 - Penyimpanan browser memiliki kuota perangkat dan hilang bila data situs dibersihkan.
 - Archive mengatur daftar, bukan menghapus record atau membebaskan kuota.
-- Billing memisahkan inventaris file cloud dari kuota dokumen Figure Lab. Angka penyimpanan bukan faktur.
+- Inventaris storage akun memisahkan objek cloud dari kuota dokumen riset. Login Cloud tidak mengunggah project lokal; Cloud Sync diaktifkan per project.
 
 ### Topik terkait
 
@@ -1124,6 +1146,18 @@ phynite-lab doctor
 phynite-lab stop
 ```
 
+### Kalkulasi lokal pertama: alur aman paling singkat
+
+1. Instal dan jalankan aplikasi, lalu buka Pengaturan → Komputasi.
+2. Instal DFT atau MD/analisis, atau keduanya. Tunggu unduhan bertanda versi, verifikasi checksum, dan aktivasi atomik selesai.
+3. Pastikan kemampuan solver terdeteksi dan probe isolasi native berhasil. LAMMPS manual tetap tidak tersedia bila probe gagal.
+4. Instal file pseudopotensial atau potential yang diperlukan unsur terpilih dan catat identitas serta checksum eksaknya.
+5. Pada tinjauan run pilih Komputer Anda, kirim kalkulasi referensi kecil, dan tunggu status akhir.
+6. Baca status antrean dan eksekusi, error solver pertama bila ada, penanda konvergensi, provenance, checksum, dan hasil numerik sebelum memperbesar kalkulasi.
+
+- [Setup komputasi](/account/compute)
+- [Diagnosis kalkulasi](#diagnostics)
+
 ### Aplikasi native: data, preferensi, dan koneksi opsional
 
 Data SQLite dan filesystem adalah salinan lokal utama. Gunakan Pengaturan → Penyimpanan untuk ekspor/impor arsip project dan simpan backup terpisah. Storage browser menampung draft pemulihan serta preferensi perangkat, bukan seluruh workspace native.
@@ -1131,6 +1165,25 @@ Data SQLite dan filesystem adalah salinan lokal utama. Gunakan Pengaturan → Pe
 Tampilan, bahasa, pintasan keyboard, dan pilihan notifikasi lokal tetap pada browser ini. Akun provider AI memakai login CLI/gateway Anda sendiri. Akun mengelola Phynite Cloud secara terpisah; login tidak mengunggah project. Cloud Sync diaktifkan per project, dan compute cloud meninjau transfer input sendiri tanpa mengaktifkan sync.
 
 Tagihan membuka website Phynite. Selesaikan atau batalkan job, hentikan aplikasi, perbarui dengan npm install -g phynite-lab@latest, lalu buka kembali. Pembaruan paket mempertahankan data di luar direktori instalasi.
+
+### Penyimpanan lokal dan state Quantum ESPRESSO yang besar
+
+Workspace lokal default adalah ~/.phynite-lab; gunakan phynite-lab --data-dir /path/to/workspace bila disk lain lebih sesuai. SQLite menyimpan metadata dan filesystem menyimpan artefak project, instalasi runtime, serta log. Halaman Penyimpanan hanya mengukur artefak project yang terinventarisasi; metadata database, instalasi solver/runtime, log, dan file lain di disk tidak termasuk angka itu.
+
+Mode lokal tidak memiliki kuota tetap 10 GiB dan tidak melakukan pembersihan otomatis tujuh hari. Batas praktisnya adalah ruang kosong pada disk yang dipilih; installer runtime dan log tetap memakai disk walau tidak masuk inventaris. Ekspor/impor arsip project dan backup terpisah wajib untuk data penting.
+
+Pengaturan disk_io Quantum ESPRESSO dan state intermediate dapat jauh lebih besar daripada output akhir. Data wavefunction dan tmp mungkin diperlukan untuk band, DOS, phonon, workflow projected, atau interoperabilitas eksternal. Jangan menghapus state intermediate sebelum semua workflow lanjutan selesai; simpan input eksak, identitas/checksum pseudopotensial, provenance, dan artefak state bersama-sama.
+
+Wannier90 adalah workflow eksternal/manual kecuali ada integrasi native yang didokumentasikan terpisah. Ekspor state Quantum ESPRESSO yang diperlukan dan ikuti dokumentasi resmi Wannier90; Phynite tidak menyatakan menjalankan tool itu secara native di sini.
+
+| Dihitung oleh Penyimpanan lokal | Tidak dihitung oleh Penyimpanan lokal |
+| --- | --- |
+| Input project, struktur, konfigurasi, hasil, trajectory, dan artefak ekspor yang terinventarisasi. | Metadata SQLite, file instalasi solver/runtime, log, cache browser, dan file lain yang tidak terkait project di disk. |
+| Artefak selesai yang dipertahankan di project, termasuk state QE besar bila direkam di sana. | Ruang kosong yang dipakai sistem operasi atau aplikasi lain. |
+
+- [Pengaturan penyimpanan](/account/storage)
+- [Quantum ESPRESSO documentation](https://www.quantum-espresso.org/documentation/)
+- [Wannier90 documentation](https://wannier.org/documentation/)
 
 ### Website hosted: hubungkan worker pribadi
 
@@ -1202,7 +1255,7 @@ Sediakan beberapa GB ruang disk untuk runtime terverifikasi dan pustaka ilmiah, 
 
 Volume privat Phynite Compute menyimpan koneksi dan pustaka yang diunduh. Pertahankan komputer aktif dan internet tersedia selama kalkulasi berjalan; website boleh ditutup.
 
-Menghentikan engine lokal atau menidurkan komputer dapat menginterupsi kalkulasi. Pulihkan koneksi dan periksa status job sebelum mengirim duplikat. File kerja lokal yang selesai dibersihkan setelah tiga hari.
+Menghentikan engine lokal atau menidurkan komputer dapat menginterupsi kalkulasi. Pulihkan koneksi dan periksa status job sebelum mengirim duplikat. Artefak project lokal tetap berada di disk data terpilih sampai Anda menghapus atau mengekspornya; retensi dan Trash hosted worker adalah aturan terpisah.
 
 | Tindakan | Lokasi |
 | --- | --- |
@@ -1228,6 +1281,8 @@ Menghentikan engine lokal atau menidurkan komputer dapat menginterupsi kalkulasi
 | Kode kedaluwarsa atau telah digunakan | Buka kembali launcher untuk meminta dan membuka kode terbaru. |
 | Disetujui, tetapi masih Offline | Setup pustaka pertama dapat memerlukan beberapa menit. Periksa log layanan lalu perbarui koneksi. |
 | Job tetap antre | Periksa status Terhubung, tujuan Komputer Anda, dan dependensi selesai. Jangan kirim duplikat. |
+| Setup/preflight ditolak sebelum solver mulai | Tidak ada log solver karena runtime belum mulai. Baca pesan kemampuan, isolasi, potential, atau validasi input yang terlihat, perbaiki prasyarat, lalu kirim sekali. |
+| Solver mulai lalu gagal | Buka log eksekusi dan error solver pertama, pertahankan provenance serta artefak gagal, lalu periksa memori/disk/konvergensi sebelum mengubah input ilmiah. |
 | OOMKilled / exit 137 | Kalkulasi melebihi memori. Kurangi ukuran sistem atau jumlah band hanya jika sesuai secara ilmiah. |
 
 - [Hubungi dukungan](/contact)

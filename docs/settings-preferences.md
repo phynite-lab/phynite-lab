@@ -157,6 +157,23 @@ Cloud logout stops sync and keeps local files. Account changes must not resume
 another account's pending uploads. Review conflicts explicitly instead of
 silently overwriting a local or cloud revision.
 
+| Storage question | Local application | Cloud service |
+| --- | --- | --- |
+| Where data lives | `~/.phynite-lab` (or `--data-dir`), SQLite plus filesystem | Account-backed cloud project and artifact storage |
+| What the Storage page measures | Inventoried project artifacts and archives | Cloud inventory and account quota |
+| What is outside that measurement | Database metadata, solver/runtime installs, logs, browser cache, and other disk files | Provider-side service data and any unlisted account usage |
+| Automatic cleanup | None for local artifacts; disk space is the practical limit | Hosted retention, tombstones, and Trash rules shown by the cloud service |
+
+Local mode therefore has no fixed 10 GB allowance and no seven-day artifact
+cleanup. QE `disk_io`, wavefunctions, and `tmp/` state can require many times
+the size of a final output for bands, DOS, phonons, projected workflows, or
+external interoperability. Keep intermediate state until downstream workflows
+finish; retain the exact input, pseudopotential identity/checksum, provenance,
+and state artifacts. Wannier90 is an external/manual workflow unless a native
+integration is explicitly documented; see [Quantum ESPRESSO](https://www.quantum-espresso.org/documentation/)
+and [Wannier90](https://wannier.org/documentation/). Export important projects
+and keep an independent backup before cleanup or migration.
+
 ## Old bookmarks and troubleshooting
 
 `/local#ai` opens AI provider accounts, `/local#cloud` opens Account,

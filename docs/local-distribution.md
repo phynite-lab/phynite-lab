@@ -28,7 +28,7 @@ Do not assemble a release using stale cores or application output from another
 commit or platform. Solver scientific libraries belong in the optional runtime,
 not the npm package. Do not include restricted pseudopotentials or potentials.
 
-The 0.1.4 npm release ships `darwin-arm64` (macOS Apple Silicon), `darwin-x64`
+The 0.1.5 npm release ships `darwin-arm64` (macOS Apple Silicon), `darwin-x64`
 (macOS Intel), `linux-arm64`, and `linux-x64` (glibc >=2.39, including current
 Omarchy/Arch Linux). Windows WSL2 uses the Linux x64 package because WSL2 reports
 that native platform to Node and npm. Each native package is built and qualified
@@ -95,6 +95,34 @@ Execution result retains the job's failure reason and log tail. Downloadable log
 artifacts remain available when the worker produced them. A preflight rejection
 has no solver log because the solver never started. Inspect the displayed reason
 and the selected data directory's `logs/worker-*.log` for worker startup failures.
+
+## Local storage and QE intermediate state
+
+Each launcher workspace defaults to `~/.phynite-lab`; `--data-dir` selects another
+directory. SQLite is used for metadata and the filesystem is used for project
+artifacts. The Storage page reports only inventoried project artifacts. It does
+not include SQLite metadata, solver/runtime installations, worker logs, browser
+cache, or unrelated files on the disk. Local mode has no fixed 10 GB quota and
+does not automatically delete artifacts after seven days. Available disk is the
+practical limit; export important projects and keep a separate backup.
+
+| Counted in local Storage | Outside local Storage measurement |
+| --- | --- |
+| Project inputs, results, trajectories, and export archives that are inventoried | SQLite database, solver/runtime installs, logs, browser cache, and other disk files |
+
+QE `disk_io` and intermediate output can consume much more space than a final
+SCF result. Wavefunction and `tmp/` files may be required for bands, DOS,
+phonons, projected calculations, checkpoints, or external interoperability. Do
+not remove them until downstream workflows finish. Preserve the exact input,
+pseudopotential identity and checksum, provenance, and state artifacts together.
+Wannier90 is an external/manual workflow unless a separately documented native
+integration exists; consult the [official Quantum ESPRESSO documentation](https://www.quantum-espresso.org/documentation/)
+and [official Wannier90 documentation](https://wannier.org/documentation/).
+
+Cloud storage is a separate account-backed service with its own quota, hosted
+retention, and Trash rules. Cloud login does not upload local projects; Cloud
+Sync is explicitly enabled per project. Cloud compute has its own transfer
+preview and does not turn on project sync.
 
 ## Assemble separate launcher and platform packages
 
@@ -198,8 +226,8 @@ process fixtures are rejected by executable magic. It never downloads a browser.
 
 ```sh
 node scripts/smoke-local-distribution.mjs \
-  --tarball /path/to/tarballs/phynite-lab-0.1.4.tgz \
-  --runtime-tarball /path/to/tarballs/phynite-lab-runtime-darwin-arm64-0.1.4.tgz \
+  --tarball /path/to/tarballs/phynite-lab-0.1.5.tgz \
+  --runtime-tarball /path/to/tarballs/phynite-lab-runtime-darwin-arm64-0.1.5.tgz \
   --output /path/to/new-evidence
 ```
 

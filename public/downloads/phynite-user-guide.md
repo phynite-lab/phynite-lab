@@ -905,7 +905,7 @@ Source package and run identifiers:
 
 ## Autosave, storage, and multiple devices
 
-DFT Lab and Figure Lab show save status for the active context. The npm app stores projects in SQLite/filesystem; browser storage holds recoverable drafts. Local projects do not upload automatically. The cloud save states below apply to the hosted website or a project with explicitly enabled Cloud Sync.
+DFT Lab and Figure Lab show save status for the active context. The npm app stores projects in SQLite/filesystem; browser storage holds recoverable drafts. Local projects do not upload automatically and have no fixed 10 GiB quota. The cloud save states below apply to the hosted website or a project with explicitly enabled Cloud Sync.
 
 ### Save states
 
@@ -916,6 +916,28 @@ DFT Lab and Figure Lab show save status for the active context. The npm app stor
 | Saved on device / Offline | A browser copy exists; cloud upload has not completed. | Keep browser data intact and reconnect. |
 | Sync pending | The local copy is retained while upload retries. | Check network access and storage limits. |
 | Sync conflict | The remote revision differs from the one being edited. | Review the versions in History; avoid blindly overwriting another device. |
+
+### Local storage and research archives
+
+The local workspace defaults to ~/.phynite-lab and can be moved with phynite-lab --data-dir /path/to/workspace. SQLite stores metadata while the filesystem stores project artifacts. Settings → Storage measures inventoried project artifacts only; database metadata, solver/runtime installations, logs, browser cache, and unrelated files on the disk are excluded.
+
+Local mode is limited by free disk space, not a hosted 10 GiB allowance, and local artifacts do not receive an automatic seven-day cleanup. Runtime installers and logs still consume disk. Export/import project archives and keep an independent backup for important work.
+
+| Counted by local Storage | Not counted by local Storage |
+| --- | --- |
+| Inventoried structures, inputs, configurations, completed results, trajectories, and exported project artifacts. | SQLite metadata, solver/runtime installations, logs, browser cache, and unrelated disk files. |
+| Large intermediate state when it is retained as a project artifact. | Operating-system free space or data owned by another application. |
+
+- [Storage settings](/account/storage)
+
+### Quantum ESPRESSO intermediate data
+
+QE disk_io choices and intermediate output can grow far beyond the final result. Wavefunction/tmp data may be needed for bands, DOS, phonon, projected workflows, or external interoperability; do not remove it until downstream workflows finish. Keep the exact input, pseudopotential identity and checksum, provenance, and state artifacts together.
+
+Wannier90 is an external/manual workflow unless a separately documented native integration is available. Follow the official Quantum ESPRESSO and Wannier90 documentation; this guide does not claim a native Wannier90 runner.
+
+- [Quantum ESPRESSO documentation](https://www.quantum-espresso.org/documentation/)
+- [Wannier90 documentation](https://wannier.org/documentation/)
 
 ### Hosted Figure Lab autosave behavior
 
@@ -940,11 +962,11 @@ There is no required Save revision button. Ctrl/Cmd+S is an optional explicit hi
 
 ### Keep a portable copy
 
-- Export a Source package for important figures.
-- Retain original structure files and executed calculation inputs.
+- Export a Source package for important figures and project archives for local studies.
+- Retain original structure files, executed calculation inputs, pseudopotential identity/checksum, provenance, and any intermediate state needed by a downstream workflow.
 - Browser storage has its own device quota and can be removed by clearing site data.
 - An archive still occupies storage; it is intended for organization, not deletion.
-- Account storage shows current cloud objects separately from the research-document allowance. It is not a bill or a measure of all historical storage versions.
+- Account storage shows current cloud objects separately from the research-document allowance. Cloud login does not upload a local project; Cloud Sync is enabled per project.
 
 ### Related topics
 
@@ -1123,6 +1145,18 @@ phynite-lab doctor
 phynite-lab stop
 ```
 
+### First local calculation: the shortest safe path
+
+1. Install and start the app, then open Settings → Compute.
+2. Install DFT or MD/analysis, or both. Wait for the pinned download, checksum verification, and atomic activation to finish.
+3. Confirm the detected solver capability and a successful native isolation probe. Manual LAMMPS stays unavailable when the probe fails.
+4. Install the pseudopotential or potential files required by the selected elements and record their exact identity and checksum.
+5. In the run review choose Your computer, submit a small reference calculation, and wait for a final state.
+6. Read the queue and execution status, the first solver error when one exists, the convergence markers, provenance, checksums, and numerical result before scaling up.
+
+- [Compute setup](/account/compute)
+- [Calculation diagnostics](#diagnostics)
+
 ### Native app: data, preferences, and optional connections
 
 SQLite and filesystem data are the primary local copy. Use Settings → Storage to export/import project archives, and keep independent backups. Browser storage holds recoverable drafts and device preferences, not the full native workspace.
@@ -1130,6 +1164,25 @@ SQLite and filesystem data are the primary local copy. Use Settings → Storage 
 Appearance, language, keyboard shortcuts, and local notification choices stay in this browser. AI provider accounts use your own CLI/gateway login. Account manages Phynite Cloud separately; login does not upload projects. Cloud Sync is enabled per project, and cloud compute reviews its own input transfer without enabling sync.
 
 Billing opens the Phynite website. Finish or cancel jobs, stop the app, update with npm install -g phynite-lab@latest, then reopen. Updating the package preserves data outside its installation directory.
+
+### Local storage and large Quantum ESPRESSO state
+
+The default local workspace is ~/.phynite-lab; use phynite-lab --data-dir /path/to/workspace when another disk is appropriate. SQLite stores metadata and the filesystem stores project artifacts, runtime installations, and logs. The Storage page measures inventoried project artifacts only; database metadata, solver/runtime installations, logs, and unrelated files on the disk are outside that number.
+
+Local mode has no fixed 10 GiB quota and no automatic seven-day cleanup. Its practical limit is the free space on the selected disk; runtime installers and logs consume that disk even when excluded from the inventory. Export/import project archives and an independent backup are required for important work.
+
+Quantum ESPRESSO disk_io settings and intermediate state can be much larger than the final output. Wavefunction and tmp data may be required for bands, DOS, phonon, projected workflows, or external interoperability. Do not delete intermediate state until every downstream workflow is finished; keep the exact input, pseudopotential identity/checksum, provenance, and state artifacts together.
+
+Wannier90 is an external/manual workflow unless a separately documented native integration is available. Export the required Quantum ESPRESSO state and follow the official Wannier90 documentation; Phynite does not claim to run that tool natively here.
+
+| Counted by local Storage | Not counted by local Storage |
+| --- | --- |
+| Inventoried project inputs, structures, configurations, results, trajectories, and exported artifacts. | SQLite metadata, solver/runtime installation files, logs, browser cache, and unrelated files on the disk. |
+| Completed artifacts retained in the project, including large QE state when it is recorded there. | Free space used by the operating system or by another application. |
+
+- [Storage settings](/account/storage)
+- [Quantum ESPRESSO documentation](https://www.quantum-espresso.org/documentation/)
+- [Wannier90 documentation](https://wannier.org/documentation/)
 
 ### Hosted website: connect a personal worker
 
@@ -1201,7 +1254,7 @@ Keep several GB of disk space free for the verified runtime and scientific libra
 
 The private Phynite Compute volume remembers the connection and downloaded libraries. Keep the computer awake and internet available while a calculation is active; the website may be closed.
 
-Stopping the local engine or putting the computer to sleep can interrupt a calculation. Restore connectivity and inspect the job state before sending a duplicate. Completed local work files are cleaned up after three days.
+Stopping the local engine or putting the computer to sleep can interrupt a calculation. Restore connectivity and inspect the job state before sending a duplicate. Local project artifacts remain on the selected data disk until you delete or export them; hosted worker retention and Trash rules are separate.
 
 | Action | Location |
 | --- | --- |
@@ -1227,6 +1280,8 @@ Stopping the local engine or putting the computer to sleep can interrupt a calcu
 | Code expired or was used | Reopen the launcher to request and open the latest code. |
 | Approved, but still Offline | First-time library setup can take several minutes. Check service logs and refresh the connection afterward. |
 | Job stays queued | Check Connected status, Your computer destination, and completed dependencies. Do not submit a duplicate. |
+| Setup/preflight rejected before solver start | No solver log exists because the runtime did not start. Read the visible capability, isolation, potential, or input validation message, fix that prerequisite, then submit once. |
+| Solver starts, then fails | Open the execution log and the first solver error, keep the failed provenance and artifacts, and check memory/disk/convergence before changing a scientific input. |
 | OOMKilled / exit 137 | The calculation exceeded available memory. Reduce system size or bands only where scientifically appropriate. |
 
 - [Contact support](/contact)
