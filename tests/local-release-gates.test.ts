@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { NPM_RELEASE_TARGETS as DISTRIBUTION_TARGETS, platformPackageName, releaseSource } from '../packages/phynite-lab/lib/distribution.mjs';
 import { RELEASE_TARGETS, SCIENTIFIC_CHECKS, SMOKE_CHECKS, collectReleaseEvidence, prepareLocalRelease, sha256, verifyLocalRelease } from '../scripts/verify-local-release.mjs';
-import { publishLocalRelease, waitForRegistryIntegrity } from '../scripts/publish-local-release.mjs';
+import { npmUserConfigBaseline, publishLocalRelease, restoreNpmUserConfigBaseline, waitForRegistryIntegrity } from '../scripts/publish-local-release.mjs';
 
 const exec = promisify(execFile);
 const version = '0.1.0';
@@ -137,6 +137,20 @@ test('complete synthetic schema validates offline and publisher defaults to a ve
     const result = await publishLocalRelease(join(root, 'release.json'), { confirmVersion: version });
     assert.equal(result.published, false); assert.equal(result.order.at(-1), 'phynite-lab');
     await assert.rejects(publishLocalRelease(join(root, 'release.json'), { confirmVersion: '0.2.0' }), /confirm-version/);
+  } finally { await rm(root, { recursive: true }); }
+});
+
+test('restoring npm user config baseline removes transient publish credentials', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'phynite-release-gate-npmrc-'));
+  try {
+    const path = join(root, '.npmrc');
+    const baselineText = 'registry=https://registry.npmjs.org/\n//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}\n';
+    await writeFile(path, baselineText);
+    const baseline = await npmUserConfigBaseline(path);
+    assert.ok(baseline);
+    await writeFile(path, `${baselineText}//registry.npmjs.org/:_authToken=npm_transient_token\n`);
+    await restoreNpmUserConfigBaseline(baseline);
+    assert.equal(await readFile(path, 'utf8'), baselineText);
   } finally { await rm(root, { recursive: true }); }
 });
 

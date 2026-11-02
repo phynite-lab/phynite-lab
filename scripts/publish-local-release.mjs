@@ -2,6 +2,7 @@
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { spawn } from 'node:child_process';
+import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -40,6 +41,22 @@ function boundedNpmDiagnostics(result) {
   if (!output) return 'npm returned no diagnostic output.';
   if (output.length <= 900) return output;
   return `${output.slice(0, 300)} … ${output.slice(-600)}`;
+}
+
+/**
+ * npm trusted publishing can leave a package-scoped token in the transient
+ * user config after a successful publish. Restore the original config so each
+ * package publish re-authenticates with the exact package identity.
+ */
+export async function npmUserConfigBaseline(path = process.env.NPM_CONFIG_USERCONFIG) {
+  if (!path) return undefined;
+  try { return { path, content: await readFile(path, 'utf8') }; }
+  catch { return undefined; }
+}
+
+export async function restoreNpmUserConfigBaseline(baseline) {
+  if (!baseline) return;
+  await writeFile(baseline.path, baseline.content);
 }
 
 async function integrity(path) {
@@ -103,6 +120,7 @@ export async function publishLocalRelease(inventory, { confirmVersion, publish =
   if (confirmVersion !== release.version) throw new Error('Explicit --confirm-version must match the fully verified release version.');
   const order = [...DISTRIBUTION_TARGETS.map(platformPackageName), 'phynite-lab'];
   if (!publish) return { published: false, version: release.version, order, sourceCommit: release.source.commit };
+  const userConfigBaseline = await npmUserConfigBaseline();
   // Preflight every name before the first mutation. Existing packages may be
   // resumed only when npm serves the identical tarball's SHA-512 integrity.
   const present = new Set();
@@ -118,6 +136,7 @@ export async function publishLocalRelease(inventory, { confirmVersion, publish =
     const expectedIntegrity = await integrity(item.filename);
     if (await sha256(item.filename) !== item.sha256) throw new Error('Tarball changed after release qualification. Publication aborted.');
     if (!present.has(name)) {
+      await restoreNpmUserConfigBaseline(userConfigBaseline);
       await publishPackage(item.filename, name, release.version, expectedIntegrity, { provenance });
     }
     // The launcher is reached only after each native dependency is available
