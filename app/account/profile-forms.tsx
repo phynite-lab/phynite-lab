@@ -2,14 +2,12 @@
 /* eslint-disable @next/next/no-img-element -- validated local profile image preview. */
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Camera, Check, RotateCcw, RotateCw, X } from 'lucide-react';
-import { useLocale, LanguageControl } from '../locale-provider';
+import { useLocale } from '../locale-provider';
 import { useUnsavedSettings } from '../use-unsaved-settings';
 import { ProfileAvatar } from '@/components/AccountMenu';
 import { UiSelect } from '@/components/UiSelect';
-import { SettingsSection, SettingsRow, SettingsSaveActions } from '@/components/SettingsPage';
+import { SettingsSection, SettingsSaveActions } from '@/components/SettingsPage';
 import { type AccountSettings } from '@/lib/account-settings';
-import { applySiteTheme } from '@/lib/site-theme';
-import { useSiteTheme } from '../use-site-theme';
 import { accountRequest, type AccountResponse } from '@/lib/account-api';
 
 type PhotoCropSource = { url: string; image: HTMLImageElement; name: string };
@@ -141,18 +139,4 @@ export function SignInForm({ email, username, onSaved }: { email: string; userna
   </form>;
 }
 
-export function AppearanceForm() {
-  const { t } = useLocale();
-  const { theme } = useSiteTheme();
-  return <SettingsSection id="device-appearance" title={t('This device', 'Perangkat ini')} description={t('Changes apply immediately and are saved only in this browser. They do not sync to Phynite Cloud or other devices.', 'Perubahan langsung berlaku dan hanya disimpan di browser ini. Tidak disinkronkan ke Phynite Cloud atau perangkat lain.')}>
-    <SettingsRow title={t('Device appearance', 'Tampilan perangkat')} description={t('Choose a theme for this browser. The change is applied immediately.', 'Pilih tema untuk browser ini. Perubahan langsung diterapkan.')}>
-      <div className="settings-theme-switch" role="group" aria-label={t('Device appearance', 'Tampilan perangkat')}>
-        {([['light', t('Light', 'Terang')], ['dark', t('Dark', 'Gelap')]] as const).map(([value, label]) => <button key={value} type="button" className="settings-theme-option" aria-pressed={theme === value} data-active={theme === value || undefined} onClick={() => applySiteTheme(value)}>
-          <span className={`settings-theme-swatch settings-theme-swatch--${value}`} aria-hidden="true" />
-          <span>{label}</span>
-        </button>)}
-      </div>
-    </SettingsRow>
-    <SettingsRow id="interface-language" title={t('Interface language', 'Bahasa antarmuka')} description={t('Saved in this browser immediately.', 'Langsung disimpan pada browser ini.')}><LanguageControl /></SettingsRow>
-  </SettingsSection>;
-}
+export { AppearancePreferences as AppearanceForm } from '@/components/AppearancePreferences';

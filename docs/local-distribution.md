@@ -41,7 +41,7 @@ is insufficient.
 
 Use Node.js >=22.13 and npm from your preferred user-managed Node installation.
 Install with `npm install -g phynite-lab`, then run `phynite-lab` in the normal
-desktop session. Scientific runtime installation is available under Setup; choose
+desktop session. Scientific runtime installation is available in **Settings → Compute**; choose
 DFT, MD/analysis, or both. No solver, Docker, global Python or administrator
 command runs during npm installation. Do not omit npm optional dependencies.
 
@@ -61,7 +61,7 @@ automatically. Offline checks do not block local work; the request sends no
 project data or account credentials. Development checkouts do not check npm.
 
 Unprivileged user namespaces must be available in the running kernel and policy.
-Setup's real write/network confinement probe determines availability; a disabled
+Compute setup's real write/network confinement probe determines availability; a disabled
 namespace or security-policy restriction blocks manual MD and runtime setup with
 its actual diagnostic. The application never disables those restrictions. Ubuntu
 CI uses an exact-path, ephemeral AppArmor fixture rather than a global sysctl
@@ -130,8 +130,9 @@ An assembly produces:
   `os` and `cpu`, with production dependencies declared as bundled.
 - `assembly.json`: version, public source metadata and produced package inventory.
 
-No app or scientific runtime download runs from npm lifecycle scripts. Publish the qualified macOS platform package before the launcher. Installing with npm optional
-dependencies disabled produces an explicit missing-runtime error.
+No app or scientific runtime download runs from npm lifecycle scripts. Publish all
+qualified platform packages for the version before the launcher. Installing with
+npm optional dependencies disabled produces an explicit missing-runtime error.
 
 The assembler's `--source-commit` must identify a full commit in the public source
 repository. Manifests record that commit, browser source URL and source archive URL;
@@ -141,6 +142,31 @@ for the published binaries. Provide the source link in the UI and package README
 The release process must verify this correspondence, third-party license notices,
 native libraries and any applicable source-distribution obligations; collecting
 package license strings alone does not establish compliance.
+
+## Settings navigation
+
+Use the category sidebar in Settings instead of a second local-runtime navigation
+bar. The shared UI hosts the mode-specific controls directly:
+
+| Page | Local application |
+| --- | --- |
+| `/account/appearance` | Device system/light/dark theme, accent, custom colors, density, interface/code text size, reduced motion, language |
+| `/account/keyboard` | Supported shortcut bindings in this browser |
+| `/account/notifications` | Job/runtime alerts and optional desktop permission |
+| `/account/compute` | Scientific runtime installation, isolation status, resource defaults, optional cloud-job transfer |
+| `/account/ai-providers` | Own AI provider accounts, connection status, models, reported limits/reset |
+| `/account/account` | Optional Phynite Cloud login/logout and per-project sync |
+| `/account/usage` | Recorded scientific-job usage and provider-reported AI usage |
+| `/account/storage` | Local project archives and storage inventory |
+| `/account/privacy` | Local privacy and session information |
+
+Profile links are available only for a connected Phynite account. Billing in local
+mode opens `https://phynitelab.com/billing`. Appearance and keyboard are browser
+preferences, independent from cloud account settings and workspace data. Legacy
+`/local` bookmarks redirect: `#ai` to AI provider accounts, `#cloud` to Account,
+`#storage` to Storage, and the other setup hashes to Compute.
+
+See [settings and preferences](settings-preferences.md) for behavior and recovery.
 
 ## Optional Cloud configuration
 

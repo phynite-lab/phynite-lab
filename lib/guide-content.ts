@@ -17,23 +17,24 @@ export const guideSections: GuideSection[] = [
     intro: 'A project is the container for a material study. It connects structures, calculation setups, execution records, numerical datasets, and reusable figures. Start with the physical question, then choose the calculations and comparisons that answer it.',
     blocks: [
       { title: 'Your first complete workflow', steps: [
-        'Sign in. You arrive at Workspace, where recent projects and the DFT Lab and Figure Lab tools are available. Returning to the homepage while signed in opens Workspace again.',
+        'Open the local application without login, or sign in when using the hosted website. Workspace contains projects and research tools; local identity is independent from optional Phynite Cloud login.',
         'In Workspace, choose New project and enter a meaningful name such as Silicon convergence or MoS2 strain study. Open the project to continue in DFT Lab.',
         'Add a structure by importing a file, building a cell, or using Materials Project. Check units, lattice vectors, species, and atom count before calculating.',
         'Inspect the real-space structure. Choose periodic directions for the physical model; add vacuum explicitly where an isolated slab, wire, or molecule needs it.',
         'Open Calculate and add a Total energy or Structural relaxation setup. Review the generated inputs, occupation policy, pseudopotentials, cutoffs, and k-point mesh.',
-        'Choose the compute destination. Phynite Cloud lets early-access accounts choose paid Quanta or an admin pilot grant, then CPU and usable RAM. Your computer requires the private worker described in this guide.',
+        'Choose the compute destination. The npm app uses runtimes installed in Settings → Compute for Your computer; the hosted website uses a paired personal worker. Optional Phynite Cloud uses available paid Quanta or pilot grants and a supported CPU/RAM profile.',
         'Run the setup and follow its execution log. A completed process is not automatically a converged or scientifically adequate result: inspect energy, convergence, forces, and messages.',
         'Add band structure, DOS, phonon, or transport calculations as required. Use a completed compatible relaxation as a structure source when appropriate.',
         'Choose Open in Figure Lab on a completed plottable run. Its existing figure reopens, or its numerical data creates a new figure automatically.',
-        'Compose comparisons, set scientific alignment, tune physical dimensions and typography, then export the figure and a Source package. Wait for Saved to cloud before relying on another device to reopen the latest edit.',
+        'Compose comparisons, set scientific alignment, tune physical dimensions and typography, then export the figure and a Source package. Check the actual save status. A local save stays on this computer; another device needs an exported copy or explicitly enabled, confirmed Cloud Sync.',
       ] },
       { title: 'A useful division of work', table: { headings: ['Place', 'What belongs here'], rows: [
         ['Workspace', 'Choose a study, find recent projects, compare plans, open tools.'],
         ['DFT Lab / Project', 'Organize projects and structures.'], ['DFT Lab / Inspect', 'Prepare geometry and check the physical system.'],
         ['DFT Lab / Calculate', 'Configure calculations, select dependencies, run, and inspect execution.'],
         ['Figure Lab', 'Reuse numerical data, compare results, style and export publication figures.'],
-        ['Account', 'Profile, storage, compute accounting, plan, and personal worker connection.'],
+        ['Settings', 'Separate appearance, notifications, keyboard, compute, AI provider accounts, Account, Usage, and Storage pages.'],
+        ['Billing', 'Cloud purchases and invoices on the Phynite website; local mode opens the hosted site.'],
       ] } },
       { title: 'Before calling a result final', bullets: ['Record the source structure and computational cell used by every run.', 'Converge the quantities you will report against relevant cutoffs, k/q meshes, vacuum, smearing, and solver thresholds.', 'Check energy units and references before overlaying results.', 'Keep the exact inputs and numerical source package alongside the exported figure.', 'Describe the method, pseudopotential family, exchange-correlation functional, spin treatment, and normalization in the paper.'] },
     ],
@@ -122,19 +123,19 @@ export const guideSections: GuideSection[] = [
   },
   {
     id: 'execution', group: 'Calculations', title: 'Execution, resources, and cancellation',
-    intro: 'A run moves through preparation, queueing, worker execution, upload, and completion. The execution log tells you which stage needs attention.',
+    intro: 'A run moves through preparation, queueing, execution, result persistence, and completion. Native results are saved locally; hosted jobs also upload required artifacts. The log identifies the stage that needs attention.',
     blocks: [
       { title: 'Read the run state', table: { headings: ['State', 'Meaning', 'Next action'], rows: [
         ['Draft / Ready', 'Configuration exists; no active solver is implied.', 'Review input and run when ready.'],
         ['Queued', 'Waiting for a worker or a dependency.', 'Check the selected destination, its connection, and prerequisite jobs.'],
         ['Running', 'The worker has claimed the job.', 'Inspect stage, log tail, and resource details; allow time for expensive stages.'],
-        ['Completed', 'The result was uploaded and accepted.', 'Inspect convergence and scientific validity, then open results.'],
-        ['Failed', 'Preparation, execution, or upload failed.', 'Read the reason and solver log before retrying.'],
+        ['Completed', 'The required result was saved and accepted locally or by the hosted service.', 'Inspect convergence and scientific validity, then open results.'],
+        ['Failed', 'Preparation, execution, local persistence, or hosted upload failed.', 'Read the reason and solver log before retrying.'],
         ['Cancellation requested', 'A running job is being asked to stop.', 'Wait for the worker heartbeat and terminal status.'],
         ['Cancelled', 'The run was stopped or removed from the queue.', 'Retain useful logs; start a new run if needed.'],
       ] } },
-      { title: 'What cores and RAM mean', paragraphs: ['Recorded cores are the allocated vCPUs or worker processes, and RAM is the configured memory limit. These are different from actual CPU utilization or installed physical memory.', 'Expand resource details in the execution log to inspect reported backend allocation, elapsed time, MPI processes, and QE memory or timing estimates when available. Missing historical data is shown as not reported.', 'A local worker is still constrained by service-side job limits. The current deployment limits appear in Account and the compute destination panel. Jobs requesting more than the server permits are rejected instead of silently resized.'] },
-      { title: 'Cancel intentionally', bullets: ['A queued local job can be removed from the queue.', 'A running cancellation reaches the worker through its heartbeat, so completion is not instantaneous.', 'Closing the browser does not cancel a submitted calculation.', 'Disconnecting a personal credential revokes access and may interrupt upload; use the calculation cancellation action before replacing a credential during an active run.'] },
+      { title: 'What cores and RAM mean', paragraphs: ['Recorded cores are allocated vCPUs or worker processes, and RAM is the configured job budget. These are different from actual utilization or installed physical memory. A native memory watchdog is a monitored budget, not an operating-system hard limit.', 'Expand resource details in the execution log to inspect reported backend allocation, elapsed time, MPI processes, and QE memory or timing estimates when available. Missing historical data is shown as not reported.', 'Native jobs follow the local scheduler capacity configured in Settings → Compute. Hosted personal workers also follow service-side job limits. Unsupported requests are rejected instead of silently changing scientific inputs.'] },
+      { title: 'Cancel intentionally', bullets: ['A queued local job can be removed from the queue.', 'Cancellation is asynchronous. The local process supervisor or hosted worker acknowledges it before the job reaches a final state.', 'Closing the browser does not cancel a submitted calculation. Keep the native CLI or hosted worker running; inspect interrupted jobs after a restart rather than resubmitting blindly.', 'Disconnecting a personal credential revokes access and may interrupt upload; use the calculation cancellation action before replacing a credential during an active run.'] },
     ],
   },
   {
@@ -142,7 +143,7 @@ export const guideSections: GuideSection[] = [
     intro: 'Use the log for execution evidence and downloads. Use Figure Lab for plot editing, comparisons, layout, and publication export.',
     blocks: [
       { title: 'Open a result directly', steps: ['Find the completed run in Log.', 'Inspect its convergence message and recorded numerical summary.', 'Choose Open in Figure Lab when the result contains plottable data.', 'The most recently edited active figure using that run reopens. If none exists, Figure Lab imports the numerical source and prepares a figure.', 'If a retained source cannot be loaded, use Retry, check source availability, or import your original numerical file.'] },
-      { title: 'Distinguish numerical data from a preview', paragraphs: ['A PNG preview is a rendered image. Numerical datasets preserve samples and metadata that allow future restyling, alignment, and export.', 'New supported calculation outputs retain a compact research dataset separately from temporary raw-artifact access. Older runs without retained data may require original CSV/text files or a new run.', 'The ordinary artifact access window is typically three days. Storage lifecycle cleanup is configured separately. An expired download link is not evidence that a retained research dataset is lost.'] },
+      { title: 'Distinguish numerical data from a preview', paragraphs: ['A PNG preview is a rendered image. Numerical datasets preserve samples and metadata that allow future restyling, alignment, and export.', 'New supported calculation outputs retain a compact research dataset separately from temporary raw-artifact access. Older runs without retained data may require original CSV/text files or a new run.', 'Hosted temporary artifact links can expire; storage lifecycle cleanup is configured separately. An expired link does not prove that a retained research dataset is lost. Native project data stays in the configured workspace; export important inputs and results independently.'] },
       { title: 'Read physical claims carefully', bullets: ['A band gap estimate requires meaningful occupations or an energy reference. Unknown reference data must not be treated as zero Fermi energy.', 'DOS normalization must refer to the actual computational cell, atoms, formula units, or volume.', 'Phonon imaginary frequencies can reflect an instability or incomplete convergence; inspect the model and method.', 'Transport results depend on interpolation, sampling, temperature, chemical-potential conventions, and the relaxation-time model. Conductivity divided by relaxation time is not an absolute conductivity unless a justified time is supplied.'] },
     ],
   },
@@ -220,7 +221,7 @@ export const guideSections: GuideSection[] = [
   },
   {
     id: 'saving', group: 'Account & compute', title: 'Autosave, storage, and multiple devices',
-    intro: 'DFT Lab and Figure Lab show save status for the active editing context. The Workspace dashboard does not show Saved to cloud; project synchronization continues in the background. A local copy and a confirmed cloud copy have different recovery paths.',
+    intro: 'DFT Lab and Figure Lab show save status for the active context. The npm app stores projects in SQLite/filesystem; browser storage holds recoverable drafts. Local projects do not upload automatically. The cloud save states below apply to the hosted website or a project with explicitly enabled Cloud Sync.',
     blocks: [
       { title: 'Save states', table: { headings: ['Label', 'Meaning', 'What to do'], rows: [
         ['Saving...', 'A local draft or cloud synchronization is in progress.', 'Keep working; allow a short pause before relying on another device.'],
@@ -229,8 +230,8 @@ export const guideSections: GuideSection[] = [
         ['Sync pending', 'The local copy is retained while upload retries.', 'Check network access and storage limits.'],
         ['Sync conflict', 'The remote revision differs from the one being edited.', 'Review the versions in History; avoid blindly overwriting another device.'],
       ] } },
-      { title: 'Figure Lab autosave behavior', paragraphs: ['Figure Lab saves a local draft after approximately 350 ms without a new edit and starts cloud synchronization after approximately 1.2 seconds. Active uploads are serialized; an edit during upload is saved next.', 'Leaving Figure Lab flushes pending draft edits. Online and focus events help retry pending cloud saves. A failed save remains visible instead of being labeled successful.', 'There is no required Save revision button. Ctrl/Cmd+S is an optional explicit history checkpoint.'] },
-      { title: 'Limits and retained history', table: { headings: ['Resource', 'Current limit'], rows: [
+      { title: 'Hosted Figure Lab autosave behavior', paragraphs: ['Figure Lab saves a local draft after approximately 350 ms without a new edit and starts cloud synchronization after approximately 1.2 seconds. Active uploads are serialized; an edit during upload is saved next.', 'Leaving Figure Lab flushes pending draft edits. Online and focus events help retry pending cloud saves. A failed save remains visible instead of being labeled successful.', 'There is no required Save revision button. Ctrl/Cmd+S is an optional explicit history checkpoint.'] },
+      { title: 'Document limits and hosted storage history', table: { headings: ['Resource', 'Current limit'], rows: [
         ['Workspace snapshot', '4.5 MB per saved workspace snapshot.'], ['Research document', '4 MB per dataset, figure, or template document.'],
         ['Dataset samples', '250,000 points per dataset.'], ['Figure composition', '64 panels; 32 layers per panel.'],
         ['Figure checkpoints', '100 explicit revisions plus the current automatic working copy.'], ['Figure Lab allowance', 'Shares the total cloud allowance: 10 GiB Free, or the active paid account capacity. Retained revisions and upload reservations count.'],
@@ -240,29 +241,157 @@ export const guideSections: GuideSection[] = [
     ],
   },
   {
-    id: 'account', group: 'Account & compute', title: 'Profile, usage, and subscriptions',
-    intro: 'Account brings your research identity, measured usage, plan, and personal computer connection into one place. Usage is based on recorded data; unmeasured values are not invented.',
-    blocks: [
-      { title: 'Edit your profile', steps: ['Open the avatar menu, choose Profile, then Edit profile. Profile is private to your account.', 'Set display name, institution, role, and research area.', 'Choose a JPG, PNG, or WebP photo up to 20 MB. Crop, zoom, and rotate it; the browser saves a compressed 256-pixel image.', 'Review the preview and choose Save profile. Remove clears the selected photo after you save.', 'Open Settings → Appearance & language to save an account default. This device can follow that default or keep a Light/Dark override. Device theme and browser language apply immediately, outside the account Save/Cancel form.'] },
-      { title: 'Account navigation', paragraphs: ['The avatar groups Profile, Settings, Usage, and Billing, followed by Pricing, Help, and Log out. Profile shows saved jobs, completed jobs, active jobs at measurement, recorded run time, and five recent jobs. Missing timing or allocation is unavailable; storage inventory is measured separately.', 'Above 960px, Settings navigation stays open at 280px without changing workspace docking or width. Search finds pages and individual settings. On mobile, use the navigation drawer; Escape, its close button, or the backdrop closes it. The account menu supports arrow keys, Home, End, and Escape. Unsaved drafts require a decision before navigation or logout.'] },
-      { title: 'Set a sign-in username', steps: ['Create an account with email and confirm that email first.', 'Open Settings → Research profile. Your display name can include spaces and does not need to be unique.', 'In Username, enter 3–30 characters, starting with a letter or number. Letters, digits, periods, hyphens, and underscores are supported; reserved names cannot be claimed.', 'Choose Save username. This is separate from saving your research identity. The service checks uniqueness without case sensitivity. If someone else claimed the name, choose another.', 'On your next sign-in, enter either this username or your email with the same password. Changing a username immediately retires the old name; it may become available to another account. Password recovery always uses your verified email.'], note: 'A username does not create another account, share your projects, or change your email. Existing users keep email sign-in and choose a username whenever they need one.' },
-      { title: 'Save compute defaults', paragraphs: ['In Settings → Compute, stage destination, Cloud profile, estimated duration, and personal CPU/RAM for each workload. Switching workloads retains the same draft. Save defaults writes once; Cancel restores the saved defaults. Workspace overrides apply only to that run; Make default is a separate account action. More cores do not always make a calculation faster—compare short controlled runs before a large campaign.'] },
-      { title: 'Browse calculation history', paragraphs: ['Open Usage and scroll to Jobs & receipts. Six records appear on each page, ordered by creation time, newest first. Each row includes its creation date and local time, calculation type, destination, allocated cores and RAM, and recorded status.', 'Next and Previous change the calculation table page. The resource totals describe your entire account, not just the visible rows. Refresh updates the measurement and current table page. A missing timestamp is shown as unavailable rather than estimated.'] },
-      { title: 'Read usage correctly', table: { headings: ['Metric', 'How it is calculated'], rows: [
-        ['Current cloud files', 'Current S3 object sizes under your account prefix; excludes old object versions, database metadata, and your local disk.'],
-        ['Recorded run time', 'Sum of completed timing intervals from worker start to completion, including setup and upload overhead. Failed/cancelled runs count when both timestamps exist.'],
-        ['Allocated CPU-hours', 'Recorded run seconds multiplied by allocated cores, divided by 3600. This is allocation, not actual CPU activity.'],
-        ['On your computer', 'Recorded time for runs explicitly targeted to your personal worker.'], ['Last 30 days', 'Recorded duration for runs completed during the preceding 30 days.'],
-        ['Unmeasured runs', 'Historical terminal runs with missing or invalid timing; excluded from duration totals.'],
-      ] } },
-      { title: 'Plan choices and billing', paragraphs: ['Free provides 10 GiB total cloud storage, structure preparation, private projects, Figure Lab, and DFT and MD simulations on your own connected computer. Early-access accounts can run paid Cloud with verified production Quanta.', 'Cloud DFT uses the selected vCPU/RAM profile. MD simulation and analysis stay on personal compute until their Cloud runtime is available. Paid jobs can run in parallel according to funding and regional capacity. Pilot is a separate admin grant with CPU/RAM, operating budget, job count and expiry; old grants default to 2 vCPU, 6 GiB and 15 minutes, with one global slot and no Quanta charge.', 'Your computer is the default destination for new Free accounts. Connect a worker before running. Changing the destination never migrates an existing run.', 'Public registration remains waitlist and invitation only. Early-access accounts open Quanta and storage checkout from Billing. Verified production payment refreshes the available balance and compute access; it never starts a job. Institution opens a consultation path.'], note: 'Local compute consumes your own hardware, electricity, and local disk. It still needs internet access for job coordination, pseudopotential downloads when needed, and result synchronization. Existing storage and transfer limits apply.' },
-    ],
+    "id": "account",
+    "group": "Account & compute",
+    "title": "Settings, accounts, profile, and usage",
+    "intro": "Settings separates browser preferences, scientific compute, AI provider accounts, and optional Phynite Cloud login. Usage is based on actual execution/provider records; missing measurements are never invented.",
+    "blocks": [
+      {
+        "title": "Find the right settings page",
+        "table": {
+          "headings": [
+            "Page",
+            "What it controls"
+          ],
+          "rows": [
+            [
+              "Appearance & language",
+              "Theme, accent, density, interface/code text size, reduced motion, and language in this browser."
+            ],
+            [
+              "Keyboard shortcuts",
+              "Supported application bindings, stored in this browser."
+            ],
+            [
+              "Notifications",
+              "Local job/runtime alerts and desktop permission; hosted delivery preferences on the website."
+            ],
+            [
+              "Compute",
+              "Native runtime installation and local CPU/RAM/concurrency; hosted worker and compute defaults on the website."
+            ],
+            [
+              "AI provider accounts",
+              "Your own AI logins, active account, connection/model readiness, reported limits and reset windows."
+            ],
+            [
+              "Account",
+              "Optional Phynite Cloud login/logout and per-project sync; independent from AI login."
+            ],
+            [
+              "Usage / Storage",
+              "Recorded job measurements and provider usage / project archives and storage inventory."
+            ],
+            [
+              "Research profile / Privacy & session",
+              "Connected Phynite identity / mode-specific privacy and session controls."
+            ]
+          ]
+        }
+      },
+      {
+        "title": "Navigate without duplicate menus",
+        "paragraphs": [
+          "Settings has one category sidebar and search. Account follows AI provider accounts. On mobile, open the navigation drawer and use Escape, the close control, or backdrop to dismiss it. The account menu supports keyboard navigation. Legacy Local runtime & cloud bookmarks redirect to the appropriate category instead of opening another settings shell.",
+          "An unsigned local workspace shows settings and connection actions, without a fabricated user profile. Once a Phynite account is connected, Profile opens a dedicated profile page with an Edit profile action."
+        ]
+      },
+      {
+        "title": "Edit a connected research profile",
+        "steps": [
+          "Connect your Phynite Cloud account before opening Profile; local projects remain available without that login.",
+          "Choose Edit profile and set display name, institution, role, and research area.",
+          "Choose a JPG, PNG, or WebP photo up to 20 MB. Crop, zoom, and rotate it; the browser saves a compressed 256-pixel image.",
+          "Review the preview and choose Save profile. Removing a photo applies after saving. Unsaved account drafts require a decision before navigation.",
+          "Use Appearance & language for device appearance. Those choices apply immediately and do not become cloud account defaults."
+        ]
+      },
+      {
+        "title": "Set a cloud sign-in username",
+        "steps": [
+          "Create a Phynite Cloud account with email and confirm the email first, where registration is available.",
+          "Open the research-profile editor. Display name can include spaces and need not be unique.",
+          "In Username, enter 3–30 characters, starting with a letter or number. Letters, digits, periods, hyphens, and underscores are supported; reserved names cannot be claimed.",
+          "Choose Save username. This is separate from saving research identity; uniqueness is checked without case sensitivity.",
+          "Next time, use either username or email with the same password. After changing a username, the old name stops working and may become available to someone else. Recovery uses the verified email."
+        ],
+        "note": "A username does not create another account, share projects, or change email. Native local work does not require a sign-in username."
+      },
+      {
+        "title": "Configure compute where it runs",
+        "paragraphs": [
+          "In the local npm app, Compute includes platform/capability detection, scientific-runtime installation, isolation status, and CPU/RAM/parallel-job defaults. Install the runtime before running. New defaults affect future jobs; workspace overrides apply only to the selected run. Native local compute needs neither Docker nor a cloud-paired worker.",
+          "On the hosted website, Compute retains account defaults for each workload, supported Cloud profiles and estimates, and personal-worker pairing. Save defaults is explicit; Cancel restores saved values. MD stays on personal compute until its Cloud service is available. More cores are not necessarily faster; compare short controlled runs."
+        ]
+      },
+      {
+        "title": "Connect AI and read limits",
+        "paragraphs": [
+          "AI provider accounts manages official provider CLI/gateway login with your own account. It is independent from Phynite Cloud login. After authentication, model discovery and capability checks run automatically. Tools and attachments require verified support, and Canvas changes retain approval/validation rules.",
+          "Choose the active provider account explicitly. Usage and reset information comes from the provider: percentages, windows, and dates are shown only when reported. No remaining token balance is inferred. A disconnected, rate-limited, or unsupported provider shows its actual state without silent provider switching."
+        ]
+      },
+      {
+        "title": "Notifications on this device",
+        "paragraphs": [
+          "Choose completed-job, failed/cancelled-job, and runtime-installation alerts separately. Local alerts observe real state changes while the app is open. Desktop alerts are optional, require browser permission, and can be checked with Send test notification.",
+          "These local preferences stay in this browser. They do not schedule background cloud push or email when the app is closed. Hosted email and inbox delivery settings are separate."
+        ]
+      },
+      {
+        "title": "Read usage correctly",
+        "table": {
+          "headings": [
+            "Metric",
+            "Interpretation"
+          ],
+          "rows": [
+            [
+              "Recorded run time",
+              "Valid recorded start-to-completion intervals; failed/cancelled runs count when both timestamps exist. Setup and result persistence/upload may be included."
+            ],
+            [
+              "Allocated CPU-hours",
+              "Recorded seconds × allocated cores / 3600. This is allocation, not actual CPU activity or energy use."
+            ],
+            [
+              "Local files / cloud files",
+              "Different storage inventories. Cloud object measurement excludes the native disk; local storage is not a cloud subscription."
+            ],
+            [
+              "Unmeasured runs",
+              "Records with missing/invalid timing or allocation remain unavailable or partial, never assumed to be zero."
+            ],
+            [
+              "AI limits and reset",
+              "The selected provider account’s reported measurements; independent from scientific CPU-hours and Phynite billing."
+            ]
+          ]
+        }
+      },
+      {
+        "title": "History and portable copies",
+        "paragraphs": [
+          "Usage lists recorded jobs and receipts with their timestamp, status, destination, and available allocation. Pagination changes the visible rows; account-wide totals still describe all measured records. Refresh updates the measurement.",
+          "Storage contains native project archive export/import. Keep original structures, executed inputs, available results, provenance, checksums, and independent backups. Respect licenses on potential assets. Browser drafts are recoverable aids rather than the native database."
+        ]
+      },
+      {
+        "title": "Optional Cloud and website billing",
+        "paragraphs": [
+          "Account connects or disconnects Phynite Cloud. Login preserves local identity and does not upload projects. Enable Cloud Sync per project only after reviewing transfer scope; cloud compute has a separate input-transfer review and does not enable sync. Logout keeps local data and stops sync.",
+          "Billing in local mode opens https://phynitelab.com/billing. Cloud access, price, quota, and capacity come from the current hosted catalog and account. A purchase never starts a job automatically. MD Cloud remains unavailable until its service is supported."
+        ],
+        "note": "Local execution uses your hardware, electricity, and disk. Once runtimes and required potentials are installed, local science can run offline. Provider AI, optional Cloud, external data lookup, and new downloads require their respective connections."
+      }
+    ]
   },
   localComputeGuide('en'),
   {
     id: 'shortcuts', group: 'Reference', title: 'Keyboard and pointer shortcuts',
     intro: 'Primary means Command on macOS and Control on Windows/Linux. Shortcuts are scoped to the active editor. Text fields keep their own editing behavior unless an action is explicitly listed.',
     blocks: [
+      { title: 'Customize supported application shortcuts', paragraphs: ['Open Settings → Keyboard shortcuts. Rebind opening Settings, toggling the sidebar, focusing an open AI chat, or sending a message using the supported combinations. Changes apply immediately and stay in this browser; restore defaults whenever needed.', 'The tables below describe editor-specific defaults and context. Custom application bindings do not replace native text editing, geometry operations, or browser accessibility keys.'] },
       { title: 'DFT Lab', table: { headings: ['Shortcut', 'Action', 'Context'], rows: [
         ['Primary + K', 'Open command menu', 'DFT Lab workspace'], ['Space', 'Open command menu', 'Builder, outside editable controls'],
         ['Primary + Z', 'Undo', 'Builder editing history'], ['Primary + Shift + Z / Primary + Y', 'Redo', 'Builder editing history'],

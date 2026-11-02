@@ -5,6 +5,7 @@ import '@/app/navigation-ui.css';
 import '@/app/workspace-utilities.css';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { Bell, BookOpen, ChevronUp, Cloud, CreditCard, HardDrive, LogOut, SlidersHorizontal, Tags } from 'lucide-react';
 import { useResearchShell } from './ResearchShellContext';
 import { hasUserProfile, signOut, type PhyniteSession } from '@/app/auth-client';
@@ -39,8 +40,7 @@ export function AccountMenu({ session, variant = 'header', onNavigate }: { sessi
     [{ id: 'pricing', href: '/pricing', en: 'Pricing', idn: 'Harga', Icon: Tags }, { id: 'guide', href: '/guide#account', en: 'Help', idn: 'Bantuan', Icon: BookOpen }],
   ] as const;
   const localMenu = [
-    { href: '/local', en: 'Local runtime & connections', idn: 'Runtime lokal & koneksi', Icon: SlidersHorizontal },
-    { href: '/account', en: 'Settings', idn: 'Pengaturan', Icon: SlidersHorizontal },
+    { href: '/account/appearance', en: 'Settings', idn: 'Pengaturan', Icon: SlidersHorizontal },
     { href: '/account/usage', en: 'Usage', idn: 'Pemakaian', Icon: HardDrive },
     { href: '/guide#account', en: 'Help', idn: 'Bantuan', Icon: BookOpen },
   ];
@@ -55,7 +55,7 @@ export function AccountMenu({ session, variant = 'header', onNavigate }: { sessi
   }, [open]);
   const close = () => { setOpen(false); onNavigate?.(); };
   const localConnections = <div className={`lab-local-connection-actions${variant === 'rail' ? ' lab-local-connection-actions--rail' : ''}`} aria-label={t('Local connections', 'Koneksi lokal')}>
-    <a href="/local#cloud" aria-label={t('Connect Phynite Cloud', 'Hubungkan Phynite Cloud')} onClick={onNavigate}><Cloud size={14} /><span className="lab-local-action-label">{t('Cloud login', 'Login cloud')}</span></a>
+    <Link href="/account/account#cloud" aria-label={t('Connect Phynite Cloud', 'Hubungkan Phynite Cloud')} onClick={onNavigate}><Cloud size={14} /><span className="lab-local-action-label">{t('Cloud login', 'Login cloud')}</span></Link>
   </div>;
   if (shell && variant === 'header') return local && !hasUserProfile(session) ? localConnections : null;
   // A local workspace has a device identity for ownership, not a user
@@ -111,7 +111,7 @@ export function AccountMenu({ session, variant = 'header', onNavigate }: { sessi
             } finally {
               setBusy(false);
             }
-          }}><LogOut size={16} />{busy ? t('Disconnecting cloud…', 'Memutus cloud…') : t('Sign out of Phynite Cloud', 'Keluar dari Phynite Cloud')}</button> : <a role="menuitem" href="/local#cloud" onClick={close}><SlidersHorizontal size={16} /><span>{t('Connect Phynite Cloud', 'Hubungkan Phynite Cloud')}</span></a> : <button role="menuitem" aria-disabled={busy} onClick={async () => {
+          }}><LogOut size={16} />{busy ? t('Disconnecting cloud…', 'Memutus cloud…') : t('Sign out of Phynite Cloud', 'Keluar dari Phynite Cloud')}</button> : <Link role="menuitem" href="/account/account#cloud" onClick={close}><SlidersHorizontal size={16} /><span>{t('Connect Phynite Cloud', 'Hubungkan Phynite Cloud')}</span></Link> : <button role="menuitem" aria-disabled={busy} onClick={async () => {
             // Keep focus in the menu so a failed request leaves its error visible.
             if (busy || !confirmUnsavedSettings()) return;
             setBusy(true);

@@ -6,8 +6,8 @@ export const guideSectionsId: GuideSection[] = [
     id: 'workflow', group: 'Mulai menggunakan', title: 'Dari struktur hingga figur paper',
     intro: 'Project menampung satu studi material: struktur, pengaturan kalkulasi, riwayat eksekusi, dataset numerik, dan figur yang dapat digunakan kembali. Mulai dari pertanyaan fisik, lalu pilih kalkulasi dan perbandingan yang diperlukan untuk menjawabnya.',
     blocks: [
-      { title: 'Alur kerja lengkap', steps: ['Masuk ke akun. Workspace menampilkan project dan alat riset. Membuka beranda saat sudah masuk akan mengarahkan Anda kembali ke Workspace.', 'Pilih Project baru, beri nama yang menjelaskan studi, lalu buka project tersebut. Project juga dapat dibuat dari panel Project di DFT Lab.', 'Impor struktur, bangun sel, atau ambil dari Materials Project. Periksa satuan, vektor kisi, spesies, dan jumlah atom.', 'Periksa geometri ruang nyata. Tentukan arah periodik untuk tampilan dan tambahkan vakum secara eksplisit bila model slab, kawat, atau molekul membutuhkannya.', 'Buka Calculate dan tambahkan Total energy atau Structural relaxation. Periksa input, okupansi, pseudopotensial, cutoff, dan mesh k.', 'Pilih tujuan komputasi. Phynite Cloud menyediakan paid Quanta atau grant pilot admin, lalu pilihan CPU dan RAM yang tersedia. Your computer memerlukan worker pribadi yang aktif.', 'Jalankan dan ikuti Log. Status Completed tidak otomatis berarti hasil konvergen secara fisik; periksa energi, gaya, konvergensi, dan pesan solver.', 'Tambahkan kalkulasi band, DOS, fonon, atau transport sesuai kebutuhan. Pilih hasil relaksasi yang kompatibel sebagai sumber struktur bila diperlukan.', 'Pada hasil yang memiliki data plot, pilih Open in Figure Lab. Figur aktif yang sudah memakai hasil tersebut dibuka kembali, atau data numeriknya diimpor untuk membuat figur.', 'Atur perbandingan, referensi energi, dimensi fisik, dan tipografi. Tunggu status penyimpanan di editor Figure Lab, lalu ekspor figur dan Source package.'] },
-      { title: 'Pembagian fungsi halaman', table: { headings: ['Halaman', 'Fungsi'], rows: [['Workspace', 'Membuat dan mencari project, melanjutkan studi, membuka alat riset.'], ['DFT Lab / Project', 'Mengatur project, struktur, dan variasi material.'], ['DFT Lab / Inspect', 'Memeriksa dan mengubah geometri.'], ['DFT Lab / Calculate', 'Mengatur kalkulasi, dependensi, eksekusi, dan log.'], ['Figure Lab', 'Membandingkan data, mengatur panel, dan mengekspor figur.'], ['Account', 'Profil, preferensi, dan koneksi komputer pribadi.'], ['Billing', 'Paket, alokasi, waktu komputasi, dan penyimpanan.']] } },
+      { title: 'Alur kerja lengkap', steps: ['Buka aplikasi lokal tanpa login, atau masuk saat memakai website hosted. Workspace menampilkan project dan alat riset; identitas lokal terpisah dari login Phynite Cloud opsional.', 'Pilih Project baru, beri nama yang menjelaskan studi, lalu buka project tersebut. Project juga dapat dibuat dari panel Project di DFT Lab.', 'Impor struktur, bangun sel, atau ambil dari Materials Project. Periksa satuan, vektor kisi, spesies, dan jumlah atom.', 'Periksa geometri ruang nyata. Tentukan arah periodik untuk tampilan dan tambahkan vakum secara eksplisit bila model slab, kawat, atau molekul membutuhkannya.', 'Buka Calculate dan tambahkan Total energy atau Structural relaxation. Periksa input, okupansi, pseudopotensial, cutoff, dan mesh k.', 'Pilih tujuan komputasi. Aplikasi npm memakai runtime pada Pengaturan → Komputasi untuk Komputer Anda; website hosted memakai worker pribadi terhubung. Phynite Cloud opsional memakai Quanta atau grant pilot serta profil CPU/RAM yang tersedia.', 'Jalankan dan ikuti Log. Status Completed tidak otomatis berarti hasil konvergen secara fisik; periksa energi, gaya, konvergensi, dan pesan solver.', 'Tambahkan kalkulasi band, DOS, fonon, atau transport sesuai kebutuhan. Pilih hasil relaksasi yang kompatibel sebagai sumber struktur bila diperlukan.', 'Pada hasil yang memiliki data plot, pilih Open in Figure Lab. Figur aktif yang sudah memakai hasil tersebut dibuka kembali, atau data numeriknya diimpor untuk membuat figur.', 'Atur perbandingan, referensi energi, dimensi fisik, dan tipografi. Tunggu status penyimpanan di editor Figure Lab, lalu ekspor figur dan Source package.'] },
+      { title: 'Pembagian fungsi halaman', table: { headings: ['Halaman', 'Fungsi'], rows: [['Workspace', 'Membuat dan mencari project, melanjutkan studi, membuka alat riset.'], ['DFT Lab / Project', 'Mengatur project, struktur, dan variasi material.'], ['DFT Lab / Inspect', 'Memeriksa dan mengubah geometri.'], ['DFT Lab / Calculate', 'Mengatur kalkulasi, dependensi, eksekusi, dan log.'], ['Figure Lab', 'Membandingkan data, mengatur panel, dan mengekspor figur.'], ['Pengaturan', 'Halaman tampilan, notifikasi, keyboard, compute, akun provider AI, Akun, Pemakaian, dan Penyimpanan terpisah.'], ['Tagihan', 'Pembelian cloud serta faktur pada website Phynite; mode lokal membuka situs hosted.']] } },
       { title: 'Sebelum menyebut hasil final', bullets: ['Catat sumber struktur dan sel komputasi untuk setiap run.', 'Uji cutoff, mesh k/q, vakum, smearing, dan toleransi solver terhadap besaran yang akan dilaporkan.', 'Periksa satuan dan titik nol energi sebelum membuat overlay.', 'Simpan input yang benar-benar dieksekusi serta sumber numerik bersama figur.', 'Jelaskan fungsional, keluarga pseudopotensial, perlakuan spin, dan normalisasi dalam metode paper.'] },
     ],
   },
@@ -68,11 +68,11 @@ export const guideSectionsId: GuideSection[] = [
   },
   {
     id: 'execution', group: 'Kalkulasi', title: 'Eksekusi, sumber daya, dan pembatalan',
-    intro: 'Run melewati persiapan, antrean, eksekusi worker, unggah, dan penyelesaian. Log menunjukkan tahap yang sedang berlangsung dan bagian yang perlu diperiksa.',
+    intro: 'Run melewati persiapan, antrean, eksekusi, penyimpanan hasil, dan penyelesaian. Hasil native tersimpan lokal; job hosted juga mengunggah artefak wajib. Log menunjukkan tahap yang memerlukan pemeriksaan.',
     blocks: [
-      { title: 'Membaca status', table: { headings: ['Status', 'Makna', 'Tindakan'], rows: [['Draft / Ready', 'Konfigurasi ada; solver belum tentu berjalan.', 'Periksa input lalu jalankan.'], ['Queued', 'Menunggu worker atau dependensi.', 'Periksa tujuan, koneksi, dan prasyarat.'], ['Running', 'Worker sudah mengambil job.', 'Periksa tahap, log, dan alokasi.'], ['Completed', 'Hasil diunggah dan diterima.', 'Periksa konvergensi dan validitas ilmiah.'], ['Failed', 'Persiapan, solver, atau unggah gagal.', 'Baca penyebab dan log sebelum mengulang.'], ['Cancellation requested', 'Permintaan berhenti dikirim ke worker.', 'Tunggu heartbeat dan status akhir.'], ['Cancelled', 'Run dihentikan atau dikeluarkan dari antrean.', 'Simpan log yang berguna; buat run baru bila perlu.']] } },
-      { title: 'Arti core dan RAM', paragraphs: ['Core menunjukkan alokasi vCPU atau proses worker. RAM menunjukkan batas memori yang dikonfigurasi. Keduanya bukan pengukuran utilisasi CPU atau RAM fisik terpasang.', 'Buka detail sumber daya di Log untuk alokasi backend, durasi, proses MPI, serta estimasi memori dan waktu QE bila tersedia. Data historis yang tidak dilaporkan tidak diisi dengan tebakan.', 'Worker lokal tetap mengikuti batas job pada layanan. Batas saat ini terlihat di akun dan tujuan komputasi. Permintaan di atas batas ditolak, bukan diam-diam diubah.'] },
-      { title: 'Membatalkan run', bullets: ['Job yang masih antre dapat dikeluarkan dari antrean.', 'Pembatalan run aktif diterima melalui heartbeat worker sehingga tidak seketika.', 'Menutup browser tidak membatalkan kalkulasi yang sudah dikirim.', 'Mencabut kredensial komputer dapat mengganggu unggah hasil. Gunakan pembatalan kalkulasi sebelum mengganti koneksi ketika ada run aktif.'] },
+      { title: 'Membaca status', table: { headings: ['Status', 'Makna', 'Tindakan'], rows: [['Draft / Ready', 'Konfigurasi ada; solver belum tentu berjalan.', 'Periksa input lalu jalankan.'], ['Queued', 'Menunggu worker atau dependensi.', 'Periksa tujuan, koneksi, dan prasyarat.'], ['Running', 'Worker sudah mengambil job.', 'Periksa tahap, log, dan alokasi.'], ['Completed', 'Hasil wajib tersimpan dan diterima secara lokal atau oleh layanan hosted.', 'Periksa konvergensi dan validitas ilmiah.'], ['Failed', 'Persiapan, solver, penyimpanan lokal, atau unggah hosted gagal.', 'Baca penyebab dan log sebelum mengulang.'], ['Cancellation requested', 'Permintaan berhenti dikirim ke worker.', 'Tunggu heartbeat dan status akhir.'], ['Cancelled', 'Run dihentikan atau dikeluarkan dari antrean.', 'Simpan log yang berguna; buat run baru bila perlu.']] } },
+      { title: 'Arti core dan RAM', paragraphs: ['Core menunjukkan alokasi vCPU atau proses worker. RAM menunjukkan anggaran job terkonfigurasi. Keduanya bukan pengukuran utilisasi atau memori fisik. Watchdog memori native adalah anggaran terpantau, bukan hard limit sistem operasi.', 'Buka detail sumber daya di Log untuk alokasi backend, durasi, proses MPI, serta estimasi memori dan waktu QE bila tersedia. Data historis yang tidak dilaporkan tidak diisi dengan tebakan.', 'Job native mengikuti kapasitas scheduler pada Pengaturan → Komputasi. Worker pribadi hosted juga mengikuti batas job layanan. Permintaan tidak didukung ditolak tanpa mengubah input ilmiah diam-diam.'] },
+      { title: 'Membatalkan run', bullets: ['Job yang masih antre dapat dikeluarkan dari antrean.', 'Pembatalan bersifat asinkron. Supervisor proses lokal atau worker hosted mengonfirmasinya sebelum status akhir.', 'Menutup browser tidak membatalkan kalkulasi yang sudah dikirim. Pertahankan CLI native atau worker hosted; periksa job terinterupsi setelah restart sebelum mengirim ulang.', 'Mencabut kredensial komputer dapat mengganggu unggah hasil. Gunakan pembatalan kalkulasi sebelum mengganti koneksi ketika ada run aktif.'] },
     ],
   },
   {
@@ -144,7 +144,7 @@ export const guideSectionsId: GuideSection[] = [
   },
   {
     id: 'saving', group: 'Akun & komputasi', title: 'Penyimpanan otomatis dan banyak perangkat',
-    intro: 'Editor DFT Lab dan Figure Lab menampilkan status penyimpanan yang relevan dengan dokumen aktif. Dashboard Workspace tidak menampilkan Saved to cloud; sinkronisasi project tetap berjalan di belakang layar.',
+    intro: 'DFT Lab dan Figure Lab menampilkan status penyimpanan dokumen aktif. Aplikasi npm menyimpan project pada SQLite/filesystem; storage browser memuat draft pemulihan. Project lokal tidak diunggah otomatis. Status cloud berikut berlaku untuk website hosted atau project dengan Cloud Sync aktif secara eksplisit.',
     blocks: [
       { title: 'Arti status editor', table: { headings: ['Label', 'Makna', 'Tindakan'], rows: [['Saving...', 'Draft atau sinkronisasi berlangsung.', 'Tunggu sebentar sebelum mengandalkan perangkat lain.'], ['Saved to cloud', 'Dokumen aktif dan sumber yang diperlukan dikonfirmasi tersimpan.', 'Dapat dibuka dengan akun yang sama.'], ['Saved on device / Offline', 'Salinan browser ada, unggah belum selesai.', 'Jangan hapus data browser; sambungkan kembali.'], ['Sync pending', 'Salinan lokal disimpan selama unggah dicoba lagi.', 'Periksa jaringan dan batas penyimpanan.'], ['Sync conflict', 'Revisi cloud berbeda dari revisi yang diedit.', 'Periksa History sebelum memilih versi.']] } },
       { title: 'Perilaku Figure Lab', paragraphs: ['Figure Lab menyimpan draft lokal setelah sekitar 350 ms tanpa edit baru dan memulai sinkronisasi cloud sekitar 1,2 detik. Unggah dijalankan berurutan; edit selama unggah disimpan berikutnya.', 'Meninggalkan Figure Lab mem-flush draft yang masih tertunda. Kembali online atau memfokuskan halaman membantu mencoba lagi sinkronisasi yang tertunda. Kegagalan tetap ditampilkan sebagai kegagalan.', 'Tidak ada tombol Save revision yang wajib. Ctrl/Cmd+S merupakan checkpoint histori opsional.'] },
@@ -153,22 +153,157 @@ export const guideSectionsId: GuideSection[] = [
     ],
   },
   {
-    id: 'account', group: 'Akun & komputasi', title: 'Profil, pemakaian, dan paket',
-    intro: 'Account mengelola identitas riset, preferensi, pemakaian, dan koneksi komputer. Billing menyediakan tampilan khusus untuk paket serta pengukuran sumber daya.',
-    blocks: [
-      { title: 'Mengedit profil', steps: ['Buka menu avatar, pilih Profil, lalu Edit profil. Profil hanya terlihat oleh akun Anda.', 'Isi nama tampilan, institusi, peran, dan bidang riset.', 'Pilih foto JPG, PNG, atau WebP hingga 20 MB. Crop, perbesar, dan putar foto; browser menyimpan gambar 256 piksel terkompresi.', 'Periksa preview dan pilih Save profile. Menghapus foto baru diterapkan setelah profil disimpan.', 'Buka Pengaturan → Tampilan & bahasa untuk menyimpan default akun. Perangkat ini dapat mengikuti default akun atau memakai override Terang/Gelap. Tema perangkat dan bahasa browser langsung berlaku di luar formulir Simpan/Batal akun.'] },
-      { title: 'Navigasi pengaturan akun', paragraphs: ['Menu avatar mengelompokkan Profil, Pengaturan, Pemakaian, dan Tagihan, lalu Harga, Bantuan, dan Keluar. Profil menampilkan job tersimpan, selesai, aktif saat pengukuran, waktu run tercatat, dan lima job terbaru. Waktu atau alokasi yang belum tercatat tidak tersedia; inventaris storage diukur terpisah.', 'Di atas 960px, sidebar Pengaturan menetap pada lebar 280px tanpa mengubah docking atau lebar workspace. Pencarian menemukan halaman dan kontrol pengaturan. Pada mobile, gunakan drawer navigasi; tutup melalui Escape, tombol tutup, atau latar. Menu akun mendukung tombol panah, Home, End, dan Escape. Draft memerlukan keputusan sebelum navigasi atau keluar.'] },
-      { title: 'Menentukan username untuk masuk', steps: ['Buat akun dengan email dan verifikasi email terlebih dahulu.', 'Buka Pengaturan → Profil riset. Nama tampilan boleh mengandung spasi dan tidak harus unik.', 'Pada Username, masukkan 3–30 karakter dengan awalan huruf atau angka. Huruf, angka, titik, tanda hubung, dan garis bawah didukung; nama yang dicadangkan tidak dapat dipakai.', 'Pilih Simpan username. Aksi ini terpisah dari menyimpan identitas riset. Layanan memeriksa keunikan tanpa membedakan huruf besar dan kecil. Pilih nama lain jika sudah digunakan.', 'Saat masuk berikutnya, gunakan username tersebut atau email dengan password yang sama. Setelah username diganti, nama lama berhenti berlaku dan dapat dipakai akun lain. Pemulihan password selalu memakai email terverifikasi.'], note: 'Username tidak membuat akun baru, membagikan project, atau mengganti email. Akun lama tetap dapat masuk melalui email dan menambahkan username kapan diperlukan.' },
-      { title: 'Menelusuri riwayat kalkulasi', paragraphs: ['Buka Pemakaian & penyimpanan lalu Kalkulasi terbaru. Setiap halaman menampilkan enam catatan berdasarkan waktu pembuatan, terbaru dahulu. Baris mencantumkan tanggal dan waktu lokal, jenis kalkulasi, tujuan, alokasi core dan RAM, serta status.', 'Berikutnya dan Sebelumnya mengganti halaman tabel. Total sumber daya berlaku untuk seluruh akun, bukan hanya enam baris yang terlihat. Perbarui memuat ulang pengukuran dan halaman tabel aktif. Waktu yang tidak tercatat ditandai tidak tersedia, bukan diperkirakan.'] },
-      { title: 'Membaca pengukuran', table: { headings: ['Metrik', 'Perhitungan'], rows: [['Current cloud files', 'Ukuran objek cloud versi saat ini milik akun; tidak termasuk versi lama, metadata, atau disk lokal.'], ['Recorded run time', 'Waktu worker mulai sampai selesai, termasuk persiapan dan unggah. Run gagal/batal ikut dihitung jika timestamp lengkap.'], ['Allocated CPU-hours', 'Durasi tercatat dikalikan core alokasi lalu dibagi 3600; bukan utilisasi CPU.'], ['On your computer', 'Durasi run dengan tujuan worker pribadi.'], ['Last 30 days', 'Durasi run yang selesai dalam 30 hari terakhir.'], ['Unmeasured runs', 'Run terminal tanpa waktu valid; dikecualikan dari jumlah durasi.']] } },
-      { title: 'Pilihan paket', paragraphs: ['Free mencakup total storage cloud 10 GiB, persiapan struktur, project pribadi, Figure Lab, serta simulasi DFT dan MD pada komputer sendiri yang terhubung. Akun early access dapat memakai Cloud berbayar dengan Quanta produksi terverifikasi.', 'Paid Cloud mendukung seluruh workflow DFT, LAMMPS Guided/manual, dan OVITO dengan vCPU dan RAM tersedia yang Anda pilih. Job paid berjalan paralel sesuai pendanaan dan kapasitas region. Pilot memakai grant admin terpisah dengan CPU/RAM, budget operasional, jumlah job, dan masa berlaku; grant lama tetap 2 vCPU, 6 GiB, dan 15 menit, satu slot global tanpa memotong Quanta.', 'Komputer Anda menjadi tujuan awal akun Free baru. Hubungkan worker sebelum menjalankan simulasi. Pergantian tujuan tidak memindahkan run yang sudah ada.', 'Pendaftaran publik tetap waitlist dan undangan. Akun early access membuka checkout Quanta dan storage dari Billing. Pembayaran produksi terverifikasi memperbarui saldo tersedia dan akses compute tanpa langsung menjalankan job. Institution membuka jalur konsultasi.'], note: 'Komputasi lokal memakai perangkat, listrik, dan disk Anda. Internet tetap diperlukan untuk koordinasi, unduhan pseudopotensial bila perlu, serta sinkronisasi hasil. Batas storage dan transfer yang berlaku tetap digunakan.' },
-    ],
+    "id": "account",
+    "group": "Akun & komputasi",
+    "title": "Pengaturan, akun, profil, dan pemakaian",
+    "intro": "Pengaturan memisahkan preferensi browser, compute ilmiah, akun provider AI, dan login Phynite Cloud opsional. Pemakaian berasal dari record eksekusi/provider nyata; pengukuran yang tidak ada tidak dibuat-buat.",
+    "blocks": [
+      {
+        "title": "Memilih halaman pengaturan",
+        "table": {
+          "headings": [
+            "Halaman",
+            "Yang diatur"
+          ],
+          "rows": [
+            [
+              "Tampilan & bahasa",
+              "Tema, aksen, kepadatan, ukuran teks antarmuka/kode, reduced motion, dan bahasa pada browser ini."
+            ],
+            [
+              "Pintasan keyboard",
+              "Binding aplikasi yang didukung dan disimpan pada browser ini."
+            ],
+            [
+              "Notifikasi",
+              "Alert job/runtime lokal dan izin desktop; preferensi pengiriman hosted pada website."
+            ],
+            [
+              "Komputasi",
+              "Instalasi runtime native serta CPU/RAM/job paralel lokal; worker dan default akun pada website."
+            ],
+            [
+              "Akun provider AI",
+              "Login AI sendiri, akun aktif, status koneksi/model, batas terlapor, dan waktu reset."
+            ],
+            [
+              "Akun",
+              "Login/logout Phynite Cloud opsional dan sync per project; terpisah dari login AI."
+            ],
+            [
+              "Pemakaian / Penyimpanan",
+              "Pengukuran job serta pemakaian provider / arsip project dan inventaris penyimpanan."
+            ],
+            [
+              "Profil riset / Privasi & sesi",
+              "Identitas Phynite terhubung / privasi serta sesi sesuai mode."
+            ]
+          ]
+        }
+      },
+      {
+        "title": "Navigasi tanpa menu ganda",
+        "paragraphs": [
+          "Pengaturan memakai satu sidebar kategori dan pencarian. Akun berada setelah Akun provider AI. Pada mobile, buka drawer navigasi; Escape, tombol tutup, atau backdrop menutupnya. Menu akun mendukung navigasi keyboard. Bookmark Runtime lokal & cloud lama diarahkan ke kategori yang sesuai.",
+          "Workspace lokal yang belum login menampilkan aksi pengaturan serta koneksi tanpa profil pengguna palsu. Setelah akun Phynite terhubung, Profil membuka halaman profil tersendiri dengan aksi Edit profil."
+        ]
+      },
+      {
+        "title": "Mengedit profil riset terhubung",
+        "steps": [
+          "Hubungkan akun Phynite Cloud sebelum membuka Profil; project lokal tetap tersedia tanpa login itu.",
+          "Pilih Edit profil lalu isi nama tampilan, institusi, peran, dan bidang riset.",
+          "Pilih foto JPG, PNG, atau WebP hingga 20 MB. Crop, perbesar, dan putar foto; browser menyimpan gambar 256 piksel terkompresi.",
+          "Periksa preview lalu Simpan profil. Penghapusan foto berlaku setelah disimpan. Draft akun yang belum disimpan memerlukan keputusan sebelum navigasi.",
+          "Gunakan Tampilan & bahasa untuk tampilan perangkat. Pilihan langsung berlaku dan tidak menjadi default akun cloud."
+        ]
+      },
+      {
+        "title": "Menentukan username login cloud",
+        "steps": [
+          "Buat akun Phynite Cloud dengan email lalu verifikasi email, ketika pendaftaran tersedia.",
+          "Buka editor profil riset. Nama tampilan boleh mengandung spasi dan tidak harus unik.",
+          "Pada Username, masukkan 3–30 karakter dengan awalan huruf atau angka. Huruf, angka, titik, tanda hubung, dan garis bawah didukung; nama yang dicadangkan tidak dapat dipakai.",
+          "Pilih Simpan username. Aksi ini terpisah dari menyimpan identitas riset; keunikan diperiksa tanpa membedakan huruf besar dan kecil.",
+          "Saat login berikutnya, gunakan username atau email dengan password sama. Username lama berhenti berlaku setelah diganti dan dapat tersedia bagi akun lain. Pemulihan memakai email terverifikasi."
+        ],
+        "note": "Username tidak membuat akun lain, membagikan project, atau mengubah email. Pekerjaan lokal native tidak memerlukan username login."
+      },
+      {
+        "title": "Mengatur compute sesuai lokasi eksekusi",
+        "paragraphs": [
+          "Pada aplikasi npm lokal, Komputasi memuat deteksi platform/kemampuan, instalasi runtime ilmiah, status isolasi, serta default CPU/RAM/job paralel. Pasang runtime sebelum menjalankan. Default baru berlaku bagi job berikutnya; override workspace berlaku untuk run terpilih. Compute native lokal tidak memerlukan Docker atau worker yang dipasangkan ke cloud.",
+          "Pada website hosted, Komputasi mempertahankan default akun per workload, profil Cloud serta estimasi yang didukung, dan pairing worker pribadi. Simpan default adalah aksi eksplisit; Batal mengembalikan nilai tersimpan. MD tetap pada compute pribadi sampai layanan Cloud tersedia. Lebih banyak core belum tentu lebih cepat; bandingkan run pendek terkendali."
+        ]
+      },
+      {
+        "title": "Menghubungkan AI dan membaca batasnya",
+        "paragraphs": [
+          "Akun provider AI mengelola login CLI/gateway provider resmi dengan akun sendiri. Login ini terpisah dari Phynite Cloud. Setelah autentikasi, penemuan model serta pemeriksaan kemampuan berjalan otomatis. Tools dan attachment memerlukan dukungan terverifikasi; perubahan Canvas tetap memakai approval serta validasi.",
+          "Pilih akun provider aktif secara eksplisit. Pemakaian serta reset berasal dari provider: persentase, jendela waktu, dan tanggal ditampilkan hanya jika dilaporkan. Sisa token tidak disimpulkan. Provider terputus, rate-limit, atau tidak didukung menampilkan status nyata tanpa berpindah provider diam-diam."
+        ]
+      },
+      {
+        "title": "Notifikasi pada perangkat ini",
+        "paragraphs": [
+          "Atur alert job selesai, job gagal/dibatalkan, dan instalasi runtime secara terpisah. Alert lokal mengamati perubahan status nyata selama aplikasi terbuka. Alert desktop opsional memerlukan izin browser dan dapat diperiksa melalui Kirim notifikasi uji.",
+          "Preferensi lokal ini tetap pada browser ini. Preferensi tidak menjadwalkan cloud push atau email setelah aplikasi ditutup. Pengiriman email serta inbox hosted dikelola terpisah."
+        ]
+      },
+      {
+        "title": "Membaca pemakaian dengan benar",
+        "table": {
+          "headings": [
+            "Metrik",
+            "Interpretasi"
+          ],
+          "rows": [
+            [
+              "Waktu run tercatat",
+              "Interval mulai-selesai valid; run gagal/dibatalkan dihitung bila kedua timestamp tersedia. Persiapan serta penyimpanan/unggah hasil dapat termasuk."
+            ],
+            [
+              "Jam CPU teralokasi",
+              "Detik tercatat × core teralokasi / 3600. Ini alokasi, bukan aktivitas CPU nyata atau energi."
+            ],
+            [
+              "File lokal / cloud",
+              "Inventaris penyimpanan berbeda. Pengukuran objek cloud tidak mencakup disk native; storage lokal bukan langganan cloud."
+            ],
+            [
+              "Run belum terukur",
+              "Record tanpa waktu atau alokasi valid tetap tidak tersedia atau parsial, tidak dianggap nol."
+            ],
+            [
+              "Batas AI dan reset",
+              "Pengukuran yang dilaporkan akun provider terpilih; terpisah dari jam CPU ilmiah dan tagihan Phynite."
+            ]
+          ]
+        }
+      },
+      {
+        "title": "Riwayat dan salinan portabel",
+        "paragraphs": [
+          "Pemakaian menampilkan job serta catatan biaya tercatat dengan timestamp, status, tujuan, dan alokasi tersedia. Pagination mengubah baris terlihat; total seluruh akun tetap mencakup semua record terukur. Perbarui mengambil pengukuran baru.",
+          "Penyimpanan memuat ekspor/impor arsip project native. Simpan struktur asli, input eksekusi, hasil tersedia, provenance, checksum, dan backup terpisah. Patuhi lisensi aset potensial. Draft browser membantu pemulihan dan bukan database native."
+        ]
+      },
+      {
+        "title": "Cloud opsional dan tagihan website",
+        "paragraphs": [
+          "Akun menghubungkan atau memutus Phynite Cloud. Login mempertahankan identitas lokal dan tidak mengunggah project. Aktifkan Cloud Sync per project setelah meninjau cakupan transfer; compute cloud meninjau transfer input terpisah tanpa mengaktifkan sync. Logout mempertahankan data lokal dan menghentikan sync.",
+          "Tagihan pada mode lokal membuka https://phynitelab.com/billing. Akses, harga, kuota, dan kapasitas Cloud mengikuti katalog hosted serta akun saat ini. Pembelian tidak menjalankan job otomatis. MD Cloud belum tersedia sampai layanannya didukung."
+        ],
+        "note": "Eksekusi lokal memakai perangkat, listrik, dan disk sendiri. Setelah runtime serta potensial wajib terpasang, sains lokal dapat berjalan offline. AI provider, Cloud opsional, pencarian data eksternal, dan unduhan baru memerlukan koneksi masing-masing."
+      }
+    ]
   },
   localComputeGuide('id'),
   {
     id: 'shortcuts', group: 'Referensi', title: 'Pintasan keyboard dan pointer',
     intro: 'Primary berarti Command pada macOS dan Control pada Windows/Linux. Pintasan mengikuti editor aktif. Field teks mempertahankan perilaku edit teksnya.',
     blocks: [
+      { title: 'Menyesuaikan pintasan aplikasi yang didukung', paragraphs: ['Buka Pengaturan → Pintasan keyboard. Atur ulang kombinasi yang didukung untuk membuka Pengaturan, menutup/membuka sidebar, memfokuskan chat AI terbuka, atau mengirim pesan. Perubahan langsung berlaku pada browser ini; kembalikan default bila perlu.', 'Tabel berikut menjelaskan default editor dan konteksnya. Binding aplikasi tidak mengganti penyuntingan teks native, operasi geometri, atau tombol aksesibilitas browser.'] },
       { title: 'DFT Lab', table: { headings: ['Pintasan', 'Aksi', 'Konteks'], rows: [['Primary + K / Space', 'Buka command menu', 'DFT Lab; Space di luar field edit.'], ['Primary + Z', 'Undo', 'Histori editor struktur.'], ['Primary + Shift + Z / Primary + Y', 'Redo', 'Histori editor struktur.'], ['V / G / A / M / F', 'Select / Move / Add / Measure / Focus', 'Viewport; Focus memerlukan pilihan.'], ['Delete / Backspace', 'Hapus pilihan', 'Di luar field teks.'], ['X / Y / Z', 'Kunci sumbu gerak', 'Mode Move.'], ['Shift + X / Y / Z', 'Kunci bidang YZ / XZ / XY', 'Mode Move.'], ['Enter / Escape', 'Terapkan / batalkan gerak', 'Mode Move.'], ['Arrow Left / Right', 'Ubah lebar sidebar 16 px', 'Separator resize yang terfokus.']] } },
       { title: 'Figure Lab', table: { headings: ['Pintasan', 'Aksi', 'Konteks'], rows: [['Primary + Z', 'Undo perubahan figur', 'Di luar kontrol editable.'], ['Primary + Shift + Z / Primary + Y', 'Redo perubahan figur', 'Di luar kontrol editable.'], ['Primary + S', 'Checkpoint eksplisit', 'Menerapkan draft angka terfokus; autosave tetap berjalan.'], ['Primary + Shift + E', 'Ekspor format terpilih', 'Figur siap di luar kontrol editable.'], ['+ atau = / - / 0', 'Zoom in / zoom out / Fit', 'Tampilan halaman.'], ['?', 'Buka/tutup bantuan pintasan', 'Figure Lab.'], ['Space + drag / Alt + drag / drag tengah', 'Geser kanvas', 'Kanvas Figure Lab.'], ['Primary + scroll', 'Zoom halaman', 'Kanvas Figure Lab.'], ['Escape', 'Tutup bantuan atau panel geser', 'Figure Lab.']] } },
       { title: 'Field dan menu', table: { headings: ['Pintasan', 'Aksi'], rows: [['Tab / Shift + Tab', 'Pindah fokus berikutnya / sebelumnya.'], ['Enter / Space', 'Aktifkan tombol atau opsi menu terpilih.'], ['Arrow Up / Down', 'Buka atau pindahkan pilihan menu.'], ['Home / End', 'Opsi aktif pertama / terakhir.'], ['Ketik huruf', 'Cari label pada menu terbuka atau isi pencarian command menu.'], ['Escape', 'Tutup menu atau batalkan draft angka.'], ['Enter / keluar field', 'Terapkan draft numerik valid.'], ['Primary + Z di teks', 'Undo teks, bukan struktur atau figur.'], ['Primary + K atau / di dokumentasi', 'Fokuskan pencarian saat di luar field.']] } },
@@ -188,7 +323,7 @@ export const guideSectionsId: GuideSection[] = [
     id: 'roadmap', group: 'Referensi', title: 'Ketersediaan fitur dan rencana alur',
     intro: 'Label ketersediaan membedakan fungsi yang dapat dijalankan saat ini dari rencana produk. Gunakan kontrol aktif dan status akun sebagai acuan akses.',
     blocks: [
-      { title: 'Molecular dynamics', paragraphs: ['MD Lab mendukung simulasi LAMMPS Guided dan manual tervalidasi, serta analisis OVITO pada komputer pribadi atau Cloud yang memiliki pendanaan.', 'Pilih resource dan pendanaan pada drawer lab sebelum menjalankan. Input trajectory asli dipertahankan; sumber Cloud besar memakai multipart dan frame hasil dimuat sesuai kebutuhan dengan proteksi memori browser.'] },
+      { title: 'Molecular dynamics', paragraphs: ['MD Lab mendukung simulasi LAMMPS Guided dan input manual tervalidasi serta analisis OVITO pada komputer sendiri. Eksekusi MD Cloud belum tersedia sampai layanan itu didukung; pendanaan tidak mengaktifkannya.', 'Pilih resource pada drawer lab sebelum menjalankan. Input manual memerlukan isolasi terverifikasi. Input trajectory asli dipertahankan; frame hasil dimuat sesuai kebutuhan dengan proteksi memori browser.'] },
       { title: 'Komputasi terkelola', paragraphs: ['Free mencakup DFT Lab, MD Lab dan Figure Lab, impor, template, ekspor, total storage cloud 10 GiB, serta run DFT dan MD pada satu komputer pribadi yang terhubung per akun. Tidak ada biaya aktivasi Phynite atau biaya komputasi lokal per jam. Cloud memakai Quanta sebagai satuan utama; estimasi Rupiah adalah harga pembelian kredit merchant, saat ini Rp18.000 per Quanta, bukan konversi kurs.', 'Paid Cloud memakai kredit produksi terverifikasi; pembayaran sandbox tidak mendanai produksi. Tarif memakai profil AWS terpilih ditambah 10%, hanya untuk waktu solver/analisis, minimum 60 detik sekali per job. Persiapan, upload, cleanup, disk sementara, dan transfer compute ditanggung Phynite. Estimasi durasi bukan batas runtime paid. Pendanaan diperbarui maksimal lima menit sesuai saldo; top-up sebelum tenggat mempertahankan job tanpa restart. Kegagalan scientific menagih compute aktual; kegagalan platform mengembalikan biaya compute. Project dan hasil tetap dapat diakses setelah saldo habis. Penawaran total storage cloud menggantikan Free 10 GiB: 50 GiB Rp27.000, 100 GiB Rp55.000, 250 GiB Rp129.000, 500 GiB Rp259.000 dan 1 TiB Rp519.000 per 30 hari. Kapasitas lebih besar dan transfer besar melalui support@phynitelab.com, tanpa tagihan transfer otomatis. Perpanjangan manual. Paket sama menambah 30 hari; upgrade mengonversi nilai sisa harga dasar menjadi waktu tambahan tanpa biaya gateway; downgrade setelah kedaluwarsa. Kedaluwarsa mengembalikan Free tanpa menghapus file. Akun di atas kuota tetap dapat membaca, mengunduh, dan menghapus, sementara penambahan data diblokir. Lihat /pricing untuk estimasi dan ketentuan.'] },
       { title: 'Ruang lingkup dokumentasi', paragraphs: ['Panduan menjelaskan perilaku produk yang diimplementasikan. Dukungan suatu input ahli tidak berarti semua opsi solver telah divalidasi lewat formulir.', 'Gunakan catatan metode dan dokumentasi solver untuk penilaian fisik. Penyelesaian teknis job tetap perlu diikuti pemeriksaan konvergensi dan kesesuaian model.'] },
     ],

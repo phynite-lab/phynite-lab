@@ -60,3 +60,15 @@ export function StorageUsage({ usage, currentQuota }: { usage: AccountUsage; cur
     <p className="lab-caption">{t('Inventory is measured separately from compute records. Local files and database metadata are excluded.', 'Inventaris diukur terpisah dari catatan compute. File lokal dan metadata database tidak dihitung.')} {t('Figure Lab retains', 'Figure Lab menyimpan')} {bytes(storage.researchRetainedBytes)} {t('within the measured cloud usage.', 'dalam pemakaian cloud terukur.')}</p>
   </>;
 }
+
+export function LocalStorageUsage({ usage }: { usage: AccountUsage }) {
+  const { t, intlLocale } = useLocale();
+  const bytes = (value: number) => formatBytes(value, intlLocale);
+  const { storage } = usage;
+  const names: Record<string, string> = { calculations: t('Calculation artifacts', 'Artefak kalkulasi'), trajectories: t('MD trajectories', 'Trajectory MD'), structures: t('Structures', 'Struktur'), research: t('Figures & datasets', 'Figur & dataset'), workspace: t('Workspace files', 'File workspace'), other: t('Other files', 'File lainnya') };
+  return <SettingsSection id="local-storage" title={t('On this computer', 'Di komputer ini')} description={t('Measured project artifacts in the local workspace. Projects stay local unless you enable Cloud Sync.', 'Artefak project terukur di workspace lokal. Project tetap lokal sampai Anda mengaktifkan Cloud Sync.')}>
+    <div className="settings-storage-summary"><p className="settings-storage-total"><strong>{bytes(storage.bytes)}{!storage.complete && '+'}</strong></p><ul className="settings-storage-legend">{Object.entries(storage.categories).map(([key, value], index) => <li key={key}><i className={`settings-storage-color-${index % 6}`} aria-hidden="true" /><span>{names[key] ?? key}</span><strong>{bytes(value)}</strong></li>)}</ul></div>
+    <dl className="settings-ledger"><div><dt>{t('Files measured', 'File terukur')}</dt><dd>{storage.objects.toLocaleString(intlLocale)}</dd></div><div><dt>{t('Inventory', 'Inventaris')}</dt><dd>{storage.complete ? t('Complete', 'Lengkap') : t('Partial', 'Parsial')}</dd></div></dl>
+    <p className="settings-group-content">{t('Database metadata, solver installations, logs, and other disk files are outside this measurement. The default data folder is ~/.phynite-lab; --data-dir can select another folder. Cloud quota does not limit your local disk.', 'Metadata database, instalasi solver, log, dan file disk lainnya tidak termasuk pengukuran ini. Folder data default adalah ~/.phynite-lab; --data-dir dapat memilih folder lain. Kuota cloud tidak membatasi disk lokal Anda.')}</p>
+  </SettingsSection>;
+}

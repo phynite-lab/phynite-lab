@@ -23,7 +23,7 @@ export function ProfileExperience() {
   const identity = profile ?? settings;
   const profileAvailable = hasUserProfile(session);
   useEffect(() => {
-    if (ready && session && !profileAvailable) window.location.replace('/local');
+    if (ready && session && !profileAvailable) window.location.replace('/account/account');
   }, [profileAvailable, ready, session]);
   if (!ready || !session || !profileAvailable) return <WorkspaceLoading layout="page" label={t('Opening local settings…', 'Membuka pengaturan lokal…')} />;
   return <SettingsPage session={session} eyebrow={t('Your account', 'Akun Anda')} title={t('Research profile', 'Profil riset')} description={t('Your identity and recorded research, visible only to you.', 'Identitas dan riset tercatat Anda, hanya terlihat oleh Anda.')} actions={<Link className="lab-button" href="/account">{t('Edit profile', 'Edit profil')}</Link>}>

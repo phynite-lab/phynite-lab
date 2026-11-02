@@ -5,7 +5,7 @@ export const guideAdditions: GuideSection[] = [
     id: 'quickstart-silicon', group: 'Getting started', title: 'Tutorial: a first silicon calculation',
     intro: 'Complete a small ground-state calculation before attempting a large material study. This tutorial checks the structure-to-worker-to-result workflow; its numerical settings are starting values for an exercise, not a converged production method.',
     blocks: [
-      { title: 'Before you begin', bullets: ['Sign in with the invited account that will own the project and results.', 'Connect Your computer with Docker and keep Docker running while the computer is awake. You may close the terminal once the container is running in the background.', 'Have a diamond-cubic silicon structure in CIF, POSCAR, or another supported format. Keep its source and lattice parameter with your notes.', 'Use a primitive two-atom cell for this exercise. A conventional eight-atom cell is physically valid but has different total energy, reciprocal vectors, and computational cost.'] },
+      { title: 'Before you begin', bullets: ['Open the local app without login, or sign in to the hosted website with the account that owns the project.', 'In the npm app, install DFT in Settings → Compute and keep the CLI running. On the hosted website, connect Your computer through the paired worker and keep its Docker runtime active.', 'Have a diamond-cubic silicon structure in CIF, POSCAR, or another supported format. Keep its source and lattice parameter with your notes.', 'Use a primitive two-atom cell for this exercise. A conventional eight-atom cell is physically valid but has different total energy, reciprocal vectors, and computational cost.'] },
       { title: 'Create and inspect the project', steps: ['In Workspace, choose New project. Enter Silicon ground state and an optional description, then choose Create project.', 'Open the new project from the confirmation or project list. Add your silicon structure.', 'Confirm Si is the only species and the intended primitive cell has two atoms. Inspect cell lengths, angles, units, and nearest neighbors.', 'Keep a, b, and c periodic for bulk silicon. The displayed repeated cells are a visualization, not extra atoms submitted to the solver.', 'Give the structure a source-specific name. Retain the original file before changing its lattice.'] },
       { title: 'Configure the exercise', table: { headings: ['Choice', 'Starting point', 'Why to inspect it'], rows: [
         ['Workflow', 'Total energy / SCF', 'Produces the self-consistent ground state; it does not produce a band-path figure by itself.'],
@@ -25,7 +25,7 @@ export const guideAdditions: GuideSection[] = [
     id: 'quickstart-md', group: 'Getting started', title: 'Tutorial: a first local MD simulation',
     intro: 'Use a small argon system to learn the structure-to-settings-to-execution-to-result path in MD Lab. This is a workflow exercise, not a validated physical study.',
     blocks: [
-      { title: 'Prepare your computer and structure', steps: ['Sign in with the invited account and connect Your computer in Account. Keep its worker and Docker running.', 'Open MD Lab and create a project named Argon equilibration.', 'Import or build a small argon structure with a physically suitable periodic box. Check atom count, element identity, coordinates, box lengths, units, and atomic masses. An XYZ with Ar species or a LAMMPS data file with Masses works; a type-only dump has no mass for dynamics.', 'Retain the original structure file and record its source. A visual repeat does not add atoms to the simulation.'] },
+      { title: 'Prepare your computer and structure', steps: ['In the npm app, install MD/analysis in Settings → Compute and keep the CLI running; no Phynite login is required. The hosted website instead needs a signed-in account and a connected personal worker.', 'Open MD Lab and create a project named Argon equilibration.', 'Import or build a small argon structure with a physically suitable periodic box. Check atom count, element identity, coordinates, box lengths, units, and atomic masses. An XYZ with Ar species or a LAMMPS data file with Masses works; a type-only dump has no mass for dynamics.', 'Retain the original structure file and record its source. A visual repeat does not add atoms to the simulation.'] },
       { title: 'Review the simulation', steps: ['Open the configuration drawer and choose Guided mode. Select the built-in Lennard-Jones model for Ar; do not use Generic parameters without recording their source.', 'Choose a short equilibration recipe. Inspect temperature, timestep, boundary conditions, random seed, unit system, potential parameters, and output interval.', 'Run browser preflight and read the generated LAMMPS input. Confirm it uses the intended structure and potential.'] },
       { title: 'Execute once and inspect', steps: ['Select Your computer and submit one run. Follow Queued and Running in the job record and check the worker connection.', 'If the worker is offline, reconnect it and wait for the queued job; do not submit a duplicate.', 'After completion, open the log, thermo data, trajectory, and retained input from the project. Check for LAMMPS errors and inspect whether temperature and energy behavior support the intended equilibration.', 'Completed means the process finished; it does not validate the force field, timestep, equilibration, or scientific conclusion.'] },
       { title: 'Failure and recovery', bullets: ['For Failed, inspect the first meaningful LAMMPS error and saved input before changing settings.', 'For Cancelled, review the partial log and submit a new run only after the previous job reaches a final state.', 'For a missing trajectory, check output settings and retained artifacts. An empty viewer is not a physical result.'], note: 'There is no universal target energy or temperature trace. Record the actual input, potential identity, run ID, and output before comparing systems.' },
@@ -103,33 +103,73 @@ export const guideAdditions: GuideSection[] = [
         ['Legend', 'Material or condition names with units', 'Avoid run IDs as the sole scientific description.'],
         ['Inset', 'A clearly located detail with explicit bounds', 'The reader can identify which source and region it represents.'],
       ] } },
-      { title: 'Export and verify', steps: ['Wait for the Figure Lab cloud status to confirm the current edit.', 'Choose PDF or SVG for vector line art, or set physical size and DPI before exporting PNG.', 'Open the exported file in the application used for the manuscript. Inspect the final physical scale, Greek symbols, font rendering, panel labels, and clipped boundaries.', 'Export the Source package separately. Store it next to the figure and executed simulation inputs.', 'If you change a dataset or method, replace the source explicitly, review every legend and reference, and produce a new export.'] },
+      { title: 'Export and verify', steps: ['Wait for Figure Lab to confirm the latest save. Native local work stays on this computer; another device needs a portable export or confirmed, explicitly enabled Cloud Sync.', 'Choose PDF or SVG for vector line art, or set physical size and DPI before exporting PNG.', 'Open the exported file in the application used for the manuscript. Inspect the final physical scale, Greek symbols, font rendering, panel labels, and clipped boundaries.', 'Export the Source package separately. Store it next to the figure and executed simulation inputs.', 'If you change a dataset or method, replace the source explicitly, review every legend and reference, and produce a new export.'] },
       { title: 'Caption recording template', code: 'Quantity and material:\nStructure source and cell:\nMethod, functional, pseudopotentials:\nk/q sampling and numerical convergence:\nEnergy reference and normalization:\nParameter values and units:\nMeaning of colors, lines, and panels:\nSource package and run identifiers:', paragraphs: ['This is a checklist for the author, not an automatically generated scientific claim. Include only information supported by the executed calculation and retained numerical sources.'] },
     ],
   },
   {
     id: 'billing', group: 'Account & compute', title: 'Manage plans, billing, and resource usage',
-    intro: 'Billing & usage collects the current plan, compute destination, recorded usage, and available plan actions. A resource measurement and a monetary invoice are different records.',
+    intro: 'Billing manages Phynite Cloud purchases and invoices on the hosted website. The local app opens https://phynitelab.com/billing; local compute, AI accounts, and device preferences are managed separately in Settings.',
     blocks: [
-      { title: 'Review your account', steps: ['Open Billing in the header or Billing & usage in the studio navigation.', 'Read the active plan, subscription status, and per-run allocation. These values come from your account.', 'Open Recorded usage and choose Refresh after a calculation finishes or cloud files change.', 'Review Figure Lab retained bytes and current cloud files. Paid storage shares one total allowance across cloud files and pending uploads.', 'Choose Export usage to download a dated JSON record. The export contains resource measurements, not a payment receipt.'] },
+      { title: 'Review your account', steps: ['Open Billing on the Phynite website. From the local application, the link opens https://phynitelab.com/billing.', 'Read the active plan, subscription status, and per-run allocation. These values come from your account.', 'Open Recorded usage and choose Refresh after a calculation finishes or cloud files change.', 'Review Figure Lab retained bytes and current cloud files. Paid storage shares one total allowance across cloud files and pending uploads.', 'Choose Export usage to download a dated JSON record. The export contains resource measurements, not a payment receipt.'] },
       { title: 'Plan actions', table: { headings: ['Plan', 'Action', 'Effect'], rows: [
-        ['Free', 'Use Free', 'Includes local DFT and MD runs. Your computer is the default for new Free accounts; connect a worker before running.'],
+        ['Free', 'Use Free', 'Includes local DFT and MD runs. The npm app uses native runtimes without login; the hosted website uses a connected personal worker.'],
         ['Cloud', 'Top up Quanta', 'Early-access accounts use verified production credit; public visitors stay on the waitlist. Payment never starts a job.'],
         ['Enterprise', 'Discuss requirements', 'Opens the contact route for institutional capacity and terms.'],
       ] } },
       { title: 'Interpret time and storage', paragraphs: ['Paid usage lists each resource profile, measured solver/analysis time, actual Quanta charge and refund, with total, reserved and available credit shown separately. Recorded run time sums valid worker-start-to-completion intervals. It can include setup and result upload, as well as failed or cancelled runs that have valid timing.', 'Allocated CPU-hours multiply recorded duration by allocated cores. They do not measure CPU utilization, electricity consumption, or a tariff.', 'Current cloud storage counts current object versions. Older versions, metadata records, and your local disk are outside that number. A plus sign means the inventory reached its object limit and the displayed size is a lower bound.', 'The Figure Lab allowance counts retained datasets, figure documents, templates, and revisions. Archiving a figure does not remove those records or free that allowance.'] },
-      { title: 'Payments and invoices', paragraphs: ['Billing opens Phynite checkout at /billing/checkout after merchant activation. Choose Direct Virtual Account or QRIS when available; DOKU processes the payment. Virtual Account adds Rp4,000; QRIS has no surcharge. Quanta sells at Rp18,000 per Quanta, starting at 0.5 Quanta (Rp9,000 base, Rp13,000 via VA). /billing/payments/[id] shows instructions and verified status; /billing/history lists 20 purchases per page with status filters. Existing hosted invoices retain their original amounts. Order creation, verified fulfillment, failed attempts and confirmed expiry create inbox notifications; transactional emails are enabled only after SES verification, from and reply-to support@phynitelab.com. Email failures do not cancel payments. The page does not collect card numbers. Tax invoice issuing is not connected.', 'Early-access accounts can use all Cloud workflows after a verified production top-up, according to balance and capacity. Pilot remains controlled by admin grants. Institution capacity follows agreed terms. Local compute is free, but your hardware, internet, storage, and electricity remain your responsibility.'], note: 'Usage exports can contain calculation names and identifiers. Share them only with the intended collaborator or support contact.' },
+      { title: 'Payments and invoices', paragraphs: ['Billing opens Phynite checkout at /billing/checkout after merchant activation. Choose Direct Virtual Account or QRIS when available; DOKU processes the payment. Virtual Account adds Rp4,000; QRIS has no surcharge. Quanta sells at Rp18,000 per Quanta, starting at 0.5 Quanta (Rp9,000 base, Rp13,000 via VA). /billing/payments/[id] shows instructions and verified status; /billing/history lists 20 purchases per page with status filters. Existing hosted invoices retain their original amounts. Order creation, verified fulfillment, failed attempts and confirmed expiry create inbox notifications; transactional emails are enabled only after SES verification, from and reply-to support@phynitelab.com. Email failures do not cancel payments. The page does not collect card numbers. Tax invoice issuing is not connected.', 'Early-access accounts can use the Cloud workflows available in the current catalog after a verified production top-up, according to balance and capacity. MD stays on personal compute until its Cloud service is supported. Pilot remains controlled by admin grants. Institution capacity follows agreed terms. Local compute is free, but your hardware, internet, storage, and electricity remain your responsibility.'], note: 'Usage exports can contain calculation names and identifiers. Share them only with the intended collaborator or support contact.' },
     ],
   },
   {
-    id: 'language', group: 'Account & compute', title: 'Language, region, and accessibility',
-    intro: 'The studio supports English and Bahasa Indonesia. Choose a language explicitly, or let the device language preference determine the interface.',
-    blocks: [
-      { title: 'Choose a language', steps: ['On the homepage, use the globe menu in the header. Inside Workspace, use the flagged language buttons in the footer, or open Account / Preferences. DFT Lab and Figure Lab keep the canvas free of a footer; use their avatar menu to open Preferences.', 'Choose English or Bahasa Indonesia to override automatic detection.', 'Open another page. The preference is retained on this browser and remains available after a reload.'] },
-      { title: 'How automatic selection works', paragraphs: ['A saved explicit choice takes priority. In automatic mode, Phynite reads supported languages in the order requested by your browser or device. Indonesian selects Bahasa Indonesia; English selects English.', 'On the initial server response, the browser language header is used. If no supported language is present, an available country hint from the hosting edge can select Indonesian for Indonesia; otherwise English is used.', 'Phynite does not request GPS access or call a separate IP-location service for language selection. When the detected country suggests another supported language, a small prompt offers to switch. Dismissing it is remembered for that country. Travel does not override an explicit language choice. Preferences are per browser, so another device can use a different language.'] },
-      { title: 'Scientific text and data', paragraphs: ['Product names such as DFT Lab and Figure Lab, solver keywords, chemical symbols, and shortcut keys remain recognizable across languages. Scientific code, numerical source files, and publication text are not translated automatically.', 'Dates and usage durations follow the selected interface language where shown. A decimal value in executed QE input retains solver syntax.', 'English documentation uses /guide/topic and Indonesian documentation uses /id/guide/topic. Changing language keeps you on the same subject. Download the selected language for an offline reference.'] },
-      { title: 'Keyboard and readable layouts', bullets: ['Use Tab to move through links, buttons, and fields; a visible focus ring identifies the active control.', 'Use Enter or Space to activate a focused control, and Escape to dismiss menus or the project dialog.', 'In documentation, Primary+K or / focuses search when you are outside editable controls.', 'Use the mobile contents control to browse topics without covering the article permanently.', 'Reduced-motion device preferences are respected by studio transitions and the landing animation.'] },
-    ],
+    "id": "language",
+    "group": "Account & compute",
+    "title": "Appearance, language, and accessibility",
+    "intro": "Settings → Appearance & language controls this browser. Theme, accent, density, text size, motion, and language apply immediately without changing your Phynite account or scientific inputs.",
+    "blocks": [
+      {
+        "title": "Choose appearance",
+        "steps": [
+          "Choose System, Light, or Dark for this browser. System follows the OS color scheme; optional custom background/text colors require at least 4.5:1 contrast.",
+          "Select the available accent and comfortable/compact density, and adjust interface and code text sizes within the shown ranges.",
+          "Enable reduced motion when wanted. Restore defaults resets the device controls.",
+          "These values stay in this browser and site origin. Another device, browser, or local port can use different choices; clearing site data resets them."
+        ],
+        "note": "Interface text scaling and theme do not change exported figure dimensions, plot samples, units, or solver settings."
+      },
+      {
+        "title": "Choose language",
+        "steps": [
+          "Open Settings → Appearance & language.",
+          "Choose English, Bahasa Indonesia, or automatic detection from browser preferences.",
+          "Open another page or reload to confirm the choice. The preference stays in this browser rather than a cloud account default."
+        ]
+      },
+      {
+        "title": "Automatic language detection",
+        "paragraphs": [
+          "An explicit choice takes priority. Automatic mode reads supported browser/device languages in preference order. The initial server response can also use the language header and, on the hosted site, an edge country hint. English is the fallback when no supported language is found.",
+          "Phynite does not request GPS or use a separate IP-location service to select language. A suggestion does not override an explicit choice. Different browsers may use different languages."
+        ]
+      },
+      {
+        "title": "Scientific text and data",
+        "paragraphs": [
+          "Solver keywords, chemical symbols, keyboard labels, numerical data, and user publication text are not translated into a different scientific meaning. QE and CSV retain their parser syntax.",
+          "English documentation uses /guide/topic and Indonesian documentation /id/guide/topic. Switching language preserves the active topic; downloads use the selected language."
+        ]
+      },
+      {
+        "title": "Keyboard, notifications, and readability",
+        "bullets": [
+          "Tab moves among controls; the visible focus ring identifies the active control. Enter/Space activates a control and Escape closes supported menus/dialogs.",
+          "Customize only the listed working application actions in Settings → Keyboard shortcuts. Editor-specific shortcuts keep their documented context and text fields keep native editing.",
+          "Use Settings → Notifications for local job/runtime alerts and optional desktop permission. The app must remain open; local settings do not enable cloud email delivery.",
+          "Documentation search uses Primary+K or / outside text fields. On mobile, open the table of contents only when needed.",
+          "The reduced-motion device choice and supported operating-system motion preference reduce decorative transitions."
+        ]
+      }
+    ]
   },
   {
     id: 'diagnostics', group: 'Reference', title: 'Troubleshooting: locate a failed workflow stage',
@@ -138,11 +178,11 @@ export const guideAdditions: GuideSection[] = [
       { title: 'Decision table', table: { headings: ['What you see', 'Likely stage', 'Next check'], rows: [
         ['New project is unavailable', 'Account workspace initialization', 'Allow the workspace to load. On a cloud error, reload; do not clear browser data containing unsynchronized edits.'],
         ['Structure will not import', 'Parsing or geometry', 'Check format, encoding, lattice, coordinates, and occupancies. Keep the source file for diagnosis.'],
-        ['Run is rejected immediately', 'Submission validation', 'Inspect the field error, resource limits, authentication, and method compatibility.'],
+        ['Run is rejected immediately', 'Submission validation', 'Field messages, local runtime/isolation status, resource limits, and method; cloud authentication only for a cloud action.'],
         ['Run remains Queued', 'Worker or dependency', 'Check destination, private worker heartbeat, shared availability, and predecessors.'],
         ['Worker starts but QE exits', 'Runtime or scientific input', 'Read the first solver error. Check pseudopotential files, species names, syntax, memory, and disk.'],
         ['SCF cycles do not settle', 'Electronic self-consistency', 'Inspect geometry, occupations, magnetism, mixing, thresholds, and near-degenerate states.'],
-        ['Solver finished but result unavailable', 'Upload or completion', 'Keep the worker running; inspect network, credential validity, and final upload state.'],
+        ['Solver finished but result unavailable', 'Persistence or upload', 'Inspect local disk/runtime and final status; hosted upload also depends on network and credentials. Keep the worker running.'],
         ['Open in Figure Lab fails', 'Numerical source retrieval', 'Retry the source. Older runs may need their original numerical file when retained datasets are absent.'],
         ['Overlay or pair warns about context', 'Scientific comparison', 'Read geometry, energy-reference, and path identity. Use independent panels when comparability is not established.'],
         ['Export fails', 'Rendering or font resources', 'Reconnect, reduce an oversized raster, and retry. Keep the figure document and source package.'],

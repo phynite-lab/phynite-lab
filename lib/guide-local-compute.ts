@@ -8,12 +8,44 @@ export function localComputeGuide(locale: Locale): GuideSection {
   return {
     id: 'local-compute',
     group: t('Account & compute', 'Akun & komputasi'),
-    title: t('Connect your computer with Phynite Compute', 'Menghubungkan komputer melalui Phynite Compute'),
+    title: t('Run on your computer: native app and hosted worker', 'Komputasi di komputer sendiri: aplikasi native dan worker website'),
     intro: t(
-      'Run DFT and molecular-dynamics calculations on your own computer through one Phynite connection. Download the helper for your operating system, open it, and approve the connection in your account. Phynite Compute prepares the verified Quantum ESPRESSO, LAMMPS, and OVITO runtimes for you.',
-      'Jalankan kalkulasi DFT dan dinamika molekuler pada komputer sendiri melalui satu koneksi Phynite. Unduh aplikasi pendamping untuk sistem operasi Anda, buka, lalu setujui koneksi pada akun. Phynite Compute menyiapkan runtime Quantum ESPRESSO, LAMMPS, dan OVITO terverifikasi secara otomatis.',
+      'The local npm app runs DFT, MD, and analysis through installed native runtimes without Phynite login or Docker. Its setup lives in Settings → Compute. The hosted website has a separate paired-worker flow, described later in this chapter.',
+      'Aplikasi npm lokal menjalankan DFT, MD, dan analisis melalui runtime native tanpa login Phynite atau Docker. Setup berada di Pengaturan → Komputasi. Website hosted memakai alur worker terhubung yang berbeda, dijelaskan setelah bagian native.',
     ),
     blocks: [
+      {
+        title: t('Native app: install and open', 'Aplikasi native: instal dan buka'),
+        code: 'npm install -g phynite-lab\nphynite-lab',
+        paragraphs: [
+          t('Use Node.js 22.13 or newer. The launcher opens a browser on loopback and stores the database, projects, artifacts, runtimes, and logs under ~/.phynite-lab. A complete published package includes the native core; no source checkout, global Python, Docker, AWS CLI, or Phynite account is required.', 'Gunakan Node.js 22.13 atau lebih baru. Launcher membuka browser pada loopback dan menyimpan database, project, artefak, runtime, serta log di ~/.phynite-lab. Paket publik lengkap menyertakan core native; tidak memerlukan checkout source, Python global, Docker, AWS CLI, atau akun Phynite.'),
+          t('Open Settings → Compute. Inspect the detected platform, CPU/RAM, installed solver capabilities, and isolation probe. Choose DFT, MD/analysis, or both. Internet is needed for initial verified downloads; local scientific execution can work offline once its runtime and required potentials are present.', 'Buka Pengaturan → Komputasi. Periksa platform terdeteksi, CPU/RAM, kemampuan solver terpasang, dan probe isolasi. Pilih DFT, MD/analisis, atau keduanya. Internet diperlukan untuk unduhan terverifikasi pertama; eksekusi ilmiah lokal dapat berjalan offline setelah runtime dan potensial wajib tersedia.'),
+          t('Downloads use pinned versions and checksums, staging, and atomic activation. A failed update retains the previous runtime. Select potential files according to their license, exact identity, checksum, and element mapping.', 'Unduhan memakai versi serta checksum terkunci, staging, dan aktivasi atomik. Pembaruan gagal mempertahankan runtime sebelumnya. Pilih file potensial sesuai lisensi, identitas eksak, checksum, dan pemetaan unsur.'),
+        ],
+        links: [{ label: t('Open Compute', 'Buka Komputasi'), href: '/account/compute' }],
+      },
+      {
+        title: t('Native app: resources, jobs, and recovery', 'Aplikasi native: resource, job, dan pemulihan'),
+        steps: [
+          t('Set default CPU, RAM budget, and parallel jobs in Compute. Defaults start at one job, approximately half the logical cores, and at most half physical RAM. New defaults affect future jobs; an explicit job override does not resize an active job.', 'Atur default CPU, anggaran RAM, dan job paralel pada Komputasi. Default mulai dari satu job, sekitar setengah core logis, dan maksimum setengah RAM fisik. Default baru berlaku untuk job berikutnya; override job tidak mengubah job aktif.'),
+          t('Begin with a small reference calculation. Select Your computer and inspect Log through the final state. Verify actual solver success, convergence, inputs, provenance, and numerical output before interpreting the result.', 'Mulai dengan kalkulasi referensi kecil. Pilih Komputer Anda dan periksa Log sampai status akhir. Verifikasi keberhasilan solver, konvergensi, input, provenance, dan output numerik sebelum menafsirkan hasil.'),
+          t('Guided and manual LAMMPS preserve the chosen physical settings. Manual input also requires a successful native sandbox probe. If isolation is unavailable, follow the shown remediation; manual execution stays blocked.', 'LAMMPS Guided dan manual mempertahankan pengaturan fisik terpilih. Input manual juga memerlukan probe sandbox native berhasil. Bila isolasi tidak tersedia, ikuti perbaikan yang ditampilkan; eksekusi manual tetap diblokir.'),
+          t('Keep the CLI running and the computer awake. Cancel in the job log and wait for the final state. After a crash or restart, inspect interrupted jobs; they are not automatically rerun. A monitored RAM budget is not advertised as an operating-system hard limit.', 'Pertahankan CLI berjalan dan komputer aktif. Batalkan melalui log job dan tunggu status akhir. Setelah crash atau restart, periksa job terinterupsi; job tidak dijalankan ulang otomatis. Anggaran RAM yang dipantau tidak disebut hard limit sistem operasi.'),
+        ],
+        code: 'phynite-lab status\nphynite-lab doctor\nphynite-lab stop',
+      },
+      {
+        title: t('Native app: data, preferences, and optional connections', 'Aplikasi native: data, preferensi, dan koneksi opsional'),
+        paragraphs: [
+          t('SQLite and filesystem data are the primary local copy. Use Settings → Storage to export/import project archives, and keep independent backups. Browser storage holds recoverable drafts and device preferences, not the full native workspace.', 'Data SQLite dan filesystem adalah salinan lokal utama. Gunakan Pengaturan → Penyimpanan untuk ekspor/impor arsip project dan simpan backup terpisah. Storage browser menampung draft pemulihan serta preferensi perangkat, bukan seluruh workspace native.'),
+          t('Appearance, language, keyboard shortcuts, and local notification choices stay in this browser. AI provider accounts use your own CLI/gateway login. Account manages Phynite Cloud separately; login does not upload projects. Cloud Sync is enabled per project, and cloud compute reviews its own input transfer without enabling sync.', 'Tampilan, bahasa, pintasan keyboard, dan pilihan notifikasi lokal tetap pada browser ini. Akun provider AI memakai login CLI/gateway Anda sendiri. Akun mengelola Phynite Cloud secara terpisah; login tidak mengunggah project. Cloud Sync diaktifkan per project, dan compute cloud meninjau transfer input sendiri tanpa mengaktifkan sync.'),
+          t('Billing opens the Phynite website. Finish or cancel jobs, stop the app, update with npm install -g phynite-lab@latest, then reopen. Updating the package preserves data outside its installation directory.', 'Tagihan membuka website Phynite. Selesaikan atau batalkan job, hentikan aplikasi, perbarui dengan npm install -g phynite-lab@latest, lalu buka kembali. Pembaruan paket mempertahankan data di luar direktori instalasi.'),
+        ],
+      },
+      {
+        title: t('Hosted website: connect a personal worker', 'Website hosted: hubungkan worker pribadi'),
+        paragraphs: [t('The following connection-code, downloadable-helper, and Docker instructions apply when using the hosted Phynite website. They are not required by the native npm app. This worker receives hosted jobs and uploads their results to the signed-in account.', 'Instruksi kode koneksi, aplikasi pendamping, dan Docker berikut berlaku saat memakai website Phynite hosted. Aplikasi npm native tidak memerlukannya. Worker ini menerima job hosted dan mengunggah hasil ke akun yang sedang masuk.')],
+      },
       {
         title: t('Plan, review, monitor, compare', 'Rencanakan, tinjau, pantau, bandingkan'),
         steps: [
@@ -40,7 +72,7 @@ export function localComputeGuide(locale: Locale): GuideSection {
         ],
       },
       {
-        title: t('Before you start', 'Sebelum memulai'),
+        title: t('Hosted worker: before you start', 'Worker website: sebelum memulai'),
         paragraphs: [
           t('Choose CPU and RAM per job in Compute settings or the workspace drawer, within the limits shown for DFT, MD simulation, or MD analysis. Allocation describes resources requested for the job. New workers also report the CPU/RAM allocation passed to the launched runtime; this is not hardware utilization. Required capacity depends on atoms, cutoffs, k-points, bands, and calculation type.', 'Pilih CPU dan RAM per job pada pengaturan Compute atau drawer workspace, sesuai batas DFT, simulasi MD, atau analisis MD yang ditampilkan. Alokasi adalah resource yang diminta job. Worker baru juga melaporkan alokasi CPU/RAM yang diteruskan ke runtime saat diluncurkan; ini bukan utilisasi perangkat. Kebutuhannya bergantung pada atom, cutoff, k-point, band, dan jenis kalkulasi.'),
           t('Keep several GB of disk space free for the verified runtime and scientific libraries, plus working space for results. Internet is needed to connect the account, receive calculations, and upload results.', 'Sediakan beberapa GB ruang disk untuk runtime terverifikasi dan pustaka ilmiah, serta ruang kerja hasil. Internet diperlukan untuk menghubungkan akun, menerima kalkulasi, dan mengunggah hasil.'),
@@ -132,7 +164,7 @@ export function localComputeGuide(locale: Locale): GuideSection {
         ],
       },
       {
-        title: t('Advanced manual diagnostics', 'Diagnostik manual lanjutan'),
+        title: t('Hosted worker: advanced Docker diagnostics', 'Worker website: diagnostik Docker lanjutan'),
         paragraphs: [t('Normal setup does not require Terminal or PowerShell. Support may ask you to run the pinned command or read recent service logs. These commands use the same read-only, non-root Docker runtime as the launcher.', 'Setup normal tidak memerlukan Terminal atau PowerShell. Dukungan mungkin meminta Anda menjalankan perintah bertanda versi atau membaca log layanan terbaru. Perintah ini memakai runtime Docker read-only dan non-root yang sama dengan launcher.')],
         code: `${personalComputeCommand()}\n${personalComputeLogs}`,
         note: t('Do not change the image reference, share the private volume, or paste connection codes into support messages.', 'Jangan mengubah referensi image, membagikan volume privat, atau menempelkan kode koneksi dalam pesan dukungan.'),

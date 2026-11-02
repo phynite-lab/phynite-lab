@@ -9,6 +9,6 @@ export default async function AccountSectionPage({ params }: { params: Promise<{
   const { section } = await params;
   if (section === 'admin') redirect('/developer/overview');
   if (section === 'computer' || section === 'preferences') return <AccountLegacyRedirect section={section} />;
-  if (!['compute', 'ai-providers', 'usage', 'storage', 'appearance', 'notifications', 'privacy'].includes(section)) notFound();
+  if (!['compute', 'ai-providers', 'usage', 'storage', 'appearance', 'keyboard', 'notifications', 'account', 'privacy'].includes(section)) notFound();
   return <ResearchAccessGate><AccountExperience section={section as AccountSection} /></ResearchAccessGate>;
 }
