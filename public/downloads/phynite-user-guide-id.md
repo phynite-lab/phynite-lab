@@ -25,7 +25,12 @@ Panduan ini menjelaskan antarmuka yang diimplementasikan. Gunakan bersama dokume
 - [Penyimpanan otomatis dan banyak perangkat](#saving)
 - [Pengaturan, akun, profil, dan pemakaian](#account)
 - [Mengelola paket, tagihan, dan pemakaian](#billing)
-- [Komputasi di komputer sendiri: aplikasi native dan worker website](#local-compute)
+- [Compute npm lokal dan worker hosted](#local-compute)
+- [Instal, perbarui, dan diagnosis aplikasi npm](#npm-local-app)
+- [Akun AI provider di komputer Anda](#ai-providers)
+- [Phynite Cloud, Cloud Sync, dan compute online](#cloud-sync)
+- [Storage, ekspor, backup, dan state QE besar](#storage-backup)
+- [Pengaturan, preferensi, profil, dan pemakaian](#settings-reference)
 - [Tampilan, bahasa, dan aksesibilitas](#language)
 - [Pintasan keyboard dan pointer](#shortcuts)
 - [Referensi: parameter kalkulasi dan satuan](#field-reference)
@@ -972,7 +977,7 @@ Tidak ada tombol Save revision yang wajib. Ctrl/Cmd+S merupakan checkpoint histo
 ### Topik terkait
 
 - [Pengaturan, akun, profil, dan pemakaian](#account)
-- [Komputasi di komputer sendiri: aplikasi native dan worker website](#local-compute)
+- [Compute npm lokal dan worker hosted](#local-compute)
 - [Mengelola paket, tagihan, dan pemakaian](#billing)
 
 <a id="account"></a>
@@ -1063,7 +1068,7 @@ Tagihan pada mode lokal membuka https://phynitelab.com/billing. Akses, harga, ku
 ### Topik terkait
 
 - [Penyimpanan otomatis dan banyak perangkat](#saving)
-- [Komputasi di komputer sendiri: aplikasi native dan worker website](#local-compute)
+- [Compute npm lokal dan worker hosted](#local-compute)
 - [Mengelola paket, tagihan, dan pemakaian](#billing)
 
 <a id="billing"></a>
@@ -1110,13 +1115,21 @@ Akun early access memakai workflow Cloud yang tersedia pada katalog saat ini den
 
 - [Penyimpanan otomatis dan banyak perangkat](#saving)
 - [Pengaturan, akun, profil, dan pemakaian](#account)
-- [Komputasi di komputer sendiri: aplikasi native dan worker website](#local-compute)
+- [Compute npm lokal dan worker hosted](#local-compute)
 
 <a id="local-compute"></a>
 
-## Komputasi di komputer sendiri: aplikasi native dan worker website
+## Compute npm lokal dan worker hosted
 
-Aplikasi npm lokal menjalankan DFT, MD, dan analisis melalui runtime native tanpa login Phynite atau Docker. Setup berada di Pengaturan → Komputasi. Website hosted memakai alur worker terhubung yang berbeda, dijelaskan setelah bagian native.
+Aplikasi npm lokal menjalankan DFT, MD, dan analisis melalui runtime native tanpa login Phynite atau Docker. Setup berada di Pengaturan → Komputasi. Website hosted memakai alur worker terhubung yang berbeda, dijelaskan setelah bagian native; worker hosted bukan fallback runtime untuk aplikasi npm.
+
+### Pilih jalur eksekusi
+
+| Jalur | Kebutuhan | Perilaku data |
+| --- | --- | --- |
+| Komputer Anda / aplikasi npm | Node.js, runtime native, potential, dan probe isolasi. | Project dan hasil tetap di data directory lokal yang dipilih. |
+| Personal worker hosted | Login Cloud, worker berpasangan, dan kebutuhan worker hosted. | Artefak project/job mengikuti akun dan aturan retensi hosted. |
+| Compute Phynite Cloud | Akun Cloud, katalog yang didukung, kuota, dan review transfer. | Hanya input job yang direview yang ditransfer; ini tidak mengaktifkan Cloud Sync. |
 
 ### Aplikasi native: instal dan buka
 
@@ -1316,6 +1329,231 @@ Pemilik komputer dapat memodifikasi perangkat lunaknya sendiri. Ikatan akun meli
 - [Pengaturan, akun, profil, dan pemakaian](#account)
 - [Mengelola paket, tagihan, dan pemakaian](#billing)
 
+<a id="npm-local-app"></a>
+
+## Instal, perbarui, dan diagnosis aplikasi npm
+
+Aplikasi npm publik adalah jalur local-first untuk menjalankan workspace, DFT, MD, dan analisis native di komputer Anda. Login Phynite, Docker, checkout source, dan Python global tidak diperlukan.
+
+### Instal dan jalankan
+
+Paket publik saat ini adalah phynite-lab@0.1.5. Gunakan Node.js dengan versi yang memenuhi >=22.13.0. npm memasang launcher dan paket aplikasi native opsional yang sesuai dengan OS serta CPU.
+
+Pastikan optional dependencies npm tidak dinonaktifkan. Jika paket dipasang dengan --omit=optional atau paket platform dihapus, launcher menampilkan error runtime yang hilang dan tidak diam-diam memakai fixture development.
+
+Launcher mengikat layanan ke loopback, membuka browser, dan menyimpan workspace lokal di ~/.phynite-lab. Project serta runtime pengguna berada di luar direktori instalasi npm.
+
+```text
+npm install -g phynite-lab@latest
+phynite-lab
+```
+
+### Platform yang didukung
+
+| Platform | Paket/runtime | Catatan |
+| --- | --- | --- |
+| macOS Apple Silicon | darwin-arm64 | Paket native arm64. |
+| macOS Intel | darwin-x64 | Paket native x64. |
+| Linux ARM64 | linux-arm64 | Memerlukan glibc >=2.39 dan user namespace yang tersedia. |
+| Linux x64 / Omarchy / Arch | linux-x64 | Memerlukan glibc >=2.39 dan user namespace yang tersedia. |
+| Windows | WSL2 linux-x64 | Jalankan npm dan phynite-lab di dalam WSL2; solver native Windows tidak dipasang. |
+
+> Paket mendeklarasikan target darwin/linux dan arm64/x64. Platform didukung setelah runtime native, probe isolasi, dan pemeriksaan scientific-nya lulus; tersedianya paket saja bukan bukti kualifikasi.
+
+### Perintah launcher dan identitas workspace
+
+Perintah biasa menjalankan service di foreground. --no-open mencetak URL loopback tanpa membuka browser. --port meminta port tertentu; bila sudah dipakai, launcher memilih port loopback yang tersedia dan mencetak origin aktual. --data-dir memberi setiap workspace database, project, runtime, dan log sendiri.
+
+status melaporkan instance sehat untuk data directory tersebut. stop meminta instance workspace berhenti dengan tertib. doctor memeriksa identitas distribusi, kesiapan service, path data, dan diagnosis startup. Menjalankan workspace yang sama lagi memakai instance sehat yang ada, bukan membuat duplikat.
+
+```text
+phynite-lab --no-open --port 3000 --data-dir /path/to/workspace
+phynite-lab status --data-dir /path/to/workspace
+phynite-lab doctor --data-dir /path/to/workspace
+phynite-lab stop --data-dir /path/to/workspace
+```
+
+### Perbarui tanpa menghapus project
+
+Aplikasi lokal dapat menampilkan notifikasi update setelah memeriksa https://registry.npmjs.org/phynite-lab/latest. Pemeriksaan berhasil disimpan maksimal enam jam; response tidak tersedia atau tidak valid dicoba lagi sekitar lima menit. Pemeriksaan tidak mengirim data project atau kredensial, tidak memasang update otomatis, dan tidak memblokir pekerjaan lokal saat offline.
+
+1. Selesaikan atau batalkan job aktif lalu hentikan instance.
+2. Jalankan perintah update npm dari instalasi Node yang sama dengan pemilik paket global.
+3. Buka aplikasi lagi dan cek Pengaturan → Komputasi untuk memastikan kemampuan runtime tetap tersedia.
+4. Jika startup gagal, jalankan phynite-lab doctor dan baca log di data directory; memasang ulang paket tidak menghapus ~/.phynite-lab.
+
+```text
+npm install -g phynite-lab@latest
+phynite-lab --version
+```
+
+### Perbaikan startup npm yang umum
+
+| Gejala | Periksa |
+| --- | --- |
+| Versi Node ditolak | Jalankan node --version dan gunakan versi Node.js yang memenuhi >=22.13.0. |
+| Paket runtime hilang | Pasang ulang dengan optional dependencies aktif dan cek target paket melalui doctor. |
+| Port sudah dipakai | Gunakan --no-open, ikuti port yang dicetak, atau pilih --port yang kosong. |
+| Project tidak terlihat | Gunakan --data-dir yang sama; setiap directory adalah workspace terpisah. |
+| Service berhenti saat startup | Jalankan status dan doctor lalu baca logs/<service>.log di data directory. |
+| Update tidak tersedia | Lanjutkan offline, cek npm/jaringan nanti, lalu coba lagi; notifikasi bersifat informatif. |
+
+- [Referensi distribusi lokal](#local-compute)
+- [Pemecahan masalah dan pemulihan](#troubleshooting)
+
+### Topik terkait
+
+
+
+<a id="ai-providers"></a>
+
+## Akun AI provider di komputer Anda
+
+AI lokal memakai akun dan tool provider yang Anda pilih. Ini terpisah dari login Phynite Cloud dan tidak memakai layanan AI hosted Phynite.
+
+### Hubungkan akun
+
+1. Instal dan autentikasi CLI provider resmi atau atur gateway OpenAI-compatible loopback seperti 9Router di komputer ini.
+2. Buka Pengaturan → Akun provider AI dan pilih koneksi provider.
+3. Selesaikan autentikasi melalui alur milik provider. Login CLI yang didukung dapat dipakai ulang tanpa mengimpor cookie atau file session.
+4. Biarkan aplikasi terbuka saat discovery model dan capability probe berjalan. Halaman hanya memilih model yang lulus pemeriksaan teks, streaming, dan tool.
+
+- [Pengaturan provider AI](/id/account/ai-providers)
+
+### Akun, model, dan limit
+
+Simpan lebih dari satu akun provider dan pindah secara eksplisit ketika limit subscription tercapai. Request yang gagal atau terkena rate limit tidak mengganti provider atau akun secara diam-diam.
+
+Kartu pemakaian hanya menampilkan telemetry yang dilaporkan provider: grup model, persentase session atau mingguan, window, dan waktu reset bila tersedia. Laporan yang hilang tetap ditampilkan tidak tersedia; aplikasi tidak membuat angka token, saldo, atau tanggal reset.
+
+Ketersediaan model dapat berubah mengikuti entitlement provider. Pengaturan model Cloud tidak mengatur akun provider lokal.
+
+### Keamanan dan status yang belum didukung
+
+- Kredensial provider tetap di CLI provider atau credential store lokal dan tidak masuk browser storage, log, arsip project, atau Cloud Sync.
+- Bridge lokal berjalan di loopback dengan shell, MCP, plugin, browser, dan aksi jaringan yang belum diverifikasi dinonaktifkan. Perubahan Canvas tetap mengikuti approval dan validasi yang ada.
+- Jika autentikasi, discovery, streaming, atau verifikasi tool gagal, provider tetap terlihat disconnected atau unavailable sampai diperbaiki. Tidak ada fallback provider otomatis.
+- Akses AI provider terpisah dari instalasi runtime scientific dan dari login Phynite Cloud.
+
+### Topik terkait
+
+- [Phynite Cloud, Cloud Sync, dan compute online](#cloud-sync)
+
+<a id="cloud-sync"></a>
+
+## Phynite Cloud, Cloud Sync, dan compute online
+
+Layanan Cloud adalah koneksi opsional di atas workspace lokal yang lengkap. Login tidak mengunggah project lokal atau mengganti identitas lokalnya.
+
+### Lokal, Cloud Sync, dan compute cloud
+
+| Pilihan | Yang terjadi |
+| --- | --- |
+| Lokal saja | Project, input, hasil, dan runtime tetap di komputer yang dipilih. Login Cloud tidak diperlukan. |
+| Login Cloud | Membuka fitur akun; project lokal tetap lokal sampai aksi project mengaktifkan sync. |
+| Cloud Sync | Diaktifkan per project setelah meninjau cakupan, ukuran, dan kuota. Revision serta artefak project yang diizinkan disinkronkan. |
+| Run on cloud | Hanya mengunggah input/dependensi job yang sudah ditinjau, membuat eksekusi cloud terpisah, lalu mengunduh hasil terverifikasi. Tidak mengaktifkan sync. |
+
+### Siklus sync dan konflik
+
+1. Login dari Pengaturan → Akun dan pertahankan identitas workspace lokal.
+2. Buka kontrol sync project, tinjau file, ukuran, kuota, dan retensi yang ditampilkan, lalu aktifkan Cloud Sync secara eksplisit.
+3. Tunggu outbox persisten selesai. Transfer terputus dapat dilanjutkan dengan checksum; revision Cloud baru diterbitkan setelah seluruh artefak snapshot diverifikasi.
+4. Jika perangkat lain mengubah project, bandingkan revision lokal dan Cloud sebelum memilih pakai lokal, pakai Cloud, atau simpan sebagai salinan.
+5. Gunakan Trash untuk penghapusan Cloud. Tombstone dan masa retensi melindungi salinan Cloud; mematikan sync mempertahankan dua salinan, sedangkan logout menghentikan sync tanpa menghapus data lokal.
+
+### Batas akun dan billing
+
+Antrean sync dan mapping akun terikat pada akun Cloud yang sedang login. Berganti akun tidak melanjutkan upload milik akun lain.
+
+Kuota Cloud, retensi artefak, Trash, dan allowance Free hosted terpisah dari ruang disk lokal. Billing dan perubahan paket tersedia di website hosted; pembelian tidak otomatis menjalankan job.
+
+MD Cloud belum tersedia sampai service yang didukung muncul di katalog aktif. Jangan menyimpulkan ketersediaannya dari runtime MD lokal.
+
+- [Pengaturan akun Cloud](/id/account/account)
+- [Pemakaian dan kuota](/id/account/usage)
+- [Billing hosted](/billing)
+
+### Topik terkait
+
+- [Akun AI provider di komputer Anda](#ai-providers)
+
+<a id="storage-backup"></a>
+
+## Storage, ekspor, backup, dan state QE besar
+
+Storage lokal adalah disk yang tersedia untuk workspace terpilih. Storage Cloud adalah layanan akun dengan kuota dan retensi sendiri.
+
+### Yang diukur Storage lokal
+
+Data directory default adalah ~/.phynite-lab. Gunakan --data-dir bila disk yang lebih besar atau terpisah lebih sesuai. Mode lokal tidak memiliki kuota tetap 10 GiB dan tidak menghapus artefak otomatis setelah tujuh hari; ruang disk kosong adalah batas praktisnya.
+
+| Dihitung | Di luar inventaris project |
+| --- | --- |
+| Struktur, input, konfigurasi, hasil selesai, trajectory, dan arsip project yang terinventarisasi. | Metadata SQLite, file instalasi solver/runtime, log worker, cache browser, dan file lain di disk. |
+| State intermediate yang dipertahankan sebagai artefak project. | Ruang kosong sistem operasi dan data aplikasi lain. |
+
+### File intermediate dan wavefunction QE
+
+- Pengaturan disk_io dan state sementara dapat jauh lebih besar daripada ringkasan SCF akhir.
+- Data wavefunction dan tmp mungkin diperlukan untuk band, DOS, fonon, workflow projected, checkpoint, atau interoperabilitas eksternal.
+- Jangan menghapus state intermediate sebelum semua workflow lanjutan selesai. Simpan input eksak, identitas dan checksum pseudopotensial, provenance, serta artefak state bersama-sama.
+- Wannier90 adalah workflow eksternal/manual kecuali ada integrasi native yang didokumentasikan terpisah; ikuti kebutuhan handoff resminya.
+
+- [Dokumentasi Quantum ESPRESSO](https://www.quantum-espresso.org/documentation/)
+- [Dokumentasi Wannier90](https://wannier.org/documentation/)
+
+### Ekspor, impor, dan backup
+
+1. Ekspor arsip project dari Pengaturan → Penyimpanan sebelum memindahkan workspace atau melakukan perubahan destruktif.
+2. Simpan backup kedua di luar ~/.phynite-lab, termasuk input eksak, identitas/checksum potential, provenance, dan state intermediate yang diperlukan workflow lanjutan.
+3. Impor ke data directory baru terlebih dahulu dan periksa struktur, konfigurasi, hasil, serta checksum sebelum mengganti salinan kerja.
+4. Gunakan Source package untuk figur; itu tidak menggantikan arsip project atau backup runtime solver.
+
+- [Pengaturan penyimpanan](/id/account/storage)
+
+### Topik terkait
+
+
+
+<a id="settings-reference"></a>
+
+## Pengaturan, preferensi, profil, dan pemakaian
+
+Pengaturan memisahkan preferensi perangkat, compute scientific, akun AI provider, status akun Cloud, pemakaian, storage, dan privasi.
+
+### Memilih halaman yang tepat
+
+| Halaman | Fungsi | Tempat tersimpan |
+| --- | --- | --- |
+| Tampilan & bahasa | Tema, aksen, kepadatan, ukuran teks, reduced motion, dan bahasa. | Browser/perangkat ini. |
+| Pintasan keyboard | Binding aplikasi yang didukung. | Browser/perangkat ini. |
+| Notifikasi | Alert job/runtime dan izin desktop. | Browser/perangkat ini; delivery hosted mengikuti akun. |
+| Komputasi | Instalasi runtime, probe isolasi, default CPU/RAM/job, dan transfer Cloud. | Workspace lokal atau akun Cloud sesuai kontrolnya. |
+| Akun provider AI | Login provider, pergantian akun, kesiapan model, limit, dan reset. | CLI provider/credential store lokal. |
+| Akun | Login/logout Phynite Cloud dan sync per project. | Akun Cloud; data lokal tetap lokal. |
+| Profil | Identitas riset yang tampil setelah login Cloud. | Akun Cloud. |
+| Pemakaian | Job scientific dan pemakaian AI yang dilaporkan provider. | Record eksekusi/provider nyata. |
+| Penyimpanan / Privasi | Inventaris project, arsip, session, dan batas data lokal. | Workspace lokal dan browser. |
+
+### Tema, notifikasi, dan pintasan
+
+Perubahan Appearance langsung berlaku dan tetap device-only kecuali halaman secara eksplisit menawarkan default akun Cloud. Light, dark, system, aksen, kepadatan, ukuran teks kode, reduced motion, dan bahasa dapat diatur terpisah.
+
+Preferensi notifikasi mengatur alert job/runtime lokal dan izin browser. Preferensi itu tidak membuat session Cloud atau mengunggah project.
+
+Perubahan keyboard berlaku untuk binding aplikasi yang didukung pada browser ini. Shortcut browser dan sistem operasi dapat tetap mengambil alih.
+
+### Profil dan visibilitas login
+
+Workspace lokal tanpa login Cloud tidak menampilkan user profile. Hubungkan akun Cloud sebelum membuka Profil; logout menghapus kontrol profil tetapi mempertahankan project dan identitas lokal.
+
+Login AI provider terpisah dari login Cloud. Akun provider dapat dihubungkan saat Phynite Cloud tetap logout.
+
+### Topik terkait
+
+
+
 <a id="language"></a>
 
 ## Tampilan, bahasa, dan aksesibilitas
@@ -1361,7 +1599,7 @@ Dokumentasi English memakai /guide/topik dan Indonesia /id/guide/topik. Perganti
 
 - [Penyimpanan otomatis dan banyak perangkat](#saving)
 - [Pengaturan, akun, profil, dan pemakaian](#account)
-- [Komputasi di komputer sendiri: aplikasi native dan worker website](#local-compute)
+- [Compute npm lokal dan worker hosted](#local-compute)
 
 <a id="shortcuts"></a>
 
@@ -1482,6 +1720,26 @@ Bahasa wilayah tidak mengubah sintaks solver. QE, CSV, dan kode mempertahankan f
 ## Pemecahan masalah dan pemulihan
 
 Mulai dari pesan yang terlihat dan tahap pertama yang gagal. Simpan data lokal yang belum tersinkron sebelum mencoba pemulihan yang menghapus data browser.
+
+### Diagnosis run npm lokal
+
+Status Completed berarti proses dan persistence yang diwajibkan selesai; itu belum membuktikan konvergensi atau validitas scientific. Simpan input eksak dan log gagal sebelum mencoba ulang. Percobaan baru harus memakai perubahan yang ditinjau secara eksplisit.
+
+| Tahap | Makna | Tempat memeriksa |
+| --- | --- | --- |
+| Sebelum solver dimulai | Setup, runtime, potential, validasi input, isolasi, atau kesiapan worker menolak job. Tidak ada output solver. | Run review, Pengaturan → Komputasi, phynite-lab doctor, dan log data directory terpilih. |
+| Queued | Job menunggu dependency atau worker lokal yang tersedia. | Status job, record dependency, status worker, dan histori notifikasi. |
+| Setelah solver dimulai | Solver atau analisis mengembalikan error atau terinterupsi. | Execution log, error solver pertama yang bermakna, input tersimpan, provenance, dan artefak. |
+| Persistence/upload | Kalkulasi mungkin selesai tetapi penyimpanan atau transfer gagal. | Status hasil, checksum/provenance, inventaris storage, jaringan, dan status transfer Cloud. |
+
+### Urutan pemulihan launcher
+
+1. Jalankan phynite-lab status dengan --data-dir yang sama saat aplikasi dijalankan.
+2. Jalankan phynite-lab doctor dan catat diagnosis distribusi, port, runtime, dan path data.
+3. Baca log service serta worker terbaru di data directory terpilih.
+4. Jika instance sehat, buka origin loopback yang dicetak dan jangan membuat workspace baru.
+5. Jika aktivasi update atau runtime gagal, pertahankan runtime aktif sebelumnya, perbaiki penyebabnya, lalu coba lagi dari Pengaturan → Komputasi.
+6. Setelah restart, periksa job yang terinterupsi; job lokal tidak dijalankan ulang otomatis.
 
 ### Masalah umum
 
@@ -1633,3 +1891,6 @@ Panduan antarmuka tidak menggantikan studi konvergensi, dokumentasi versi solver
 - https://docs.materialsproject.org/
 - https://seekpath.readthedocs.io/
 - https://www.boltztrap.org/
+- https://docs.lammps.org/
+- https://www.ovito.org/docs/
+- https://wannier.org/documentation/

@@ -1,10 +1,15 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { getGuideSections } from '../lib/guide-library.ts';
+import { materializeGuideSections } from '../lib/guide-release.ts';
+import { getLocalReleaseMetadata } from '../lib/local-release-metadata.ts';
 import { guidePath, guideRoute } from '../lib/guide-routing.ts';
 import { publicSiteOrigin } from '../lib/site-metadata.ts';
 
+const release = await getLocalReleaseMetadata();
+console.log(`Documentation release metadata: ${release.packageName}@${release.version} (${release.versionSource})`);
+
 for (const locale of ['en', 'id']) {
-const guideSections = getGuideSections(locale);
+const guideSections = materializeGuideSections(getGuideSections(locale), release);
 
 let markdown = locale === 'id' ? '# Panduan Pengguna Phynite Lab\n\n' : '# Phynite Lab User Guide\n\n';
 markdown += locale === 'id' ? 'Panduan ini menjelaskan antarmuka yang diimplementasikan. Gunakan bersama dokumentasi solver dan uji konvergensi.\n\n' : 'This guide describes the implemented interface. Use it alongside solver documentation and convergence studies.\n\n';
@@ -35,7 +40,7 @@ for (const section of guideSections) {
     await writeFile('docs/personal-compute.md', standalone);
   }
 }
-markdown += (locale === 'id' ? '## Referensi ilmiah\n\n' : '## Scientific references\n\n') + '- https://www.quantum-espresso.org/documentation/\n- https://docs.materialsproject.org/\n- https://seekpath.readthedocs.io/\n- https://www.boltztrap.org/\n';
+markdown += (locale === 'id' ? '## Referensi ilmiah\n\n' : '## Scientific references\n\n') + '- https://www.quantum-espresso.org/documentation/\n- https://docs.materialsproject.org/\n- https://seekpath.readthedocs.io/\n- https://www.boltztrap.org/\n- https://docs.lammps.org/\n- https://www.ovito.org/docs/\n- https://wannier.org/documentation/\n';
 await mkdir('public/downloads', { recursive: true });
 await writeFile(`public/downloads/phynite-user-guide${locale === 'id' ? '-id' : ''}.md`, markdown);
 await writeFile(`docs/user-guide${locale === 'id' ? '-id' : ''}.md`, markdown);

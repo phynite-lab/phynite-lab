@@ -11,12 +11,14 @@ npm install -g phynite-lab
 phynite-lab
 ```
 
-Requires Node.js 22.13 or later. Version 0.1.5 ships native packages for macOS
+Requires Node.js 22.13 or later. Each published version ships matching native
+packages for macOS
 Apple Silicon (`darwin-arm64`), macOS Intel (`darwin-x64`), Linux ARM64
 (`linux-arm64`) and Linux x64 (`linux-x64`, glibc >=2.39), including current
 Omarchy/Arch Linux. Windows is supported through WSL2, which uses the Linux x64
-package and launcher. Linux qualification runs on matching hosted runners;
-direct testing on an Omarchy desktop or Windows host is not claimed.
+package and launcher. Linux qualification runs on matching release builders;
+direct testing on an arbitrary Omarchy desktop or Windows host is not claimed;
+consult the release evidence for the targets exercised for the installed version.
 npm selects the exact-version native platform optional package containing
 the production app, frozen local core and Linux sandbox; it does not require
 a global Python installation, AWS CLI, or Docker. Scientific solver runtimes are
@@ -51,7 +53,21 @@ also provides a source link. Updated packages do not remove saved data:
 npm install -g phynite-lab@latest
 ```
 
+The launcher checks `https://registry.npmjs.org/phynite-lab/latest` without
+credentials. Successful metadata is cached for up to six hours and an unavailable
+registry response for five minutes. The update notice is informational only and
+never runs npm for you. Offline use remains available; stop the current instance,
+run the update command, and start it again. To verify the published metadata from
+a terminal, run `npm view phynite-lab version` and inspect the installed launcher
+with `phynite-lab --version`.
+
 The first solver installation downloads the chosen runtime from the setup page.
+
+Complete English and Indonesian user documentation is available at
+https://phynitelab.com/guide, including the npm install/update path, local AI
+provider accounts, Cloud Sync, storage and QE intermediate-state guidance,
+Settings, and troubleshooting. The guide links to the matching source and
+downloadable Markdown copies.
 
 First run checklist: open **Settings → Compute**, verify the platform, solver
 capability, and isolation probe, install DFT or MD/analysis, install the required

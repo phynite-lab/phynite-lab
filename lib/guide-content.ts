@@ -420,6 +420,13 @@ export const guideSections: GuideSection[] = [
     id: 'troubleshooting', group: 'Reference', title: 'Troubleshooting and recovery',
     intro: 'Start with the exact state and the most recent message. Repeatedly rerunning a failing input often wastes time without fixing its cause.',
     blocks: [
+      { title: 'Local npm run diagnosis', table: { headings: ['Stage', 'What it means', 'Where to look'], rows: [
+        ['Before solver start', 'Setup, runtime, potential, input validation, isolation, or worker readiness rejected the job. No solver output exists.', 'Run review, Settings → Compute, phynite-lab doctor, and the selected data directory logs.'],
+        ['Queued', 'The job is waiting for a dependency or available local worker.', 'Job status, dependency record, worker status, and notification history.'],
+        ['After solver start', 'The solver or analysis process returned an error or was interrupted.', 'Execution log, first meaningful solver error, saved input, provenance, and retained artifacts.'],
+        ['Persistence/upload', 'The calculation may have finished but saving or transfer failed.', 'Result state, checksum/provenance, storage inventory, network, and Cloud transfer status.'],
+      ] }, paragraphs: ['A Completed status means the process and required persistence steps finished; it does not establish convergence or scientific validity. Preserve the exact input and failed log before retrying. A new attempt should use an explicit, reviewed change.'] },
+      { title: 'Launcher recovery sequence', steps: ['Run phynite-lab status with the same --data-dir used to start the app.', 'Run phynite-lab doctor and record the displayed distribution, port, runtime, and data-path diagnostics.', 'Read the latest service and worker log in the selected data directory.', 'If the instance is healthy, open the printed loopback origin rather than starting another workspace.', 'If an update or runtime activation failed, keep the previous active runtime, fix the reported cause, and retry from Settings → Compute.', 'After a restart, inspect interrupted jobs; local jobs are not automatically rerun.'] },
       { title: 'Common problems', table: { headings: ['Problem', 'What to do'], rows: [
         ['Figure opens empty', 'Check that the project has completed plottable data. Open a specific run, retry source loading, or import an original numerical file.'],
         ['Band + DOS is not verified', 'Check geometry/electronic source identity and energy metadata. Do not force unrelated calculations into a verified pair.'],

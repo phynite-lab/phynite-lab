@@ -227,7 +227,7 @@ the eventual publisher:
 python3 scripts/build-native-runtime.py \
   --source /absolute/path/to/prepared-md-runtime \
   --output /absolute/path/to/review-output \
-  --component md --version 0.1.0 --platform darwin-arm64 \
+  --component md --version <VERSION> --platform darwin-arm64 \
   --release-base-url https://YOUR-RELEASE-HOST.example/native \
   --executable python=bin/python3 \
   --executable lmp=bin/lmp \

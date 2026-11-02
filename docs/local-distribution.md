@@ -28,7 +28,7 @@ Do not assemble a release using stale cores or application output from another
 commit or platform. Solver scientific libraries belong in the optional runtime,
 not the npm package. Do not include restricted pseudopotentials or potentials.
 
-The 0.1.5 npm release ships `darwin-arm64` (macOS Apple Silicon), `darwin-x64`
+The published npm release ships `darwin-arm64` (macOS Apple Silicon), `darwin-x64`
 (macOS Intel), `linux-arm64`, and `linux-x64` (glibc >=2.39, including current
 Omarchy/Arch Linux). Windows WSL2 uses the Linux x64 package because WSL2 reports
 that native platform to Node and npm. Each native package is built and qualified
@@ -60,13 +60,19 @@ app, update in the terminal, and reopen it. Updates are never installed
 automatically. Offline checks do not block local work; the request sends no
 project data or account credentials. Development checkouts do not check npm.
 
+The check reads only the public `latest` package metadata, uses a short timeout,
+and bounds the response. A registry failure is shown as unknown and cached only
+briefly, so it never blocks local work. Verify the installed launcher with
+`phynite-lab --version` and compare it with `npm view phynite-lab version` after an
+update. The launcher does not silently downgrade or replace an active runtime.
+
 Unprivileged user namespaces must be available in the running kernel and policy.
 Compute setup's real write/network confinement probe determines availability; a disabled
 namespace or security-policy restriction blocks manual MD and runtime setup with
-its actual diagnostic. The application never disables those restrictions. Ubuntu
-CI uses an exact-path, ephemeral AppArmor fixture rather than a global sysctl
-change; this fixture is never installed on users' machines. Direct Omarchy desktop
-testing is not part of this release's evidence; native qualification uses Ubuntu
+its actual diagnostic. The application never disables those restrictions. The
+qualification environment uses an exact-path, ephemeral AppArmor fixture rather
+than a global sysctl change; this fixture is never installed on users' machines.
+Direct Omarchy desktop testing is not part of this release's evidence; native qualification uses Ubuntu
 24.04 x64.
 
 ## A run fails before the solver starts
@@ -223,11 +229,13 @@ The acceptance script installs the launcher and the host platform tarball offlin
 into a clean prefix, with no source checkout, user credentials, global Python or
 Docker. It requires an already installed Chromium and a real frozen native core;
 process fixtures are rejected by executable magic. It never downloads a browser.
+Set `RELEASE_VERSION` from `packages/phynite-lab/package.json` and make sure the
+same version is present in every optional runtime package before packing.
 
 ```sh
 node scripts/smoke-local-distribution.mjs \
-  --tarball /path/to/tarballs/phynite-lab-0.1.5.tgz \
-  --runtime-tarball /path/to/tarballs/phynite-lab-runtime-darwin-arm64-0.1.5.tgz \
+  --tarball /path/to/tarballs/phynite-lab-$RELEASE_VERSION.tgz \
+  --runtime-tarball /path/to/tarballs/phynite-lab-runtime-darwin-arm64-$RELEASE_VERSION.tgz \
   --output /path/to/new-evidence
 ```
 
@@ -250,5 +258,7 @@ it in a URL, package, log, browser storage or project archive.
 shell settings. The core/web monitor `PHYNITE_PARENT_PID` and stop if orphaned.
 All listeners bind loopback; authenticated instance control never signals a PID
 from an unverified stale file. Shutdown retains user data in `~/.phynite-lab`.
-Ordinary pushes validate source. An explicit versioned release builds, qualifies
-and publishes; users update with `npm install -g phynite-lab@latest`.
+Release preparation is a deliberate manual operation: assemble the exact source
+commit, run the package, browser, scientific, sandbox, and license checks, inspect
+the manifests, then publish the immutable packages in platform order. No push or
+CI job publishes a release. Users update with `npm install -g phynite-lab@latest`.
