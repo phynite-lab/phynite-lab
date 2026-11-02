@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { createServer as createHttpServer } from 'node:http';
 import { createHash } from 'node:crypto';
 import { chmod, cp, mkdtemp, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
@@ -99,6 +100,37 @@ test('startup diagnostics identify the failed service and preserve actionable lo
   assert.match(error.message, /secret=\[redacted\]/);
   assert.doesNotMatch(error.message, /do-not-print/);
   assert.match(error.message, /Local files were retained/);
+});
+
+test('CLI adopts a healthy source local workspace without starting a duplicate core', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'phynite-adopt-existing-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const dataDir = join(directory, 'data');
+  await mkdir(join(dataDir, 'runtime'), { recursive: true });
+  const identity = await realpath(dataDir);
+  const token = 'fixture-existing-service-token-with-32-characters';
+  const api = createHttpServer((request, response) => {
+    response.setHeader('Content-Type', 'application/json');
+    if (request.url === '/__local/health') response.end(JSON.stringify({ ready: true, environment: 'local' }));
+    else if (request.url === '/__local/session') response.end(JSON.stringify({ mode: 'local', user: { id: identity } }));
+    else { response.statusCode = 404; response.end('{}'); }
+  });
+  const ui = createHttpServer((request, response) => {
+    response.setHeader('Content-Type', 'application/json');
+    response.end(JSON.stringify(request.url === '/api/auth/session' ? { mode: 'local', user: { id: identity } } : {}));
+  });
+  await new Promise<void>(accept => api.listen(0, '127.0.0.1', accept));
+  await new Promise<void>(accept => ui.listen(0, '127.0.0.1', accept));
+  const apiPort = (api.address() as { port: number }).port, uiPort = (ui.address() as { port: number }).port;
+  await writeFile(join(dataDir, 'core-service.json'), JSON.stringify({ token, origin: `http://127.0.0.1:${apiPort}`, uiOrigin: `http://127.0.0.1:${uiPort}` }), { mode: 0o600 });
+  t.after(async () => {
+    await new Promise<void>(accept => api.close(() => accept()));
+    await new Promise<void>(accept => ui.close(() => accept()));
+  });
+  const result = await launch(['--no-open', '--data-dir', dataDir], join(directory, 'does-not-contain-a-package')).finished;
+  assert.equal(result.code, 0);
+  assert.match(result.output, /already running at/);
+  assert.match(result.output, /healthy local service/);
 });
 
 test('distribution refuses missing and tampered core binaries and private files', async t => {

@@ -97,6 +97,37 @@ async function control(instance, action) {
   } catch { return null; }
 }
 
+function localOrigin(value) {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'http:' || parsed.hostname !== HOST || parsed.username || parsed.password || parsed.search || parsed.hash) return null;
+    return parsed.origin;
+  } catch { return null; }
+}
+
+// A source checkout may already have a local core/UI pair using this workspace.
+// Reuse only a healthy loopback pair; never infer liveness from a lock file or
+// signal a process we did not start.
+async function healthyExistingWorkspace(dataDir) {
+  const service = await readJson(join(dataDir, 'core-service.json'));
+  const apiOrigin = localOrigin(service?.origin), uiOrigin = localOrigin(service?.uiOrigin);
+  if (!apiOrigin || !uiOrigin || typeof service?.token !== 'string' || service.token.length < 32) return null;
+  try {
+    const headers = { Authorization: `Bearer ${service.token}` };
+    const healthReply = await fetch(`${apiOrigin}/__local/health`, { headers, redirect: 'error', signal: AbortSignal.timeout(1200) });
+    if (!healthReply.ok) return null;
+    const health = await healthReply.json();
+    if (health.ready !== true || (health.environment !== 'local' && health.mode !== 'local')) return null;
+    const sessionReply = await fetch(`${apiOrigin}/__local/session`, { headers, redirect: 'error', signal: AbortSignal.timeout(1200) });
+    const session = await sessionReply.json();
+    if (!sessionReply.ok || session.mode !== 'local' || typeof session.user?.id !== 'string' || !session.user.id) return null;
+    const uiReply = await fetch(`${uiOrigin}/api/auth/session`, { redirect: 'error', signal: AbortSignal.timeout(1200) });
+    const uiSession = await uiReply.json();
+    if (!uiReply.ok || uiSession.mode !== 'local' || uiSession.user?.id !== session.user.id) return null;
+    return { url: uiOrigin };
+  } catch { return null; }
+}
+
 async function freePort(preferred = 0) {
   const server = createNetServer();
   try {
@@ -224,6 +255,13 @@ export async function runCli(args = process.argv.slice(2), { packageRoot = PACKA
   const instanceFile = join(runtimeDir, INSTANCE_NAME), lockFile = join(runtimeDir, LOCK_NAME);
   const existing = await control(await readJson(instanceFile), 'status');
   if (existing) { console.log(`Phynite Lab is running at ${existing.url}`); if (options.open) await openBrowser(existing.url); return; }
+  const adopted = await healthyExistingWorkspace(dataDir);
+  if (adopted) {
+    console.log(`Phynite Lab is already running at ${adopted.url}`);
+    console.log(`Using the healthy local service for ${dataDir}; its owner remains responsible for stopping it.`);
+    if (options.open) await openBrowser(adopted.url);
+    return;
+  }
   const distribution = await verifyDistribution(packageRoot, target);
   const instanceId = randomBytes(16).toString('hex');
   let lock;
