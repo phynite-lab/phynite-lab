@@ -7,7 +7,7 @@ import { bundledLocalRelease } from '../lib/local-release-metadata.ts';
 import { GUIDE_TOPIC_IDS } from '../lib/guide-routing.ts';
 
 test('English and Indonesian documentation expose the same guide topics', () => {
-  const ids = ['en', 'id'].map(locale => {
+  const ids = (['en', 'id'] as const).map(locale => {
     const sections = materializeGuideSections(getGuideSections(locale), bundledLocalRelease);
     assert.deepEqual(sections.map(section => section.id), [...GUIDE_TOPIC_IDS]);
     const content = JSON.stringify(sections);
