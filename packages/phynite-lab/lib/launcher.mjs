@@ -16,6 +16,8 @@ const COMMANDS = new Set(['start', 'status', 'stop', 'doctor']);
 const HOST = '127.0.0.1';
 const INSTANCE_NAME = 'instance.json';
 const LOCK_NAME = 'launcher.lock';
+const STARTUP_LOG_LIMIT = 6000;
+const STARTUP_LOG_LINES = 40;
 
 export function parseArguments(args, home = homedir()) {
   const options = { command: 'start', port: 3000, dataDir: join(home, '.phynite-lab'), open: true };
@@ -108,17 +110,45 @@ async function freePort(preferred = 0) {
   }
 }
 
-async function waitReady(url, child, validate, timeout = 30000) {
+async function readStartupLog(logPath) {
+  if (!logPath) return '';
+  try {
+    const text = await readFile(logPath, 'utf8');
+    const lines = text.split(/\r?\n/).filter(Boolean);
+    const tail = lines.slice(-STARTUP_LOG_LINES).join('\n').slice(-STARTUP_LOG_LIMIT);
+    // Logs are useful diagnostics, but credentials must never be echoed to a terminal.
+    return tail.replace(/(authorization\s*[:=]\s*bearer\s+)[^\s,}]+/gi, '$1[redacted]')
+      .replace(/((?:token|secret|password|api[-_]?key)\s*[:=]\s*)[^\s,}]+/gi, '$1[redacted]');
+  } catch { return ''; }
+}
+
+export async function startupFailure(name, child, logPath, reason = 'stopped during startup') {
+  const details = [];
+  if (child?.spawnError) details.push(`could not start: ${child.spawnError.message}`);
+  else if (child?.signalCode) details.push(`was terminated by ${child.signalCode}`);
+  else if (child?.exitCode !== null && child?.exitCode !== undefined) details.push(`exited with code ${child.exitCode}`);
+  const tail = await readStartupLog(logPath);
+  const schedulerConflict = /Another scheduler already owns this local workspace/i.test(tail);
+  let message = `The ${name} service ${reason}${details.length ? ` (${details.join(', ')})` : ''}.`;
+  if (schedulerConflict) {
+    message += ' Another Phynite Lab process already owns this workspace. Use `phynite-lab status` or `phynite-lab stop` for the same data directory, or start with `--data-dir` for a separate workspace.';
+  }
+  if (tail) message += `\nRecent ${name} log:\n${tail}`;
+  message += ' Local files were retained.';
+  return new Error(message);
+}
+
+async function waitReady(url, child, validate, timeout = 30000, name = 'local service', logPath) {
   const end = Date.now() + timeout;
   while (Date.now() < end) {
-    if (child.exitCode !== null || child.signalCode !== null || child.spawnError) throw new Error('A local service stopped during startup. See the logs in your data directory.');
+    if (child.exitCode !== null || child.signalCode !== null || child.spawnError) throw await startupFailure(name, child, logPath);
     try {
       const reply = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(1000) });
       if ((reply.ok || [301, 302, 303, 307, 308].includes(reply.status)) && await validate(reply)) return;
     } catch { /* A starting service is not ready yet. */ }
     await delay(100);
   }
-  throw new Error('Local startup timed out. See the logs in your data directory.');
+  throw await startupFailure(name, child, logPath, `did not become ready at ${url} before the startup timeout`);
 }
 
 export async function verifyDistribution(root = PACKAGE_ROOT, target = distributionPlatform()) {
@@ -254,7 +284,7 @@ export async function runCli(args = process.argv.slice(2), { packageRoot = PACKA
           return child;
         };
         const core = await launch('core', distribution.executable, ['--data-dir', dataDir, '--port', String(corePort), '--ui-origin', url], dirname(distribution.executable));
-        await waitReady(`${apiOrigin}/__local/health`, core, async response => { const value = await response.json(); return value.ready === true && (value.environment === 'local' || value.mode === 'local'); });
+        await waitReady(`${apiOrigin}/__local/health`, core, async response => { const value = await response.json(); return value.ready === true && (value.environment === 'local' || value.mode === 'local'); }, 30000, 'core', join(logsDir, 'core.log'));
         const service = await readJson(join(dataDir, 'core-service.json'));
         if (!service || service.origin !== apiOrigin || service.uiOrigin !== url || typeof service.token !== 'string' || service.token.length < 32) {
           throw new Error('The local core did not provide a valid private service session.');
@@ -271,7 +301,7 @@ export async function runCli(args = process.argv.slice(2), { packageRoot = PACKA
         await waitReady(`${url}/api/auth/session`, web, async response => {
           const session = await response.json();
           return session.mode === 'local' && session.user?.id === coreSession.user.id;
-        });
+        }, 30000, 'web', join(logsDir, 'web.log'));
         break;
       } catch (error) {
         for (const child of attemptedChildren) children.delete(child);

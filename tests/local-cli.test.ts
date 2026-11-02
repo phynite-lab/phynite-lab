@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import { distributionPlatform, parseArguments, verifyDistribution } from '../packages/phynite-lab/lib/launcher.mjs';
+import { distributionPlatform, parseArguments, startupFailure, verifyDistribution } from '../packages/phynite-lab/lib/launcher.mjs';
 import { checkDistribution, prohibitedDistributionPath } from '../packages/phynite-lab/lib/check-distribution.mjs';
 import { validateCloudConfig } from '../packages/phynite-lab/lib/cloud-config.mjs';
 import { DISTRIBUTION_TARGETS, platformPackageName, releaseSource, verifyRuntimePackage } from '../packages/phynite-lab/lib/distribution.mjs';
@@ -85,6 +85,20 @@ test('CLI accepts documented options and rejects unsupported arguments', () => {
   for (const args of [['--port', '0'], ['--port', '3000x'], ['--data-dir'], ['--host', '0.0.0.0'], ['start', 'stop']]) assert.throws(() => parseArguments(args));
   assert.equal(distributionPlatform('linux', 'x64'), 'linux-x64');
   assert.throws(() => distributionPlatform('win32', 'x64'), /WSL2/);
+});
+
+test('startup diagnostics identify the failed service and preserve actionable log context', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'phynite-startup-diagnostics-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const logPath = join(directory, 'core.log');
+  await writeFile(logPath, 'first line\nAnother scheduler already owns this local workspace.\nsecret=do-not-print\n');
+  const error = await startupFailure('core', { exitCode: 1, signalCode: null }, logPath);
+  assert.match(error.message, /core service stopped during startup/);
+  assert.match(error.message, /exited with code 1/);
+  assert.match(error.message, /Another Phynite Lab process already owns this workspace/);
+  assert.match(error.message, /secret=\[redacted\]/);
+  assert.doesNotMatch(error.message, /do-not-print/);
+  assert.match(error.message, /Local files were retained/);
 });
 
 test('distribution refuses missing and tampered core binaries and private files', async t => {
