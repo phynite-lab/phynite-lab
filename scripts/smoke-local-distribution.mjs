@@ -193,7 +193,7 @@ try {
   await expect(page.locator('.settings-row').filter({ hasText: 'Gateway status' }).getByRole('button', { name: 'Disconnect', exact: true })).toHaveCount(0);
   assert.equal((await api(page, '/api/local/gateway')).configured, false);
   await page.goto(initial.origin + '/account/compute', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByRole('link', { name: 'Open local settings', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Compute', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Disconnect computer', exact: true })).toHaveCount(0);
   await page.goto(initial.origin + '/account/privacy', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'Local privacy', exact: true })).toBeVisible();
