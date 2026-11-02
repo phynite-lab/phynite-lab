@@ -1,0 +1,21 @@
+/* Device preferences affect interface chrome, never scientific input values. */
+:root { --ui-text-scale: 1; --ui-code-size: 12px; }
+:root[data-custom-colors="true"] :is(.research-app-shell,.settings-page) { --canvas: var(--device-background); --surface: var(--device-background); --raised: var(--device-background); --surface-subtle: color-mix(in srgb, var(--device-background) 94%, var(--device-foreground)); --ink: var(--device-foreground); --muted-ink: color-mix(in srgb, var(--device-foreground) 75%, var(--device-background)); --line: color-mix(in srgb, var(--device-foreground) 18%, var(--device-background)); --line-strong: color-mix(in srgb, var(--device-foreground) 45%, var(--device-background)); --research-rail-bg: var(--surface-subtle); --research-sidebar-bg: var(--canvas); --research-sidebar-ink: var(--ink); --research-sidebar-muted: var(--muted-ink); --research-sidebar-selected: var(--surface-subtle); }
+:root[data-ui-density="compact"] :is(.research-app-shell,.settings-page) { --control-height: 32px; }
+:root[data-ui-accent="blue"] { --accent: #2454ba; --accent-strong: #193e94; --accent-soft: #e9effd; --on-accent: #fff; }
+:root[data-ui-accent="violet"] { --accent: #7140b0; --accent-strong: #57278e; --accent-soft: #f1eafb; --on-accent: #fff; }
+:root[data-ui-accent="green"] { --accent: #216443; --accent-strong: #154c30; --accent-soft: #e8f4ed; --on-accent: #fff; }
+:root[data-ui-accent="orange"] { --accent: #9d480f; --accent-strong: #793309; --accent-soft: #fff0e5; --on-accent: #fff; }
+:root[data-site-theme="dark"][data-ui-accent="blue"] { --accent: #9cb8ff; --accent-strong: #c3d3ff; --accent-soft: #182744; --on-accent: #091326; }
+:root[data-site-theme="dark"][data-ui-accent="violet"] { --accent: #c5a5f6; --accent-strong: #e0c9ff; --accent-soft: #30203f; --on-accent: #190b28; }
+:root[data-site-theme="dark"][data-ui-accent="green"] { --accent: #8ed4ac; --accent-strong: #b4e9c9; --accent-soft: #153326; --on-accent: #082015; }
+:root[data-site-theme="dark"][data-ui-accent="orange"] { --accent: #f5b17d; --accent-strong: #ffd4b1; --accent-soft: #3c261a; --on-accent: #281305; }
+:root[data-ui-density="compact"] .settings-row { padding-block: 15px; }
+:root[data-ui-density="compact"] :is(.research-sidebar-browse a,.settings-nav-group > a) { min-height: 32px; padding-block: 6px; }
+:root[data-ui-density="compact"] :is(.lab-button,.ui-select-trigger) { min-height: 32px; padding-block: 6px; }
+:root[data-ui-density="compact"] :is(.settings-section,.settings-page-heading) { margin-bottom: 22px; }
+:root[data-ui-density="compact"] .local-ai-account-row { padding-block: 9px; }
+html :is(.research-app-shell,.settings-page) :is(.settings-row h3,.settings-row p,.settings-nav-group > a,.lab-button,.ui-select-trigger,.local-settings-form label,.keyboard-preference strong,.local-ai-account-row strong,.ai-message-body,.ai-composer-box textarea) { font-size: calc(13px * var(--ui-text-scale)); }
+html :is(.research-app-shell,.settings-page) :is(pre,code,.ai-code-block,.ai-code-block code,.workflow-log) { font-size: var(--ui-code-size); }
+html.reduce-motion *, html.reduce-motion *::before, html.reduce-motion *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+:root[data-ui-contrast] :is(.research-app-shell,.settings-page) { --muted-ink: color-mix(in srgb, var(--ink) var(--ui-muted-mix, 68.5%), var(--canvas)); --line: color-mix(in srgb, var(--ink) var(--ui-line-mix, 23.5%), var(--canvas)); --research-sidebar-muted: var(--muted-ink); }

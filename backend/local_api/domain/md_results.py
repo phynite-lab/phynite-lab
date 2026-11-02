@@ -1,6 +1,7 @@
 """Validation helpers for owner-scoped MD Batch result manifests."""
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from pathlib import PurePosixPath
@@ -17,11 +18,64 @@ MAX_MD_RESULT_TOTAL_BYTES = 8 * 1024 * 1024 * 1024
 MD_ARTIFACT_PATH = re.compile(
     r"^(?:timeline\.json\.gz|frames/(?:[0-9]{6}|[0-9]{6}-[0-9]{6})\.json\.gz)$"
 )
+MD_DIAGNOSTIC_PATH = re.compile(r"^logs/[A-Za-z0-9_.-]+\.(?:out|log|txt)$")
+MAX_MD_DIAGNOSTIC_BYTES = 2 * 1024 * 1024
 SHA256_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 
 
 class MdResultError(ValueError):
     pass
+
+
+def read_md_diagnostic_manifest(services: Any, item: dict[str, Any]) -> dict[str, Any]:
+    """Verify terminal logs without treating an unsuccessful analysis as data."""
+    if item.get("status") not in {"FAILED", "CANCELLED"}:
+        raise MdResultError("MD diagnostics are only available after an unsuccessful analysis.")
+    body = services.s3.get_object(Bucket=services.bucket, Key=f"{item['outputPrefix']}/result.json")["Body"]
+    try:
+        raw = body.read(MAX_MD_RESULT_MANIFEST_BYTES + 1)
+    finally:
+        body.close()
+    if len(raw) > MAX_MD_RESULT_MANIFEST_BYTES:
+        raise MdResultError("MD diagnostic manifest is too large.")
+    try:
+        value = json.loads(raw)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise MdResultError("MD diagnostic manifest is not valid JSON.") from exc
+    if (not isinstance(value, dict) or value.get("kind") != "md-analysis"
+            or value.get("calculationId") != item["id"] or value.get("analysisId") != item["id"]
+            or value.get("status") != item["status"].lower()):
+        raise MdResultError("MD diagnostic manifest does not match this analysis.")
+    raw_artifacts = value.get("artifacts", [])
+    if not isinstance(raw_artifacts, list) or len(raw_artifacts) > MAX_MD_RESULT_ARTIFACTS:
+        raise MdResultError("MD diagnostic artifact list is invalid.")
+    artifacts: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for artifact in raw_artifacts:
+        path = artifact.get("path") if isinstance(artifact, dict) else None
+        if (not isinstance(path, str) or not re.fullmatch(r"[A-Za-z0-9_.+\-/]+", path)
+                or path.startswith("/") or any(part in {"", ".", ".."} for part in path.split("/")) or path in seen):
+            raise MdResultError("MD diagnostic artifact path is unsafe or duplicated.")
+        seen.add(path)
+        if not MD_DIAGNOSTIC_PATH.fullmatch(path):
+            continue  # Failed frames, inputs and partial metrics are not results.
+        size, digest = artifact.get("sizeBytes"), artifact.get("sha256")
+        if (type(size) is not int or not 0 <= size <= MAX_MD_DIAGNOSTIC_BYTES
+                or not isinstance(digest, str) or not SHA256_PATTERN.fullmatch(digest) or len(artifacts) >= 32):
+            raise MdResultError("MD diagnostic artifact size or checksum is invalid.")
+        body = services.s3.get_object(Bucket=services.bucket, Key=f"{item['outputPrefix']}/{path}")["Body"]
+        try:
+            content = body.read(MAX_MD_DIAGNOSTIC_BYTES + 1)
+        finally:
+            body.close()
+        if len(content) != size or hashlib.sha256(content).hexdigest() != digest:
+            raise MdResultError("MD diagnostic artifact checksum or size does not match.")
+        label = artifact.get("label")
+        artifacts.append({"path": path, "label": label[:160] if isinstance(label, str) and label else PurePosixPath(path).name,
+                          "role": "log", "contentType": "text/plain", "sizeBytes": size, "sha256": digest})
+    return {"version": 1, "kind": "md-analysis", "calculationId": item["id"], "analysisId": item["id"],
+            "status": item["status"].lower(), "error": str(value.get("error") or item.get("failureReason") or "Analysis did not complete.")[:1500],
+            "artifacts": artifacts}
 
 
 def _bounded_integer(value: Any, maximum: int, label: str) -> int:

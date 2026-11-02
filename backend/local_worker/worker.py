@@ -1122,28 +1122,52 @@ def estimate_progress(job_dir: Path, calculation_type: str) -> int:
 def fallback_result(job_dir: Path, job: dict[str, Any], status: str, message: str, execution_mode: str = "local-docker", *, platform_failure: bool = False) -> None:
     results = job_dir / "results"
     results.mkdir(parents=True, exist_ok=True)
-    worker_log = job_dir / "worker-container.log"
-    if worker_log.is_file():
-        (results / "logs").mkdir(exist_ok=True)
-        shutil.copyfile(worker_log, results / "logs" / "worker-container.out")
     prepared_input = job_dir / "input.json"
     if prepared_input.is_file():
         (results / "inputs").mkdir(exist_ok=True)
         shutil.copyfile(prepared_input, results / "inputs" / "prepared-input.json")
     result = {
-        "version": 2,
+        "version": 1 if job.get("kind") == "md-analysis" else 2,
         "calculationId": job["calculationId"],
+        **({"kind": job["kind"]} if job.get("kind") in {"md-analysis", "md-simulation"} else {}),
+        **({"analysisId": job["calculationId"]} if job.get("kind") == "md-analysis" else {}),
         "calculationType": (job.get("input") or {}).get("calculationType"),
         "status": status,
         "completedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "error": message,
         "platformFailure": platform_failure,
+        "syntheticData": False,
         "artifacts": [{"path": entry["path"], "sizeBytes": entry["sizeBytes"], "sha256": entry["sha256"],
                        "label": Path(entry["path"]).name, "kind": "raw"} for entry in artifact_inventory(results)
                       if entry["path"] != "result.json"] if any(path.is_file() for path in results.rglob("*")) else [],
         "provenance": {"executionMode": execution_mode, "operatingSystem": platform.system(), "syntheticData": False},
     }
     (results / "result.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
+    retain_terminal_worker_log(job_dir, result)
+
+
+def retain_terminal_worker_log(job_dir: Path, manifest: dict[str, Any]) -> None:
+    """Keep startup/runner diagnostics separate from scientific result data."""
+    if str(manifest.get("status") or "").lower() not in {"failed", "cancelled"}:
+        return
+    source = job_dir / "worker-container.log"
+    if not source.is_file() or source.is_symlink():
+        return
+    destination = job_dir / "results" / "logs" / "worker-container.out"
+    destination.parent.mkdir(exist_ok=True)
+    if destination.is_symlink() or destination.parent.is_symlink():
+        raise WorkerError("The terminal diagnostic log contains a symbolic link")
+    maximum = 2 * 1024 * 1024
+    with source.open("rb") as handle:
+        handle.seek(max(0, source.stat().st_size - maximum))
+        content = handle.read(maximum)
+    if not content:
+        return  # Do not hide a solver's nonempty diagnostic with an empty wrapper log.
+    destination.write_bytes(content)
+    entry = {"path": "logs/worker-container.out", "label": "Worker output", "role": "log",
+             "contentType": "text/plain", "sizeBytes": len(content), "sha256": hashlib.sha256(content).hexdigest()}
+    manifest["artifacts"] = [item for item in manifest.get("artifacts", []) if item.get("path") != entry["path"]] + [entry]
+    (job_dir / "results" / "result.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
 
 def sha256_file(path: Path) -> str:
@@ -1263,6 +1287,7 @@ def upload_results(client: ApiClient, worker_id: str, job: dict[str, Any], job_d
     status = str(manifest.get("status") or "failed").lower()
     if status not in {"completed", "failed", "cancelled"}:
         status = "failed"
+    retain_terminal_worker_log(job_dir, manifest)
     inventory = artifact_inventory(results)
     fleet = job.get("computeBackend") in {"CLOUD_PAID_EC2", "CLOUD_PILOT_EC2"}
     inventory.sort(key=lambda entry: entry["path"] == "result.json")
@@ -1311,6 +1336,7 @@ def upload_results(client: ApiClient, worker_id: str, job: dict[str, Any], job_d
                 **recorded_execution_resources(job_dir),
                 **({"computeSeconds": min(compute_seconds(job_dir), int(job["fundedComputeSeconds"])), "platformFailure": manifest.get("platformFailure") is True} if job.get("computeBackend") in {"CLOUD_PAID_EC2", "CLOUD_PILOT_EC2"} else {}),
                 "failureReason": completion_failure_reason(manifest, status),
+                "logTail": latest_log_tail(job_dir)[1],
             },
         ),
         "Finalizing the local calculation",
@@ -1690,16 +1716,16 @@ def _run_job(
             "md-analysis": "md_local/analysis_runner.py",
             "md-simulation": "md_local/runner.py",
         }.get(job_kind, "compute/local_runner.py")
-        python = scientific_python("dft" if job_kind == "qe" else "md" if job_kind == "md-simulation" else "analysis")
-        if not python:
-            raise WorkerError("This job's scientific Python runtime is not installed. Complete runtime setup in the web application.")
-        command = [python, str(runner)]
         try:
+            python = scientific_python("dft" if job_kind == "qe" else "md" if job_kind == "md-simulation" else "analysis")
+            if not python:
+                raise WorkerError("This job's scientific Python runtime is not installed. Complete runtime setup in Settings > Compute for this workspace.")
+            command = [python, str(runner)]
             environment = native_environment(job_dir.resolve(), calculation_id, vcpus, memory_mib, timeout_seconds)
             if os.environ.get("PHYNITE_APP_MODE") == "local":
                 command = desktop_native_sandbox().command(job_dir.resolve(), command)
                 environment["PHYNITE_EXECUTION_MODE"] = "local-native-sandbox"
-        except (WorkerError, RuntimeError) as exc:
+        except (WorkerError, RuntimeError, OSError) as exc:
             fallback_result(job_dir, job, "failed", str(exc), "local-native", platform_failure=True)
             return upload_results(client, worker_id, job, job_dir)
     recovery.begin(job_dir, identity, runtime_record)
@@ -1713,13 +1739,24 @@ def _run_job(
     last_heartbeat_at = -heartbeat_seconds
     last_presence_report = time.monotonic()
     with worker_log.open("w", encoding="utf-8") as output:
-        process = subprocess.Popen(command, stdout=output, stderr=subprocess.STDOUT, text=True, cwd=job_dir, env=environment, start_new_session=runtime == "native")
+        try:
+            process = subprocess.Popen(command, stdout=output, stderr=subprocess.STDOUT, text=True, cwd=job_dir, env=environment, start_new_session=runtime == "native")
+        except OSError as exc:
+            message = f"Could not start local compute: {exc}"
+            output.write(message + "\n")
+            output.flush()
+            fallback_result(job_dir, job, "failed", message, f"local-{runtime}", platform_failure=True)
+            return upload_results(client, worker_id, job, job_dir)
         if runtime == "native" and os.environ.get("PHYNITE_APP_MODE") == "local":
             try:
                 client.post(f"/__local/jobs/{calculation_id}/attach", {"pid": process.pid})
-            except WorkerError:
+            except WorkerError as exc:
                 stop_native_process(process)
-                raise
+                message = f"Local compute could not register its process with the resource monitor: {exc}"
+                output.write(message + "\n")
+                output.flush()
+                fallback_result(job_dir, job, "failed", message, "local-native", platform_failure=True)
+                return upload_results(client, worker_id, job, job_dir)
         recovery.mark(job_dir, "running", effectiveResources={"effectiveVcpus": vcpus, "effectiveMemoryMiB": memory_mib})
         job["_effectiveResources"] = {"effectiveVcpus": vcpus, "effectiveMemoryMiB": memory_mib}
         if runtime == "native" and isinstance(process.pid, int):

@@ -18,8 +18,11 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
       const upstream = await localAiFetch(`/${path[1]}`, { method: request.method, body, headers: body ? { 'Content-Type': 'application/json' } : undefined, signal: request.signal });
       return new NextResponse(upstream.body, { status: upstream.status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
     }
-    if (!path.length || path.some(part => !/^[A-Za-z0-9_-]+$/.test(part)) || !['session', 'runtime', 'resources', 'cloud', 'sync', 'gateway', 'projects'].includes(path[0])) {
+    if (!path.length || path.some(part => !/^[A-Za-z0-9_-]+$/.test(part)) || !['session', 'runtime', 'resources', 'cloud', 'sync', 'gateway', 'projects', 'jobs'].includes(path[0])) {
       return NextResponse.json({ error: 'Invalid local route.' }, { status: 404 });
+    }
+    if (path[0] === 'jobs' && (path.length !== 3 || !(path[2] === 'recovery' && request.method === 'GET' || path[2] === 'recover' && request.method === 'POST'))) {
+      return NextResponse.json({ error: 'Invalid local job operation.' }, { status: 404 });
     }
     if (path[0] === 'gateway' && path[1] === 'environment') return NextResponse.json({ error: 'Not found.' }, { status: 404 });
     const body = ['GET', 'HEAD'].includes(request.method) ? undefined : await readBodyBytes(request, requestBodyLimit(request.nextUrl.pathname));

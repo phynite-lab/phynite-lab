@@ -9,10 +9,10 @@ import { useResearchShell } from './ResearchShellContext';
 import { SettingsNavigation } from './SettingsNavigation';
 import '@/app/account/settings.css';
 
-export function SettingsPage({ session, title, description, children, actions, eyebrow, hideHeading = false }: { hideHeading?: boolean; eyebrow?: string; session: PhyniteSession; title: string; description: string; children: ReactNode; actions?: ReactNode }) {
+export function SettingsPage({ session, title, description, children, actions, eyebrow, hideHeading = false, className = '' }: { className?: string; hideHeading?: boolean; eyebrow?: string; session: PhyniteSession; title: string; description: string; children: ReactNode; actions?: ReactNode }) {
   const shell = useResearchShell();
   const { t } = useLocale();
-  return <main className="lab-page studio-page settings-page"><div className={`settings-frame${shell ? '' : ' settings-frame--standalone'}`}>
+  return <main className={`lab-page studio-page settings-page ${className}`}><div className={`settings-frame${shell ? '' : ' settings-frame--standalone'}`}>
     {!shell && <aside className="settings-local-navigation"><SettingsNavigation /></aside>}
     <div className="settings-body"><StudioMobileHeader session={session} /><div className="settings-content settings-main">
       {!hideHeading && <header className="settings-page-heading"><div><p className="settings-eyebrow">{eyebrow ?? t('Settings', 'Pengaturan')}</p><h1>{title}</h1><p>{description}</p></div>{actions}</header>}

@@ -372,6 +372,7 @@ export type MdCloudAnalysis = {
   progress: number;
   statusMessage?: string;
   failureReason?: string;
+  logTail?: string;
   name?: string;
   vcpus?: number;
   memoryMiB?: number;
@@ -407,6 +408,8 @@ export type MdCloudAnalysis = {
 
 export type MdCloudAnalysisResponse = {
   analysis: MdCloudAnalysis;
+  result?: { error?: string; artifacts: Array<{ path: string; label?: string; downloadUrl?: string }> };
+  diagnosticsError?: string;
   resultManifestUrl?: string;
   resultManifestExpiresIn?: number;
   artifactsAvailable?: boolean;

@@ -1,20 +1,21 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { Cloud, LogIn } from 'lucide-react';
 import { useSession } from '../use-session';
 import { notifySessionChange, subscribeToSession } from '../auth-client';
 import { useSettingsAnchor } from '../use-settings-anchor';
 import { useLocale } from '../locale-provider';
-import { SettingsPage, SettingsRow, SettingsSection } from '@/components/SettingsPage';
+import { useUnsavedSettings } from '../use-unsaved-settings';
+import { SettingsRow, SettingsSection } from '@/components/SettingsPage';
 import { UiSelect } from '@/components/UiSelect';
 import { computeCapacityChoices, computeCapacityLabel, type ComputeCatalog, type ComputeProfile } from '@/lib/compute-selection';
 import { localRequest } from '@/lib/local-api';
 import './settings.css';
 
 type RuntimeState = {
-  runtime: { platform?: string; installed: Record<string, unknown>; availableComponents?: string[]; downloadAvailable: boolean; executables?: Record<string, string>; isolation?: { available: boolean; reason?: string }; progress?: { state?: string; component?: string; downloadedBytes?: number; totalBytes?: number; error?: string } };
+  runtime: { platform?: string; error?: string; installed: Record<string, { version?: string }>; availableComponents?: string[]; downloadAvailable: boolean; requirements?: Record<string, { downloadBytes?: number; maxInstalledBytes?: number; compatible?: boolean; reason?: string }>; executables?: Record<string, string>; isolation?: { available: boolean; reason?: string }; progress?: { state?: string; component?: string; downloadedBytes?: number; totalBytes?: number; error?: string } };
+  capabilities?: { solver?: string[] };
   resources: { vcpus: number; memoryMiB: number; maxParallelJobs: number; cpuCapacity?: number; memoryCapacityMiB?: number; memoryEnforcement?: string } | null;
 };
 type Connection = { authenticated?: boolean; configured?: boolean; account?: string; accountId?: string; persistent?: boolean };
@@ -50,7 +51,7 @@ function validCloudQuote(quote: CloudQuote): boolean {
   return !!quote && /^[a-f0-9]{32}$/.test(quote.id) && (quote.cloudMode === 'paid' || quote.cloudMode === 'pilot') && validCloudProfile(quote.profile) && Number.isSafeInteger(quote.estimatedMicros) && quote.estimatedMicros >= 0 && Number.isSafeInteger(quote.expiresAtEpoch) && quote.expiresAtEpoch > 0 && (quote.estimatedSeconds === undefined || Number.isSafeInteger(quote.estimatedSeconds) && quote.estimatedSeconds > 0) && (quote.profile.timeoutSeconds === undefined || Number.isSafeInteger(quote.profile.timeoutSeconds) && quote.profile.timeoutSeconds > 0);
 }
 
-export function LocalSettings() {
+export function LocalSettings({ section }: { section: 'compute' | 'account' | 'storage' }) {
   const { session } = useSession(); const { t, intlLocale } = useLocale();
   const [runtime, setRuntime] = useState<RuntimeState | null>(null);
   const [resources, setResources] = useState<RuntimeState['resources']>(null);
@@ -68,16 +69,19 @@ export function LocalSettings() {
   const [quoteNow, setQuoteNow] = useState(0);
   const cloudAccount = useRef(''); const cloudRefresh = useRef(0); const projectChoice = useRef('');
   const [busy, setBusy] = useState(false); const [message, setMessage] = useState(''); const [error, setError] = useState('');
-  useSettingsAnchor(Boolean(session && runtime));
+  const resourceDirty = section === 'compute' && Boolean(resources && runtime?.resources && (resources.vcpus !== runtime.resources.vcpus || resources.memoryMiB !== runtime.resources.memoryMiB || resources.maxParallelJobs !== runtime.resources.maxParallelJobs));
+  useUnsavedSettings(resourceDirty);
+  const installing = Boolean(runtime?.runtime.progress?.state && !['idle', 'complete', 'failed'].includes(runtime.runtime.progress.state));
+  useSettingsAnchor(Boolean(session));
   const refresh = useCallback(async () => {
     const request = ++cloudRefresh.current;
-    const next = await localRequest<RuntimeState>('runtime'); setRuntime(next); setResources(previous => previous ?? (next.resources ? { vcpus: next.resources.vcpus, memoryMiB: next.resources.memoryMiB, maxParallelJobs: next.resources.maxParallelJobs } : null));
-    const optional = await Promise.allSettled([localRequest<Connection>('cloud'), fetch('/api/phynite/v1/projects').then(async response => {
+    if (section === 'compute') { const next = await localRequest<RuntimeState>('runtime'); setRuntime(next); setResources(previous => previous ?? (next.resources ? { vcpus: next.resources.vcpus, memoryMiB: next.resources.memoryMiB, maxParallelJobs: next.resources.maxParallelJobs } : null)); }
+    const optional = await Promise.allSettled([section === 'storage' ? Promise.resolve({} as Connection) : localRequest<Connection>('cloud'), fetch('/api/phynite/v1/projects').then(async response => {
       if (!response.ok) throw new Error('Could not read local projects.');
       return await response.json() as { projects: Project[] };
     })]);
     if (request !== cloudRefresh.current) return;
-    if (optional[1].status === 'fulfilled') setProjects(optional[1].value.projects);
+    if (optional[1].status === 'fulfilled') setProjects(optional[1].value.projects); else throw optional[1].reason;
     if (optional[0].status === 'fulfilled') {
       const connection = optional[0].value, account = cloudIdentity(connection);
       if (cloudAccount.current !== account) {
@@ -86,7 +90,7 @@ export function LocalSettings() {
       }
       setConnection(connection);
       if (connection.authenticated) {
-        const connected = await Promise.allSettled([localRequest<SyncInventory>('sync'), localRequest<CloudCatalog>('cloud/compute/catalog').then(validateCloudCatalog), localRequest<{ executions: CloudExecution[] }>('cloud/compute')]);
+        const connected = await Promise.allSettled([localRequest<SyncInventory>('sync'), section === 'compute' ? localRequest<CloudCatalog>('cloud/compute/catalog').then(validateCloudCatalog) : Promise.reject(new Error('Not requested')), section === 'compute' ? localRequest<{ executions: CloudExecution[] }>('cloud/compute') : Promise.resolve({ executions: [] })]);
         if (request !== cloudRefresh.current || cloudAccount.current !== account) return;
         if (connected[0].status === 'fulfilled') setSync(connected[0].value);
         if (connected[1].status === 'fulfilled') {
@@ -97,16 +101,16 @@ export function LocalSettings() {
         else { setCloudExecutions([]); setCloudHistoryError(connected[2].reason instanceof Error ? connected[2].reason.message : 'Cloud execution history is unavailable.'); }
       } else { setSync({ projects: [], cloudProjects: [] }); setCloudExecutions([]); setCloudCatalog(null); }
     }
-  }, []);
+  }, [section]);
   useEffect(() => subscribeToSession(() => { void refresh().catch(() => {}); }), [refresh]);
   useEffect(() => {
     let mounted = true;
     queueMicrotask(() => { if (mounted) void refresh().catch(reason => { if (mounted) setError(reason instanceof Error ? reason.message : String(reason)); }); });
-    const timer = window.setInterval(() => { void localRequest<RuntimeState>('runtime').then(next => { if (mounted) setRuntime(next); }).catch(() => {}); if (connection.authenticated) void localRequest<SyncInventory>('sync').then(next => { if (mounted) setSync(next); }).catch(() => {}); }, 3000);
+    const timer = window.setInterval(() => { if (section === 'compute') void localRequest<RuntimeState>('runtime').then(next => { if (mounted) setRuntime(next); }).catch(() => {}); if (connection.authenticated) void localRequest<SyncInventory>('sync').then(next => { if (mounted) setSync(next); }).catch(() => {}); }, 3000);
     return () => { mounted = false; window.clearInterval(timer); };
-  }, [refresh, connection.authenticated]);
+  }, [refresh, connection.authenticated, section]);
   useEffect(() => {
-    if (!connection.authenticated) return;
+    if (!connection.authenticated || section !== 'compute') return;
     const account = cloudIdentity(connection); let mounted = true;
     const timer = window.setInterval(() => {
       void localRequest<{ executions: CloudExecution[] }>('cloud/compute').then(value => {
@@ -114,7 +118,7 @@ export function LocalSettings() {
       }).catch(reason => { if (mounted && cloudAccount.current === account) { setCloudExecutions([]); setCloudHistoryError(reason instanceof Error ? reason.message : 'Cloud execution history is unavailable.'); } });
     }, 10000);
     return () => { mounted = false; window.clearInterval(timer); };
-  }, [connection]);
+  }, [connection, section]);
   useEffect(() => {
     if (!cloudPrepared?.quote) return;
     const timer = window.setInterval(() => setQuoteNow(Date.now()), 1000);
@@ -122,7 +126,7 @@ export function LocalSettings() {
   }, [cloudPrepared]);
   const act = async (path: string, method = 'POST', body?: unknown) => {
     setBusy(true); setError(''); setMessage('');
-    try { await localRequest(path, method, body); if (path === 'cloud/login' || path === 'cloud/logout') notifySessionChange(); await refresh(); setMessage(t('Changes saved on this computer.', 'Perubahan disimpan di komputer ini.')); }
+    try { const result = await localRequest<{ resources?: RuntimeState['resources'] }>(path, method, body); if (path === 'resources' && result.resources) setResources({ vcpus: result.resources.vcpus, memoryMiB: result.resources.memoryMiB, maxParallelJobs: result.resources.maxParallelJobs }); if (path === 'cloud/login' || path === 'cloud/logout') notifySessionChange(); await refresh(); setMessage(path === 'runtime/install' ? t('Installation started. Follow its progress below.', 'Pemasangan dimulai. Ikuti progresnya di bawah.') : t('Changes saved on this computer.', 'Perubahan disimpan di komputer ini.')); }
     catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
     finally { setBusy(false); }
   };
@@ -220,29 +224,34 @@ export function LocalSettings() {
     finally { setBusy(false); }
   };
   if (!session) return null;
-  return <SettingsPage session={session} eyebrow={t('Local workspace', 'Workspace lokal')} title={t('Your computer', 'Komputer Anda')} description={t('Projects and results stay on this computer. Choose runtime, storage, cloud, and compute here.', 'Project dan hasil tersimpan di komputer ini. Atur runtime, penyimpanan, cloud, dan compute di sini.')} actions={<div className="local-settings-heading-actions"><a href="#cloud" className="local-settings-icon-action" aria-label={t('Login to Phynite Cloud', 'Login ke Phynite Cloud')} title={t('Login to Phynite Cloud', 'Login ke Phynite Cloud')}><Cloud size={17} aria-hidden="true" /><span>{t('Cloud login', 'Login cloud')}</span></a><Link href="/workspace" className="lab-button">{t('Open workspace', 'Buka workspace')}</Link></div>}>
+  return <>
     {error && <p className="local-settings-error" role="alert">{error}</p>}{message && <p role="status">{message}</p>}
-    <SettingsSection title={t('Scientific runtime', 'Runtime ilmiah')} description={runtime?.runtime.platform ?? t('Reading this computer…', 'Memeriksa komputer…')}>
-      {(['dft', 'md'] as const).map(component => <SettingsRow key={component} title={{ dft: 'Quantum ESPRESSO', md: 'LAMMPS + OVITO analysis' }[component]} description={runtime?.runtime.installed?.[component] ? t('Installed', 'Terpasang') : t('Install the verified runtime, or use an installed solver.', 'Pasang runtime terverifikasi, atau gunakan solver yang sudah terpasang.')}><button className="lab-button" disabled={busy || !runtime?.runtime.availableComponents?.includes(component)} onClick={() => void act('runtime/install', 'POST', { component })}>{t('Install runtime', 'Pasang runtime')}</button></SettingsRow>)}
-      {!runtime?.runtime.downloadAvailable && <p className="settings-group-content">{t('This build does not include a published runtime catalog. Installed compatible solvers can still be detected.', 'Build ini belum menyertakan katalog runtime yang dipublikasikan. Solver kompatibel yang terpasang tetap dapat dideteksi.')}</p>}
+    {section === 'compute' && <>
+    <SettingsSection id="your-computer" title={t('Scientific runtime', 'Runtime ilmiah')} description={runtime?.runtime.platform ?? t('Reading this computer…', 'Memeriksa komputer…')}>
+      {runtime?.capabilities?.solver && <p className="settings-group-content">{t('Worker ready for', 'Worker siap untuk')}: {runtime.capabilities.solver.length ? runtime.capabilities.solver.join(', ') : t('No solvers ready yet', 'Belum ada solver siap')}</p>}
+      {(['dft', 'md'] as const).map(component => { const requirement = runtime?.runtime.requirements?.[component], installed = runtime?.runtime.installed?.[component]; return <SettingsRow key={component} title={{ dft: 'Quantum ESPRESSO', md: 'LAMMPS + OVITO analysis' }[component]} description={<>{installed ? `${t('Installed', 'Terpasang')}${installed.version ? ` · ${installed.version}` : ''}` : t('Install the verified runtime, or use an installed solver.', 'Pasang runtime terverifikasi, atau gunakan solver yang sudah terpasang.')}{requirement?.reason && <span className="settings-runtime-detail">{requirement.reason}</span>}{requirement?.downloadBytes !== undefined && <span className="settings-runtime-detail">{t('Download', 'Unduhan')}: {(requirement.downloadBytes / 1024 ** 3).toLocaleString(intlLocale, { maximumFractionDigits: 2 })} GiB{requirement.maxInstalledBytes ? ` · ${t('Disk budget', 'Anggaran disk')}: ${(requirement.maxInstalledBytes / 1024 ** 3).toLocaleString(intlLocale, { maximumFractionDigits: 2 })} GiB` : ''}</span>}</>}><button className="lab-button" disabled={busy || installing || !runtime?.runtime.availableComponents?.includes(component)} onClick={() => void act('runtime/install', 'POST', { component })}>{installed ? t('Reinstall runtime', 'Pasang ulang runtime') : t('Install runtime', 'Pasang runtime')}</button></SettingsRow>; })}
+      {runtime?.runtime.error && <p className="settings-group-content" role="alert">{runtime.runtime.error}</p>}
+      {runtime && !runtime.runtime.downloadAvailable && !Object.keys(runtime.runtime.requirements ?? {}).length && !runtime.runtime.error && <p className="settings-group-content">{t('This build does not include a runtime catalog for this platform. Installed compatible solvers can still be detected.', 'Build ini belum menyertakan katalog runtime untuk platform ini. Solver kompatibel yang terpasang tetap dapat dideteksi.')}</p>}
       <SettingsRow title={t('Manual LAMMPS isolation', 'Isolasi LAMMPS manual')} description={runtime?.runtime.isolation?.reason}><span>{runtime?.runtime.isolation?.available ? t('Verified', 'Terverifikasi') : t('Not available', 'Belum tersedia')}</span></SettingsRow>
       {runtime?.runtime.progress && <p className="settings-group-content" role={runtime.runtime.progress.error ? 'alert' : 'status'} aria-live="polite">{runtime.runtime.progress.component ? `${runtime.runtime.progress.component} · ` : ''}{runtime.runtime.progress.state}{runtime.runtime.progress.totalBytes && runtime.runtime.progress.totalBytes > 0 && runtime.runtime.progress.downloadedBytes !== undefined ? ` · ${Math.min(100, Math.max(0, runtime.runtime.progress.downloadedBytes / runtime.runtime.progress.totalBytes * 100)).toFixed(0)}%` : ''}{runtime.runtime.progress.error ? ` · ${runtime.runtime.progress.error}` : ''}</p>}
     </SettingsSection>
-    <SettingsSection title={t('Compute budget', 'Anggaran komputasi')} description={t('Defaults apply to new jobs. Memory is monitored across each process tree.', 'Default berlaku untuk job baru. Memori dipantau pada seluruh proses job.')}>
+    <SettingsSection id="compute-defaults" title={t('Compute budget', 'Anggaran komputasi')} description={t('Defaults apply to new jobs. Memory is monitored across each process tree.', 'Default berlaku untuk job baru. Memori dipantau pada seluruh proses job.')}>
       {runtime?.resources && <p className="settings-group-content">{runtime.resources.cpuCapacity !== undefined ? `${t('Detected', 'Terdeteksi')}: ${runtime.resources.cpuCapacity.toLocaleString(intlLocale)} ${t('logical cores', 'core logis')}` : ''}{runtime.resources.memoryCapacityMiB !== undefined ? ` · ${(runtime.resources.memoryCapacityMiB / 1024).toLocaleString(intlLocale, { maximumFractionDigits: 2 })} GiB RAM` : ''}</p>}
       {runtime?.resources?.memoryEnforcement && <p className="settings-group-content">{t('Memory enforcement', 'Pengawasan memori')}: {runtime.resources.memoryEnforcement}. {t('Phynite observes process-tree RSS and stops jobs that exceed the budget. This watchdog is not an operating-system hard memory limit.', 'Phynite memantau RSS seluruh proses job dan menghentikan job yang melewati anggaran. Pemantauan ini bukan batas memori keras dari sistem operasi.')}</p>}
-      {resources && <form className="local-settings-form" onSubmit={event => { event.preventDefault(); void act('resources', 'PUT', resources); }}>
-        <label>CPU<input type="number" min={1} required value={resources.vcpus} onChange={event => setResources({ ...resources, vcpus: Number(event.target.value) })} /></label>
-        <label>{t('RAM (MiB)', 'RAM (MiB)')}<input type="number" min={1} required value={resources.memoryMiB} onChange={event => setResources({ ...resources, memoryMiB: Number(event.target.value) })} /></label>
-        <label>{t('Parallel jobs', 'Job paralel')}<input type="number" min={1} required value={resources.maxParallelJobs} onChange={event => setResources({ ...resources, maxParallelJobs: Number(event.target.value) })} /></label>
+      {resources && <form className="local-settings-form" data-settings-dirty={resourceDirty || undefined} onSubmit={event => { event.preventDefault(); void act('resources', 'PUT', { vcpus: resources.vcpus, memoryMiB: resources.memoryMiB, maxParallelJobs: resources.maxParallelJobs }); }}>
+        <label>CPU<input type="number" min={1} max={runtime?.resources?.cpuCapacity} step={1} required value={resources.vcpus} onChange={event => setResources({ ...resources, vcpus: Number(event.target.value) })} /></label>
+        <label>{t('RAM (MiB)', 'RAM (MiB)')}<input type="number" min={1} max={runtime?.resources?.memoryCapacityMiB} step={1} required value={resources.memoryMiB} onChange={event => setResources({ ...resources, memoryMiB: Number(event.target.value) })} /></label>
+        <label>{t('Parallel jobs', 'Job paralel')}<input type="number" min={1} max={runtime?.resources?.cpuCapacity} step={1} required value={resources.maxParallelJobs} onChange={event => setResources({ ...resources, maxParallelJobs: Number(event.target.value) })} /></label>
         <button className="lab-button lab-button-primary" disabled={busy}>{t('Save budget', 'Simpan anggaran')}</button>
       </form>}
     </SettingsSection>
-    <SettingsSection id="storage" title={t('Project archives', 'Arsip project')} description={t('Export inputs, configurations, available results and checksums. Import creates a separate copy on this computer.', 'Ekspor input, konfigurasi, hasil yang tersedia dan checksum. Impor membuat salinan terpisah di komputer ini.')}>
+    </>}
+    {section === 'storage' && <SettingsSection id="storage" title={t('Project archives', 'Arsip project')} description={t('Export inputs, configurations, available results and checksums. Import creates a separate copy on this computer.', 'Ekspor input, konfigurasi, hasil yang tersedia dan checksum. Impor membuat salinan terpisah di komputer ini.')}>
       <div className="local-settings-form"><label>{t('Import a .phynite archive', 'Impor arsip .phynite')}<input type="file" accept=".phynite,.zip" disabled={busy} onChange={event => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; if (file) void importProject(file); }} /></label></div>
+      {!projects.length && <p className="settings-group-content">{t('No projects yet. Create a project or import an archive to get started.', 'Belum ada project. Buat project atau impor arsip untuk memulai.')}</p>}
       {projects.map(project => <SettingsRow key={project.id} title={project.name}><button className="lab-button" disabled={busy} onClick={() => void exportProject(project.id)}>{t('Export project', 'Ekspor project')}</button></SettingsRow>)}
-    </SettingsSection>
-    <SettingsSection id="cloud" title="Phynite Cloud" description={t('Signing in does not upload your projects. Enable sync separately for each project.', 'Login tidak mengunggah project Anda. Aktifkan sinkronisasi untuk setiap project secara terpisah.')}>
+    </SettingsSection>}
+    {section === 'account' && <SettingsSection id="cloud" title="Phynite Cloud" description={t('Signing in does not upload your projects. Enable sync separately for each project.', 'Login tidak mengunggah project Anda. Aktifkan sinkronisasi untuk setiap project secara terpisah.')}>
       {connection.configured === false && <p className="settings-group-content">{t('Cloud connection is not configured in this build. Local work is available without an account.', 'Koneksi cloud belum dikonfigurasi pada build ini. Workspace lokal dapat dipakai tanpa akun.')}</p>}
       {connection.authenticated ? <div className="local-cloud-connected-card"><SettingsRow title={connection.account ?? t('Connected', 'Terhubung')} description={t('Signing out retains all local data.', 'Keluar tetap mempertahankan seluruh data lokal.')}><button className="lab-button" disabled={busy} onClick={() => void act('cloud/logout')}>{t('Sign out of cloud', 'Keluar dari cloud')}</button></SettingsRow></div> : <div className="local-cloud-login-card">
         <header><span className="local-cloud-login-mark"><Cloud size={18} aria-hidden="true" /></span><div><h3>{t('Sign in to Phynite Cloud', 'Login ke Phynite Cloud')}</h3><p>{t('Use cloud compute and enable sync per project when you are ready.', 'Gunakan komputasi cloud dan aktifkan sync per project saat Anda siap.')}</p></div></header>
@@ -261,21 +270,21 @@ export function LocalSettings() {
       {syncPreview && <div className="local-settings-preview" role="region" aria-label={t('Review cloud upload', 'Tinjau unggahan cloud')}><h3>{t('Review Cloud Sync', 'Tinjau Cloud Sync')}</h3><p>{syncPreview.scope}</p><p>{(syncPreview.transferBytes / 1024 ** 2).toFixed(2)} MiB · {syncPreview.artifactCount} {t('chunks', 'bagian')} · {t('Cloud used', 'Cloud terpakai')}: {((syncPreview.cloudStorage.bytes ?? 0) / 1024 ** 2).toFixed(2)} MiB</p>{syncPreview.cloudStorage.limitBytes !== undefined && <p>{t('Quota', 'Kuota')}: {(syncPreview.cloudStorage.limitBytes / 1024 ** 3).toFixed(2)} GiB</p>}{syncPreview.missingAssets.length > 0 && <p>{t('Restricted assets are excluded and must be selected separately on another device.', 'Aset terbatas tidak diunggah dan perlu dipilih terpisah pada perangkat lain.')}</p>}<div className="local-settings-actions"><button className="lab-button lab-button-primary" disabled={busy} onClick={() => { void act(`sync/${syncPreview.projectId}/enable`, 'POST', { confirmSha256: syncPreview.snapshotSha256 }); setSyncPreview(null); }}>{t('Enable and upload', 'Aktifkan dan unggah')}</button><button className="lab-button" onClick={() => setSyncPreview(null)}>{t('Cancel', 'Batal')}</button></div></div>}
       {sync.cloudProjects.filter(project => !project.deleted && !projects.some(local => local.id === project.projectId)).map(project => <SettingsRow key={project.projectId} title={project.projectId} description={`${t('Cloud revision', 'Revisi cloud')} ${project.revision}`}><button className="lab-button" disabled={busy} onClick={() => void act(`sync/${project.projectId}/download`)}>{t('Download to this computer', 'Unduh ke komputer ini')}</button></SettingsRow>)}
       {sync.cloudProjects.filter(project => project.deleted).map(project => <SettingsRow key={project.projectId} title={project.projectId} description={t('In cloud Trash for up to 15 days.', 'Di Trash cloud hingga 15 hari.')}><button className="lab-button" disabled={busy} onClick={() => void act(`sync/${project.projectId}/restore`)}>{t('Restore project', 'Pulihkan project')}</button></SettingsRow>)}
-    </SettingsSection>
-    <SettingsSection title={t('Run on cloud', 'Jalankan di cloud')} description={t('Review a saved DFT calculation and its required inputs before uploading. Cloud compute does not enable project sync. MD runs on your computer.', 'Tinjau kalkulasi DFT tersimpan dan input yang diperlukan sebelum mengunggah. Komputasi cloud tidak mengaktifkan sync project. MD berjalan di komputer Anda.')}>
-      {!connection.authenticated && <p className="settings-group-content">{t('Sign in to Phynite Cloud to read available compute profiles and this account’s execution history.', 'Login ke Phynite Cloud untuk membaca profil komputasi dan riwayat eksekusi akun ini.')}</p>}
+    </SettingsSection>}
+    {section === 'compute' && <SettingsSection id="cloud-compute" title={t('Run on cloud', 'Jalankan di cloud')} description={t('Review a saved DFT calculation and its required inputs before uploading. Cloud compute does not enable project sync. MD runs on your computer.', 'Tinjau kalkulasi DFT tersimpan dan input yang diperlukan sebelum mengunggah. Komputasi cloud tidak mengaktifkan sync project. MD berjalan di komputer Anda.')}>
+      {!connection.authenticated && <p className="settings-group-content">{t('Connect your Phynite Cloud account in Settings → Account to use online compute.', 'Hubungkan akun Phynite Cloud di Pengaturan → Akun untuk menggunakan compute online.')}</p>}
       {connection.authenticated && <>
         <SettingsRow title={t('Cloud compute catalog', 'Katalog komputasi cloud')} description={cloudCatalog ? `${cloudCatalog.catalog.region} · ${t('Updated', 'Diperbarui')} ${new Date(cloudCatalog.catalog.updatedAt).toLocaleString(intlLocale)}` : t('Choose resources only after the cloud service returns its current catalog.', 'Pilih resource setelah layanan cloud memberikan katalog terkini.')}><button className="lab-button" disabled={busy} onClick={() => void refreshSettings()}>{t('Refresh catalog and history', 'Perbarui katalog dan riwayat')}</button></SettingsRow>
         {cloudCatalogError && <p className="local-settings-error" role="alert">{cloudCatalogError}</p>}
         {cloudCatalog && <p className="settings-group-content">{t('Paid compute', 'Komputasi berbayar')}: {cloudCatalog.paid?.status ?? t('Not available', 'Belum tersedia')} · {t('Pilot grant', 'Grant pilot')}: {cloudCatalog.pilot?.reason ?? cloudCatalog.pilot?.status ?? cloudCatalog.pilotError ?? t('Eligibility unavailable', 'Kelayakan belum tersedia')}</p>}
       </>}
-      <form className="local-settings-form" onSubmit={event => { event.preventDefault(); void reviewCloud(); }}>
+      {connection.authenticated && <form className="local-settings-form" onSubmit={event => { event.preventDefault(); void reviewCloud(); }}>
         <label>{t('Local project', 'Project lokal')}<UiSelect ariaLabel={t('Local project', 'Project lokal')} disabled={busy} value={cloudProject} onChange={id => void chooseCloudProject(id)} options={[{ value: '', label: t('Choose a project', 'Pilih project') }, ...projects.map(project => ({ value: project.id, label: project.name }))]} /></label>
         <label>{t('Saved calculation', 'Kalkulasi tersimpan')}<UiSelect ariaLabel={t('Saved calculation', 'Kalkulasi tersimpan')} disabled={busy || !cloudProject} value={cloudCalculation} onChange={id => { setCloudCalculation(id); setCloudPreview(null); setCloudPrepared(null); }} options={[{ value: '', label: t('Choose a calculation', 'Pilih kalkulasi') }, ...cloudCalculations.map(calculation => ({ value: calculation.id, label: calculation.name }))]} /></label>
         <label>{t('Cloud funding', 'Pendanaan cloud')}<UiSelect ariaLabel={t('Cloud funding', 'Pendanaan cloud')} disabled={busy || !connection.authenticated || !cloudCatalog} value={cloudMode} onChange={mode => { if (mode === '' || mode === 'paid' || mode === 'pilot') { setCloudMode(mode); setCloudProfile(''); setCloudPreview(null); setCloudPrepared(null); } }} options={[{ value: '', label: t('Choose funding', 'Pilih pendanaan') }, { value: 'paid', label: t('Paid · Quanta balance', 'Berbayar · saldo Quanta'), disabled: cloudCatalog?.paid?.available !== true, detail: cloudCatalog?.paid?.status }, { value: 'pilot', label: t('Pilot grant', 'Grant pilot'), disabled: cloudCatalog?.pilot?.available !== true || !cloudCatalog.pilot.limits, detail: cloudCatalog?.pilot?.reason ?? cloudCatalog?.pilot?.status ?? cloudCatalog?.pilotError }]} /></label>
         <label>{t('Cloud CPU and RAM', 'CPU dan RAM cloud')}<UiSelect ariaLabel={t('Cloud CPU and RAM', 'CPU dan RAM cloud')} disabled={busy || !modeAvailable} value={cloudProfile} onChange={id => { setCloudProfile(id); setCloudPreview(null); setCloudPrepared(null); }} options={[{ value: '', label: t('Choose a catalog profile', 'Pilih profil katalog') }, ...cloudProfiles.map(profile => ({ value: profile.id, label: computeCapacityLabel(profile, intlLocale)!, detail: cloudMode === 'pilot' ? t('Uses the account’s pilot grant', 'Memakai grant pilot akun ini') : `${profile.hourlyQuanta.toLocaleString(intlLocale)} Quanta / ${t('hour', 'jam')}` }))]} /></label>
         <button className="lab-button" disabled={busy || !connection.authenticated || !cloudCalculation || !modeAvailable || !selectedCloudProfile}>{t('Review cloud inputs', 'Tinjau input cloud')}</button>
-      </form>
+      </form>}
       {cloudPreview && <div className="local-settings-preview"><h3>{t('Review input upload', 'Tinjau unggahan input')}</h3><p>{cloudPreview.inputs.structure} · {cloudPreview.inputs.calculationType} · {(cloudPreview.inputBytes / 1024 ** 2).toFixed(2)} MiB</p><p>{cloudPreview.inputs.inputFiles.join(', ')}</p>{cloudPreview.inputs.dependencies?.map(file => <p key={file.filename}>{file.filename} · {(file.sizeBytes / 1024).toFixed(1)} KiB</p>)}<p>{cloudPreview.transferScope}</p><p>{cloudPreview.retention.inputs} {cloudPreview.retention.results}</p><div className="local-settings-actions"><button className="lab-button lab-button-primary" disabled={busy} onClick={() => void cloudAction('prepare')}>{t('Upload inputs and get estimate', 'Unggah input dan minta estimasi')}</button><button className="lab-button" disabled={busy} onClick={() => { setCloudPreview(null); setCloudPrepared(null); }}>{t('Cancel', 'Batal')}</button></div></div>}
       {cloudPrepared && <div className="local-settings-preview" role="region" aria-label={t('Confirm cloud estimate', 'Konfirmasi estimasi cloud')}><h3>{t('Review cloud estimate', 'Tinjau estimasi cloud')}</h3><p>{t('Execution', 'Eksekusi')}: {cloudPrepared.executionId}</p>{cloudPrepared.quote ? <>
         <p>{computeCapacityLabel(cloudPrepared.quote.profile, intlLocale)} · {cloudPrepared.quote.cloudMode === 'pilot' ? t('Pilot grant', 'Grant pilot') : t('Paid compute', 'Komputasi berbayar')}</p>
@@ -294,6 +303,6 @@ export function LocalSettings() {
           return <SettingsRow key={execution.id} title={projects.find(project => project.id === execution.projectId)?.name ?? execution.projectId} description={<>{execution.status} · {execution.id}{execution.imported ? ` · ${t('Results saved locally', 'Hasil disimpan lokal')}` : ''}{review ? ` · ${t('Inputs have not been uploaded. Review the calculation above before uploading.', 'Input belum diunggah. Tinjau kalkulasi di atas sebelum mengunggah.')}` : ''}</>}><div className="local-settings-actions"><button className="lab-button" disabled={busy} onClick={() => void cloudAction('status', execution.id)}>{t('Refresh status', 'Perbarui status')}</button>{prepared && <button className="lab-button" disabled={busy} onClick={() => void cloudAction('prepare', execution.id)}>{t('Get new estimate', 'Minta estimasi baru')}</button>}<button className="lab-button" disabled={busy || final || prepared || review || execution.status === 'CANCEL_REQUESTED'} onClick={() => void cloudAction('cancel', execution.id)}>{t('Cancel job', 'Batalkan job')}</button><button className="lab-button" disabled={busy || !final || execution.imported} onClick={() => void cloudAction('download', execution.id)}>{t('Save results locally', 'Simpan hasil lokal')}</button></div></SettingsRow>;
         })}
       </>}
-    </SettingsSection>
-  </SettingsPage>;
+    </SettingsSection>}
+  </>;
 }

@@ -2,6 +2,16 @@ export const SITE_THEME_STORAGE_KEY = "phynite-calculation-theme";
 export const SITE_THEME_EVENT = "phynite:site-theme-change";
 
 export type SiteTheme = "light" | "dark";
+export type SiteThemePreference = SiteTheme | 'system';
+
+export function readSiteThemePreference(): SiteThemePreference {
+  try { const value = window.localStorage.getItem(SITE_THEME_STORAGE_KEY); return value === 'system' || value === 'dark' ? value : 'light'; }
+  catch { return typeof document !== 'undefined' && document.documentElement.dataset.themePreference === 'system' ? 'system' : readSiteTheme(); }
+}
+
+function resolveSiteTheme(preference: SiteThemePreference): SiteTheme {
+  return preference === 'system' ? (typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : preference;
+}
 
 function isSiteTheme(value: string | undefined | null): value is SiteTheme {
   return value === "light" || value === "dark";
@@ -23,20 +33,21 @@ export function readSiteTheme(): SiteTheme {
   if (isSiteTheme(activeTheme)) return activeTheme;
 
   try {
-    return window.localStorage.getItem(SITE_THEME_STORAGE_KEY) === "dark"
-      ? "dark"
-      : "light";
+    const value = window.localStorage.getItem(SITE_THEME_STORAGE_KEY);
+    return resolveSiteTheme(value === 'system' || value === 'dark' ? value : 'light');
   } catch {
     return "light";
   }
 }
 
-export function applySiteTheme(theme: SiteTheme, persist = true) {
+export function applySiteTheme(preference: SiteThemePreference, persist = true) {
   if (typeof document === "undefined") return;
+  const theme = resolveSiteTheme(preference);
   setThemeAttributes(theme);
+  document.documentElement.dataset.themePreference = preference;
   if (persist) {
     try {
-      window.localStorage.setItem(SITE_THEME_STORAGE_KEY, theme);
+      window.localStorage.setItem(SITE_THEME_STORAGE_KEY, preference);
     } catch {
       // The selected theme still applies for the current visit.
     }
@@ -47,12 +58,15 @@ export function applySiteTheme(theme: SiteTheme, persist = true) {
 export function subscribeToSiteTheme(listener: () => void) {
   const storage = (event: StorageEvent) => {
     if (event.key !== SITE_THEME_STORAGE_KEY && event.key !== null) return;
-    const value = window.localStorage.getItem(SITE_THEME_STORAGE_KEY);
-    applySiteTheme(value === 'dark' ? 'dark' : 'light', false);
+    applySiteTheme(readSiteThemePreference(), false);
   };
+  const media = typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-color-scheme: dark)') : undefined;
+  const systemChange = () => { if (readSiteThemePreference() === 'system') applySiteTheme('system', false); };
+  media?.addEventListener('change', systemChange);
   window.addEventListener('storage', storage);
   window.addEventListener(SITE_THEME_EVENT, listener);
   return () => {
+    media?.removeEventListener('change', systemChange);
     window.removeEventListener('storage', storage);
     window.removeEventListener(SITE_THEME_EVENT, listener);
   };

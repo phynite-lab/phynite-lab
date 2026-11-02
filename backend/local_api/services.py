@@ -75,3 +75,22 @@ class LocalServices(MetadataServices):
     def local_session(self) -> dict:
         profile = self.get_item(self.owner, "PROFILE", "primary") or {}
         return {"mode": "local", "authenticated": False, "user": {"id": self.owner, "email": "", "name": profile.get("name") or "Local Researcher", "groups": [], "isDeveloper": False}, "cloud": {"authenticated": False}}
+
+    def finish_interrupted_calculation(self, item: dict, worker_id: str, timestamp: str, provenance: dict, effective_resources: dict | None = None) -> dict:
+        """Import verified terminal bytes without renewing a worker lease or running a solver."""
+        with self.table.atomic():
+            current = self.table.get_item(Key=item).get('Item')
+            if (current != item or item.get('ownerId') != self.owner
+                    or item.get('computeBackend') != 'LOCAL_MAC' or item.get('computeTarget') != 'personal'
+                    or item.get('status') != 'FAILED' or item.get('interrupted') is not True
+                    or item.get('failureReason') != INTERRUPTED_REASON or item.get('statusMessage') != INTERRUPTED_REASON
+                    or item.get('localWorkerId') != worker_id):
+                raise ApiError(409, 'The interrupted job changed during verification. Refresh before recovering it.', 'RESULT_RECOVERY_CONFLICT')
+            updated = {**item, 'status': 'COMPLETED', 'progress': 100, 'computePhase': 'FINISHED',
+                       'statusMessage': 'Completed result recovered from your computer', 'completedAt': timestamp,
+                       'updatedAt': timestamp, 'resultRecovery': {**provenance, 'recoveredAt': timestamp},
+                       **(effective_resources or {})}
+            for field in ('interrupted', 'failureReason', 'resultValidationFailure', 'leaseExpiresAtEpoch', 'logTail', 'GSI2PK', 'GSI2SK'):
+                updated.pop(field, None)
+            self.table.put_item(Item=updated)
+            return updated

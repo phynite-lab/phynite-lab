@@ -5,6 +5,7 @@ import {
   readSiteTheme,
   applySiteTheme,
   subscribeToSiteTheme,
+  readSiteThemePreference,
   type SiteTheme,
 } from "@/lib/site-theme";
 
@@ -14,6 +15,7 @@ export function useSiteTheme() {
     readSiteTheme,
     () => "light",
   );
+  const preference = useSyncExternalStore(subscribeToSiteTheme, readSiteThemePreference, () => 'light' as const);
 
   const toggleTheme = useCallback(() => {
     const activeTheme = readSiteTheme();
@@ -21,5 +23,5 @@ export function useSiteTheme() {
     applySiteTheme(nextTheme);
   }, []);
 
-  return { theme, toggleTheme };
+  return { theme, preference, toggleTheme };
 }

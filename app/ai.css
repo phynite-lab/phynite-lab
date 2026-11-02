@@ -355,3 +355,8 @@
 .ai-overlay-backdrop { position:absolute; inset:0; width:100%; height:100%; border:0; border-radius:0; background:var(--scrim-soft, #0006); pointer-events:auto; touch-action:none; }
 .ai-model-menu .ai-model-efforts > [role=radiogroup] { display:flex; }
 .ai-overlay[data-sheet=true] { border-radius:16px; }
+/* Markers never change the scientific values or source shown for approval. */
+.ai-diff-marker { display: none; }
+:root[data-diff-markers='color'] .ai-diff-table td[data-change='removed'] { background: color-mix(in srgb, #c85656 9%, transparent); }
+:root[data-diff-markers='color'] .ai-diff-table td[data-change='added'] { background: color-mix(in srgb, #348c62 9%, transparent); }
+:root[data-diff-markers='symbols'] .ai-diff-marker { display: inline-block; margin-right: 7px; font-family: var(--font-code); font-weight: 600; }

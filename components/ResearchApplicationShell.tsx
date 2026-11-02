@@ -21,9 +21,11 @@ import { mergeStudioProjects, type StudioProjectItem } from '@/lib/project-navig
 import { phyniteProjects, type PhyniteProject } from '@/lib/phynite-api';
 import { AccountMenu } from './AccountMenu';
 import { AiWorkspaceChangeNotice } from './AiWorkspaceChangeNotice';
+import { LocalNotificationObserver } from './LocalNotificationObserver';
 import { LocalUpdateNotice } from './LocalUpdateNotice';
 import { BrandLockup } from './BrandLockup';
 import { ResearchShellContext, type ResearchShellState, type SidebarSearch } from './ResearchShellContext';
+import { matchesShortcut } from '@/lib/keyboard-preferences';
 import { observeBrowserNavigation } from '@/lib/browser-navigation';
 import '@/app/research-shell.css';
 import '@/app/workspace-motion.css';
@@ -317,6 +319,22 @@ function ResearchApplicationShell({ children }: { children: ReactNode }) {
     window.addEventListener('keydown', keyDown);
     return () => { element.removeEventListener('pointerenter', enterPanel); element.removeEventListener('pointerleave', leave); element.removeEventListener('pointerdown', pointerDown); element.removeEventListener('focusin', focusIn); element.removeEventListener('focusout', focusOut); window.removeEventListener('keydown', keyDown); };
   }, [leave, docked, mobileOpen, preview, previewSection, section, mobileLayout, setPreview]);
+  useEffect(() => {
+    const shortcut = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing || (event.target instanceof Element && event.target.closest('dialog[open],[role="dialog"],input,select,[contenteditable="true"]'))) return;
+      if (matchesShortcut(event, 'focus-chat')) {
+        const composer = Array.from(document.querySelectorAll<HTMLTextAreaElement>('.ai-composer-box textarea')).find(element => element.getClientRects().length && !element.disabled);
+        if (composer) { event.preventDefault(); composer.focus(); }
+      } else if (!(event.target instanceof HTMLTextAreaElement) && matchesShortcut(event, 'open-settings')) { event.preventDefault(); navigate('account', '/account/appearance'); }
+      else if (!(event.target instanceof HTMLTextAreaElement) && matchesShortcut(event, 'toggle-sidebar')) {
+        event.preventDefault();
+        if (mobileLayout) setMobileOpen(current => !current);
+        else if (!settingsSidebar) prefs.change({ type: 'dock', docked: !sidebarOpen });
+      }
+    };
+    window.addEventListener('keydown', shortcut);
+    return () => window.removeEventListener('keydown', shortcut);
+  }, [navigate, mobileLayout, settingsSidebar, sidebarOpen, prefs]);
   const railLink = (id: 'home' | NavigationFeature) => {
     const item = id === 'home' ? { href: '/workspace', Icon: Home } : researchFeatures[id];
     const Icon = item.Icon;
@@ -336,17 +354,17 @@ function ResearchApplicationShell({ children }: { children: ReactNode }) {
   </div>);
   return <ResearchShellContext.Provider value={value}><WorkspaceCloudSyncContext.Provider value={{ owner, state: cloud }}>
     <div className="research-app-shell" data-project-header={projectWorkspace} data-research-theme={theme} data-docked={docked} data-settings={settingsSidebar} data-preview={Boolean(preview)} data-mobile-open={mobileOpen} style={{ '--research-sidebar-width': `${settingsSidebar ? 280 : width}px` } as CSSProperties}>
-      {session?.mode === 'local' && <LocalUpdateNotice inert={mobileOpen} />}
+      {session?.mode === 'local' && <><LocalNotificationObserver owner={owner} /><LocalUpdateNotice inert={mobileOpen} /></>}
       <div ref={setWorkspaceHeaderHost} className="research-workspace-header" hidden={!projectWorkspace} inert={mobileOpen}>
         {mobileLayout && projectWorkspace && <div className="research-project-account-actions"><div ref={setWorkspaceResourcesHost} className="research-resources-host" /><AccountMenu session={session!} variant="mobile" /></div>}
       </div>
       <header className="research-mobile-header" hidden={projectWorkspace} inert={mobileOpen}><button ref={mobileTrigger} type="button" aria-label={t('Open navigation', 'Buka navigasi')} aria-expanded={mobileOpen} aria-controls="research-navigation" onClick={() => { mobileOpener.current = mobileTrigger.current; setPreview(null); setMobileOpen(true); }}><Menu size={21} /></button><strong>{label(section)}</strong>{mobileLayout && !projectWorkspace && <div className="research-home-account-actions"><div ref={setWorkspaceResourcesHost} className="research-resources-host" /><AccountMenu session={session!} variant="mobile" /></div>}</header>
       {mobileOpen && <button className="research-mobile-backdrop" aria-label={t('Close navigation', 'Tutup navigasi')} onClick={() => setMobileOpen(false)} />}
       <div ref={navigation} id="research-navigation" className="research-navigation" inert={mobileLayout && !mobileOpen} role={mobileOpen ? 'dialog' : undefined} aria-modal={mobileOpen || undefined} aria-label={t('Research navigation', 'Navigasi riset')}>
-        <nav className="research-icon-rail" aria-label={t('Workspace features', 'Fitur workspace')}>
+        {!settingsSidebar && <nav className="research-icon-rail" aria-label={t('Workspace features', 'Fitur workspace')}>
           {railLink('home')}
           {!mobileLayout && <div className="research-rail-account"><div ref={setWorkspaceResourcesHost} className="research-resources-host" /><AccountMenu session={session!} variant="rail" /></div>}
-        </nav>
+        </nav>}
         <aside className="research-context-sidebar" aria-label={`${label(shownSection)} sidebar`} inert={!sidebarOpen} aria-hidden={!sidebarOpen}>
           <header className="research-sidebar-heading">
             <Link className="research-sidebar-brand" href="/workspace" aria-label={t('Phynite Lab home', 'Beranda Phynite Lab')} onClick={event=>{if(event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();navigate('home','/workspace');}}><BrandLockup /></Link>

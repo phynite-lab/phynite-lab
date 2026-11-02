@@ -27,8 +27,11 @@ class MdMultipart:
     def record(self, owner: str, identifier: str) -> dict[str, Any]:
         return self.table.get_item(Key={'PK': owner_partition(owner), 'SK': self.upload_kind + '#' + identifier}, ConsistentRead=True).get('Item') or {}
 
+    def item(self, owner: str, identifier: str) -> dict[str, Any]:
+        return require_owner_item(self.services, owner, self.source_kind, identifier, 'MD_TRAJECTORY_NOT_FOUND')
+
     def source(self, owner: str, identifier: str) -> dict[str, Any]:
-        item = require_owner_item(self.services, owner, self.source_kind, identifier, 'MD_TRAJECTORY_NOT_FOUND')
+        item = self.item(owner, identifier)
         if item['status'] != 'UPLOAD_PENDING':
             raise ApiError(409, 'This source upload is already finalized.', 'MD_UPLOAD_STATE')
         return item
@@ -89,7 +92,7 @@ class MdMultipart:
                 'headers': {'Content-Length': str(size), 'x-amz-checksum-sha256': checksum}}
 
     def complete(self, owner: str, identifier: str) -> dict[str, Any]:
-        item = require_owner_item(self.services, owner, self.source_kind, identifier, 'MD_TRAJECTORY_NOT_FOUND')
+        item = self.item(owner, identifier)
         record = self.record(owner, identifier)
         if record.get('completedChecksum'): return record
         self.source(owner, identifier)
@@ -131,7 +134,7 @@ class MdMultipart:
         return {**record, 'completedChecksum': composite}
 
     def abort(self, owner: str, identifier: str) -> None:
-        item = require_owner_item(self.services, owner, self.source_kind, identifier, 'MD_TRAJECTORY_NOT_FOUND')
+        item = self.item(owner, identifier)
         record = self.record(owner, identifier)
         if record.get('uploadId') and not record.get('completedChecksum'):
             try:

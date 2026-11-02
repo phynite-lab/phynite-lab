@@ -1,5 +1,6 @@
 'use client';
 
+import { matchesShortcut } from '@/lib/keyboard-preferences';
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { ArrowDown, ArrowUp, LoaderCircle, BookOpen, FileSearch, FileText, ListChecks, ListEnd, CornerDownRight, Trash2, Paperclip, Pencil, Plus, Square, X } from 'lucide-react';
 import { PhyniteAiIcon } from '@/app/tool-icons';
@@ -647,7 +648,7 @@ function AiWorkspaceOwner({ owner, projectId, legacyProjectId, conversationId, v
           if (event.nativeEvent.isComposing) return;
           if (picker && pickerView === 'commands' && pickerController.current?.handleKeyDown(event)) return;
           if (event.key === '@' && /(^|\s)$/.test(event.currentTarget.value.slice(0, event.currentTarget.selectionStart))) { event.preventDefault(); openPicker('contexts'); return; }
-          if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void send(); }
+          if (matchesShortcut(event, 'send-message')) { event.preventDefault(); void send(); }
         }} />
         <div ref={toolbar} className="ai-composer-toolbar"><div className="ai-toolbar-context"><input ref={fileInput} type="file" multiple hidden accept=".png,.jpg,.jpeg,.webp,.pdf,.docx,.xlsx,.csv,.tsv,.txt,.md,.markdown,.log,.out,.in,.inp,.cif,.xyz,.poscar,.contcar,.xsf,.json,.yaml,.yml,.dat,.upf,.lmp,.lammps" onChange={event => { void addFiles(Array.from(event.target.files ?? [])); event.target.value = ''; }} /><button ref={attachButton} type="button" className="ai-attach-button" disabled={loading} onClick={() => { if (picker) closePicker(); else openPicker('menu'); }} aria-expanded={picker} aria-label={t('Add context', 'Tambah konteks')} title={t('Add files, modes, skills or context (/)', 'Tambah file, mode, skill atau konteks (/)')}><Plus size={22} /></button>
           <div className="ai-composer-permissions"><UiSelect compact portalOwner={portalOwner} open={activeOverlay === 'permissions'} onOpenChange={open => { if (open) { closePicker(false); setComposerOverlay('permissions'); } else setComposerOverlay(current => current === 'permissions' ? null : current); }} ariaLabel={t('AI permissions', 'Izin AI')} value={mode} options={[{ value: 'chat', label: t('Chat only', 'Chat saja'), detail: t('Discuss and read project evidence', 'Diskusi dan baca bukti project') }, { value: 'approval', label: t('Ask for approval', 'Minta persetujuan'), detail: t('Review changes before execution', 'Tinjau perubahan sebelum eksekusi') }, { value: 'full', label: t('Full access', 'Akses penuh'), detail: t('Apply requested project actions', 'Terapkan aksi project yang diminta') }]} disabled={locked} onChange={value => void settings(modelId, value as AiPermissionMode, effort)} /></div>

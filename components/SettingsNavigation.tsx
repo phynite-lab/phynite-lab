@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ArrowLeft, Bell, Cpu, CreditCard, HardDrive, Search, ShieldCheck, SlidersHorizontal, UserRound, Gauge, Sparkles, X } from 'lucide-react';
+import { ArrowLeft, Bell, CreditCard, HardDrive, Search, ShieldCheck, SlidersHorizontal, UserRound, Gauge, Sparkles, Keyboard, X } from 'lucide-react';
 import { searchSettingsSections, searchSettingsControls } from '@/app/account-navigation';
 import { useLocale } from '@/app/locale-provider';
 import { useResearchShell } from './ResearchShellContext';
@@ -11,8 +11,8 @@ import { useSession } from '@/app/use-session';
 import { hasUserProfile } from '@/app/auth-client';
 import '@/app/account/settings.css';
 
-const icons = { profile: UserRound, appearance: SlidersHorizontal, notifications: Bell, compute: Cpu, 'ai-providers': Sparkles, usage: Gauge, storage: HardDrive, billing: CreditCard, privacy: ShieldCheck };
-const groups = [{ id: 'ai', en: 'AI providers', idn: 'Provider AI' }, { id: 'research', en: 'Research', idn: 'Riset' }, { id: 'device', en: 'This device', idn: 'Perangkat ini' }, { id: 'personal', en: 'Your profile', idn: 'Profil Anda' }, { id: 'account', en: 'Account & billing', idn: 'Akun & tagihan' }] as const;
+const icons = { profile: UserRound, appearance: SlidersHorizontal, keyboard: Keyboard, notifications: Bell, compute: SlidersHorizontal, account: UserRound, 'ai-providers': Sparkles, usage: Gauge, storage: HardDrive, billing: CreditCard, privacy: ShieldCheck };
+const groups = [{ id: 'ai', en: 'Connections', idn: 'Koneksi' }, { id: 'research', en: 'Research', idn: 'Riset' }, { id: 'device', en: 'Preferences', idn: 'Preferensi' }, { id: 'personal', en: 'Your profile', idn: 'Profil Anda' }, { id: 'account', en: 'Security & billing', idn: 'Keamanan & tagihan' }] as const;
 
 export function SettingsNavigation({ onNavigate, className = '' }: { onNavigate?: () => void; className?: string }) {
   const { t } = useLocale();
@@ -21,8 +21,8 @@ export function SettingsNavigation({ onNavigate, className = '' }: { onNavigate?
   const { session } = useSession();
   const hideProfile = session?.mode === 'local' && !hasUserProfile(session);
   const [query, setQuery] = useState('');
-  const sections = searchSettingsSections(query).filter(section => (!hideProfile || section.id !== 'profile') && (session?.mode === 'local' || section.id !== 'ai-providers'));
-  const controls = searchSettingsControls(query).filter(control => (!hideProfile || control.section !== 'profile') && (session?.mode === 'local' || control.section !== 'ai-providers'));
+  const sections = searchSettingsSections(query).filter(section => (!hideProfile || section.id !== 'profile') && (session?.mode === 'local' || section.id !== 'ai-providers') && (session?.mode !== 'local' || section.id !== 'billing'));
+  const controls = searchSettingsControls(query, session?.mode === 'local' ? 'local' : 'hosted').filter(control => (!hideProfile || control.section !== 'profile') && (session?.mode === 'local' || control.section !== 'ai-providers') && (session?.mode !== 'local' || control.section !== 'billing'));
   const visit = (event: React.MouseEvent<HTMLAnchorElement>, href: string, billing: boolean) => {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     const url = new URL(href, window.location.href);
@@ -42,7 +42,7 @@ export function SettingsNavigation({ onNavigate, className = '' }: { onNavigate?
     <label className="settings-search"><Search size={16} aria-hidden="true" /><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={t('Search settings', 'Cari pengaturan')} aria-label={t('Search settings', 'Cari pengaturan')} />{query && <button type="button" onClick={() => setQuery('')} aria-label={t('Clear settings search', 'Kosongkan pencarian pengaturan')}><X size={14} /></button>}</label>
     <div className="settings-navigation-scroll">{groups.map(group => {
       const items = sections.filter(section => section.group === group.id);
-      return items.length > 0 && <section className="settings-nav-group" key={group.id} aria-labelledby={`settings-group-${group.id}`}><h3 id={`settings-group-${group.id}`}>{t(group.en, group.idn)}</h3>{group.id === 'device' && session?.mode === 'local' && !query.trim() && <Link className="settings-runtime-link" href="/local" onClick={onNavigate} aria-current={pathname === '/local' ? 'page' : undefined}><Cpu size={17} />{t('Local runtime & cloud', 'Runtime lokal & cloud')}</Link>}{items.map(item => {
+      return items.length > 0 && <section className="settings-nav-group" key={group.id} aria-labelledby={`settings-group-${group.id}`}><h3 id={`settings-group-${group.id}`}>{t(group.en, group.idn)}</h3>{items.map(item => {
         const Icon = icons[item.id];
         return <Link key={item.id} href={item.href} aria-current={pathname === item.href || item.id === 'billing' && pathname.startsWith('/billing/') ? 'page' : undefined} onClick={event => visit(event, item.href, item.id === 'billing')}><Icon size={17} /><span>{t(item.en, item.idn)}</span></Link>;
       })}</section>;

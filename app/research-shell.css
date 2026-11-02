@@ -259,3 +259,7 @@
   .research-home-account-actions :is(.research-rail-button,.lab-account-toggle) { width:36px; height:36px; }
   .research-app-shell[data-project-header='true'] .workflow-global-controls { padding-right:84px; }
 }
+
+/* Settings has its own category navigation and return action. */
+.research-app-shell[data-settings='true'] { --research-rail-width: 0px; }
+.research-app-shell[data-settings='true'] .research-home-account-actions { display: none; }

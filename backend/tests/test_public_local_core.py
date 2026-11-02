@@ -33,10 +33,17 @@ class PublicLocalCoreTests(unittest.TestCase):
         self.assertFalse(any("backend/functions" in entry for entry in command))
         self.assertNotIn("backend/compute/runner.py", manifest["pythonModules"])
         self.assertTrue(set(manifest["frozenModules"]) <= set(manifest["pythonModules"]))
+        self.assertIn('backend/local_api/pseudopotentials.py', manifest['frozenModules'])
+        self.assertIn('backend/local_worker/install_pseudopotentials.py', manifest['frozenModules'])
+        for filename in ('SSSP_1.3.0_PBE_precision.json', 'SSSP_1.3.0_PBE_efficiency.json', 'LICENSE.txt', 'README.md'):
+            relative = 'data/sssp/' + filename
+            self.assertIn(relative, manifest['dataFiles'])
+            self.assertTrue(any(relative in part for part in command))
+        self.assertFalse(any(name.lower().endswith('.upf') for name in manifest['dataFiles']))
 
     def test_clean_public_checkout_runs_local_regressions_without_private_imports(self):
         manifest = json.loads(MANIFEST.read_text())
-        tests = [name for name in manifest["portableTests"] if Path(name).stem in {"test_local_desktop", "test_local_integrity", "test_local_persistence", "test_local_cloud_integrity", "test_local_draft_bundle", "test_local_regressions", "test_local_connections", "test_local_scientific_qualification"}]
+        tests = [name for name in manifest["portableTests"] if Path(name).stem in {"test_local_desktop", "test_local_integrity", "test_local_persistence", "test_local_cloud_integrity", "test_local_draft_bundle", "test_local_regressions", "test_local_connections", "test_local_scientific_qualification", "test_local_workflow_readiness", "test_local_pseudopotentials"}]
         with tempfile.TemporaryDirectory(prefix="phynite-public-only-") as directory:
             target = Path(directory)
             # Shared SSE parser and the release producer are public source, not

@@ -44,6 +44,8 @@ class DesktopApplication:
         self.archives = ProjectArchives(self.services)
         from backend.local_api.connections import DesktopConnections
         self.connections = DesktopConnections(self.data_dir, self.services)
+        from backend.local_api.pseudopotentials import PseudopotentialManager
+        self.pseudopotentials = PseudopotentialManager(self.data_dir)
         self.token = secrets.token_urlsafe(48)
         self.closed = threading.Event()
         self.workers: list[subprocess.Popen] = []
@@ -227,6 +229,22 @@ class DesktopApplication:
         if archive_part and method == 'PUT':
             return response(200, self.archives.upload(archive_part[1], int(archive_part[2]), raw))
         payload = json.loads(raw or b"{}")
+        recovery_status = re.fullmatch(r'/__local/jobs/([A-Za-z0-9_-]+)/recovery', path)
+        if recovery_status and method == 'GET':
+            if not self.authorized(headers):
+                raise ApiError(401, 'Open this workspace through the Phynite Lab launcher.', 'LOCAL_SESSION_REQUIRED')
+            from backend.local_api.result_recovery import recovery_status as status
+            return response(200, status(self.services, recovery_status[1]))
+        recover = re.fullmatch(r'/__local/jobs/([A-Za-z0-9_-]+)/recover', path)
+        if recover and method == 'POST':
+            # Job reservations use worker authentication. Importing retained
+            # output instead requires the opaque local browser session.
+            if not self.authorized(headers):
+                raise ApiError(401, 'Open this workspace through the Phynite Lab launcher.', 'LOCAL_SESSION_REQUIRED')
+            if payload != {}:
+                raise ApiError(400, 'Result recovery accepts only the saved local job identity.', 'INVALID_RECOVERY_REQUEST')
+            from backend.local_api.result_recovery import recover_result
+            return recover_result(self.services, recover[1])
         export = re.fullmatch(r'/__local/projects/([A-Za-z0-9_-]+)/export', path)
         if export and method == 'POST':
             return response(200, self.archives.export(export[1]))
@@ -246,7 +264,14 @@ class DesktopApplication:
         if path == "/__local/runtime" and method == "GET":
             worker = self.services.get_item(self.services.owner, 'PERSONAL_WORKER', 'primary') or {}
             online = int(worker.get('lastSeenAtEpoch') or 0) > time.time() - 90
-            return response(200, {"mode": "local", "identity": {"workspaceId": self.services.owner}, "cloud": self.connections.cloud_status(), "capabilities": {"editor": True, "persistence": "sqlite-filesystem", "solver": worker.get('capabilities', []) if online else [], "solverManifest": worker.get('runtimeManifest') if online else None}, "runtime": self.runtime.status() if self.runtime else {"downloadAvailable": False, "installed": {}, "error": "Compute runtime is not included in this build."}, "resources": self.scheduler.settings() if self.scheduler else None})
+            return response(200, {"mode": "local", "identity": {"workspaceId": self.services.owner}, "cloud": self.connections.cloud_status(), "capabilities": {"editor": True, "persistence": "sqlite-filesystem", "solver": worker.get('capabilities', []) if online else [], "solverManifest": worker.get('runtimeManifest') if online else None}, "runtime": self.runtime.status() if self.runtime else {"downloadAvailable": False, "installed": {}, "error": "Compute runtime is not included in this build."}, "pseudopotentials": self.pseudopotentials.status(), "resources": self.scheduler.settings() if self.scheduler else None})
+        if path in {'/__local/pseudopotentials/install', '/__local/runtime/pseudopotentials/install'} and method == 'POST':
+            library = payload.get('library') if isinstance(payload, dict) else None
+            if library not in {'precision', 'efficiency'} or set(payload) != {'library'}:
+                raise ApiError(400, 'Choose the precision or efficiency SSSP PBE library.', 'INVALID_PSEUDOPOTENTIAL_LIBRARY')
+            if not self.pseudopotentials.begin(library):
+                raise ApiError(409, 'A pseudopotential installation is already running.', 'PSEUDOPOTENTIAL_INSTALL_BUSY')
+            return response(202, {'accepted': True, 'library': library})
         if path == "/__local/runtime/install" and method == "POST":
             if not self.runtime:
                 raise ApiError(503, "The runtime installer is not included in this build.", "RUNTIME_UNAVAILABLE")

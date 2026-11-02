@@ -1,0 +1,9 @@
+.compute-pseudopotential-setup { flex: 1 0 100%; font-size: 12px; }
+.compute-pseudopotential-setup summary { cursor: pointer; }
+.compute-pseudopotentials { display: grid; gap: 12px; padding: 16px; font-size: 12px; line-height: 1.6; }
+.compute-pseudopotentials--compact { padding: 12px 0 0; }
+.compute-pseudopotentials p { margin: 0; }
+.compute-pseudopotentials a { text-decoration: underline; }
+.compute-pseudopotential-library { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding-block: 8px; border-bottom: 1px solid var(--line, var(--border)); }
+.compute-pseudopotential-library span { display: grid; gap: 3px; }
+.compute-pseudopotential-library small { color: var(--muted-ink); }

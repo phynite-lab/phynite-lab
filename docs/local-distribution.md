@@ -28,7 +28,7 @@ Do not assemble a release using stale cores or application output from another
 commit or platform. Solver scientific libraries belong in the optional runtime,
 not the npm package. Do not include restricted pseudopotentials or potentials.
 
-The 0.1.3 npm release ships `darwin-arm64` (macOS Apple Silicon), `darwin-x64`
+The 0.1.4 npm release ships `darwin-arm64` (macOS Apple Silicon), `darwin-x64`
 (macOS Intel), `linux-arm64`, and `linux-x64` (glibc >=2.39, including current
 Omarchy/Arch Linux). Windows WSL2 uses the Linux x64 package because WSL2 reports
 that native platform to Node and npm. Each native package is built and qualified
@@ -41,7 +41,7 @@ is insufficient.
 
 Use Node.js >=22.13 and npm from your preferred user-managed Node installation.
 Install with `npm install -g phynite-lab`, then run `phynite-lab` in the normal
-desktop session. Scientific runtime installation is available under Setup; choose
+desktop session. Scientific runtime installation is available in **Settings → Compute**; choose
 DFT, MD/analysis, or both. No solver, Docker, global Python or administrator
 command runs during npm installation. Do not omit npm optional dependencies.
 
@@ -61,13 +61,40 @@ automatically. Offline checks do not block local work; the request sends no
 project data or account credentials. Development checkouts do not check npm.
 
 Unprivileged user namespaces must be available in the running kernel and policy.
-Setup's real write/network confinement probe determines availability; a disabled
+Compute setup's real write/network confinement probe determines availability; a disabled
 namespace or security-policy restriction blocks manual MD and runtime setup with
 its actual diagnostic. The application never disables those restrictions. Ubuntu
 CI uses an exact-path, ephemeral AppArmor fixture rather than a global sysctl
 change; this fixture is never installed on users' machines. Direct Omarchy desktop
 testing is not part of this release's evidence; native qualification uses Ubuntu
 24.04 x64.
+
+## A run fails before the solver starts
+
+The npm launcher uses `~/.phynite-lab`; `npm run dev:local` uses
+`~/.phynite-lab-dev`. Runtime installations belong to the selected data directory,
+just like its projects. Do not copy a scientific environment between directories:
+its native library prefixes may refer to its installation location. Install the
+required DFT or MD/analysis component through the active application's setup.
+DFT also requires its selected pseudopotential inputs. Setup's DFT
+pseudopotentials section downloads the explicitly chosen SSSP Precision or
+Efficiency library from the official pinned archive and verifies its checksums
+before activation. The files and their licenses remain in this data directory;
+they are not redistributed in the npm package. Explicitly uploaded UPF files do
+not require installing an SSSP library. Missing selected models block the run
+review before creating an attempt.
+
+The run review checks the requested capability against the live local worker.
+Missing or offline solvers block Start before a run is created. Reusable results
+and modules that need no compute remain usable. Wait for installation and worker
+validation to finish, then start a new run. A saved Cloud target cannot execute
+through the local workflow runner; choose Your computer, or use the separate
+Cloud connection's submission flow.
+
+Execution result retains the job's failure reason and log tail. Downloadable log
+artifacts remain available when the worker produced them. A preflight rejection
+has no solver log because the solver never started. Inspect the displayed reason
+and the selected data directory's `logs/worker-*.log` for worker startup failures.
 
 ## Assemble separate launcher and platform packages
 
@@ -103,8 +130,9 @@ An assembly produces:
   `os` and `cpu`, with production dependencies declared as bundled.
 - `assembly.json`: version, public source metadata and produced package inventory.
 
-No app or scientific runtime download runs from npm lifecycle scripts. Publish the qualified macOS platform package before the launcher. Installing with npm optional
-dependencies disabled produces an explicit missing-runtime error.
+No app or scientific runtime download runs from npm lifecycle scripts. Publish all
+qualified platform packages for the version before the launcher. Installing with
+npm optional dependencies disabled produces an explicit missing-runtime error.
 
 The assembler's `--source-commit` must identify a full commit in the public source
 repository. Manifests record that commit, browser source URL and source archive URL;
@@ -114,6 +142,31 @@ for the published binaries. Provide the source link in the UI and package README
 The release process must verify this correspondence, third-party license notices,
 native libraries and any applicable source-distribution obligations; collecting
 package license strings alone does not establish compliance.
+
+## Settings navigation
+
+Use the category sidebar in Settings instead of a second local-runtime navigation
+bar. The shared UI hosts the mode-specific controls directly:
+
+| Page | Local application |
+| --- | --- |
+| `/account/appearance` | Device system/light/dark theme, accent, custom colors, density, interface/code text size, reduced motion, language |
+| `/account/keyboard` | Supported shortcut bindings in this browser |
+| `/account/notifications` | Job/runtime alerts and optional desktop permission |
+| `/account/compute` | Scientific runtime installation, isolation status, resource defaults, optional cloud-job transfer |
+| `/account/ai-providers` | Own AI provider accounts, connection status, models, reported limits/reset |
+| `/account/account` | Optional Phynite Cloud login/logout and per-project sync |
+| `/account/usage` | Recorded scientific-job usage and provider-reported AI usage |
+| `/account/storage` | Local project archives and storage inventory |
+| `/account/privacy` | Local privacy and session information |
+
+Profile links are available only for a connected Phynite account. Billing in local
+mode opens `https://phynitelab.com/billing`. Appearance and keyboard are browser
+preferences, independent from cloud account settings and workspace data. Legacy
+`/local` bookmarks redirect: `#ai` to AI provider accounts, `#cloud` to Account,
+`#storage` to Storage, and the other setup hashes to Compute.
+
+See [settings and preferences](settings-preferences.md) for behavior and recovery.
 
 ## Optional Cloud configuration
 
@@ -145,8 +198,8 @@ process fixtures are rejected by executable magic. It never downloads a browser.
 
 ```sh
 node scripts/smoke-local-distribution.mjs \
-  --tarball /path/to/tarballs/phynite-lab-0.1.3.tgz \
-  --runtime-tarball /path/to/tarballs/phynite-lab-runtime-darwin-arm64-0.1.3.tgz \
+  --tarball /path/to/tarballs/phynite-lab-0.1.4.tgz \
+  --runtime-tarball /path/to/tarballs/phynite-lab-runtime-darwin-arm64-0.1.4.tgz \
   --output /path/to/new-evidence
 ```
 
