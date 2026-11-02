@@ -3,6 +3,13 @@
 Phynite's local application is distributed under GNU AGPL v3 only. Third-party
 licenses apply to their respective components and are not replaced by AGPL.
 
+- The Codex and Antigravity PNG marks in `public/brand/ai/` identify the optional
+  provider integrations. Codex is an OpenAI product; Antigravity is a Google
+  product. Their names and brand artwork remain the property of their respective
+  owners and are not relicensed under Phynite's AGPL license. The bundled raster
+  images were resized from user-supplied visual references, not obtained as an
+  officially licensed asset pack. See `public/brand/ai/README.md` for provenance.
+  Their use does not imply affiliation with or endorsement of Phynite.
 - The integrated MD viewer comes from `jauhar-nr/md-prototype`, commit
   `fcef385d046c2425a008e798273213c073bc9ef6`, with Phynite adaptations. The project
   owner confirmed redistribution permission for this integration. Preserve
