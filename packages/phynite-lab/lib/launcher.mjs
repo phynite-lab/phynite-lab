@@ -234,7 +234,12 @@ export async function runCli(args = process.argv.slice(2), { packageRoot = PACKA
     catch (error) { valid = false; console.error(error.message); }
     console.log(`Data directory: ${resolve(options.dataDir)}`);
     const instance = await readJson(join(options.dataDir, 'runtime', INSTANCE_NAME));
-    console.log(await control(instance, 'status') ? 'Local application: running' : 'Local application: stopped');
+    const managed = await control(instance, 'status');
+    if (managed) console.log('Local application: running');
+    else {
+      const adopted = await healthyExistingWorkspace(resolve(options.dataDir));
+      console.log(adopted ? `Local application: running at ${adopted.url} (managed by another process)` : 'Local application: stopped');
+    }
     if (!valid) process.exitCode = 1;
     return;
   }
