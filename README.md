@@ -52,13 +52,21 @@ phynite-lab doctor
 npm install -g phynite-lab@latest
 ```
 
-The 0.1.5 release ships native packages for **macOS Apple Silicon** (`darwin-arm64`),
+The current published release is resolved from the package metadata and ships native packages for **macOS Apple Silicon** (`darwin-arm64`),
 **macOS Intel** (`darwin-x64`), **Linux ARM64** (`linux-arm64`) and **Linux x64**
 (`linux-x64`, glibc >=2.39), including current Omarchy/Arch Linux. Windows is
 supported through WSL2, which uses the Linux x64 package and launcher. Linux
 requires unprivileged user namespaces; the verified bubblewrap sandbox is included.
-The release is qualified on matching CI runners; direct testing on an Omarchy
-desktop or Windows host is not claimed. See the distribution guide for setup.
+Each supported target is qualified with the matching native acceptance record;
+the published evidence identifies which targets were exercised. Direct testing
+on an arbitrary Omarchy desktop or Windows host is not implied by package
+availability. See the distribution guide for setup and platform caveats.
+
+The launcher checks the npm registry for a newer release in the background after
+startup. A successful check is cached for up to six hours and a failed/offline
+check for five minutes. The notice shows the installed and available versions and
+never installs anything automatically. Local work continues when npm is offline;
+update with `npm install -g phynite-lab@latest` after stopping the running app.
 
 ## Local work and optional Cloud
 
@@ -120,8 +128,10 @@ explicitly to select another workspace, and stop its current instance first.
 
 See [local distribution](docs/local-distribution.md) and
 [native runtimes](docs/native-runtime-releases.md) for assembly and qualification.
-Ordinary pushes run checks. An explicit release workflow publishes versioned npm
-packages only after package, scientific and OS acceptance gates pass.
+Release preparation and publication are deliberate manual steps. Run the local
+validation commands and retain the source, checksum, platform, scientific, and
+license evidence before publishing a versioned npm package; no push or CI job
+publishes a release automatically.
 
 ## License and source
 

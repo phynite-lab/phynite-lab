@@ -1,17 +1,23 @@
 # Native npm release evidence
 
-A push runs source CI. A `release/**` branch push also builds and qualifies a native candidate without publishing. Publication is an explicit `Local native release` workflow dispatch against the public repository, with a version already committed in both package manifests. The release scripts never deploy the hosted application.
+Release evidence is collected and reviewed manually. A push, branch name, or
+repository event never publishes npm and never deploys the hosted application.
+Build the exact public source commit, run the required package, browser, native,
+scientific, sandbox, and license checks, then publish only the verified immutable
+bundle from an official npm account.
 
-The `0.1.4` release includes macOS Apple Silicon (`darwin-arm64`), macOS Intel
+The current release line includes macOS Apple Silicon (`darwin-arm64`), macOS Intel
 (`darwin-x64`), Linux ARM64 (`linux-arm64`) and Linux x64 (`linux-x64`, glibc
 >=2.39). Linux builders use Ubuntu 24.04 and its ARM64 hosted runner. Windows
 WSL2 uses the Linux x64 package because it reports that platform to Node and npm;
-direct testing on an Omarchy desktop or Windows host is not claimed. The native workflow builds the exact public
+direct testing on an Omarchy desktop or Windows host is not claimed. The release
+process builds the exact public
 commit, installs the launcher and matching platform tarball in a clean prefix, and requires
 all browser, persistence, scientific reference and sandbox checks to pass.
 `verified-release` contains the source archive, all four native tarballs and checksummed evidence.
-Normal pushes never publish. A maintainer can publish this same verified bundle
-using the official npm account or an explicitly configured trusted publisher.
+Publish this same verified bundle using the official npm account after completing
+the account's two-factor/passkey requirements. Never store an npm token in source,
+logs, evidence, or release artifacts.
 Native packages are published before the launcher; a partial release can resume
 only when registry tarballs have identical SHA-512 integrity.
 
@@ -19,18 +25,23 @@ only when registry tarballs have identical SHA-512 integrity.
 
 ```bash
 node scripts/verify-local-release.mjs prepare \
-  --directory build/release --version 0.1.4 \
+  --directory build/release --version <VERSION> \
   --source-commit FULL_PUBLIC_COMMIT --source-archive source.tar.gz
 node scripts/verify-local-release.mjs verify \
   --inventory build/release/release.json \
-  --version 0.1.4 --source-commit FULL_PUBLIC_COMMIT
+  --version <VERSION> --source-commit FULL_PUBLIC_COMMIT
 node scripts/publish-local-release.mjs \
-  --inventory build/release/release.json --confirm-version 0.1.4
+  --inventory build/release/release.json --confirm-version <VERSION>
 ```
 
-For a first publication, npm must already know each package before its settings can be configured with a trusted publisher. After all required gates pass, download the complete verified bundle and use the maintainer's official `npm login` session with the publisher locally. Then configure trusted publishing for every released package name, the public repository and `local-release.yml`; later releases can use the workflow's OIDC identity. Do not create unqualified placeholder versions merely to configure npm. A two-factor authentication or publisher setup requirement remains an explicit account step; never embed a token in source or artifacts.
+Run the commands from a clean checkout or release workspace after the exact
+version is committed in both package manifests. Complete `npm login` or the
+official npm passkey flow on the publisher's machine, keep credentials outside
+the repository, and confirm the registry package names and version before using
+`--publish`.
 
-The publisher defaults to a verified dry run. `--publish` explicitly enables registry writes; `--provenance` additionally enables npm provenance in the trusted GitHub workflow.
+The publisher defaults to a verified dry run. `--publish` explicitly enables
+registry writes; `--provenance` adds npm provenance to the publication request.
 
 The inventory format is `phynite-local-release-candidate`, schema version 1. It
 identifies the release version, exact public source commit, SHA-256-bound
@@ -54,10 +65,20 @@ The launcher uses the macOS system opener, a Linux desktop opener, or Windows br
 
 Scientific reports require runtime installation, a QE job submitted through the actual application queue/worker/artifact protocol, direct QE/Guided MD/manual MD/analysis reference runs, the sandbox probe and denials, cancel/resource/recovery and installation failure recovery. Each reference includes a successful process return code, exact input and output artifacts, provenance matching their hashes, and finite measured/expected values within an explicit tolerance. Reference contracts and licensed scientific fixtures are supplied separately by the producer; prohibited potential files are never bundled merely to satisfy a test.
 
-Raw acceptance directories contain local test state and must remain private. Use `verify-local-release.mjs collect --report RAW/report.json --output NEW_PUBLIC_DIR` to retain only explicit checksummed screenshots, logs and scientific attachments. The collector rejects identity/credential files and test databases. GitHub release evidence contains those collected files, never a raw test data directory.
+Raw acceptance directories contain local test state and must remain private. Use
+`verify-local-release.mjs collect --report RAW/report.json --output NEW_PUBLIC_DIR`
+to retain only explicit checksummed screenshots, logs and scientific attachments.
+The collector rejects identity/credential files and test databases. A release
+archive contains those collected files, never a raw test data directory.
 
 Every native executable must still pass the real acceptance producer on its target. A successful report parser, packaging test or build alone does not establish solver or sandbox qualification. No platform is supported for publication until its real gate passes.
 
 ## Registry acceptance after publication
 
-The workflow also checks a fresh global npm install, native startup, status/stop, project creation and restart persistence on all four native targets with an empty home and a Node-only PATH. Before a version is published, this job explicitly reports acceptance pending. Rerun its matrix jobs against the same source commit after initial publication; only their actual successful reports qualify registry installation. `verify-registry-install.mjs` uploads a sanitized report, not its temporary database, sessions or private process logs. The publisher waits up to ten minutes for npm staged-placeholder propagation, verifies the exact operational version integrity, and stops on authentication or different-byte failures.
+After publishing, manually verify `npm view` for the launcher and every optional
+runtime package, then install the exact version into a fresh prefix with a Node-only
+PATH. Check native startup, `status`, `stop`, project creation, restart persistence,
+loopback binding, and the installed launcher/runtime checksums on every target that
+is advertised. Keep only sanitized reports and never upload a temporary database,
+session, credential, or private process log. Stop when npm authentication,
+propagation, integrity, or platform behavior differs from the reviewed bundle.

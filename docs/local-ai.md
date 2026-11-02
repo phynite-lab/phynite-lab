@@ -2,8 +2,9 @@
 
 ## Local application: your provider accounts
 
-The npm application uses the user's own supported provider CLI or an already configured
-local gateway. The obsolete gateway configuration block is no longer shown in Settings.
+The npm application uses the user's own supported Codex or Antigravity CLI, or an
+already configured loopback OpenAI-compatible gateway such as 9Router. The obsolete
+gateway configuration block is no longer shown in Settings.
 Open **Settings → AI provider accounts** to connect a supported CLI account,
 select among saved accounts, inspect connection status, and read available model
 and usage information. Complete authentication through the provider's official
@@ -15,6 +16,13 @@ provider catalog, current account entitlement, and verified tools/attachment
 capabilities determine availability; Phynite Cloud model settings do not constrain
 a local account. A failed or rate-limited request does not silently switch provider
 or account. Canvas actions retain their existing validation and approval checks.
+
+When a provider is connected, choose the account and model from the provider
+account page or chat composer. A model is usable only after text, streaming, and
+any requested tools or attachments pass the host capability probe. If that probe
+fails, the model remains unavailable and the application keeps the diagnostic
+instead of asking you to guess a permission mode. Provider login and Phynite Cloud
+login are separate sessions; local AI does not use hosted Phynite AI.
 
 Usage reflects the provider's own reported limits, percentages, windows, and reset
 times. Unavailable measurements remain unavailable; they are never converted into
