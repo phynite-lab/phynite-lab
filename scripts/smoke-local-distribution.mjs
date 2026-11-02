@@ -127,6 +127,7 @@ async function visit(page, origin, path) {
   await expect(page.locator('body')).toBeVisible();
   await expect.poll(() => new URL(page.url()).pathname).toBe(path);
   if (path === '/account/compute') await expect(page.getByRole('heading', { name: 'Compute', exact: true })).toBeVisible();
+  if (path === '/account/account') await expect(page.getByRole('heading', { name: 'Phynite Cloud', exact: true })).toBeVisible();
   if (path === '/workspace') await expect(page.getByRole('button', { name: 'New project', exact: true })).toBeEnabled();
 }
 
@@ -230,7 +231,7 @@ try {
   await expect(page.locator('.studio-mobile-header')).toHaveCount(0);
   await page.screenshot({ path: join(output, 'desktop-local.png'), fullPage: true });
   await visit(page, initial.origin, '/account/account');
-  await page.locator('#cloud').scrollIntoViewIfNeeded();
+  await page.locator('section.settings-section').filter({ has: page.getByRole('heading', { name: 'Phynite Cloud', exact: true }) }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: join(output, 'desktop-connections.png') });
   await visit(page, initial.origin, '/workspace');
   await page.getByRole('button', { name: 'New project', exact: true }).click();
@@ -296,7 +297,7 @@ try {
   for (const path of ['/workspace', '/account/compute']) {
     await visit(mobilePage, initial.origin, path);
     assert.ok(await mobilePage.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${path} must fit a mobile viewport.`);
-    await mobilePage.screenshot({ path: join(output, `mobile-${path.slice(1)}.png`), fullPage: true });
+    await mobilePage.screenshot({ path: join(output, path === '/workspace' ? 'mobile-workspace.png' : 'mobile-local.png'), fullPage: true });
     if (path === '/workspace') {
       await expect(mobilePage.locator('.lab-account-toggle')).toHaveCount(0);
       const action = mobilePage.locator('.lab-local-connection-actions:visible').getByRole('link', { name: 'Connect Phynite Cloud', exact: true }).first();
@@ -315,7 +316,9 @@ try {
       await expect(mobilePage.getByRole('link', { name: 'Compute', exact: true })).toBeVisible();
       await mobilePage.locator('.research-drawer-close').click();
       await expect(mobilePage.locator('.research-navigation')).toBeHidden();
-      await mobilePage.locator('#cloud').scrollIntoViewIfNeeded();
+      await visit(mobilePage, initial.origin, '/account/account');
+      await mobilePage.locator('section.settings-section').filter({ has: mobilePage.getByRole('heading', { name: 'Phynite Cloud', exact: true }) }).scrollIntoViewIfNeeded();
+      assert.ok(await mobilePage.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'Account settings must fit a mobile viewport.');
       await mobilePage.screenshot({ path: join(output, 'mobile-connections.png') });
     }
   }
