@@ -241,7 +241,18 @@ export async function runCli(args = process.argv.slice(2), { packageRoot = PACKA
   if (options.command === 'status' || options.command === 'stop') {
     const instance = await readJson(join(options.dataDir, 'runtime', INSTANCE_NAME));
     const current = await control(instance, options.command);
-    console.log(current ? (options.command === 'stop' ? 'Phynite Lab is stopping.' : `Phynite Lab is running at ${current.url}`) : 'Phynite Lab is stopped.');
+    if (current) {
+      console.log(options.command === 'stop' ? 'Phynite Lab is stopping.' : `Phynite Lab is running at ${current.url}`);
+      return;
+    }
+    const adopted = await healthyExistingWorkspace(resolve(options.dataDir));
+    if (adopted) {
+      console.log(options.command === 'stop'
+        ? `Phynite Lab is running at ${adopted.url}, but it is managed by another process. Stop it from that process; no service was stopped.`
+        : `Phynite Lab is running at ${adopted.url} (managed by another process).`);
+      return;
+    }
+    console.log('Phynite Lab is stopped.');
     return;
   }
 
