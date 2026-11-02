@@ -407,6 +407,8 @@ class ProjectWorkflowApi:
         planned: list[dict[str, Any]] = []
         errors: list[dict[str, str]] = []
         estimated_micros = 0
+        worker = self.services.get_item(owner, 'PERSONAL_WORKER', 'primary') or {}
+        now = time.time()
         for node_id in execution_order:
             node = next((node for node in graph['nodes'] if node['id'] == node_id))
             input_edges = [edge for edge in graph['edges'] if edge['target'] == node_id]
@@ -463,12 +465,24 @@ class ProjectWorkflowApi:
                 self.resources(owner, {**graph, 'nodes': [node]}, execution=True)
             except ApiError as exc:
                 error = str(exc)
-            if error:
-                errors.append({'nodeId': node_id, 'message': error})
             reusable = None if node_id in forced or error else self.find_reusable(owner, project, node, hashes[node_id])
             action = 'reuse' if reusable else 'input' if node['kind'] in {'structure', 'trajectory'} or legacy_result else 'prepare' if node['kind'] == 'figure' else 'run'
             if action == 'run' and (not error) and (node['kind'] in DFT_TYPES) and (node['configuration'].get('computeTarget') == 'shared'):
                 raise ApiError(400, 'Submit online compute through the optional Cloud connection. This workflow runner executes on Your computer.', 'INVALID_COMPUTE_TARGET')
+            capability = 'qe' if node['kind'] in DFT_TYPES else 'md-simulation' if node['kind'] == 'md' else 'md-analysis' if node['kind'] in {'md-analysis', 'extract-frame'} else None
+            if action == 'run' and not error and capability:
+                runtime = 'DFT (Quantum ESPRESSO)' if capability == 'qe' else 'MD and analysis (LAMMPS/OVITO)'
+                if not worker.get('tokenHash') or int(worker.get('lastSeenAtEpoch') or 0) < now - 90:
+                    error = 'Your computer is offline. Start or restart phynite-lab and wait for Your computer in Settings > Compute (/local#runtime) to become ready.'
+                    if capability not in (worker.get('capabilities') or []):
+                        error += f' If the {runtime} runtime is not installed for this workspace, install it there (/local#runtime).'
+                elif capability not in (worker.get('capabilities') or []):
+                    error = f'Install the {runtime} runtime for this workspace in Settings > Compute (/local#runtime), then wait for Your computer to become ready.'
+                elif capability == 'qe' and getattr(self.services, 'local_workspace', False):
+                    from backend.local_api.pseudopotentials import execution_pseudopotential_error
+                    error = execution_pseudopotential_error(self.services.data_dir, node['configuration'].get('execution', {}))
+            if error:
+                errors.append({'nodeId': node_id, 'message': error})
             scf_source = next((edge['source'] for edge in input_edges if edge['port'] == 'electronic'), None)
             planned.append({'nodeId': node_id, 'fingerprint': hashes[node_id], 'action': action, 'force': node_id in forced, 'validationDeferred': deferred, **({'sourceScfNodeId': scf_source} if scf_source else {}), **({'sourceAttemptId': reusable['id']} if reusable else {}), **({'error': error} if error else {})})
         compiler_sha = None

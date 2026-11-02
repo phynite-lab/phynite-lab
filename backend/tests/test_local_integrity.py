@@ -7,10 +7,13 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from backend.local_api.domain.phynite_core import ApiError, owner_partition, storage_owner
+from backend.local_api.domain.api import PhyniteApi
 from backend.local_api.domain.project_workflow import validate_graph
-from backend.local_api.domain.md_multipart import MdMultipart
+from backend.local_api.domain.md_multipart import MdMultipart, PART_BYTES
+from backend.local_api.domain.worker_artifacts import WorkerArtifacts
 from backend.local_api.archives import restore_snapshot
 from backend.local_api.services import LocalServices
 from backend.local_api.snapshots import build_project_snapshot
@@ -33,6 +36,113 @@ class LocalIntegrityTests(unittest.TestCase):
 
     def project(self):
         return self.put('PROJECT', 'project', name='Silicon')
+
+    def test_terminal_failures_keep_bounded_logs_for_every_native_job_kind(self):
+        for kind in ('CALCULATION', 'MD_SIMULATION', 'MD_ANALYSIS'):
+            for status in ('FAILED', 'CANCELLED'):
+                with self.subTest(kind=kind, status=status):
+                    identifier = kind.lower() + status.lower()
+                    item = self.put(kind, identifier, status='RUNNING', computeBackend='LOCAL_MAC',
+                                    localWorkerId='worker', logTail='previous heartbeat', leaseExpiresAtEpoch=1)
+                    tail = '\x00' + 'x' * 5000 + '\nactual final solver diagnostic'
+                    result = self.services.finish_local_calculation(item, 'worker', status, 'Actual failure', '2026-11-02T00:00:00Z', log_tail=tail)
+                    self.assertEqual(result['logTail'], tail.replace('\x00', '')[-4000:])
+                    self.assertEqual(result['failureReason'], 'Actual failure')
+                    self.assertNotIn('leaseExpiresAtEpoch', result)
+                    self.assertEqual(self.services.get_item(self.owner, kind, identifier)['logTail'], result['logTail'])
+        item = self.put('CALCULATION', 'previous', status='RUNNING', computeBackend='LOCAL_MAC', localWorkerId='worker', logTail='last heartbeat')
+        result = self.services.finish_local_calculation(item, 'worker', 'FAILED', 'Failure', '2026-11-02T00:00:00Z')
+        self.assertEqual(result['logTail'], 'last heartbeat')
+
+    def test_terminal_completion_reports_startup_failure_log_without_heartbeat(self):
+        prefix = 'diagnostics/startup'
+        self.put('CALCULATION', 'startup', status='RUNNING', computeBackend='LOCAL_MAC', localWorkerId='worker', outputPrefix=prefix)
+        self.services.s3.put_object(Bucket=self.services.bucket, Key=prefix + '/result.json', Body=json.dumps({
+            'calculationId': 'startup', 'status': 'failed', 'error': 'Runtime process exited with code 1.', 'artifacts': []}).encode())
+        api = PhyniteApi(self.services)
+        finished = json.loads(api.complete_local_job('startup', {'ownerId': self.owner, 'workerId': 'worker', 'status': 'failed',
+            'logTail': 'Missing native library: fixture.dylib'})['body'])['calculation']
+        self.assertEqual(finished['logTail'], 'Missing native library: fixture.dylib')
+        self.assertEqual(json.loads(api.get_calculation(self.owner, 'startup')['body'])['calculation']['logTail'], finished['logTail'])
+        self.assertEqual(finished['failureReason'], 'Runtime process exited with code 1.')
+        repeated = json.loads(api.complete_local_job('startup', {'ownerId': self.owner, 'workerId': 'worker', 'status': 'failed',
+            'logTail': 'A repeated completion cannot replace the accepted evidence'})['body'])['calculation']
+        self.assertEqual(repeated['logTail'], finished['logTail'])
+
+    def test_terminal_logs_keep_lease_validation_and_success_removes_heartbeat_tail(self):
+        item = self.put('MD_ANALYSIS', 'lease-protected', status='RUNNING', computeBackend='LOCAL_MAC', localWorkerId='worker', logTail='Actual solver output')
+        with self.assertRaises(StorageError):
+            self.services.finish_local_calculation(item, 'other-worker', 'FAILED', 'Forged failure', '2026-11-02T00:00:00Z', log_tail='Forged log')
+        current = self.services.get_item(self.owner, 'MD_ANALYSIS', item['id'])
+        self.assertEqual(current['status'], 'RUNNING')
+        self.assertEqual(current['logTail'], 'Actual solver output')
+        finished = self.services.finish_local_calculation(item, 'worker', 'COMPLETED', None, '2026-11-02T00:00:00Z', log_tail='Success logs stay in artifacts')
+        self.assertNotIn('logTail', finished)
+
+    def test_completion_rejects_nontext_diagnostic_without_mutating_job(self):
+        self.put('CALCULATION', 'invalid-log', status='RUNNING', computeBackend='LOCAL_MAC', localWorkerId='worker')
+        api = PhyniteApi(self.services)
+        with self.assertRaises(ApiError) as rejected:
+            api.complete_local_job('invalid-log', {'ownerId': self.owner, 'workerId': 'worker', 'status': 'failed', 'logTail': {'not': 'text'}})
+        self.assertEqual(rejected.exception.code, 'INVALID_LOG_TAIL')
+        self.assertEqual(self.services.get_item(self.owner, 'CALCULATION', 'invalid-log')['status'], 'RUNNING')
+
+    def diagnostic_analysis(self, *, status='FAILED'):
+        identifier = 'diagnostic-analysis'
+        prefix = 'diagnostics/' + identifier
+        content = b'OVITO could not import the submitted trajectory\n'
+        artifact = {'path': 'logs/worker-container.out', 'role': 'log', 'sizeBytes': len(content), 'sha256': hashlib.sha256(content).hexdigest()}
+        manifest = {'version': 1, 'kind': 'md-analysis', 'calculationId': identifier, 'analysisId': identifier,
+                    'status': status.lower(), 'error': content.decode(), 'summary': {'fabricatedMetric': 999},
+                    'artifacts': [artifact, {'path': 'frames/000000.json.gz'}]}
+        item = self.put('MD_ANALYSIS', identifier, status=status, projectId='project', computeBackend='LOCAL_MAC',
+                        outputPrefix=prefix, failureReason=content.decode(), artifactsExpireAtEpoch=1)
+        self.services.s3.put_object(Bucket=self.services.bucket, Key=prefix + '/' + artifact['path'], Body=content)
+        self.services.s3.put_object(Bucket=self.services.bucket, Key=prefix + '/result.json', Body=json.dumps(manifest).encode())
+        return item, manifest, content
+
+    def test_failed_and_cancelled_analysis_expose_only_verified_diagnostics(self):
+        api = PhyniteApi(self.services)
+        for status in ('FAILED', 'CANCELLED'):
+            with self.subTest(status=status):
+                item, _, content = self.diagnostic_analysis(status=status)
+                payload = json.loads(api.get_md_analysis(self.owner, item['id'])['body'])
+                self.assertEqual(payload['analysis']['status'], status)
+                self.assertTrue(payload['artifactsAvailable'])
+                self.assertFalse(payload['artifactsExpired'], 'Local diagnostics remain retained after hosted retention would expire.')
+                self.assertNotIn('summary', payload['result'])
+                self.assertNotIn('resultSummary', payload['analysis'])
+                self.assertEqual([entry['path'] for entry in payload['result']['artifacts']], ['logs/worker-container.out'])
+                ticket = json.loads(api.get_md_analysis_artifact(self.owner, item['id'], 'logs/worker-container.out')['body'])
+                self.assertEqual(ticket['sha256'], hashlib.sha256(content).hexdigest())
+                self.assertEqual(ticket['contentType'], 'text/plain')
+                with self.assertRaises(ApiError):
+                    api.get_md_analysis_artifact(self.owner, item['id'], 'frames/000000.json.gz')
+                with self.assertRaises(ApiError):
+                    api.get_md_analysis_artifact('another-owner', item['id'], 'logs/worker-container.out')
+
+    def test_analysis_diagnostics_reject_unsafe_paths_bad_checksums_and_wrong_identity(self):
+        api = PhyniteApi(self.services)
+        for failure in ('checksum', 'path', 'identity', 'kind', 'status'):
+            with self.subTest(failure=failure):
+                item, manifest, _ = self.diagnostic_analysis()
+                if failure == 'checksum':
+                    manifest['artifacts'][0]['sha256'] = 'a' * 64
+                elif failure == 'path':
+                    manifest['artifacts'][0]['path'] = 'logs/../outside.out'
+                elif failure == 'identity':
+                    manifest['analysisId'] = 'another-analysis'
+                elif failure == 'kind':
+                    manifest['kind'] = 'md-simulation'
+                else:
+                    manifest['status'] = 'completed'
+                self.services.s3.put_object(Bucket=self.services.bucket, Key=item['outputPrefix'] + '/result.json', Body=json.dumps(manifest).encode())
+                payload = json.loads(api.get_md_analysis(self.owner, item['id'])['body'])
+                self.assertEqual(payload['analysis']['status'], 'FAILED')
+                self.assertNotIn('result', payload)
+                self.assertIn('diagnosticsError', payload)
+                with self.assertRaises(ApiError):
+                    api.get_md_analysis_artifact(self.owner, item['id'], 'logs/worker-container.out')
 
     def graph_snapshot(self):
         self.project()
@@ -167,6 +277,54 @@ class LocalIntegrityTests(unittest.TestCase):
         page = self.services.table.query(KeyConditionExpression='PK = :pk AND begins_with(SK, :prefix)',
             ExpressionAttributeValues={':pk': owner_partition(self.owner), ':prefix': 'MD_UPLOAD_PART#trajectory#'})
         self.assertEqual(page['Items'], [])
+
+    def test_real_calculation_large_artifact_completion_keeps_full_id_and_recovers_lost_reply(self):
+        # A real workspace archive crosses the actual 128 MiB multipart boundary.
+        # Reuse one 16 MiB block to keep memory bounded while storing real bytes.
+        block, tail = b'x' * PART_BYTES, b'fixture-tail'
+        whole = hashlib.sha256()
+        for _ in range(8):
+            whole.update(block)
+        whole.update(tail)
+        size, digest = 8 * PART_BYTES + len(tail), whole.hexdigest()
+        job = {'id': 'calc_' + 'a' * 32, 'ownerId': self.owner, 'outputPrefix': 'large-calculation/output'}
+        artifacts = WorkerArtifacts(self.services)
+        plan = artifacts.plan(job, {'path': 'workspace.tar.gz', 'sizeBytes': size, 'sha256': digest})
+        self.assertTrue(plan['multipart'])
+        identifier = artifacts.identifier(job, 'workspace.tar.gz')
+        self.assertGreater(len(identifier), 96)
+        self.assertTrue(identifier.endswith(hashlib.sha256(b'workspace.tar.gz').hexdigest()))
+        record = artifacts.record(self.owner, identifier)
+        for number in range(1, 10):
+            content = block if number <= 8 else tail
+            checksum = hashlib.sha256(content).hexdigest()
+            artifacts.action(job, {'artifactAction': 'part', 'path': 'workspace.tar.gz', 'partNumber': number, 'sizeBytes': len(content), 'sha256': checksum})
+            self.services.s3.upload_part(Bucket=self.services.bucket, Key=job['outputPrefix'] + '/workspace.tar.gz', UploadId=record['uploadId'],
+                                         PartNumber=number, Body=content, ContentLength=len(content), ChecksumSHA256=base64.b64encode(bytes.fromhex(checksum)).decode())
+        complete = self.services.s3.complete_multipart_upload
+        def lose_reply(**kwargs):
+            complete(**kwargs)
+            raise ConnectionError('Fixture acknowledgement lost after actual file completion')
+        with patch.object(self.services.s3, 'complete_multipart_upload', side_effect=lose_reply) as transfer:
+            self.assertTrue(artifacts.action(job, {'artifactAction': 'complete', 'path': 'workspace.tar.gz'})['complete'])
+            self.assertTrue(artifacts.action(job, {'artifactAction': 'complete', 'path': 'workspace.tar.gz'})['complete'])
+            self.assertEqual(transfer.call_count, 1)
+        artifacts.verify(job, 'workspace.tar.gz', size, digest)
+        self.assertTrue(artifacts.plan(job, {'path': 'workspace.tar.gz', 'sizeBytes': size, 'sha256': digest})['alreadyUploaded'])
+        observed = hashlib.sha256()
+        with self.services.s3.get_object(Bucket=self.services.bucket, Key=job['outputPrefix'] + '/workspace.tar.gz')['Body'] as body:
+            for chunk in body.iter_chunks():
+                observed.update(chunk)
+        self.assertEqual(observed.hexdigest(), digest)
+        for action in (artifacts.complete, artifacts.abort):
+            with self.subTest(action=action.__name__), self.assertRaises(ApiError):
+                action('other-owner', identifier)
+        # Pending transfer cleanup uses the same internal-ID contract too.
+        pending = artifacts.plan(job, {'path': 'another-large.tar.gz', 'sizeBytes': size, 'sha256': digest})
+        self.assertTrue(pending['multipart'])
+        pending_id = artifacts.identifier(job, 'another-large.tar.gz')
+        artifacts.abort(self.owner, pending_id)
+        self.assertEqual(artifacts.record(self.owner, pending_id), {})
 
     def test_md_part_conflict_returns_actionable_error_through_storage_exception_contract(self):
         multipart, _, raw = self.trajectory_upload()

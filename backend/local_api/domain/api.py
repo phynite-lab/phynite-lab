@@ -25,7 +25,7 @@ from backend.local_api.domain.result_artifacts import MAX_RESULT_MANIFEST_BYTES,
 from backend.local_api.domain.research_documents import DOCUMENT_PATH, ResearchDocuments
 from backend.local_api.domain.account import AccountApi, validate_avatar
 from backend.local_api.domain.failure_digest import FAILURE_CATEGORIES
-from backend.local_api.domain.md_results import MD_ARTIFACT_PATH, MdResultError, finalize_md_analysis_result, md_result_summary, read_md_result_manifest
+from backend.local_api.domain.md_results import MD_ARTIFACT_PATH, MD_DIAGNOSTIC_PATH, MdResultError, finalize_md_analysis_result, md_result_summary, read_md_diagnostic_manifest, read_md_result_manifest
 from backend.local_api.domain.phynite_core import CALCULATION_TYPES, FINAL_JOB_STATES, ApiError, MetadataServices, clean_text, fetch_materials_project, json_safe, materials_project_api_key, new_id, owner_partition, parse_body, public_item, request_claims, require_owner_item, require_project, retained_locally, response, route_details, safe_filename, storage_owner, utc_now
 CLOUD_BACKEND = 'CLOUD_EC2'
 PAID_BACKEND = 'CLOUD_PAID_EC2'
@@ -64,7 +64,7 @@ MD_POTENTIAL_PATH = re.compile('^/v1/md/potentials/([A-Za-z0-9_-]+)$')
 MD_CONFIGURATION_PATH = re.compile('^/v1/md/configurations/([A-Za-z0-9_-]+)$')
 MD_ANALYSIS_PATH = re.compile('^/v1/md/analyses/([A-Za-z0-9_-]+)$')
 MD_ANALYSIS_CANCEL_PATH = re.compile('^/v1/md/analyses/([A-Za-z0-9_-]+)/cancel$')
-MD_ANALYSIS_ARTIFACT_PATH = re.compile('^/v1/md/analyses/([A-Za-z0-9_-]+)/artifacts/(timeline\\.json\\.gz|frames/(?:[0-9]{6}|[0-9]{6}-[0-9]{6})\\.json\\.gz)$')
+MD_ANALYSIS_ARTIFACT_PATH = re.compile('^/v1/md/analyses/([A-Za-z0-9_-]+)/artifacts/(timeline\\.json\\.gz|frames/(?:[0-9]{6}|[0-9]{6}-[0-9]{6})\\.json\\.gz|logs/[A-Za-z0-9_.-]+\\.(?:out|log|txt))$')
 MD_WORKER_ANALYSIS_PATH = re.compile('^/md-worker/v1/analyses/([A-Za-z0-9_-]+)/(inputs|uploads|progress)$')
 DEVELOPER_JOB_PATH = re.compile('^/v1/developer/jobs/([A-Za-z0-9_-]+)$')
 DEVELOPER_WAITLIST_ENTRY_PATH = re.compile('^/v1/developer/waitlist/([a-f0-9]{64})$')
@@ -1322,6 +1322,44 @@ class PhyniteApi:
             raise ApiError(409, 'The calculation lease belongs to another worker.', 'WORKER_LEASE_MISMATCH')
         return item
 
+    def local_job_input(self, claimed: dict[str, Any]) -> dict[str, Any]:
+        """Build the immutable scientific claim for execution or result recovery."""
+        raw = self.services.s3.get_object(Bucket=self.services.bucket, Key=claimed['inputKey'])['Body'].read(4500001)
+        if len(raw) > 4500000:
+            raise RuntimeError('Local worker input exceeds the response limit')
+        job_payload = json.loads(raw)
+        if job_payload.get('scfSourceCalculationId'):
+            from backend.local_api.domain.dft_workflows import source_metadata
+            source, bundle = source_metadata(self.services, claimed['ownerId'], claimed['projectId'], job_payload['scfSourceCalculationId'], phonon=claimed.get('calculationType') == 'Phonon dispersion')
+            if bundle is None:
+                raise RuntimeError('SCF bundle is not ready')
+            job_payload['scfSource'] = {**bundle, 'submittedScfInputIdentity': source['scfInputIdentity'], 'relaxedSource': bool(source.get('dependsOnCalculationIds'))}
+        pseudo_downloads = []
+        for filename, key in (job_payload.get('pseudopotentials') or {}).items():
+            pseudo_downloads.append({'filename': safe_filename(filename), 'url': self.services.s3.generate_presigned_url('get_object', Params={'Bucket': self.services.bucket, 'Key': key}, ExpiresIn=900)})
+        dependency_downloads = [{'filename': f'dependency-{index}.tar.gz', **({'sha256': job_payload['scfSource']['sha256']} if key.endswith('/scf-workspace.tar.gz') and job_payload.get('scfSource') else {}), 'url': self.services.s3.generate_presigned_url('get_object', Params={'Bucket': self.services.bucket, 'Key': key}, ExpiresIn=900)} for index, key in enumerate(job_payload.get('dependencyOutputKeys') or [])]
+        source_download = None
+        potential_downloads: list[dict[str, Any]] = []
+        source = job_payload.get('source')
+        if str(claimed.get('jobKind') or 'qe') in {'md-analysis', 'md-simulation'} and isinstance(source, dict):
+            source_key = source.get('objectKey')
+            if not isinstance(source_key, str) or not source_key.startswith(f"users/{storage_owner(claimed['ownerId'])}/"):
+                raise RuntimeError('MD source is outside the worker owner scope')
+            source_download = {'filename': safe_filename(source.get('filename')), 'sha256': str(source.get('sha256') or ''), 'sizeBytes': int(source.get('sizeBytes') or 0), 'url': self.services.s3.generate_presigned_url('get_object', Params={'Bucket': self.services.bucket, 'Key': source_key}, ExpiresIn=900)}
+        if str(claimed.get('jobKind') or 'qe') == 'md-simulation':
+            raw_potential_files = job_payload.get('potentialFiles') or []
+            if not isinstance(raw_potential_files, list) or len(raw_potential_files) > MAX_MD_POTENTIAL_FILES:
+                raise RuntimeError('MD potential download list is invalid')
+            potential_prefix = f"users/{storage_owner(claimed['ownerId'])}/projects/{claimed['projectId']}/md/potentials/"
+            for file_item in raw_potential_files:
+                if not isinstance(file_item, dict):
+                    raise RuntimeError('MD potential download entry is invalid')
+                object_key = file_item.get('objectKey')
+                if not isinstance(object_key, str) or not object_key.startswith(potential_prefix):
+                    raise RuntimeError('MD potential is outside the project scope')
+                potential_downloads.append({'filename': safe_filename(file_item.get('filename')), 'role': str(file_item.get('role') or 'potential'), 'sha256': str(file_item.get('sha256') or ''), 'sizeBytes': int(file_item.get('sizeBytes') or 0), 'url': self.services.s3.generate_presigned_url('get_object', Params={'Bucket': self.services.bucket, 'Key': object_key}, ExpiresIn=900)})
+        return {'input': job_payload, 'pseudopotentialDownloads': pseudo_downloads, 'dependencyDownloads': dependency_downloads, **({'sourceDownload': source_download} if source_download else {}), **({'potentialDownloads': potential_downloads} if potential_downloads else {})}
+
     def claim_local_job(self, payload: dict[str, Any]) -> dict[str, Any]:
         if self.worker_owner:
             from backend.local_api.domain.project_workflow import ProjectWorkflowApi
@@ -1416,44 +1454,11 @@ class PhyniteApi:
                 self.services.finish_local_calculation(claimed, worker_id, 'FAILED', dependency_failure, timestamp)
                 continue
             try:
-                raw = self.services.s3.get_object(Bucket=self.services.bucket, Key=claimed['inputKey'])['Body'].read(4500001)
-                if len(raw) > 4500000:
-                    raise RuntimeError('Local worker input exceeds the response limit')
-                job_payload = json.loads(raw)
-                if job_payload.get('scfSourceCalculationId'):
-                    from backend.local_api.domain.dft_workflows import source_metadata
-                    source, bundle = source_metadata(self.services, claimed['ownerId'], claimed['projectId'], job_payload['scfSourceCalculationId'], phonon=claimed.get('calculationType') == 'Phonon dispersion')
-                    if bundle is None:
-                        raise RuntimeError('SCF bundle is not ready')
-                    job_payload['scfSource'] = {**bundle, 'submittedScfInputIdentity': source['scfInputIdentity'], 'relaxedSource': bool(source.get('dependsOnCalculationIds'))}
-                pseudo_downloads = []
-                for filename, key in (job_payload.get('pseudopotentials') or {}).items():
-                    pseudo_downloads.append({'filename': safe_filename(filename), 'url': self.services.s3.generate_presigned_url('get_object', Params={'Bucket': self.services.bucket, 'Key': key}, ExpiresIn=900)})
-                dependency_downloads = [{'filename': f'dependency-{index}.tar.gz', **({'sha256': job_payload['scfSource']['sha256']} if key.endswith('/scf-workspace.tar.gz') and job_payload.get('scfSource') else {}), 'url': self.services.s3.generate_presigned_url('get_object', Params={'Bucket': self.services.bucket, 'Key': key}, ExpiresIn=900)} for index, key in enumerate(job_payload.get('dependencyOutputKeys') or [])]
-                source_download = None
-                potential_downloads: list[dict[str, Any]] = []
-                source = job_payload.get('source')
-                if item_capability in {'md-analysis', 'md-simulation'} and isinstance(source, dict):
-                    source_key = source.get('objectKey')
-                    if not isinstance(source_key, str) or not source_key.startswith(f"users/{storage_owner(claimed['ownerId'])}/"):
-                        raise RuntimeError('MD source is outside the worker owner scope')
-                    source_download = {'filename': safe_filename(source.get('filename')), 'sha256': str(source.get('sha256') or ''), 'sizeBytes': int(source.get('sizeBytes') or 0), 'url': self.services.s3.generate_presigned_url('get_object', Params={'Bucket': self.services.bucket, 'Key': source_key}, ExpiresIn=900)}
-                if item_capability == 'md-simulation':
-                    raw_potential_files = job_payload.get('potentialFiles') or []
-                    if not isinstance(raw_potential_files, list) or len(raw_potential_files) > MAX_MD_POTENTIAL_FILES:
-                        raise RuntimeError('MD potential download list is invalid')
-                    potential_prefix = f"users/{storage_owner(claimed['ownerId'])}/projects/{claimed['projectId']}/md/potentials/"
-                    for file_item in raw_potential_files:
-                        if not isinstance(file_item, dict):
-                            raise RuntimeError('MD potential download entry is invalid')
-                        object_key = file_item.get('objectKey')
-                        if not isinstance(object_key, str) or not object_key.startswith(potential_prefix):
-                            raise RuntimeError('MD potential is outside the project scope')
-                        potential_downloads.append({'filename': safe_filename(file_item.get('filename')), 'role': str(file_item.get('role') or 'potential'), 'sha256': str(file_item.get('sha256') or ''), 'sizeBytes': int(file_item.get('sizeBytes') or 0), 'url': self.services.s3.generate_presigned_url('get_object', Params={'Bucket': self.services.bucket, 'Key': object_key}, ExpiresIn=900)})
+                prepared_job = self.local_job_input(claimed)
             except Exception as exc:
                 self.services.finish_local_calculation(claimed, worker_id, 'FAILED', f'Worker could not prepare the calculation input: {exc}'[:500], utc_now())
                 continue
-            return response(200, {'job': {'kind': item_capability, 'jobId': claimed['id'], 'calculationId': claimed['id'], 'ownerId': claimed['ownerId'], 'projectId': claimed['projectId'], 'vcpus': int(claimed.get('vcpus') or 1), 'memoryMiB': int(claimed.get('memoryMiB') or 2048), 'leaseExpiresAtEpoch': int(claimed.get('leaseExpiresAtEpoch') or lease_expires_at), **{}, 'input': job_payload, **({'executionAffinity': claimed['executionAffinity']} if claimed.get('executionAffinity') else {}), 'pseudopotentialDownloads': pseudo_downloads, 'dependencyDownloads': dependency_downloads, **({'sourceDownload': source_download} if source_download else {}), **({'potentialDownloads': potential_downloads} if potential_downloads else {})}})
+            return response(200, {'job': {'kind': item_capability, 'jobId': claimed['id'], 'calculationId': claimed['id'], 'ownerId': claimed['ownerId'], 'projectId': claimed['projectId'], 'vcpus': int(claimed.get('vcpus') or 1), 'memoryMiB': int(claimed.get('memoryMiB') or 2048), 'leaseExpiresAtEpoch': int(claimed.get('leaseExpiresAtEpoch') or lease_expires_at), **{}, **prepared_job, **({'executionAffinity': claimed['executionAffinity']} if claimed.get('executionAffinity') else {})}})
         return response(200, {'job': None, 'retryAfterSeconds': 10})
 
     def record_worker_presence(self, worker_id: str, capabilities: set[str] | None=None, runtime_manifest: dict[str, Any] | None=None, telemetry: dict[str, Any] | None=None) -> None:
@@ -1547,15 +1552,20 @@ class PhyniteApi:
                 logging.getLogger(__name__).exception('Compute artifact alert could not be recorded')
         return response(200, {'uploads': uploads, 'expiresIn': 900})
 
-    def complete_local_job(self, calculation_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def complete_local_job(self, calculation_id: str, payload: dict[str, Any], *, interrupted_recovery: dict[str, Any] | None = None) -> dict[str, Any]:
         item = self.local_worker_item(calculation_id, payload)
         effective_resources = normalize_effective_resources(item, payload)
         reported_status = str(payload.get('status') or '').lower()
         status_map = {'completed': 'COMPLETED', 'failed': 'FAILED', 'cancelled': 'CANCELLED'}
         if reported_status not in status_map:
             raise ApiError(400, 'Worker completion status is invalid.', 'INVALID_WORKER_STATUS')
+        log_tail = payload.get('logTail')
+        if log_tail is not None:
+            if not isinstance(log_tail, str):
+                raise ApiError(400, 'Worker log tail must be text.', 'INVALID_LOG_TAIL')
+            log_tail = log_tail.replace('\x00', '')[-4000:]
         final_status = status_map[reported_status]
-        if item.get('status') in FINAL_JOB_STATES:
+        if item.get('status') in FINAL_JOB_STATES and interrupted_recovery is None:
             if item.get('status') == final_status or (item.get('status') == 'FAILED' and final_status == 'COMPLETED' and (item.get('resultValidationFailure') in {'DFT_RELAXATION_NOT_CONVERGED', 'DFT_NOT_CONVERGED'})):
                 key = {'MD_SIMULATION': 'simulation', 'MD_ANALYSIS': 'analysis'}.get(item.get('entityType'), 'calculation')
                 return response(200, {key: public_item(item)})
@@ -1634,7 +1644,16 @@ class PhyniteApi:
                     raise ApiError(409, 'MD result trajectory checksum or size does not match.', 'MD_RESULT_INCOMPLETE')
             trajectory_result = {'path': path, 'filename': safe_filename(trajectory_artifact.get('filename') or path.name), 'sha256': digest, 'sizeBytes': size_bytes, 'objectKey': object_key}
         try:
-            updated = self.services.finish_local_calculation(item, payload['workerId'], final_status, failure_reason, utc_now(), **{'effective_resources': effective_resources} if effective_resources else {})
+            if interrupted_recovery is not None:
+                if final_status != 'COMPLETED' or not getattr(self.services, 'local_workspace', False):
+                    raise ApiError(409, failure_reason or 'Only a verified completed local result can be recovered.', 'RESULT_RECOVERY_INVALID')
+                if item != interrupted_recovery['expectedItem']:
+                    raise ApiError(409, 'The interrupted job changed during verification.', 'RESULT_RECOVERY_CONFLICT')
+                updated = self.services.finish_interrupted_calculation(item, payload['workerId'], utc_now(), interrupted_recovery['provenance'], effective_resources)
+            else:
+                updated = self.services.finish_local_calculation(item, payload['workerId'], final_status, failure_reason, utc_now(), **({'effective_resources': effective_resources} if effective_resources else {}), **({'log_tail': log_tail} if log_tail is not None else {}))
+        except ApiError:
+            raise
         except Exception as exc:
             raise ApiError(409, 'The local worker lease is no longer active.', 'WORKER_LEASE_LOST') from exc
         if dft_summary is not None:
@@ -1663,10 +1682,12 @@ class PhyniteApi:
                     self.services.update_item(item['ownerId'], 'MD_POTENTIAL', potential_asset_id, {'runtimeValidatedAt': utc_now(), 'runtimeValidatedSimulationId': calculation_id, 'updatedAt': utc_now()})
                 except Exception:
                     pass
-            self.tick_project_workflows(item['ownerId'])
+            if interrupted_recovery is None:
+                self.tick_project_workflows(item['ownerId'])
             return response(200, {'simulation': public_item(updated), 'trajectory': public_item(trajectory)})
         key = {'MD_SIMULATION': 'simulation', 'MD_ANALYSIS': 'analysis'}.get(item.get('entityType'), 'calculation')
-        self.tick_project_workflows(item['ownerId'])
+        if interrupted_recovery is None:
+            self.tick_project_workflows(item['ownerId'])
         return response(200, {key: public_item(updated)})
 
     def tick_project_workflows(self, owner: str) -> None:
@@ -2158,6 +2179,17 @@ class PhyniteApi:
         artifacts_expired = not retained_locally(self.services, item) and artifacts_expire_epoch > 0 and (artifacts_expire_epoch <= int(time.time()))
         payload['artifactsAvailable'] = item.get('status') == 'COMPLETED' and (not artifacts_expired)
         payload['artifactsExpired'] = artifacts_expired
+        if item.get('status') in {'FAILED', 'CANCELLED'} and item.get('outputPrefix') and not artifacts_expired:
+            try:
+                diagnostics = read_md_diagnostic_manifest(self.services, item)
+                for artifact in diagnostics['artifacts']:
+                    artifact['downloadUrl'] = self.services.s3.generate_presigned_url('get_object', Params={'Bucket': self.services.bucket, 'Key': f"{item['outputPrefix']}/{artifact['path']}"}, ExpiresIn=900)
+                payload['result'] = diagnostics
+                payload['artifactsAvailable'] = bool(diagnostics['artifacts'])
+            except Exception:
+                # Preserve the failure record even when its diagnostic upload
+                # was interrupted or fails verification. Never invent a result.
+                payload['diagnosticsError'] = 'The retained analysis log is unavailable or could not be verified.'
         if item.get('status') == 'COMPLETED' and item.get('outputPrefix') and (not artifacts_expired):
             try:
                 manifest = read_md_result_manifest(self.services, item)
@@ -2173,18 +2205,19 @@ class PhyniteApi:
         return response(200, payload)
 
     def get_md_analysis_artifact(self, user_id: str, analysis_id: str, artifact_path: str) -> dict[str, Any]:
-        if not MD_ARTIFACT_PATH.fullmatch(artifact_path):
+        diagnostic = bool(MD_DIAGNOSTIC_PATH.fullmatch(artifact_path))
+        if not MD_ARTIFACT_PATH.fullmatch(artifact_path) and not diagnostic:
             raise ApiError(400, 'MD artifact path is invalid.', 'INVALID_MD_ARTIFACT')
         item = require_owner_item(self.services, user_id, 'MD_ANALYSIS', analysis_id, 'MD_ANALYSIS_NOT_FOUND')
         if item.get('status') == 'FINALIZING':
             item, _ = finalize_md_analysis_result(self.services, item, utc_now())
-        if item.get('status') != 'COMPLETED':
+        if item.get('status') != 'COMPLETED' and not (diagnostic and item.get('status') in {'FAILED', 'CANCELLED'}):
             raise ApiError(409, 'MD analysis artifacts are not ready.', 'MD_ARTIFACT_NOT_READY')
         artifacts_expire_epoch = int(item.get('artifactsExpireAtEpoch') or 0)
-        if artifacts_expire_epoch > 0 and artifacts_expire_epoch <= int(time.time()):
+        if not retained_locally(self.services, item) and artifacts_expire_epoch > 0 and artifacts_expire_epoch <= int(time.time()):
             raise ApiError(410, 'MD analysis artifacts have expired.', 'MD_ARTIFACT_EXPIRED')
         try:
-            manifest = read_md_result_manifest(self.services, item)
+            manifest = read_md_diagnostic_manifest(self.services, item) if diagnostic else read_md_result_manifest(self.services, item)
         except MdResultError as exc:
             raise ApiError(409, 'MD result manifest could not be verified.', 'MD_RESULT_INVALID') from exc
         except Exception as exc:
@@ -2195,7 +2228,7 @@ class PhyniteApi:
         url = self.services.s3.generate_presigned_url('get_object', Params={'Bucket': self.services.bucket, 'Key': f"{item['outputPrefix']}/{artifact_path}"}, ExpiresIn=900)
         if item.get('computeBackend') in {PAID_BACKEND, PILOT_FLEET_BACKEND}:
             url = local_artifact_url(self.services, item, artifact_path)
-        return response(200, {'url': url, 'path': artifact_path, 'contentType': artifact['contentType'], 'contentEncoding': artifact['contentEncoding'], 'sizeBytes': artifact['sizeBytes'], 'sha256': artifact['sha256'], 'expiresIn': 900})
+        return response(200, {'url': url, 'path': artifact_path, 'contentType': artifact['contentType'], **({'contentEncoding': artifact['contentEncoding']} if artifact.get('contentEncoding') else {}), 'sizeBytes': artifact['sizeBytes'], 'sha256': artifact['sha256'], 'expiresIn': 900})
 
     def cancel_md_analysis(self, user_id: str, analysis_id: str) -> dict[str, Any]:
         item = require_owner_item(self.services, user_id, 'MD_ANALYSIS', analysis_id, 'MD_ANALYSIS_NOT_FOUND')
@@ -2705,8 +2738,11 @@ class PhyniteApi:
             safe_filename(filename)
             if not isinstance(key, str) or not key.startswith(user_prefix):
                 raise ApiError(400, 'Pseudopotential objects must belong to the signed-in user.', 'INVALID_PSEUDOPOTENTIALS')
-        if run_now and (not pseudopotentials) and False and True:
-            raise ApiError(422, 'Upload the required pseudopotentials before starting this calculation.', 'PSEUDOPOTENTIALS_REQUIRED')
+        if run_now and getattr(self.services, 'local_workspace', False):
+            from backend.local_api.pseudopotentials import execution_pseudopotential_error
+            pseudo_error = execution_pseudopotential_error(self.services.data_dir, {'qeInput': qe_input, 'inputFiles': input_files, 'pseudopotentials': pseudopotentials})
+            if pseudo_error:
+                raise ApiError(422, pseudo_error, 'PSEUDOPOTENTIALS_REQUIRED')
         dependency_ids = payload.get('dependsOnCalculationIds') or []
         if calculation_type == 'Nudged elastic band' and dependency_ids:
             raise ApiError(400, 'NEB uses fixed endpoint snapshots; save completed relaxed structures first.', 'INVALID_NEB_DEPENDENCY')

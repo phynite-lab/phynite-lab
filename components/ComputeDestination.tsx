@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useLocale } from '@/app/locale-provider';
+import { useSession } from '@/app/use-session';
 import { accountRequest, type AccountResponse, type LabAccount } from '@/lib/account-api';
 import { phyniteCompute, type LocalWorkerCapability, type PhyniteComputeStatus } from '@/lib/phynite-api';
 import { computeCapacityChoices, estimateQuanta, type ComputeSelection } from '@/lib/compute-selection';
@@ -11,6 +12,7 @@ import { useComputeCatalog } from '@/app/use-compute-catalog';
 import { ComputeResourcePicker } from './ComputeResourcePicker';
 import { startBrowserPoll } from '@/lib/browser-poll';
 import { UiSelect } from './UiSelect';
+import { LocalComputeReadiness } from './LocalComputeReadiness';
 import './compute-destination.css';
 
 type ComputeTarget = 'shared' | 'personal';
@@ -70,6 +72,8 @@ export function LabComputeDestination({
   account: suppliedAccount, onAccount,
 }: LabComputeDestinationProps) {
   const { t, intlLocale } = useLocale();
+  const { session } = useSession();
+  const desktop = session?.mode === 'local';
   const returnPath = useSyncExternalStore(subscribeReturnPath, returnPathSnapshot, () => '');
   const [loadedAccount, setAccount] = useState<LabAccount | null>(null);
   const account = suppliedAccount === undefined ? loadedAccount : suppliedAccount;
@@ -154,13 +158,15 @@ export function LabComputeDestination({
     <UiSelect ariaLabel={ariaLabel} compact disabled={!account || busy || Boolean(fixedTarget)} value={target}
       options={[
         { value: 'personal', label: t('Your computer', 'Komputer Anda'), detail: (status?.status ?? account?.computer.status) === 'connected' ? t('Connected', 'Terhubung') : (status?.status ?? account?.computer.status) === 'offline' ? t('Worker offline', 'Worker offline') : t('Connect your worker', 'Hubungkan worker') },
-        { value: 'shared', label: 'Phynite Cloud', disabled: !sharedAvailable || requiredCapability.startsWith('md-'), detail: requiredCapability.startsWith('md-') ? t('Not available for MD yet', 'Belum tersedia untuk MD') : t('Choose CPU and RAM for this job', 'Pilih CPU dan RAM untuk job') },
+        { value: 'shared', label: 'Phynite Cloud', disabled: desktop || !sharedAvailable || requiredCapability.startsWith('md-'), detail: requiredCapability.startsWith('md-') ? t('Not available for MD yet', 'Belum tersedia untuk MD') : desktop ? t('Submit through the optional Cloud connection in Settings', 'Kirim melalui koneksi Cloud opsional di Pengaturan') : t('Choose CPU and RAM for this job', 'Pilih CPU dan RAM untuk job') },
       ]} onChange={value => change({ computeTarget: value as ComputeTarget })} />
     {target === 'personal' && <>
+      {desktop && <LocalComputeReadiness capability={requiredCapability} />}
       <PersonalResourceFields live={draft} key={draft ? requiredCapability : `${requiredCapability}:${allocation.vcpus ?? ''}:${allocation.memoryMiB ?? ''}`} allocation={allocation} limit={limit} disabled={!account || busy} onApply={next => change(next)} />
       <p>{t('Uses your connected computer. No Quanta charge.', 'Memakai komputer yang terhubung. Tanpa biaya Quanta.')}</p>
     </>}
     {target === 'shared' && <>
+      {desktop && <p role="alert">{t('This workflow runs on Your computer. Choose it below, or submit online through the Cloud connection in Settings.', 'Workflow ini berjalan di Komputer Anda. Pilih di bawah, atau kirim online melalui koneksi Cloud di Pengaturan.')} <button type="button" className="lab-button" onClick={() => change({ computeTarget: 'personal' })}>{t('Use Your computer', 'Gunakan Komputer Anda')}</button></p>}
       <UiSelect label={t('Funding', 'Pendanaan')} compact value={mode} disabled={busy} options={[
         { value: 'paid', label: t('Paid · Quanta', 'Paid · Quanta'), detail: t('Verified balance and regional capacity', 'Saldo terverifikasi dan kapasitas region') },
         { value: 'pilot', label: t('Pilot · admin grant', 'Pilot · grant admin'), detail: t('Separate operating budget', 'Budget operasional terpisah') },

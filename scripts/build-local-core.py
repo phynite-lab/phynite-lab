@@ -20,7 +20,8 @@ def source_manifest(root: Path) -> dict:
             raise ValueError(f"Invalid explicit source list: {field}")
         for value in values:
             path = PurePosixPath(value)
-            if not isinstance(value, str) or path.is_absolute() or ".." in path.parts or not value.startswith("backend/") or value.startswith(("backend/functions/", "backend/md_compute/")) or value in {"backend/local_api/server.py", "backend/local_api/launcher.py", "backend/compute/runner.py"}:
+            scientific_data = field == 'dataFiles' and value in {'data/sssp/SSSP_1.3.0_PBE_precision.json', 'data/sssp/SSSP_1.3.0_PBE_efficiency.json', 'data/sssp/LICENSE.txt', 'data/sssp/README.md'}
+            if not isinstance(value, str) or path.is_absolute() or ".." in path.parts or (not value.startswith("backend/") and not scientific_data) or value.startswith(("backend/functions/", "backend/md_compute/")) or value in {"backend/local_api/server.py", "backend/local_api/launcher.py", "backend/compute/runner.py"}:
                 raise ValueError(f"A non-public source is forbidden in {field}: {value}")
     for field in ("frozenModules", "runnerSources"):
         if not set(document[field]) <= set(document["pythonModules"]):

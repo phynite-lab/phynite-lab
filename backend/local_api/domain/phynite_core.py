@@ -137,8 +137,8 @@ def route_details(event: dict[str, Any]) -> tuple[str, str]:
     return (method, path.rstrip('/') or '/')
 
 def retained_locally(services: Any, item: dict[str, Any]) -> bool:
-    """A verified local replica retains its original execution provenance."""
-    return getattr(services, 'local_workspace', False) is True and item.get('imported') is True
+    """Local execution and verified replicas keep artifacts until user removal."""
+    return getattr(services, 'local_workspace', False) is True and (item.get('imported') is True or item.get('computeBackend') == 'LOCAL_MAC')
 
 def transaction_client(services: Any):
     """Require the explicitly configured local atomic transaction boundary."""
@@ -581,7 +581,7 @@ class MetadataServices:
         result = self.table.update_item(Key={'PK': item['PK'], 'SK': item['SK']}, UpdateExpression=update_expression, ConditionExpression='#backend = :local AND #worker = :worker AND (#status = :running OR #status = :cancel_requested)', ExpressionAttributeNames=names, ExpressionAttributeValues=values, ReturnValues='ALL_NEW')
         return result['Attributes']
 
-    def finish_local_calculation(self, item: dict[str, Any], worker_id: str, status: str, failure_reason: str | None, timestamp: str, effective_resources: dict[str, int] | None=None) -> dict[str, Any]:
+    def finish_local_calculation(self, item: dict[str, Any], worker_id: str, status: str, failure_reason: str | None, timestamp: str, effective_resources: dict[str, int] | None=None, log_tail: str | None=None) -> dict[str, Any]:
         artifacts_expire_at, artifacts_expire_at_epoch = calculation_artifact_expiry(timestamp)
         names = {'#status': 'status', '#progress': 'progress', '#worker': 'localWorkerId', '#updated': 'updatedAt', '#completed': 'completedAt', '#backend': 'computeBackend', '#lease': 'leaseExpiresAtEpoch', '#log_tail': 'logTail', '#artifacts_expire_at': 'artifactsExpireAt', '#artifacts_expire_epoch': 'artifactsExpireAtEpoch', '#phase': 'computePhase'}
         values: dict[str, Any] = {':status': status, ':progress': Decimal(100), ':worker': worker_id, ':timestamp': timestamp, ':local': item.get('computeBackend', 'LOCAL_MAC'), ':running': 'RUNNING', ':cancel_requested': 'CANCEL_REQUESTED', ':artifacts_expire_at': artifacts_expire_at, ':artifacts_expire_epoch': Decimal(artifacts_expire_at_epoch), ':phase': 'FINISHED'}
@@ -593,11 +593,21 @@ class MetadataServices:
             names['#failure'] = 'failureReason'
             values[':failure'] = failure_reason
             assignments += ', #failure = :failure'
+        # Retain bounded terminal diagnostics even when the solver exits before
+        # its next heartbeat. Successful jobs keep their logs in artifacts only.
+        terminal_log = log_tail or item.get('logTail')
+        retain_log = status in {'FAILED', 'CANCELLED'} and isinstance(terminal_log, str) and bool(terminal_log)
+        if retain_log:
+            values[':log_tail'] = terminal_log.replace('\x00', '')[-4000:]
+            assignments += ', #log_tail = :log_tail'
         for field, value in (effective_resources or {}).items():
             names[f'#{field}'] = field
             values[f':{field}'] = Decimal(value)
             assignments += f', #{field} = :{field}'
-        result = self.table.update_item(Key={'PK': item['PK'], 'SK': item['SK']}, UpdateExpression=f'SET {assignments} REMOVE ' + ('#lease, #log_tail' if item.get('computeBackend') in {'CLOUD_PAID_EC2', 'CLOUD_PILOT_EC2'} else 'GSI2PK, GSI2SK, #lease, #log_tail'), ConditionExpression='#backend = :local AND #worker = :worker AND (#status = :running OR #status = :cancel_requested)', ExpressionAttributeNames=names, ExpressionAttributeValues=values, ReturnValues='ALL_NEW')
+        removals = ['#lease'] if item.get('computeBackend') in {'CLOUD_PAID_EC2', 'CLOUD_PILOT_EC2'} else ['GSI2PK', 'GSI2SK', '#lease']
+        if not retain_log:
+            removals.append('#log_tail')
+        result = self.table.update_item(Key={'PK': item['PK'], 'SK': item['SK']}, UpdateExpression=f'SET {assignments} REMOVE ' + ', '.join(removals), ConditionExpression='#backend = :local AND #worker = :worker AND (#status = :running OR #status = :cancel_requested)', ExpressionAttributeNames=names, ExpressionAttributeValues=values, ReturnValues='ALL_NEW')
         return result['Attributes']
 
     def cancel_queued_local_calculation(self, item: dict[str, Any], timestamp: str) -> dict[str, Any]:

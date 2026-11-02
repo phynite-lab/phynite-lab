@@ -12,6 +12,7 @@
     "backend/local_api/filesystem_store.py",
     "backend/local_api/gateway.py",
     "backend/local_api/qualification.py",
+    "backend/local_api/result_recovery.py",
     "backend/local_api/runtime.py",
     "backend/local_api/sandbox.py",
     "backend/local_api/scheduler.py",
@@ -84,11 +85,16 @@
     "backend/md_local/source_snapshot.py",
     "backend/md_studio/__init__.py",
     "backend/md_studio/geometry.py",
-    "backend/md_studio/main.py"
+    "backend/md_studio/main.py",
+    "backend/local_api/pseudopotentials.py"
   ],
   "dataFiles": [
     "backend/local_api/runtime-manifest.json",
-    "backend/local_api/domain/ai_skills.json"
+    "backend/local_api/domain/ai_skills.json",
+    "data/sssp/SSSP_1.3.0_PBE_precision.json",
+    "data/sssp/SSSP_1.3.0_PBE_efficiency.json",
+    "data/sssp/LICENSE.txt",
+    "data/sssp/README.md"
   ],
   "generatedDataFiles": [
     "backend/local_api/domain/workflow_compiler_bundle.js",
@@ -106,6 +112,7 @@
     "backend/local_api/filesystem_store.py",
     "backend/local_api/gateway.py",
     "backend/local_api/qualification.py",
+    "backend/local_api/result_recovery.py",
     "backend/local_api/runtime.py",
     "backend/local_api/sandbox.py",
     "backend/local_api/scheduler.py",
@@ -152,7 +159,9 @@
     "backend/local_worker/__init__.py",
     "backend/local_worker/worker.py",
     "backend/local_worker/recovery.py",
-    "backend/local_worker/hpc.py"
+    "backend/local_worker/hpc.py",
+    "backend/local_api/pseudopotentials.py",
+    "backend/local_worker/install_pseudopotentials.py"
   ],
   "runnerSources": [
     "backend/local_api/__init__.py",
@@ -216,9 +225,12 @@
     "backend/tests/test_local_draft_bundle.py",
     "backend/tests/test_local_regressions.py",
     "backend/tests/test_local_runtime.py",
+    "backend/tests/test_local_workflow_readiness.py",
     "backend/tests/test_frozen_local_core.py",
     "backend/tests/test_public_local_core.py",
     "backend/tests/test_local_scientific_qualification.py",
-    "backend/tests/test_local_connections.py"
+    "backend/tests/test_local_connections.py",
+    "backend/tests/test_local_pseudopotentials.py",
+    "backend/tests/test_local_result_recovery.py"
   ]
 }

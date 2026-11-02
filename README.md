@@ -17,6 +17,24 @@ from the web setup page. DFT and MD potentials are selected separately under
 their respective licenses. AI requires a separately installed provider CLI or
 local gateway and the user's own provider account.
 
+Before the first calculation, open **Compute → local setup** and install **DFT**
+and/or **MD & analysis**. Wait for the requested solver to be ready, then select
+**Your computer** in the run review. The npm install prepares the application;
+the separate setup installs the scientific solvers. The run review also offers
+installation when a solver is missing and blocks execution until the worker has
+validated it.
+
+For SSSP inputs, install the selected **Precision** or **Efficiency** library in
+the setup's **DFT pseudopotentials** section. Downloads come from the pinned
+official Materials Cloud release, retain its license notices, and are checked
+before activation. Library installation preserves your selected physical settings;
+UPF files uploaded in the editor can also be used without installing a library.
+
+If an execution fails, open the module's **Execution result** for its reason,
+**Execution log**, and available downloadable artifacts. A failure before the
+solver starts has no solver output; correct the displayed setup/input issue and
+start a new run. Failed attempts remain in history.
+
 ```sh
 phynite-lab --no-open --port 3000 --data-dir /path/to/workspace
 phynite-lab status
@@ -56,6 +74,11 @@ python3 -m venv .local-backend/venv
 Source development requires Python for the local backend; end users of the npm
 package do not. For an isolated source preview, use `npm run dev:local` after
 installing backend dependencies in that virtual environment.
+
+`npm run dev:local` defaults to `~/.phynite-lab-dev`, separately from the npm
+launcher's `~/.phynite-lab`. Each workspace has its own runtime installations.
+Installing solvers in one does not install them in the other. Use `--data-dir`
+explicitly to select another workspace, and stop its current instance first.
 
 See [local distribution](docs/local-distribution.md) and
 [native runtimes](docs/native-runtime-releases.md) for assembly and qualification.

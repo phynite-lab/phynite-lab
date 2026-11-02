@@ -69,6 +69,33 @@ change; this fixture is never installed on users' machines. Direct Omarchy deskt
 testing is not part of this release's evidence; native qualification uses Ubuntu
 24.04 x64.
 
+## A run fails before the solver starts
+
+The npm launcher uses `~/.phynite-lab`; `npm run dev:local` uses
+`~/.phynite-lab-dev`. Runtime installations belong to the selected data directory,
+just like its projects. Do not copy a scientific environment between directories:
+its native library prefixes may refer to its installation location. Install the
+required DFT or MD/analysis component through the active application's setup.
+DFT also requires its selected pseudopotential inputs. Setup's DFT
+pseudopotentials section downloads the explicitly chosen SSSP Precision or
+Efficiency library from the official pinned archive and verifies its checksums
+before activation. The files and their licenses remain in this data directory;
+they are not redistributed in the npm package. Explicitly uploaded UPF files do
+not require installing an SSSP library. Missing selected models block the run
+review before creating an attempt.
+
+The run review checks the requested capability against the live local worker.
+Missing or offline solvers block Start before a run is created. Reusable results
+and modules that need no compute remain usable. Wait for installation and worker
+validation to finish, then start a new run. A saved Cloud target cannot execute
+through the local workflow runner; choose Your computer, or use the separate
+Cloud connection's submission flow.
+
+Execution result retains the job's failure reason and log tail. Downloadable log
+artifacts remain available when the worker produced them. A preflight rejection
+has no solver log because the solver never started. Inspect the displayed reason
+and the selected data directory's `logs/worker-*.log` for worker startup failures.
+
 ## Assemble separate launcher and platform packages
 
 ```sh
