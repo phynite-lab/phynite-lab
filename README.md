@@ -77,6 +77,17 @@ Local AI connections and cloud login are independent. The hosted backend and its
 deployment infrastructure are maintained separately and are not needed to build
 or run this application.
 
+## Documentation
+
+Read the complete bilingual guide at
+[phynitelab.com/guide](https://phynitelab.com/guide). The most relevant topics
+for the local package are [Install, update, and diagnose the npm app](https://phynitelab.com/guide/npm-local-app),
+[AI provider accounts](https://phynitelab.com/guide/ai-providers),
+[Cloud Sync](https://phynitelab.com/guide/cloud-sync),
+[Storage and backup](https://phynitelab.com/guide/storage-backup), and
+[Settings](https://phynitelab.com/guide/settings-reference). Downloadable English
+and Indonesian Markdown guides are available from the documentation page.
+
 ### Local storage and large QE runs
 
 The default data directory is `~/.phynite-lab`; use `--data-dir` to choose another

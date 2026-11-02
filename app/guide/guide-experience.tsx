@@ -11,6 +11,8 @@ import { useLocale } from '../locale-provider';
 import { getGuideSections, guideTopicKind, searchGuide } from '@/lib/guide-library';
 import type { GuideBlock } from '@/lib/guide-content';
 import { guidePath, legacyGuideDestination } from '@/lib/guide-routing';
+import { materializeGuideSections } from '@/lib/guide-release';
+import type { LocalReleaseMetadata } from '@/lib/local-release-metadata';
 
 function CodeExample({ code }: { code: string }) {
   const { t } = useLocale();
@@ -25,9 +27,9 @@ function ArticleBlock({ block, id }: { block: GuideBlock; id: string }) {
   return <section className="docs-block" id={id}><h2>{block.title}</h2>{block.paragraphs?.map(paragraph => <p key={paragraph}>{paragraph}</p>)}{block.steps && <ol className="docs-steps">{block.steps.map(step => <li key={step}>{step}</li>)}</ol>}{block.bullets && <ul>{block.bullets.map(bullet => <li key={bullet}>{bullet}</li>)}</ul>}{block.table && <div className="docs-table-scroll" role="region" aria-label={block.title} tabIndex={0}><table><thead><tr>{block.table.headings.map(heading => <th key={heading} scope="col">{heading}</th>)}</tr></thead><tbody>{block.table.rows.map((row, index) => <tr key={index}>{row.map((cell, column) => column === 0 ? <th key={column} scope="row">{cell}</th> : <td key={column}>{cell}</td>)}</tr>)}</tbody></table></div>}{block.code && <CodeExample code={block.code} />}{block.links && <ul className="docs-related-links">{block.links.map(link => <li key={link.href}><a href={link.href} {...(link.href.startsWith('https://') ? { target: '_blank', rel: 'noreferrer' } : {})}>{link.label}<ArrowUpRight size={13} /></a></li>)}</ul>}{block.note && <aside className="docs-note"><strong>{t('Note', 'Catatan')}</strong><p>{block.note}</p></aside>}</section>;
 }
 
-export function GuideExperience({ topic = '' }: { topic?: string }) {
+export function GuideExperience({ topic = '', release }: { topic?: string; release: LocalReleaseMetadata }) {
   const { locale, t } = useLocale();
-  const sections = getGuideSections(locale);
+  const sections = useMemo(() => materializeGuideSections(getGuideSections(locale), release), [locale, release]);
   const [query, setQuery] = useState('');
   const [tocOpen, setTocOpen] = useState(false);
   const search = useRef<HTMLInputElement>(null);
@@ -36,7 +38,7 @@ export function GuideExperience({ topic = '' }: { topic?: string }) {
   const previousTopic = useRef('');
   const groups = [...new Set(sections.map(section => section.group))];
   const selected = sections.find(section => section.id === topic);
-  const results = useMemo(() => searchGuide(getGuideSections(locale), query), [locale, query]);
+  const results = useMemo(() => searchGuide(sections, query), [sections, query]);
   const sectionIndex = sections.findIndex(section => section.id === topic);
   const searching = Boolean(query.trim());
   useEffect(() => {
@@ -75,7 +77,12 @@ export function GuideExperience({ topic = '' }: { topic?: string }) {
     { id: 'quickstart-silicon', icon: CalculationIcon, label: t('Run your first calculation', 'Jalankan kalkulasi pertama'), detail: t('Silicon, from import to execution.', 'Silikon, dari impor hingga eksekusi.') },
     { id: 'quickstart-md', icon: MdLabIcon, label: t('Run your first MD simulation', 'Jalankan simulasi MD pertama'), detail: t('Argon, from setup to trajectory.', 'Argon, dari pengaturan hingga trajectory.') },
     { id: 'publication', icon: FiguresIcon, label: t('Prepare a paper figure', 'Siapkan figur paper'), detail: t('Sources, alignment, panels, and export.', 'Sumber, alignment, panel, dan ekspor.') },
-    { id: 'local-compute', icon: Monitor, label: t('Connect your own computer', 'Hubungkan komputer pribadi'), detail: t('Native QE, Docker, and private worker access.', 'QE native, Docker, dan akses worker pribadi.') },
+    { id: 'npm-local-app', icon: Monitor, label: t('Install the local npm app', 'Instal aplikasi npm lokal'), detail: t('Install, update, ports, runtimes, and diagnostics.', 'Instal, update, port, runtime, dan diagnosis.') },
+    { id: 'ai-providers', icon: Keyboard, label: t('Connect AI provider accounts', 'Hubungkan akun AI provider'), detail: t('Codex, Antigravity, gateways, models, and limits.', 'Codex, Antigravity, gateway, model, dan limit.') },
+    { id: 'cloud-sync', icon: Monitor, label: t('Understand Cloud and Sync', 'Pahami Cloud dan Sync'), detail: t('Login, revisions, conflicts, and online compute.', 'Login, revision, konflik, dan compute online.') },
+    { id: 'storage-backup', icon: FiguresIcon, label: t('Protect research data', 'Lindungi data riset'), detail: t('Storage, QE wavefunctions, export, and backup.', 'Storage, wavefunction QE, ekspor, dan backup.') },
+    { id: 'settings-reference', icon: Keyboard, label: t('Customize Settings', 'Sesuaikan Pengaturan'), detail: t('Appearance, notifications, keyboard, profile, and usage.', 'Tampilan, notifikasi, keyboard, profil, dan pemakaian.') },
+    { id: 'local-compute', icon: Monitor, label: t('Connect a hosted worker', 'Hubungkan worker hosted'), detail: t('Native local compute and hosted worker paths.', 'Alur compute lokal native dan worker hosted.') },
     { id: 'shortcuts', icon: Keyboard, label: t('Keyboard reference', 'Referensi keyboard'), detail: t('DFT Lab, Figure Lab, and navigation.', 'DFT Lab, Figure Lab, dan navigasi.') },
   ];
   return <main className="public-experience lab-page studio-page docs-page" data-public-locale={locale}><a className="docs-skip" href="#docs-content">{t('Skip to content', 'Langsung ke isi')}</a><Navbar refined />

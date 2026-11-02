@@ -25,7 +25,12 @@ This guide describes the implemented interface. Use it alongside solver document
 - [Autosave, storage, and multiple devices](#saving)
 - [Settings, accounts, profile, and usage](#account)
 - [Manage plans, billing, and resource usage](#billing)
-- [Run on your computer: native app and hosted worker](#local-compute)
+- [Local npm compute and hosted workers](#local-compute)
+- [Install, update, and diagnose the npm app](#npm-local-app)
+- [AI provider accounts on your computer](#ai-providers)
+- [Phynite Cloud, Cloud Sync, and online compute](#cloud-sync)
+- [Storage, export, backup, and large QE state](#storage-backup)
+- [Settings, preferences, profile, and usage](#settings-reference)
 - [Appearance, language, and accessibility](#language)
 - [Keyboard and pointer shortcuts](#shortcuts)
 - [Reference: calculation fields and units](#field-reference)
@@ -971,7 +976,7 @@ There is no required Save revision button. Ctrl/Cmd+S is an optional explicit hi
 ### Related topics
 
 - [Settings, accounts, profile, and usage](#account)
-- [Run on your computer: native app and hosted worker](#local-compute)
+- [Local npm compute and hosted workers](#local-compute)
 - [Manage plans, billing, and resource usage](#billing)
 
 <a id="account"></a>
@@ -1062,7 +1067,7 @@ Billing in local mode opens https://phynitelab.com/billing. Cloud access, price,
 ### Related topics
 
 - [Autosave, storage, and multiple devices](#saving)
-- [Run on your computer: native app and hosted worker](#local-compute)
+- [Local npm compute and hosted workers](#local-compute)
 - [Manage plans, billing, and resource usage](#billing)
 
 <a id="billing"></a>
@@ -1109,13 +1114,21 @@ Early-access accounts can use the Cloud workflows available in the current catal
 
 - [Autosave, storage, and multiple devices](#saving)
 - [Settings, accounts, profile, and usage](#account)
-- [Run on your computer: native app and hosted worker](#local-compute)
+- [Local npm compute and hosted workers](#local-compute)
 
 <a id="local-compute"></a>
 
-## Run on your computer: native app and hosted worker
+## Local npm compute and hosted workers
 
-The local npm app runs DFT, MD, and analysis through installed native runtimes without Phynite login or Docker. Its setup lives in Settings → Compute. The hosted website has a separate paired-worker flow, described later in this chapter.
+The local npm app runs DFT, MD, and analysis through installed native runtimes without Phynite login or Docker. Its setup lives in Settings → Compute. The hosted website uses a separate paired-worker flow, described later in this chapter; it is not a fallback runtime for the npm app.
+
+### Choose the execution path
+
+| Path | Needs | Data behavior |
+| --- | --- | --- |
+| Your computer / npm app | Node.js, native runtime, potentials, and isolation probe. | Projects and results stay in the selected local data directory. |
+| Hosted personal worker | Cloud login, paired worker, and the hosted worker requirements. | Submitted project/job artifacts follow the hosted account and retention rules. |
+| Phynite Cloud compute | Cloud account, supported catalog, quota, and transfer review. | Only the reviewed job inputs are transferred; this does not enable Cloud Sync. |
 
 ### Native app: install and open
 
@@ -1315,6 +1328,231 @@ Local machine owners can modify their own software. Account binding protects acc
 - [Settings, accounts, profile, and usage](#account)
 - [Manage plans, billing, and resource usage](#billing)
 
+<a id="npm-local-app"></a>
+
+## Install, update, and diagnose the npm app
+
+The published npm app is the local-first path for running the workspace, native DFT, MD, and analysis on your computer. It does not require a Phynite login, Docker, a source checkout, or global Python.
+
+### Install and start
+
+The current published package is phynite-lab@0.1.5. Node.js version >=22.13.0 is required. npm installs the launcher and the matching optional native application package for the host OS and CPU.
+
+Keep npm optional dependencies enabled. If a package manager was configured with --omit=optional or the selected platform package was removed, the launcher reports a missing runtime instead of silently using a development fixture.
+
+The launcher binds services to loopback, opens a browser, and stores the local workspace under ~/.phynite-lab. User projects and runtimes remain outside the npm installation directory.
+
+```text
+npm install -g phynite-lab@latest
+phynite-lab
+```
+
+### Supported platforms
+
+| Platform | Package/runtime | Notes |
+| --- | --- | --- |
+| macOS Apple Silicon | darwin-arm64 | Native arm64 package. |
+| macOS Intel | darwin-x64 | Native x64 package. |
+| Linux ARM64 | linux-arm64 | Requires glibc >=2.39 and verified user namespaces. |
+| Linux x64 / Omarchy / Arch | linux-x64 | Requires glibc >=2.39 and verified user namespaces. |
+| Windows | WSL2 linux-x64 | Run npm and phynite-lab inside WSL2; a Windows-native solver is not installed. |
+
+> The package declares darwin/linux and arm64/x64 targets. A platform is supported only when its native runtime, isolation probe, and scientific checks pass; package availability alone is not a qualification.
+
+### Launcher commands and workspace identity
+
+The default command starts the service in the foreground. --no-open prints the loopback URL without opening a browser. --port requests a port; if it is already used, the launcher selects an available loopback port and reports the actual origin. --data-dir gives each workspace its own database, projects, runtimes, and logs.
+
+status reports the healthy instance for that data directory. stop asks the instance owned by that workspace to shut down cleanly. doctor checks distribution identity, service readiness, data paths, and startup diagnostics. Launching the same workspace again reuses its healthy instance instead of starting a duplicate.
+
+```text
+phynite-lab --no-open --port 3000 --data-dir /path/to/workspace
+phynite-lab status --data-dir /path/to/workspace
+phynite-lab doctor --data-dir /path/to/workspace
+phynite-lab stop --data-dir /path/to/workspace
+```
+
+### Update without losing projects
+
+The local app may show an update notice after checking https://registry.npmjs.org/phynite-lab/latest. A successful check is cached for up to six hours; an unavailable or invalid response is retried after about five minutes. The check sends no project data or credentials, does not install anything automatically, and never blocks local work while offline.
+
+1. Finish or cancel active jobs and stop the current instance.
+2. Run the npm update command from the same Node installation that owns the global package.
+3. Start the app again and open Settings → Compute to confirm the runtime capabilities remain available.
+4. If startup fails, run phynite-lab doctor and inspect the logs in the selected data directory; reinstalling the package does not remove ~/.phynite-lab.
+
+```text
+npm install -g phynite-lab@latest
+phynite-lab --version
+```
+
+### Common npm startup fixes
+
+| Symptom | Check |
+| --- | --- |
+| Node version rejected | Run node --version and install a Node.js version satisfying >=22.13.0. |
+| Missing runtime package | Reinstall with optional dependencies enabled; check the package target reported by doctor. |
+| Port already used | Use --no-open, follow the printed port, or choose --port with a free value. |
+| Projects are missing | Use the original --data-dir; each directory is an independent workspace. |
+| Startup service stopped | Run status and doctor, then read logs/<service>.log in the data directory. |
+| Update is unavailable | Continue offline, check npm/network later, and retry; the notice is informational. |
+
+- [Local distribution reference](#local-compute)
+- [Troubleshooting and recovery](#troubleshooting)
+
+### Related topics
+
+
+
+<a id="ai-providers"></a>
+
+## AI provider accounts on your computer
+
+Local AI uses the accounts and provider tools you choose. It is independent from Phynite Cloud login and does not use a hosted Phynite AI service.
+
+### Connect an account
+
+1. Install and authenticate the official provider CLI or configure a loopback OpenAI-compatible gateway such as 9Router on this computer.
+2. Open Settings → AI provider accounts and choose the provider connection.
+3. Complete authentication through the provider’s own flow. An existing supported CLI login can be reused without importing its cookie or session files.
+4. Keep the application open while model discovery and the capability probe run. The page selects only models that pass the supported text, streaming, and tool checks.
+
+- [AI provider settings](/account/ai-providers)
+
+### Accounts, models, and limits
+
+Save more than one provider account and switch explicitly when a subscription limit is reached. A failed or rate-limited request never silently changes provider or account.
+
+Usage cards show only telemetry reported by the provider: model group, session or weekly percentage, window, and reset time when available. A missing report stays unavailable; the app never invents token counts, balances, or reset dates.
+
+Model availability can change with the provider entitlement. Cloud model settings do not control local provider accounts.
+
+### Security and unsupported states
+
+- Provider credentials stay in the provider-managed CLI or local credential store and are kept out of browser storage, logs, project archives, and Cloud Sync.
+- The local bridge runs on loopback with shell, MCP, plugin, browser, and unverified network actions disabled. Canvas changes still require the existing approval and validation flow.
+- If authentication, discovery, streaming, or tool verification fails, the provider remains visibly disconnected or unavailable until you fix it. There is no automatic provider fallback.
+- AI provider access is separate from scientific runtime installation and separate from Phynite Cloud login.
+
+### Related topics
+
+- [Phynite Cloud, Cloud Sync, and online compute](#cloud-sync)
+
+<a id="cloud-sync"></a>
+
+## Phynite Cloud, Cloud Sync, and online compute
+
+Cloud services are optional connections layered on top of a complete local workspace. Signing in does not upload a local project or replace its local identity.
+
+### Local, Cloud Sync, and cloud compute
+
+| Choice | What happens |
+| --- | --- |
+| Local only | Project, inputs, results, and runtime data remain on the selected computer. No Cloud login is required. |
+| Cloud login | Enables account features; local projects remain local until a project action enables sync. |
+| Cloud Sync | Enabled per project after reviewing scope, size, and quota. Syncs approved project revisions and artifacts. |
+| Run on cloud | Uploads only the reviewed job inputs/dependencies, creates a separate cloud execution, and downloads verified results. It does not enable project sync. |
+
+### Sync lifecycle and conflicts
+
+1. Sign in from Settings → Account and keep the local workspace identity unchanged.
+2. Open the project sync control, review the files, size, quota, and retention shown, then enable Cloud Sync explicitly.
+3. Let the persistent outbox finish. Interrupted transfers resume with checksums; a cloud revision is published only after its snapshot artifacts are verified.
+4. If another device changed the project, compare local and cloud revisions before choosing use local, use cloud, or save as a copy.
+5. Use Trash for cloud deletion. A tombstone and retention window protect the cloud copy; disabling sync keeps local and cloud copies, and logout stops sync without deleting local data.
+
+### Account boundaries and billing
+
+Sync queues and account mappings belong to the signed-in Cloud account. Switching accounts does not continue uploads created by another account.
+
+Cloud quota, artifact retention, Trash, and the hosted Free allowance are separate from local disk space. Billing and plan changes are available on the hosted website; a purchase does not start a job automatically.
+
+MD Cloud is unavailable until a supported service is shown in the current catalog. Do not infer availability from a local MD runtime.
+
+- [Cloud account settings](/account/account)
+- [Usage and quota](/account/usage)
+- [Hosted billing](/billing)
+
+### Related topics
+
+- [AI provider accounts on your computer](#ai-providers)
+
+<a id="storage-backup"></a>
+
+## Storage, export, backup, and large QE state
+
+Local storage is the disk available to the selected workspace. Cloud storage is an account service with its own quota and retention policy.
+
+### What local Storage measures
+
+The default data directory is ~/.phynite-lab. Use --data-dir when a larger or separate disk is appropriate. Local mode has no fixed 10 GiB quota and does not automatically delete artifacts after seven days; free disk space is the practical limit.
+
+| Counted | Outside the project inventory |
+| --- | --- |
+| Inventoried structures, inputs, configurations, completed results, trajectories, and project archives. | SQLite metadata, installed solver/runtime files, worker logs, browser cache, and unrelated files on the disk. |
+| Intermediate state retained as a project artifact. | Operating-system free space and other applications’ data. |
+
+### QE intermediate files and wavefunctions
+
+- disk_io settings and temporary state can be much larger than the final SCF summary.
+- Wavefunction and tmp data may be required for bands, DOS, phonons, projected workflows, checkpoints, or external interoperability.
+- Do not remove intermediate state until every downstream workflow finishes. Keep the exact input, pseudopotential identity and checksum, provenance, and state artifacts together.
+- Wannier90 is an external/manual workflow unless a separately documented native integration is available; follow its official handoff requirements.
+
+- [Quantum ESPRESSO documentation](https://www.quantum-espresso.org/documentation/)
+- [Wannier90 documentation](https://wannier.org/documentation/)
+
+### Export, import, and backup
+
+1. Export the project archive from Settings → Storage before moving a workspace or making a destructive change.
+2. Keep a second backup outside ~/.phynite-lab, including exact inputs, potential identities/checksums, provenance, and intermediate state needed by downstream work.
+3. Import into a new data directory first and verify structures, configurations, results, and checksums before replacing the working copy.
+4. Use Source package export for figures; it does not replace the project archive or solver runtime backup.
+
+- [Storage settings](/account/storage)
+
+### Related topics
+
+
+
+<a id="settings-reference"></a>
+
+## Settings, preferences, profile, and usage
+
+Settings separates device preferences, scientific compute, AI provider accounts, Cloud account state, usage, storage, and privacy.
+
+### Choose the right page
+
+| Page | Purpose | Where it is stored |
+| --- | --- | --- |
+| Appearance & language | Theme, accent, density, text size, reduced motion, and language. | This browser/device. |
+| Keyboard shortcuts | Supported application bindings. | This browser/device. |
+| Notifications | Job/runtime alerts and desktop permission. | This browser/device; hosted delivery follows account state. |
+| Compute | Runtime installation, isolation probe, CPU/RAM/job defaults, and cloud transfer settings. | Local workspace or Cloud account, depending on control. |
+| AI provider accounts | Provider login, account switching, model readiness, limits, and reset. | Provider CLI/local credential store. |
+| Account | Optional Phynite Cloud login/logout and per-project sync. | Cloud account; local data remains local. |
+| Profile | Research identity shown after Cloud login. | Cloud account. |
+| Usage | Recorded scientific jobs and provider-reported AI usage. | Actual execution/provider records. |
+| Storage / Privacy | Project inventory, archives, session, and local data boundaries. | Local workspace and browser. |
+
+### Theme, notifications, and shortcuts
+
+Appearance changes apply immediately and remain device-only unless the page explicitly offers a Cloud account default. Light, dark, system, accent, density, code text size, reduced motion, and language can be customized independently.
+
+Notification preferences control local job/runtime alerts and browser permission. They do not create a Cloud session or upload project data.
+
+Keyboard changes apply only to supported application bindings in the current browser. Native browser and operating-system shortcuts may still take precedence.
+
+### Profile and login visibility
+
+A local workspace without Cloud login has no user profile. Connect a Cloud account before opening Profile; logout removes the profile controls while preserving local projects and identity.
+
+AI provider login is independent from Cloud login. A provider account can be connected while Phynite Cloud remains signed out.
+
+### Related topics
+
+
+
 <a id="language"></a>
 
 ## Appearance, language, and accessibility
@@ -1360,7 +1598,7 @@ English documentation uses /guide/topic and Indonesian documentation /id/guide/t
 
 - [Autosave, storage, and multiple devices](#saving)
 - [Settings, accounts, profile, and usage](#account)
-- [Run on your computer: native app and hosted worker](#local-compute)
+- [Local npm compute and hosted workers](#local-compute)
 
 <a id="shortcuts"></a>
 
@@ -1490,6 +1728,26 @@ Do not convert all scientific values to display-region formatting. QE inputs, CS
 ## Troubleshooting and recovery
 
 Start with the exact state and the most recent message. Repeatedly rerunning a failing input often wastes time without fixing its cause.
+
+### Local npm run diagnosis
+
+A Completed status means the process and required persistence steps finished; it does not establish convergence or scientific validity. Preserve the exact input and failed log before retrying. A new attempt should use an explicit, reviewed change.
+
+| Stage | What it means | Where to look |
+| --- | --- | --- |
+| Before solver start | Setup, runtime, potential, input validation, isolation, or worker readiness rejected the job. No solver output exists. | Run review, Settings → Compute, phynite-lab doctor, and the selected data directory logs. |
+| Queued | The job is waiting for a dependency or available local worker. | Job status, dependency record, worker status, and notification history. |
+| After solver start | The solver or analysis process returned an error or was interrupted. | Execution log, first meaningful solver error, saved input, provenance, and retained artifacts. |
+| Persistence/upload | The calculation may have finished but saving or transfer failed. | Result state, checksum/provenance, storage inventory, network, and Cloud transfer status. |
+
+### Launcher recovery sequence
+
+1. Run phynite-lab status with the same --data-dir used to start the app.
+2. Run phynite-lab doctor and record the displayed distribution, port, runtime, and data-path diagnostics.
+3. Read the latest service and worker log in the selected data directory.
+4. If the instance is healthy, open the printed loopback origin rather than starting another workspace.
+5. If an update or runtime activation failed, keep the previous active runtime, fix the reported cause, and retry from Settings → Compute.
+6. After a restart, inspect interrupted jobs; local jobs are not automatically rerun.
 
 ### Common problems
 
@@ -1630,3 +1888,6 @@ This guide describes the implemented Phynite interface and its current behavior.
 - https://docs.materialsproject.org/
 - https://seekpath.readthedocs.io/
 - https://www.boltztrap.org/
+- https://docs.lammps.org/
+- https://www.ovito.org/docs/
+- https://wannier.org/documentation/

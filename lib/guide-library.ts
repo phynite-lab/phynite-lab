@@ -2,6 +2,8 @@ import { guideSections, type GuideSection } from './guide-content.ts';
 import { guideSectionsId } from './guide-content-id.ts';
 import { guideAdditions } from './guide-additions.ts';
 import { guideAdditionsId } from './guide-additions-id.ts';
+import { productGuideSections } from './guide-product.ts';
+import { productGuideSectionsId } from './guide-product-id.ts';
 import type { Locale } from './locale.ts';
 import { GUIDE_TOPIC_IDS, guidePath } from './guide-routing.ts';
 
@@ -13,7 +15,7 @@ function relatedTopics(sections: GuideSection[], locale: Locale): GuideSection[]
     links: sections.filter(other => other.id !== section.id && other.group === section.group).slice(0, 3).map(other => ({ label: other.title, href: guidePath(locale, other.id) })),
   }] }));
 }
-const guides = { en: relatedTopics([...guideSections, ...guideAdditions], 'en'), id: relatedTopics([...guideSectionsId, ...guideAdditionsId], 'id') };
+const guides = { en: relatedTopics([...guideSections, ...guideAdditions, ...productGuideSections], 'en'), id: relatedTopics([...guideSectionsId, ...guideAdditionsId, ...productGuideSectionsId], 'id') };
 
 export function getGuideSections(locale: Locale) { return guides[locale]; }
 

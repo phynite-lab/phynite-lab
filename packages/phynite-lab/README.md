@@ -63,6 +63,12 @@ with `phynite-lab --version`.
 
 The first solver installation downloads the chosen runtime from the setup page.
 
+Complete English and Indonesian user documentation is available at
+https://phynitelab.com/guide, including the npm install/update path, local AI
+provider accounts, Cloud Sync, storage and QE intermediate-state guidance,
+Settings, and troubleshooting. The guide links to the matching source and
+downloadable Markdown copies.
+
 First run checklist: open **Settings → Compute**, verify the platform, solver
 capability, and isolation probe, install DFT or MD/analysis, install the required
 pseudopotentials (or provide exact UPF inputs), choose **Your computer** in the

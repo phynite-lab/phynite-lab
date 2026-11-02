@@ -8,12 +8,23 @@ export function localComputeGuide(locale: Locale): GuideSection {
   return {
     id: 'local-compute',
     group: t('Account & compute', 'Akun & komputasi'),
-    title: t('Run on your computer: native app and hosted worker', 'Komputasi di komputer sendiri: aplikasi native dan worker website'),
+    title: t('Local npm compute and hosted workers', 'Compute npm lokal dan worker hosted'),
     intro: t(
-      'The local npm app runs DFT, MD, and analysis through installed native runtimes without Phynite login or Docker. Its setup lives in Settings → Compute. The hosted website has a separate paired-worker flow, described later in this chapter.',
-      'Aplikasi npm lokal menjalankan DFT, MD, dan analisis melalui runtime native tanpa login Phynite atau Docker. Setup berada di Pengaturan → Komputasi. Website hosted memakai alur worker terhubung yang berbeda, dijelaskan setelah bagian native.',
+      'The local npm app runs DFT, MD, and analysis through installed native runtimes without Phynite login or Docker. Its setup lives in Settings → Compute. The hosted website uses a separate paired-worker flow, described later in this chapter; it is not a fallback runtime for the npm app.',
+      'Aplikasi npm lokal menjalankan DFT, MD, dan analisis melalui runtime native tanpa login Phynite atau Docker. Setup berada di Pengaturan → Komputasi. Website hosted memakai alur worker terhubung yang berbeda, dijelaskan setelah bagian native; worker hosted bukan fallback runtime untuk aplikasi npm.',
     ),
     blocks: [
+      {
+        title: t('Choose the execution path', 'Pilih jalur eksekusi'),
+        table: {
+          headings: [t('Path', 'Jalur'), t('Needs', 'Kebutuhan'), t('Data behavior', 'Perilaku data')],
+          rows: [
+            [t('Your computer / npm app', 'Komputer Anda / aplikasi npm'), t('Node.js, native runtime, potentials, and isolation probe.', 'Node.js, runtime native, potential, dan probe isolasi.'), t('Projects and results stay in the selected local data directory.', 'Project dan hasil tetap di data directory lokal yang dipilih.')],
+            [t('Hosted personal worker', 'Personal worker hosted'), t('Cloud login, paired worker, and the hosted worker requirements.', 'Login Cloud, worker berpasangan, dan kebutuhan worker hosted.'), t('Submitted project/job artifacts follow the hosted account and retention rules.', 'Artefak project/job mengikuti akun dan aturan retensi hosted.')],
+            [t('Phynite Cloud compute', 'Compute Phynite Cloud'), t('Cloud account, supported catalog, quota, and transfer review.', 'Akun Cloud, katalog yang didukung, kuota, dan review transfer.'), t('Only the reviewed job inputs are transferred; this does not enable Cloud Sync.', 'Hanya input job yang direview yang ditransfer; ini tidak mengaktifkan Cloud Sync.')],
+          ],
+        },
+      },
       {
         title: t('Native app: install and open', 'Aplikasi native: instal dan buka'),
         code: 'npm install -g phynite-lab\nphynite-lab',
