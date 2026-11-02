@@ -11,7 +11,7 @@ npm install -g phynite-lab
 phynite-lab
 ```
 
-Requires Node.js 22.13 or later. Version 0.1.4 ships native packages for macOS
+Requires Node.js 22.13 or later. Version 0.1.5 ships native packages for macOS
 Apple Silicon (`darwin-arm64`), macOS Intel (`darwin-x64`), Linux ARM64
 (`linux-arm64`) and Linux x64 (`linux-x64`, glibc >=2.39), including current
 Omarchy/Arch Linux. Windows is supported through WSL2, which uses the Linux x64

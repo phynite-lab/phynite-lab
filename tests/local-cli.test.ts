@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { createServer as createHttpServer } from 'node:http';
 import { createHash } from 'node:crypto';
 import { chmod, cp, mkdtemp, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
@@ -8,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import { distributionPlatform, parseArguments, verifyDistribution } from '../packages/phynite-lab/lib/launcher.mjs';
+import { distributionPlatform, parseArguments, startupFailure, verifyDistribution } from '../packages/phynite-lab/lib/launcher.mjs';
 import { checkDistribution, prohibitedDistributionPath } from '../packages/phynite-lab/lib/check-distribution.mjs';
 import { validateCloudConfig } from '../packages/phynite-lab/lib/cloud-config.mjs';
 import { DISTRIBUTION_TARGETS, platformPackageName, releaseSource, verifyRuntimePackage } from '../packages/phynite-lab/lib/distribution.mjs';
@@ -85,6 +86,51 @@ test('CLI accepts documented options and rejects unsupported arguments', () => {
   for (const args of [['--port', '0'], ['--port', '3000x'], ['--data-dir'], ['--host', '0.0.0.0'], ['start', 'stop']]) assert.throws(() => parseArguments(args));
   assert.equal(distributionPlatform('linux', 'x64'), 'linux-x64');
   assert.throws(() => distributionPlatform('win32', 'x64'), /WSL2/);
+});
+
+test('startup diagnostics identify the failed service and preserve actionable log context', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'phynite-startup-diagnostics-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const logPath = join(directory, 'core.log');
+  await writeFile(logPath, 'first line\nAnother scheduler already owns this local workspace.\nsecret=do-not-print\n');
+  const error = await startupFailure('core', { exitCode: 1, signalCode: null }, logPath);
+  assert.match(error.message, /core service stopped during startup/);
+  assert.match(error.message, /exited with code 1/);
+  assert.match(error.message, /Another Phynite Lab process already owns this workspace/);
+  assert.match(error.message, /secret=\[redacted\]/);
+  assert.doesNotMatch(error.message, /do-not-print/);
+  assert.match(error.message, /Local files were retained/);
+});
+
+test('CLI adopts a healthy source local workspace without starting a duplicate core', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'phynite-adopt-existing-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const dataDir = join(directory, 'data');
+  await mkdir(join(dataDir, 'runtime'), { recursive: true });
+  const identity = await realpath(dataDir);
+  const token = 'fixture-existing-service-token-with-32-characters';
+  const api = createHttpServer((request, response) => {
+    response.setHeader('Content-Type', 'application/json');
+    if (request.url === '/__local/health') response.end(JSON.stringify({ ready: true, environment: 'local' }));
+    else if (request.url === '/__local/session') response.end(JSON.stringify({ mode: 'local', user: { id: identity } }));
+    else { response.statusCode = 404; response.end('{}'); }
+  });
+  const ui = createHttpServer((request, response) => {
+    response.setHeader('Content-Type', 'application/json');
+    response.end(JSON.stringify(request.url === '/api/auth/session' ? { mode: 'local', user: { id: identity } } : {}));
+  });
+  await new Promise<void>(accept => api.listen(0, '127.0.0.1', accept));
+  await new Promise<void>(accept => ui.listen(0, '127.0.0.1', accept));
+  const apiPort = (api.address() as { port: number }).port, uiPort = (ui.address() as { port: number }).port;
+  await writeFile(join(dataDir, 'core-service.json'), JSON.stringify({ token, origin: `http://127.0.0.1:${apiPort}`, uiOrigin: `http://127.0.0.1:${uiPort}` }), { mode: 0o600 });
+  t.after(async () => {
+    await new Promise<void>(accept => api.close(() => accept()));
+    await new Promise<void>(accept => ui.close(() => accept()));
+  });
+  const result = await launch(['--no-open', '--data-dir', dataDir], join(directory, 'does-not-contain-a-package')).finished;
+  assert.equal(result.code, 0);
+  assert.match(result.output, /already running at/);
+  assert.match(result.output, /healthy local service/);
 });
 
 test('distribution refuses missing and tampered core binaries and private files', async t => {

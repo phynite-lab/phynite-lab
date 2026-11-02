@@ -1,6 +1,6 @@
 {
   "name": "phynite-lab",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Phynite Lab local computational materials-science workspace",
   "type": "module",
   "license": "AGPL-3.0-only",
@@ -11,10 +11,10 @@
   "bin": { "phynite-lab": "bin/phynite-lab.mjs" },
   "files": ["bin/", "lib/", "distribution.json", "LICENSE", "THIRD_PARTY_NOTICES.md", "README.md"],
   "optionalDependencies": {
-    "phynite-lab-runtime-darwin-arm64": "0.1.4",
-    "phynite-lab-runtime-darwin-x64": "0.1.4",
-    "phynite-lab-runtime-linux-arm64": "0.1.4",
-    "phynite-lab-runtime-linux-x64": "0.1.4"
+    "phynite-lab-runtime-darwin-arm64": "0.1.5",
+    "phynite-lab-runtime-darwin-x64": "0.1.5",
+    "phynite-lab-runtime-linux-arm64": "0.1.5",
+    "phynite-lab-runtime-linux-x64": "0.1.5"
   },
   "scripts": { "prepack": "node lib/check-distribution.mjs" },
   "publishConfig": { "access": "public" },

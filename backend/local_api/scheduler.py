@@ -29,7 +29,21 @@ class ResourceScheduler:
             fcntl.flock(self._lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as error:
             self._lock.close()
-            raise ResourceError("Another scheduler already owns this local workspace.") from error
+            owner = self._lock_owner()
+            if owner:
+                raise ResourceError(
+                    "Another scheduler already owns this local workspace "
+                    f"(PID {owner}). Stop the existing Phynite Lab instance before starting another."
+                ) from error
+            # flock releases ownership automatically when the owning process
+            # exits. Keep the lock file in place for diagnostics, but never
+            # unlink or forcibly recover it here: a PID recorded in a stale
+            # file is not proof that the current lock holder is dead.
+            raise ResourceError(
+                "Another scheduler already owns this local workspace. "
+                "Stop the existing Phynite Lab instance before starting another."
+            ) from error
+        self._write_lock_owner()
         self.path = self.root / "scheduler.sqlite"
         with self._db() as db:
             db.execute("CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY CHECK(id=1), value TEXT NOT NULL)")
@@ -40,6 +54,44 @@ class ResourceScheduler:
                 status = "recovery-required" if self._process(dict(row)) else "interrupted"
                 db.execute("UPDATE jobs SET status=?, reason='The local scheduler stopped before this job completed. Inspect preserved output before resuming.', updated=? WHERE id=?", (status, time.time(), row["id"]))
         self._closed = False
+
+    def _lock_owner(self) -> int | None:
+        """Return the recorded owner PID when its process identity is valid.
+
+        The lock itself is authoritative. The metadata is only a diagnostic
+        aid, and a PID is accepted only when its creation time still matches
+        the value written by the owner. This avoids reporting an unrelated
+        process after PID reuse.
+        """
+        try:
+            with self.root.joinpath(".scheduler.lock").open("rb") as descriptor:
+                value = json.loads(descriptor.read().decode("utf-8"))
+            pid, created = value.get("pid"), value.get("created")
+            if type(pid) is not int or pid <= 1 or not isinstance(created, (int, float)):
+                return None
+            process = psutil.Process(pid)
+            if process.status() == psutil.STATUS_ZOMBIE or not math.isclose(process.create_time(), created, rel_tol=0, abs_tol=0.001):
+                return None
+            return pid
+        except (OSError, ValueError, TypeError, KeyError, psutil.Error):
+            return None
+
+    def _write_lock_owner(self) -> None:
+        """Persist best-effort owner metadata after acquiring the OS lock."""
+        try:
+            self._lock.seek(0)
+            self._lock.truncate()
+            self._lock.write(json.dumps({
+                "pid": os.getpid(),
+                "created": psutil.Process(os.getpid()).create_time(),
+                "startedAt": time.time(),
+            }).encode("utf-8"))
+            self._lock.flush()
+            os.fsync(self._lock.fileno())
+        except (OSError, psutil.Error):
+            # The flock remains authoritative; diagnostics must never prevent
+            # a valid scheduler from starting.
+            pass
 
     @contextlib.contextmanager
     def _db(self):

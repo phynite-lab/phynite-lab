@@ -264,12 +264,23 @@ class SchedulerTests(unittest.TestCase):
 
     def test_restart_does_not_relaunch_jobs_and_second_owner_is_rejected(self):
         self.scheduler.reserve("interrupted")
-        with self.assertRaisesRegex(ResourceError, "already owns"):
+        with self.assertRaisesRegex(ResourceError, r"already owns.*PID"):
             ResourceScheduler(self.root)
         self.scheduler.close()
         self.scheduler = ResourceScheduler(self.root)
         self.assertEqual(self.scheduler.job("interrupted")["status"], "interrupted")
         self.scheduler.reserve("new")
+
+    def test_lock_metadata_is_diagnostic_only_and_refreshes_after_restart(self):
+        lock = self.root / ".scheduler.lock"
+        owner = json.loads(lock.read_text())
+        self.assertEqual(owner["pid"], os.getpid())
+        self.assertIsInstance(owner["created"], (int, float))
+        self.scheduler.close()
+        self.scheduler = ResourceScheduler(self.root)
+        refreshed = json.loads(lock.read_text())
+        self.assertEqual(refreshed["pid"], os.getpid())
+        self.assertGreaterEqual(refreshed["startedAt"], owner["startedAt"])
 
     def test_watchdog_terminates_actual_child_with_truthful_memory_reason(self):
         process = subprocess.Popen([sys.executable, "-c", "import time;data=bytearray(20*1024*1024);time.sleep(60)"])
