@@ -188,7 +188,7 @@ test('a Codex usage read cannot write account identity after switching accounts'
 test('Antigravity usage reads official TSV without starting an agent turn', async () => {
   const dir = await mkdtemp('/tmp/phynite-agy-usage-test-');
   const agy = await executable(dir, 'agy', `#!/usr/bin/env node
-if(process.argv.includes('--version')) { console.log('1.4.11'); process.exit(0); }
+if(process.argv.includes('--version')) { console.log('1.4.12'); process.exit(0); }
 if(process.argv.slice(2).join(' ') !== '-p /usage --print-timeout 20s') process.exit(5);
 console.log('Gemini Models\\tWeekly Limit Remaining\\t100%\\t2026-11-05T11:16:36Z');
 console.log('Claude and GPT models\\tFive Hour Limit Remaining\\t85%\\t2026-10-30T19:58:30Z');
