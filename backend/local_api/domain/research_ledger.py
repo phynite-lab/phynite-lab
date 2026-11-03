@@ -7,6 +7,7 @@ run and never accepts credentials or unverified scientific claims.
 from __future__ import annotations
 
 import re
+import math
 from typing import Any
 
 from backend.local_api.domain.phynite_core import (
@@ -53,7 +54,11 @@ def _bounded_value(value: Any, label: str, depth: int = 0) -> Any:
         if re.search(r"(?:^|\s)(?:bearer\s+|sk-[A-Za-z0-9_-]{20,}|phyp\.[A-Za-z0-9_.-]{20,})", value, re.I):
             raise ApiError(400, f"{label} contains a credential.", "INVALID_RESEARCH_EVENT")
         return value
-    if value is None or isinstance(value, (bool, int, float)):
+    if value is None or isinstance(value, (bool, int)):
+        return value
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise ApiError(400, f"{label} contains a non-finite number.", "INVALID_RESEARCH_EVENT")
         return value
     if isinstance(value, list):
         if len(value) > 40:
