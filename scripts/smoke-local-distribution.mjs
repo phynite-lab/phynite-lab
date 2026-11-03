@@ -184,23 +184,18 @@ try {
     await expect(page.locator('.local-cloud-login-form').getByRole('button', { name: 'Sign in', exact: true })).toBeEnabled({ enabled: Boolean(manifest.cloud) });
   }
   await page.goto(initial.origin + '/account/ai-providers', { waitUntil: 'domcontentloaded' });
-  await page.getByLabel('Gateway URL', { exact: true }).fill('http://127.0.0.1:65530');
-  const gatewaySaved = page.waitForResponse(response => response.url() === `${initial.origin}/api/local/gateway` && response.request().method() === 'PUT', { timeout: 30_000 });
-  await page.getByRole('button', { name: 'Save gateway', exact: true }).click();
-  assert.equal((await gatewaySaved).status(), 200, 'Saving a gateway without a credential must complete through the same-origin API.');
-  await expect(page.locator('.settings-row').filter({ hasText: 'Gateway status' }).getByRole('button', { name: 'Disconnect', exact: true })).toBeEnabled();
-  assert.equal((await api(page, '/api/local/gateway')).configured, true);
-  await page.locator('.settings-row').filter({ hasText: 'Gateway status' }).getByRole('button', { name: 'Disconnect', exact: true }).click();
-  await expect(page.locator('.settings-row').filter({ hasText: 'Gateway status' }).getByRole('button', { name: 'Disconnect', exact: true })).toHaveCount(0);
-  assert.equal((await api(page, '/api/local/gateway')).configured, false);
+  await expect(page.getByRole('heading', { name: 'AI provider connections', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Login with Codex|Open Antigravity login|Check CLI and sign in/, exact: false })).toHaveCount(2);
+  await expect(page.getByLabel('Gateway URL', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Save gateway|Switch|Create account slot/, exact: true })).toHaveCount(0);
   await page.goto(initial.origin + '/account/compute', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'Compute', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Disconnect computer', exact: true })).toHaveCount(0);
   await page.goto(initial.origin + '/account/privacy', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'Local privacy', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Manage preferences', exact: true })).toHaveCount(0);
-  report.checkIds.push('local-ai-gateway', 'optional-cloud-no-auto-upload');
-  report.checks.push('Local workspace has no unauthenticated profile; its Cloud login and login/register pages lead to optional cloud connection; public cloud configuration matches manifest; real gateway configure/disconnect retains no stale connection; native compute settings offer no worker pairing. No provider or cloud login was attempted.');
+  report.checkIds.push('local-ai-provider-connections', 'optional-cloud-no-auto-upload');
+  report.checks.push('Local workspace has no unauthenticated profile; its Cloud login and login/register pages lead to optional cloud connection; public cloud configuration matches manifest; local AI exposes only official CLI provider connections with no gateway or account-switching controls; native compute settings offer no worker pairing. No provider or cloud login was attempted.');
   let simulatedCloud = true;
   await page.route('**/api/auth/session', async route => {
     const upstream = await route.fetch();
