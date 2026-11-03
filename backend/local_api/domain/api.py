@@ -1499,7 +1499,18 @@ class PhyniteApi:
             try:
                 prepared_job = self.local_job_input(claimed)
             except Exception as exc:
-                self.services.finish_local_calculation(claimed, worker_id, 'FAILED', f'Worker could not prepare the calculation input: {exc}'[:500], utc_now())
+                reason = f'Worker could not prepare the calculation input: {exc}'[:500]
+                self.services.finish_local_calculation(claimed, worker_id, 'FAILED', reason, utc_now())
+                if claimed.get('projectId'):
+                    self.record_research_event(claimed['ownerId'], claimed['projectId'], {
+                        'eventType': 'calculation_failed',
+                        'title': 'Run failed before solver start',
+                        'summary': reason,
+                        'runId': claimed['id'],
+                        'calculationId': claimed['id'],
+                        'jobKind': item_capability,
+                        'metadata': {'phase': 'preflight', 'status': 'FAILED'},
+                    })
                 continue
             return response(200, {'job': {'kind': item_capability, 'jobId': claimed['id'], 'calculationId': claimed['id'], 'ownerId': claimed['ownerId'], 'projectId': claimed['projectId'], 'vcpus': int(claimed.get('vcpus') or 1), 'memoryMiB': int(claimed.get('memoryMiB') or 2048), 'leaseExpiresAtEpoch': int(claimed.get('leaseExpiresAtEpoch') or lease_expires_at), **{}, **prepared_job, **({'executionAffinity': claimed['executionAffinity']} if claimed.get('executionAffinity') else {})}})
         return response(200, {'job': None, 'retryAfterSeconds': 10})
