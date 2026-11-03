@@ -44,13 +44,13 @@ export const productGuideSections: GuideSection[] = [
     intro: 'Local AI uses the accounts and provider tools you choose. It is independent from Phynite Cloud login and does not use a hosted Phynite AI service.',
     blocks: [
       { title: 'Connect an account', steps: [
-        'Install and authenticate the official provider CLI or configure a loopback OpenAI-compatible gateway such as 9Router on this computer.',
+        'Install and authenticate the official provider CLI on this computer.',
         'Open Settings → AI provider accounts and choose the provider connection.',
         'Complete authentication through the provider’s own flow. An existing supported CLI login can be reused without importing its cookie or session files.',
         'Keep the application open while model discovery and the capability probe run. The page selects only models that pass the supported text, streaming, and tool checks.',
       ], links: [{ label: 'AI provider settings', href: '/account/ai-providers' }] },
       { title: 'Accounts, models, and limits', paragraphs: [
-        'Save more than one provider account and switch explicitly when a subscription limit is reached. A failed or rate-limited request never silently changes provider or account.',
+        'The local app uses the signed-in profile managed by the official provider CLI. A failed or rate-limited request never silently changes provider.',
         'Usage cards show only telemetry reported by the provider: model group, session or weekly percentage, window, and reset time when available. A missing report stays unavailable; the app never invents token counts, balances, or reset dates.',
         'Model availability can change with the provider entitlement. Cloud model settings do not control local provider accounts.',
       ] },
@@ -117,7 +117,7 @@ export const productGuideSections: GuideSection[] = [
         ['Keyboard shortcuts', 'Supported application bindings.', 'This browser/device.'],
         ['Notifications', 'Job/runtime alerts and desktop permission.', 'This browser/device; hosted delivery follows account state.'],
         ['Compute', 'Runtime installation, isolation probe, CPU/RAM/job defaults, and cloud transfer settings.', 'Local workspace or Cloud account, depending on control.'],
-        ['AI provider accounts', 'Provider login, account switching, model readiness, limits, and reset.', 'Provider CLI/local credential store.'],
+        ['AI provider accounts', 'Provider login, model readiness, limits, and reset.', 'Provider CLI/local credential store.'],
         ['Account', 'Optional Phynite Cloud login/logout and per-project sync.', 'Cloud account; local data remains local.'],
         ['Profile', 'Research identity shown after Cloud login.', 'Cloud account.'],
         ['Usage', 'Recorded scientific jobs and provider-reported AI usage.', 'Actual execution/provider records.'],

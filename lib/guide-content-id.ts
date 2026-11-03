@@ -241,7 +241,7 @@ export const guideSectionsId: GuideSection[] = [
       {
         "title": "Menghubungkan AI dan membaca batasnya",
         "paragraphs": [
-          "Akun provider AI mengelola login CLI/gateway provider resmi dengan akun sendiri. Login ini terpisah dari Phynite Cloud. Setelah autentikasi, penemuan model serta pemeriksaan kemampuan berjalan otomatis. Tools dan attachment memerlukan dukungan terverifikasi; perubahan Canvas tetap memakai approval serta validasi.",
+          "Akun provider AI mengelola login CLI provider resmi dengan akun sendiri. Login ini terpisah dari Phynite Cloud. Setelah autentikasi, penemuan model serta pemeriksaan kemampuan berjalan otomatis. Tools dan attachment memerlukan dukungan terverifikasi; perubahan Canvas tetap memakai approval serta validasi.",
           "Pilih akun provider aktif secara eksplisit. Pemakaian serta reset berasal dari provider: persentase, jendela waktu, dan tanggal ditampilkan hanya jika dilaporkan. Sisa token tidak disimpulkan. Provider terputus, rate-limit, atau tidak didukung menampilkan status nyata tanpa berpindah provider diam-diam."
         ]
       },

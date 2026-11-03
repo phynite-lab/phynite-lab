@@ -44,13 +44,13 @@ export const productGuideSectionsId: GuideSection[] = [
     intro: 'AI lokal memakai akun dan tool provider yang Anda pilih. Ini terpisah dari login Phynite Cloud dan tidak memakai layanan AI hosted Phynite.',
     blocks: [
       { title: 'Hubungkan akun', steps: [
-        'Instal dan autentikasi CLI provider resmi atau atur gateway OpenAI-compatible loopback seperti 9Router di komputer ini.',
+        'Instal dan autentikasi CLI provider resmi di komputer ini.',
         'Buka Pengaturan → Akun provider AI dan pilih koneksi provider.',
         'Selesaikan autentikasi melalui alur milik provider. Login CLI yang didukung dapat dipakai ulang tanpa mengimpor cookie atau file session.',
         'Biarkan aplikasi terbuka saat discovery model dan capability probe berjalan. Halaman hanya memilih model yang lulus pemeriksaan teks, streaming, dan tool.',
       ], links: [{ label: 'Pengaturan provider AI', href: '/id/account/ai-providers' }] },
       { title: 'Akun, model, dan limit', paragraphs: [
-        'Simpan lebih dari satu akun provider dan pindah secara eksplisit ketika limit subscription tercapai. Request yang gagal atau terkena rate limit tidak mengganti provider atau akun secara diam-diam.',
+        'Aplikasi lokal memakai profil yang dikelola CLI provider resmi. Request yang gagal atau terkena rate limit tidak mengganti provider secara diam-diam.',
         'Kartu pemakaian hanya menampilkan telemetry yang dilaporkan provider: grup model, persentase session atau mingguan, window, dan waktu reset bila tersedia. Laporan yang hilang tetap ditampilkan tidak tersedia; aplikasi tidak membuat angka token, saldo, atau tanggal reset.',
         'Ketersediaan model dapat berubah mengikuti entitlement provider. Pengaturan model Cloud tidak mengatur akun provider lokal.',
       ] },

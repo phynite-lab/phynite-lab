@@ -13,7 +13,7 @@ control dismisses it. Returning to a project preserves the workspace layout.
 | Keyboard shortcuts | Customize supported application shortcuts; restore defaults | This browser |
 | Notifications | Job/runtime alerts and optional desktop notifications in local mode; hosted notification choices on the website | Browser in local mode; account for hosted delivery settings |
 | Compute | Native runtime installation, isolation availability, local CPU/RAM/concurrency; hosted worker/default controls on the website | Local workspace or signed-in hosted account |
-| AI provider accounts | Own provider logins, account switching, model readiness, reported limits/reset | Provider CLI or server-side local credential store |
+| AI provider accounts | Own provider login, model readiness, reported limits/reset | Provider CLI or server-side local credential store |
 | Account | Optional Phynite Cloud connection and project sync | Local connection associated with the signed-in cloud account |
 | Usage | Recorded job time/resources and available provider-reported AI limits | Actual execution/provider records |
 | Storage | Measured local artifacts and project archives in local mode; measured cloud inventory on the website | Local workspace or cloud account, clearly labeled |
@@ -111,10 +111,9 @@ pairing, Docker, a global Python installation, or a Phynite Cloud account.
 
 ## AI provider accounts
 
-Open Settings → AI provider accounts. Connect the supported provider CLI or use an already configured local gateway with your own account. Complete provider authentication through
-its official flow. Phynite Cloud login is independent and does not unlock an AI
+Open Settings → AI provider accounts. Connect the supported provider CLI and complete provider authentication through its official flow. Phynite Cloud login is independent and does not unlock an AI
 subscription. Phynite does not import another application's cookies or session
-files. Supported account controls show connection status; the obsolete gateway setup and unavailable-connector list are removed.
+files. The page shows one connection status for each supported CLI; account switching and gateway setup are not part of the local application.
 
 After login, the application discovers the provider's actual models and checks
 supported capabilities. Choose an available model in the chat composer. Tools and
@@ -123,9 +122,7 @@ Canvas validation and approval rules. Model availability is not a fixed list and
 can change with the active provider account. The app does not silently change
 providers when a request fails.
 
-Use the account switch control to choose among saved accounts. A rate-limited
-account does not justify sending a request to another account without the user's
-selection. Connection status and reported usage/reset windows stay visible in
+Connection status and reported usage/reset windows stay visible in
 provider settings and available usage views. If a provider reports only a
 percentage or window, Phynite displays that measurement; it does not invent a
 remaining token count, reset date, subscription limit, or successful login.

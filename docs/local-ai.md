@@ -2,12 +2,9 @@
 
 ## Local application: your provider accounts
 
-The npm application uses the user's own supported Codex or Antigravity CLI, or an
-already configured loopback OpenAI-compatible gateway such as 9Router. The obsolete
-gateway configuration block is no longer shown in Settings.
-Open **Settings → AI provider accounts** to connect a supported CLI account,
-select among saved accounts, inspect connection status, and read available model
-and usage information. Complete authentication through the provider's official
+The npm application uses the user's own supported Codex or Antigravity CLI.
+Open **Settings → AI provider accounts** to connect one supported CLI account,
+inspect connection status, and read available model and usage information. Complete authentication through the provider's official
 flow. Phynite Cloud login is separate and is not required for local AI. Phynite
 does not import another application's cookies or session files.
 

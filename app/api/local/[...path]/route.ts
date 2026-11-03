@@ -13,18 +13,17 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
     if (path.length === 1 && path[0] === 'updates' && request.method === 'GET') {
       return NextResponse.json(await checkLocalUpdate(process.env.PHYNITE_RELEASE_VERSION), { headers: { 'Cache-Control': 'no-store' } });
     }
-    if (path[0] === 'ai' && path.length === 2 && (['status', 'accounts', 'usage'].includes(path[1]) && request.method === 'GET' || ['connect', 'login', 'disconnect', 'models', 'probe', 'accounts'].includes(path[1]) && request.method === 'POST')) {
+    if (path[0] === 'ai' && path.length === 2 && (['status', 'usage'].includes(path[1]) && request.method === 'GET' || ['connect', 'login', 'disconnect', 'models', 'probe'].includes(path[1]) && request.method === 'POST')) {
       const body = request.method === 'GET' ? undefined : await readBodyBytes(request, 16000);
       const upstream = await localAiFetch(`/${path[1]}`, { method: request.method, body, headers: body ? { 'Content-Type': 'application/json' } : undefined, signal: request.signal });
       return new NextResponse(upstream.body, { status: upstream.status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
     }
-    if (!path.length || path.some(part => !/^[A-Za-z0-9_-]+$/.test(part)) || !['session', 'runtime', 'resources', 'cloud', 'sync', 'gateway', 'projects', 'jobs'].includes(path[0])) {
+    if (!path.length || path.some(part => !/^[A-Za-z0-9_-]+$/.test(part)) || !['session', 'runtime', 'resources', 'cloud', 'sync', 'projects', 'jobs'].includes(path[0])) {
       return NextResponse.json({ error: 'Invalid local route.' }, { status: 404 });
     }
     if (path[0] === 'jobs' && (path.length !== 3 || !(path[2] === 'recovery' && request.method === 'GET' || path[2] === 'recover' && request.method === 'POST'))) {
       return NextResponse.json({ error: 'Invalid local job operation.' }, { status: 404 });
     }
-    if (path[0] === 'gateway' && path[1] === 'environment') return NextResponse.json({ error: 'Not found.' }, { status: 404 });
     const body = ['GET', 'HEAD'].includes(request.method) ? undefined : await readBodyBytes(request, requestBodyLimit(request.nextUrl.pathname));
     const upstream = await backendFetch(`/__local/${path.join('/')}${request.nextUrl.search}`, accessTokenFrom(request), {
       method: request.method, body, headers: body ? { 'Content-Type': request.headers.get('Content-Type') ?? 'application/json' } : undefined,

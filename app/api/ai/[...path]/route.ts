@@ -72,11 +72,6 @@ async function handle(request: NextRequest, context: Context): Promise<Response>
         // The conversation API remains usable while the launcher bridge starts
         // or is repaired. The model catalogue will simply be empty for now.
       }
-      // A loopback OpenAI-compatible gateway (for example 9Router) is still
-      // local compute. Keep its credential server-side and expose it beside the
-      // native subscription bridge; never make it a hosted Phynite provider.
-      const gateway = await backendFetch('/__local/gateway/environment', token);
-      if (gateway.ok) providerEnvironment = { ...providerEnvironment, ...await gateway.json() as Record<string, string> };
     }
     const call = async <T,>(backendPath: string, payload?: Record<string, unknown>, verb = 'POST'): Promise<T> => {
       if (!token) { refreshed = await refreshAuth(request); token = refreshed.result.AccessToken ?? ''; }
@@ -88,12 +83,10 @@ async function handle(request: NextRequest, context: Context): Promise<Response>
     };
     if (path === 'models' && method === 'GET') {
       await call('conversations', undefined, 'GET');
-      // The native bridge is the primary source in the installed app. Keep the
-      // optional user gateway second so response-level defaults describe the
-      // local subscription connector; hosted Phynite AI never enters this
-      // catalogue in local mode.
+      // The native bridge is the only local provider. Hosted Phynite AI and
+      // user-managed gateways are intentionally outside the local app.
       const providerList = local
-        ? [...aiProviders.filter(provider => provider.id === 'local'), ...aiProviders.filter(provider => provider.id === '9router')]
+        ? aiProviders.filter(provider => provider.id === 'local')
         : aiProviders;
       const providers = providerList.map(provider => {
         const capabilities = gatewayCapabilities(providerEnvironment, provider.id);

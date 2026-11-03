@@ -106,7 +106,6 @@ verify automatically. An existing CLI sign-in can be reused. Phynite never reads
 provider tokens. The bridge runs on loopback with shell, MCP, plugin, browser,
 and network tools disabled; a model is unavailable until its text, streaming,
 and host-validated tool-proposal probe succeeds. A loopback OpenAI-compatible
-gateway such as 9Router can also be configured as an optional local connector.
 Antigravity uses a restricted profile, explicit permission denials and a native
 tool denial hook. A synthetic startup turn verifies the loaded guard before any
 project context is sent. Unsupported guard or protocol versions fail closed.
