@@ -27,7 +27,7 @@ This guide describes the implemented interface. Use it alongside solver document
 - [Manage plans, billing, and resource usage](#billing)
 - [Local npm compute and hosted workers](#local-compute)
 - [Install, update, and diagnose the npm app](#npm-local-app)
-- [AI provider accounts on your computer](#ai-providers)
+- [AI provider connections on your computer](#ai-providers)
 - [Phynite Cloud, Cloud Sync, and online compute](#cloud-sync)
 - [Storage, export, backup, and large QE state](#storage-backup)
 - [Settings, preferences, profile, and usage](#settings-reference)
@@ -1030,9 +1030,9 @@ On the hosted website, Compute retains account defaults for each workload, suppo
 
 ### Connect AI and read limits
 
-AI provider accounts manages official provider CLI/gateway login with your own account. It is independent from Phynite Cloud login. After authentication, model discovery and capability checks run automatically. Tools and attachments require verified support, and Canvas changes retain approval/validation rules.
+AI provider connections use the official Codex or Antigravity CLI with your own account. They are independent from Phynite Cloud login. After authentication, model discovery and capability checks run automatically. Tools and attachments require verified support, and Canvas changes retain approval/validation rules. The local app keeps one CLI-managed connection per provider; it has no account switcher or local gateway setup.
 
-Choose the active provider account explicitly. Usage and reset information comes from the provider: percentages, windows, and dates are shown only when reported. No remaining token balance is inferred. A disconnected, rate-limited, or unsupported provider shows its actual state without silent provider switching.
+The local app uses the profile managed by the selected official CLI. Usage and reset information comes from the provider: percentages, windows, and dates are shown only when reported. No remaining token balance is inferred. A disconnected, rate-limited, or unsupported provider shows its actual state without silent provider switching.
 
 ### Notifications on this device
 
@@ -1174,7 +1174,7 @@ phynite-lab stop
 
 SQLite and filesystem data are the primary local copy. Use Settings → Storage to export/import project archives, and keep independent backups. Browser storage holds recoverable drafts and device preferences, not the full native workspace.
 
-Appearance, language, keyboard shortcuts, and local notification choices stay in this browser. AI provider accounts use your own CLI/gateway login. Account manages Phynite Cloud separately; login does not upload projects. Cloud Sync is enabled per project, and cloud compute reviews its own input transfer without enabling sync.
+Appearance, language, keyboard shortcuts, and local notification choices stay in this browser. AI provider connections use the official Codex or Antigravity CLI; each provider has one CLI-managed connection and the local app has no gateway setup. Account manages Phynite Cloud separately; login does not upload projects. Cloud Sync is enabled per project, and cloud compute reviews its own input transfer without enabling sync.
 
 Billing opens the Phynite website. Finish or cancel jobs, stop the app, update with npm install -g phynite-lab@latest, then reopen. Updating the package preserves data outside its installation directory.
 
@@ -1406,22 +1406,22 @@ phynite-lab --version
 
 <a id="ai-providers"></a>
 
-## AI provider accounts on your computer
+## AI provider connections on your computer
 
-Local AI uses the accounts and provider tools you choose. It is independent from Phynite Cloud login and does not use a hosted Phynite AI service.
+Local AI uses the provider CLI you choose. It is independent from Phynite Cloud login and does not use a hosted Phynite AI service.
 
 ### Connect an account
 
-1. Install and authenticate the official provider CLI or configure a loopback OpenAI-compatible gateway such as 9Router on this computer.
-2. Open Settings → AI provider accounts and choose the provider connection.
+1. Install and authenticate the official provider CLI on this computer.
+2. Open Settings → AI provider accounts and choose Codex or Antigravity.
 3. Complete authentication through the provider’s own flow. An existing supported CLI login can be reused without importing its cookie or session files.
 4. Keep the application open while model discovery and the capability probe run. The page selects only models that pass the supported text, streaming, and tool checks.
 
 - [AI provider settings](/account/ai-providers)
 
-### Accounts, models, and limits
+### Provider, model, and limits
 
-Save more than one provider account and switch explicitly when a subscription limit is reached. A failed or rate-limited request never silently changes provider or account.
+The local app uses the single signed-in profile managed by the official provider CLI. A failed or rate-limited request never silently changes provider or account.
 
 Usage cards show only telemetry reported by the provider: model group, session or weekly percentage, window, and reset time when available. A missing report stays unavailable; the app never invents token counts, balances, or reset dates.
 
@@ -1429,14 +1429,14 @@ Model availability can change with the provider entitlement. Cloud model setting
 
 ### Security and unsupported states
 
-- Provider credentials stay in the provider-managed CLI or local credential store and are kept out of browser storage, logs, project archives, and Cloud Sync.
+- Provider credentials stay in the provider-managed CLI or local credential store and are kept out of browser storage, logs, project archives, and Cloud Sync. The local app does not accept a gateway URL or gateway token.
 - The local bridge runs on loopback with shell, MCP, plugin, browser, and unverified network actions disabled. Canvas changes still require the existing approval and validation flow.
 - If authentication, discovery, streaming, or tool verification fails, the provider remains visibly disconnected or unavailable until you fix it. There is no automatic provider fallback.
 - AI provider access is separate from scientific runtime installation and separate from Phynite Cloud login.
 
 ### Related topics
 
-- [Phynite Cloud, Cloud Sync, and online compute](#cloud-sync)
+
 
 <a id="cloud-sync"></a>
 
@@ -1475,7 +1475,7 @@ MD Cloud is unavailable until a supported service is shown in the current catalo
 
 ### Related topics
 
-- [AI provider accounts on your computer](#ai-providers)
+
 
 <a id="storage-backup"></a>
 
@@ -1529,7 +1529,7 @@ Settings separates device preferences, scientific compute, AI provider accounts,
 | Keyboard shortcuts | Supported application bindings. | This browser/device. |
 | Notifications | Job/runtime alerts and desktop permission. | This browser/device; hosted delivery follows account state. |
 | Compute | Runtime installation, isolation probe, CPU/RAM/job defaults, and cloud transfer settings. | Local workspace or Cloud account, depending on control. |
-| AI provider accounts | Provider login, account switching, model readiness, limits, and reset. | Provider CLI/local credential store. |
+| AI provider accounts | Provider login, model readiness, limits, and reset. | Provider CLI/local credential store. |
 | Account | Optional Phynite Cloud login/logout and per-project sync. | Cloud account; local data remains local. |
 | Profile | Research identity shown after Cloud login. | Cloud account. |
 | Usage | Recorded scientific jobs and provider-reported AI usage. | Actual execution/provider records. |

@@ -40,22 +40,22 @@ export const productGuideSectionsId: GuideSection[] = [
     ],
   },
   {
-    id: 'ai-providers', group: 'Akun & koneksi', title: 'Akun AI provider di komputer Anda',
-    intro: 'AI lokal memakai akun dan tool provider yang Anda pilih. Ini terpisah dari login Phynite Cloud dan tidak memakai layanan AI hosted Phynite.',
+    id: 'ai-providers', group: 'Koneksi AI', title: 'Koneksi provider AI di komputer Anda',
+    intro: 'AI lokal memakai CLI provider yang Anda pilih. Ini terpisah dari login Phynite Cloud dan tidak memakai layanan AI hosted Phynite.',
     blocks: [
       { title: 'Hubungkan akun', steps: [
         'Instal dan autentikasi CLI provider resmi di komputer ini.',
-        'Buka Pengaturan → Akun provider AI dan pilih koneksi provider.',
+        'Buka Pengaturan → Akun provider AI dan pilih Codex atau Antigravity.',
         'Selesaikan autentikasi melalui alur milik provider. Login CLI yang didukung dapat dipakai ulang tanpa mengimpor cookie atau file session.',
         'Biarkan aplikasi terbuka saat discovery model dan capability probe berjalan. Halaman hanya memilih model yang lulus pemeriksaan teks, streaming, dan tool.',
       ], links: [{ label: 'Pengaturan provider AI', href: '/id/account/ai-providers' }] },
-      { title: 'Akun, model, dan limit', paragraphs: [
-        'Aplikasi lokal memakai profil yang dikelola CLI provider resmi. Request yang gagal atau terkena rate limit tidak mengganti provider secara diam-diam.',
+      { title: 'Provider, model, dan limit', paragraphs: [
+        'Aplikasi lokal memakai satu profil yang dikelola CLI provider resmi. Request yang gagal atau terkena rate limit tidak mengganti provider atau akun secara diam-diam.',
         'Kartu pemakaian hanya menampilkan telemetry yang dilaporkan provider: grup model, persentase session atau mingguan, window, dan waktu reset bila tersedia. Laporan yang hilang tetap ditampilkan tidak tersedia; aplikasi tidak membuat angka token, saldo, atau tanggal reset.',
         'Ketersediaan model dapat berubah mengikuti entitlement provider. Pengaturan model Cloud tidak mengatur akun provider lokal.',
       ] },
       { title: 'Keamanan dan status yang belum didukung', bullets: [
-        'Kredensial provider tetap di CLI provider atau credential store lokal dan tidak masuk browser storage, log, arsip project, atau Cloud Sync.',
+        'Kredensial provider tetap di CLI provider atau credential store lokal dan tidak masuk browser storage, log, arsip project, atau Cloud Sync. Aplikasi lokal tidak menerima URL atau token gateway.',
         'Bridge lokal berjalan di loopback dengan shell, MCP, plugin, browser, dan aksi jaringan yang belum diverifikasi dinonaktifkan. Perubahan Canvas tetap mengikuti approval dan validasi yang ada.',
         'Jika autentikasi, discovery, streaming, atau verifikasi tool gagal, provider tetap terlihat disconnected atau unavailable sampai diperbaiki. Tidak ada fallback provider otomatis.',
         'Akses AI provider terpisah dari instalasi runtime scientific dan dari login Phynite Cloud.',

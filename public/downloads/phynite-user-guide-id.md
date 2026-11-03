@@ -27,7 +27,7 @@ Panduan ini menjelaskan antarmuka yang diimplementasikan. Gunakan bersama dokume
 - [Mengelola paket, tagihan, dan pemakaian](#billing)
 - [Compute npm lokal dan worker hosted](#local-compute)
 - [Instal, perbarui, dan diagnosis aplikasi npm](#npm-local-app)
-- [Akun AI provider di komputer Anda](#ai-providers)
+- [Koneksi provider AI di komputer Anda](#ai-providers)
 - [Phynite Cloud, Cloud Sync, dan compute online](#cloud-sync)
 - [Storage, ekspor, backup, dan state QE besar](#storage-backup)
 - [Pengaturan, preferensi, profil, dan pemakaian](#settings-reference)
@@ -1031,9 +1031,9 @@ Pada website hosted, Komputasi mempertahankan default akun per workload, profil 
 
 ### Menghubungkan AI dan membaca batasnya
 
-Akun provider AI mengelola login CLI/gateway provider resmi dengan akun sendiri. Login ini terpisah dari Phynite Cloud. Setelah autentikasi, penemuan model serta pemeriksaan kemampuan berjalan otomatis. Tools dan attachment memerlukan dukungan terverifikasi; perubahan Canvas tetap memakai approval serta validasi.
+Koneksi provider AI memakai CLI resmi Codex atau Antigravity dengan akun sendiri. Login ini terpisah dari Phynite Cloud. Setelah autentikasi, penemuan model serta pemeriksaan kemampuan berjalan otomatis. Tools dan attachment memerlukan dukungan terverifikasi; perubahan Canvas tetap memakai approval serta validasi. Aplikasi lokal menyimpan satu koneksi yang dikelola CLI untuk setiap provider; tidak ada pengganti akun atau setup gateway lokal.
 
-Pilih akun provider aktif secara eksplisit. Pemakaian serta reset berasal dari provider: persentase, jendela waktu, dan tanggal ditampilkan hanya jika dilaporkan. Sisa token tidak disimpulkan. Provider terputus, rate-limit, atau tidak didukung menampilkan status nyata tanpa berpindah provider diam-diam.
+Pemakaian serta reset berasal dari provider: persentase, jendela waktu, dan tanggal ditampilkan hanya jika dilaporkan. Sisa token tidak disimpulkan. Provider terputus, rate-limit, atau tidak didukung menampilkan status nyata tanpa berpindah provider diam-diam.
 
 ### Notifikasi pada perangkat ini
 
@@ -1175,7 +1175,7 @@ phynite-lab stop
 
 Data SQLite dan filesystem adalah salinan lokal utama. Gunakan Pengaturan → Penyimpanan untuk ekspor/impor arsip project dan simpan backup terpisah. Storage browser menampung draft pemulihan serta preferensi perangkat, bukan seluruh workspace native.
 
-Tampilan, bahasa, pintasan keyboard, dan pilihan notifikasi lokal tetap pada browser ini. Akun provider AI memakai login CLI/gateway Anda sendiri. Akun mengelola Phynite Cloud secara terpisah; login tidak mengunggah project. Cloud Sync diaktifkan per project, dan compute cloud meninjau transfer input sendiri tanpa mengaktifkan sync.
+Tampilan, bahasa, pintasan keyboard, dan pilihan notifikasi lokal tetap pada browser ini. Koneksi provider AI memakai CLI resmi Codex atau Antigravity; setiap provider memiliki satu koneksi yang dikelola CLI dan aplikasi lokal tidak memiliki setup gateway. Akun mengelola Phynite Cloud secara terpisah; login tidak mengunggah project. Cloud Sync diaktifkan per project, dan compute cloud meninjau transfer input sendiri tanpa mengaktifkan sync.
 
 Tagihan membuka website Phynite. Selesaikan atau batalkan job, hentikan aplikasi, perbarui dengan npm install -g phynite-lab@latest, lalu buka kembali. Pembaruan paket mempertahankan data di luar direktori instalasi.
 
@@ -1407,22 +1407,22 @@ phynite-lab --version
 
 <a id="ai-providers"></a>
 
-## Akun AI provider di komputer Anda
+## Koneksi provider AI di komputer Anda
 
-AI lokal memakai akun dan tool provider yang Anda pilih. Ini terpisah dari login Phynite Cloud dan tidak memakai layanan AI hosted Phynite.
+AI lokal memakai CLI provider yang Anda pilih. Ini terpisah dari login Phynite Cloud dan tidak memakai layanan AI hosted Phynite.
 
 ### Hubungkan akun
 
-1. Instal dan autentikasi CLI provider resmi atau atur gateway OpenAI-compatible loopback seperti 9Router di komputer ini.
-2. Buka Pengaturan → Akun provider AI dan pilih koneksi provider.
+1. Instal dan autentikasi CLI provider resmi di komputer ini.
+2. Buka Pengaturan → Akun provider AI dan pilih Codex atau Antigravity.
 3. Selesaikan autentikasi melalui alur milik provider. Login CLI yang didukung dapat dipakai ulang tanpa mengimpor cookie atau file session.
 4. Biarkan aplikasi terbuka saat discovery model dan capability probe berjalan. Halaman hanya memilih model yang lulus pemeriksaan teks, streaming, dan tool.
 
 - [Pengaturan provider AI](/id/account/ai-providers)
 
-### Akun, model, dan limit
+### Provider, model, dan limit
 
-Simpan lebih dari satu akun provider dan pindah secara eksplisit ketika limit subscription tercapai. Request yang gagal atau terkena rate limit tidak mengganti provider atau akun secara diam-diam.
+Aplikasi lokal memakai satu profil yang dikelola CLI provider resmi. Request yang gagal atau terkena rate limit tidak mengganti provider atau akun secara diam-diam.
 
 Kartu pemakaian hanya menampilkan telemetry yang dilaporkan provider: grup model, persentase session atau mingguan, window, dan waktu reset bila tersedia. Laporan yang hilang tetap ditampilkan tidak tersedia; aplikasi tidak membuat angka token, saldo, atau tanggal reset.
 
@@ -1430,14 +1430,14 @@ Ketersediaan model dapat berubah mengikuti entitlement provider. Pengaturan mode
 
 ### Keamanan dan status yang belum didukung
 
-- Kredensial provider tetap di CLI provider atau credential store lokal dan tidak masuk browser storage, log, arsip project, atau Cloud Sync.
+- Kredensial provider tetap di CLI provider atau credential store lokal dan tidak masuk browser storage, log, arsip project, atau Cloud Sync. Aplikasi lokal tidak menerima URL atau token gateway.
 - Bridge lokal berjalan di loopback dengan shell, MCP, plugin, browser, dan aksi jaringan yang belum diverifikasi dinonaktifkan. Perubahan Canvas tetap mengikuti approval dan validasi yang ada.
 - Jika autentikasi, discovery, streaming, atau verifikasi tool gagal, provider tetap terlihat disconnected atau unavailable sampai diperbaiki. Tidak ada fallback provider otomatis.
 - Akses AI provider terpisah dari instalasi runtime scientific dan dari login Phynite Cloud.
 
 ### Topik terkait
 
-- [Phynite Cloud, Cloud Sync, dan compute online](#cloud-sync)
+
 
 <a id="cloud-sync"></a>
 
@@ -1476,7 +1476,7 @@ MD Cloud belum tersedia sampai service yang didukung muncul di katalog aktif. Ja
 
 ### Topik terkait
 
-- [Akun AI provider di komputer Anda](#ai-providers)
+
 
 <a id="storage-backup"></a>
 

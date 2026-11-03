@@ -40,22 +40,22 @@ export const productGuideSections: GuideSection[] = [
     ],
   },
   {
-    id: 'ai-providers', group: 'Accounts & connections', title: 'AI provider accounts on your computer',
-    intro: 'Local AI uses the accounts and provider tools you choose. It is independent from Phynite Cloud login and does not use a hosted Phynite AI service.',
+    id: 'ai-providers', group: 'AI connections', title: 'AI provider connections on your computer',
+    intro: 'Local AI uses the provider CLI you choose. It is independent from Phynite Cloud login and does not use a hosted Phynite AI service.',
     blocks: [
       { title: 'Connect an account', steps: [
         'Install and authenticate the official provider CLI on this computer.',
-        'Open Settings → AI provider accounts and choose the provider connection.',
+        'Open Settings → AI provider accounts and choose Codex or Antigravity.',
         'Complete authentication through the provider’s own flow. An existing supported CLI login can be reused without importing its cookie or session files.',
         'Keep the application open while model discovery and the capability probe run. The page selects only models that pass the supported text, streaming, and tool checks.',
       ], links: [{ label: 'AI provider settings', href: '/account/ai-providers' }] },
-      { title: 'Accounts, models, and limits', paragraphs: [
-        'The local app uses the signed-in profile managed by the official provider CLI. A failed or rate-limited request never silently changes provider.',
+      { title: 'Provider, model, and limits', paragraphs: [
+        'The local app uses the single signed-in profile managed by the official provider CLI. A failed or rate-limited request never silently changes provider or account.',
         'Usage cards show only telemetry reported by the provider: model group, session or weekly percentage, window, and reset time when available. A missing report stays unavailable; the app never invents token counts, balances, or reset dates.',
         'Model availability can change with the provider entitlement. Cloud model settings do not control local provider accounts.',
       ] },
       { title: 'Security and unsupported states', bullets: [
-        'Provider credentials stay in the provider-managed CLI or local credential store and are kept out of browser storage, logs, project archives, and Cloud Sync.',
+        'Provider credentials stay in the provider-managed CLI or local credential store and are kept out of browser storage, logs, project archives, and Cloud Sync. The local app does not accept a gateway URL or gateway token.',
         'The local bridge runs on loopback with shell, MCP, plugin, browser, and unverified network actions disabled. Canvas changes still require the existing approval and validation flow.',
         'If authentication, discovery, streaming, or tool verification fails, the provider remains visibly disconnected or unavailable until you fix it. There is no automatic provider fallback.',
         'AI provider access is separate from scientific runtime installation and separate from Phynite Cloud login.',
