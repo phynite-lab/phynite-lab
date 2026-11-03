@@ -69,9 +69,14 @@ class ResearchLedgerTests(unittest.TestCase):
             "failureReason": "SCF did not converge before electron_maxstep.",
             "createdAt": "2026-11-03T00:00:00Z",
         })
+        append_research_event(self.services, self.owner, self.project, {
+            "eventType": "calculation_submitted", "title": "Calculation submitted",
+            "summary": "SCF", "runId": "calc_1", "inputSha256": "b" * 64,
+        }, allow_server=True)
         context = research_context(self.services, self.owner, self.project)
         self.assertEqual(context["runs"][0]["failureCategory"], "SCF_CONVERGENCE")
         self.assertEqual(context["runs"][0]["failureReason"], "SCF did not converge before electron_maxstep.")
+        self.assertEqual(context["runs"][0]["inputSha256"], "b" * 64)
 
     def test_routes_use_project_ownership(self):
         event = {"requestContext": {"http": {"method": "POST"}, "authorizer": {"jwt": {"claims": {"sub": self.owner}}}}, "rawPath": f"/v1/projects/{self.project}/research-events", "body": json.dumps({"eventType": "decision", "title": "Note", "summary": "A note"})}

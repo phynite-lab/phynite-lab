@@ -158,6 +158,14 @@ def list_research_events(
 def research_context(services: MetadataServices, owner: str, project_id: str, *, limit: int = 100) -> dict[str, Any]:
     project = require_project(services, owner, project_id)
     events = list_research_events(services, owner, project_id, limit=limit)
+    # The calculation row intentionally hides its internal request fingerprint.
+    # Use the immutable submission event to expose the reproducibility checksum
+    # without leaking queue keys or other private storage identifiers.
+    event_checksums = {
+        str(event.get("runId") or event.get("calculationId")): event.get("inputSha256")
+        for event in events
+        if event.get("inputSha256") and (event.get("runId") or event.get("calculationId"))
+    }
     runs: list[dict[str, Any]] = []
     for kind in ("CALCULATION", "MD_SIMULATION", "MD_ANALYSIS"):
         for row in services.list_project_items(project_id, kind):
@@ -177,7 +185,7 @@ def research_context(services: MetadataServices, owner: str, project_id: str, *,
                 "startedAt": public.get("startedAt"),
                 "updatedAt": public.get("updatedAt"),
                 "completedAt": public.get("completedAt"),
-                "inputSha256": public.get("inputSha256"),
+                "inputSha256": public.get("inputSha256") or public.get("sourceSha256") or event_checksums.get(str(public.get("id"))),
                 "provenance": public.get("provenance") or public.get("resultProvenance"),
                 "effectiveResources": public.get("effectiveResources"),
                 "wallTimeSeconds": public.get("wallTimeSeconds"),
