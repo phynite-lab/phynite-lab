@@ -370,7 +370,8 @@ export class NativeAiRegistry {
       const detected = await this.detect(id);
       const saved = this.state.providers[id];
       const accounts = (this.state.accounts[id] ?? []).map(account => ({ ...account, ...(account.homeDir ? { loginCommand: accountLoginCommand(id, account.homeDir, detected) } : {}), active: account.id === this.state.activeAccounts[id], quota: account.quota ?? { remaining: null, limit: null, resetAt: null, source: 'not_reported_by_cli' } }));
-      providers.push({ id, installed: Boolean(detected), optedIn: saved?.optedIn === true, status: this.logins.has(id) ? 'login_pending' : saved?.optedIn ? saved.status ?? 'connected' : 'disconnected', checkingModels: this.modelRefreshes.has(id) || this.probeJobs.has(id), version: saved?.version ?? null, checkedAt: saved?.checkedAt ?? null, toolsVerified: this.catalog.models.some((model) => model.provider === id && model.available && this.catalog.capabilities.models[model.id]?.tools === true), activeAccountId: this.state.activeAccounts[id], accounts, note: 'Status uses cached verification; connection checks occur only after explicit opt-in.' });
+      const account = accounts.find(item => item.active) ?? accounts[0] ?? null;
+      providers.push({ id, installed: Boolean(detected), optedIn: saved?.optedIn === true, status: this.logins.has(id) ? 'login_pending' : saved?.optedIn ? saved.status ?? 'connected' : 'disconnected', checkingModels: this.modelRefreshes.has(id) || this.probeJobs.has(id), version: saved?.version ?? null, checkedAt: saved?.checkedAt ?? null, toolsVerified: this.catalog.models.some((model) => model.provider === id && model.available && this.catalog.capabilities.models[model.id]?.tools === true), activeAccountId: this.state.activeAccounts[id], account, accounts, note: 'Status uses the single account managed by the official provider CLI.' });
     }
     return { providers, models: structuredClone(this.catalog.models), capabilities: structuredClone(this.catalog.capabilities) };
   }
@@ -560,7 +561,7 @@ export class NativeAiRegistry {
     const range = VERIFIED_VERSION_RANGES[provider];
     const compare = (left, right) => left[0] - right[0] || left[1] - right[1] || left[2] - right[2];
     if (!parsed || parsed.length !== 3 || parsed.some(value => !Number.isSafeInteger(value)) || compare(parsed, range.minimum) < 0 || compare(parsed, range.maximumExclusive) >= 0) {
-      throw error('UNVERIFIED_VERSION', `Native ${provider} protocol version ${version ?? 'unknown'} has not been verified. Use a supported ${range.minimum.join('.')}–${range.maximumExclusive.join('.')} CLI line or the local gateway.`);
+      throw error('UNVERIFIED_VERSION', `Native ${provider} protocol version ${version ?? 'unknown'} has not been verified. Use a supported ${range.minimum.join('.')}–${range.maximumExclusive.join('.')} official CLI line.`);
     }
     return version;
   }

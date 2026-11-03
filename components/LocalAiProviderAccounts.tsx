@@ -1,11 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, Copy, LogIn, Plus, RefreshCw, Unplug } from 'lucide-react';
+import { CheckCircle2, LogIn, RefreshCw, Unplug } from 'lucide-react';
 import { useLocale } from '@/app/locale-provider';
 import { localRequest } from '@/lib/local-api';
-import { SettingsRow, SettingsSection } from './SettingsPage';
+import { SettingsSection } from './SettingsPage';
 import { AiProviderLogo } from './AiProviderLogo';
 
 type QuotaWindow = { id?: string; group?: string; label?: string; usedPercent?: number; remainingPercent?: number; windowDurationMins?: number; resetAt?: string | null };
@@ -14,8 +14,6 @@ type ProviderAccount = { id: string; provider: string; label: string; email?: st
 type NativeProvider = { id: 'codex' | 'antigravity'; installed: boolean; optedIn: boolean; status: string; checkingModels?: boolean; version?: string | null; toolsVerified?: boolean; activeAccountId?: string; accounts?: ProviderAccount[] };
 type UsageReport = { provider: string; accountId?: string; quota?: Quota | null; error?: string };
 type NativeStatus = { providers: NativeProvider[]; models: Array<{ id: string; provider: string; name?: string; available?: boolean }>; capabilities?: { models?: Record<string, unknown> }; usage?: UsageReport[] };
-type Gateway = { configured?: boolean; hasCredential?: boolean; credentialStorage?: string; connectionStatus?: string; checkedAt?: string | null; baseUrl?: string; models?: Array<{ id: string; available?: boolean }>; connectors?: Array<{ id: string; label?: string; available: boolean; reason?: string }> };
-
 function providerName(id: string, t: (en: string, idn: string) => string) { return id === 'codex' ? t('Codex', 'Codex') : t('Antigravity', 'Antigravity'); }
 function quotaValue(value: number | null | undefined, unavailable: string): string { return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString() : unavailable; }
 function validPercent(value: number | null | undefined): value is number { return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100; }
@@ -41,20 +39,16 @@ export function LocalAiProviderAccounts({ view = 'accounts' }: { view?: 'account
   const usageView = view === 'usage';
   const { t, intlLocale } = useLocale();
   const [nativeAi, setNativeAi] = useState<NativeStatus>({ providers: [], models: [] });
-  const [gateway, setGateway] = useState<Gateway>({});
-  const [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [error, setError] = useState('');
-  const [newProvider, setNewProvider] = useState<'codex' | 'antigravity'>('codex'), [newLabel, setNewLabel] = useState('');
-  const [gatewayUrl, setGatewayUrl] = useState(''), [gatewayToken, setGatewayToken] = useState('');
+  const [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [messageKind, setMessageKind] = useState<'success' | 'info'>('info'), [error, setError] = useState('');
   const [now, setNow] = useState(() => Date.now());
   const [usageReports, setUsageReports] = useState<UsageReport[]>([]), [usageLoading, setUsageLoading] = useState(false);
-  const refreshSequence = useRef(0), usageSequence = useRef(0);
+  const refreshSequence = useRef(0), usageSequence = useRef(0), pendingLogins = useRef(new Set<string>());
   const refresh = useCallback(async ({ usage = false }: { usage?: boolean } = {}) => {
     const sequence = ++refreshSequence.current;
-    const [statusResult, gatewayResult] = await Promise.allSettled([localRequest<NativeStatus>('ai/status'), localRequest<Gateway>('gateway')]);
+    const statusResult = await Promise.allSettled([localRequest<NativeStatus>('ai/status')]);
     if (sequence !== refreshSequence.current) return;
-    if (statusResult.status === 'rejected') throw statusResult.reason;
-    setNativeAi(statusResult.value);
-    if (gatewayResult.status === 'fulfilled') setGateway(gatewayResult.value);
+    if (statusResult[0].status === 'rejected') throw statusResult[0].reason;
+    setNativeAi(statusResult[0].value);
     setError('');
     if (!usage) return;
     const usageRequest = ++usageSequence.current;
@@ -82,6 +76,24 @@ export function LocalAiProviderAccounts({ view = 'accounts' }: { view?: 'account
     const timer = window.setInterval(() => { void refresh().catch(() => {}); }, 2000);
     return () => window.clearInterval(timer);
   }, [polling, refresh]);
+  useEffect(() => {
+    for (const provider of nativeAi.providers) {
+      if (!pendingLogins.current.has(provider.id)) continue;
+      if (provider.optedIn) {
+        pendingLogins.current.delete(provider.id);
+        queueMicrotask(() => {
+          setMessageKind('success');
+          setMessage(t(`${providerName(provider.id, t)} login successful. Your account is connected on this computer.`, `Login ${providerName(provider.id, t)} berhasil. Akun Anda sudah terhubung di komputer ini.`));
+        });
+      } else if (provider.status !== 'login_pending' && provider.status !== 'disconnected') {
+        pendingLogins.current.delete(provider.id);
+        queueMicrotask(() => {
+          setMessageKind('info');
+          setMessage(t(`${providerName(provider.id, t)} login needs attention. Follow the official CLI instructions, then try again.`, `Login ${providerName(provider.id, t)} perlu perhatian. Ikuti instruksi CLI resmi, lalu coba lagi.`));
+        });
+      }
+    }
+  }, [nativeAi.providers, t]);
   const connectedKey = nativeAi.providers.filter(provider => provider.optedIn).map(provider => `${provider.id}:${provider.activeAccountId ?? ''}`).join('|');
   useEffect(() => {
     if (!connectedKey || polling) return;
@@ -109,7 +121,9 @@ export function LocalAiProviderAccounts({ view = 'accounts' }: { view?: 'account
     // the sign-in flow.
     const loginWindow = path === 'login' ? window.open('about:blank', '_blank') : null;
     if (loginWindow) loginWindow.opener = null;
-    setBusy(true); setError(''); setMessage('');
+    const provider = typeof body === 'object' && body !== null && 'provider' in body && typeof body.provider === 'string' ? body.provider : '';
+    if (path === 'login' && provider) pendingLogins.current.add(provider);
+    setBusy(true); setError(''); setMessage(''); setMessageKind('info');
     try {
       const result = await localRequest<Record<string, unknown>>(`ai/${path}`, 'POST', body);
       const loginUrl = providerLoginUrl(typeof result.authUrl === 'string' ? result.authUrl : typeof result.verificationUrl === 'string' ? result.verificationUrl : '');
@@ -122,9 +136,14 @@ export function LocalAiProviderAccounts({ view = 'accounts' }: { view?: 'account
       }
       await refresh({ usage: true });
       if (typeof result.instructions === 'string') setMessage(result.instructions);
-      else if (result.status === 'login_pending') setMessage(t('Finish sign-in in the opened official provider flow, then return here. Models will refresh automatically.', 'Selesaikan login di alur provider resmi yang terbuka, lalu kembali ke sini. Model akan diperbarui otomatis.'));
-      else setMessage(t('Provider account updated on this computer.', 'Akun provider diperbarui di komputer ini.'));
-    } catch (reason) { loginWindow?.close(); setError(reason instanceof Error ? reason.message : String(reason)); }
+      else if (result.status === 'login_pending') setMessage(t('Finish sign-in in the opened official provider flow, then return here. The connected status will appear automatically.', 'Selesaikan login di alur provider resmi yang terbuka, lalu kembali ke sini. Status terhubung akan muncul otomatis.'));
+      else if (path === 'login' && result.connected === true) { setMessageKind('success'); setMessage(t(`${providerName(provider, t)} login successful. Your account is connected on this computer.`, `Login ${providerName(provider, t)} berhasil. Akun Anda sudah terhubung di komputer ini.`)); }
+      else setMessage(t('Provider connection updated on this computer.', 'Koneksi provider diperbarui di komputer ini.'));
+    } catch (reason) {
+      loginWindow?.close();
+      if (path === 'login' && provider) pendingLogins.current.delete(provider);
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
     finally { setBusy(false); }
   };
   const refreshUsage = async () => {
@@ -133,55 +152,22 @@ export function LocalAiProviderAccounts({ view = 'accounts' }: { view?: 'account
     catch (reason) { setError(reason instanceof Error ? reason.message : t('Usage could not be refreshed.', 'Pemakaian belum dapat diperbarui.')); }
     finally { setBusy(false); }
   };
-  const addAccount = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    await action('accounts', { action: 'add', provider: newProvider, label: newLabel });
-    setNewLabel('');
-  };
-  const discoverGateway = async () => {
-    const discovered = await localRequest<Gateway>('gateway/discover', 'POST');
-    setGateway(discovered);
-    const first = discovered.models?.[0];
-    if (!first) return;
-    setMessage(t('Gateway connected. Checking model compatibility…', 'Gateway terhubung. Memeriksa kompatibilitas model…'));
-    const checked = await localRequest<Gateway>('gateway/probe', 'POST', { modelId: first.id });
-    setGateway(checked);
-    if (!checked.models?.some(model => model.available)) throw new Error(t('The gateway responded, but its model did not pass the text and tool checks. Choose another model below or check the gateway protocol.', 'Gateway merespons, tetapi model belum lolos pemeriksaan teks dan tools. Pilih model lain di bawah atau periksa protokol gateway.'));
-  };
-  const saveGateway = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); setBusy(true); setError(''); setMessage('');
-    try {
-      await localRequest('gateway', 'PUT', { baseUrl: gatewayUrl || gateway.baseUrl || '', ...(gatewayToken || !gateway.hasCredential ? { token: gatewayToken } : {}) });
-      setGatewayToken('');
-      await discoverGateway();
-      setMessage(t('Gateway connected. The model is ready.', 'Gateway terhubung. Model siap digunakan.'));
-      await refresh();
-    } catch (reason) { setMessage(''); await refresh().catch(() => {}); setError(reason instanceof Error ? reason.message : String(reason)); }
-    finally { setBusy(false); }
-  };
-  const gatewayAction = async (path: string, method: 'POST' | 'DELETE' = 'POST', payload?: { modelId: string }) => {
-    setBusy(true); setError(''); setMessage('');
-    try { if (path === 'gateway/discover') await discoverGateway(); else await localRequest(path, method, payload); await refresh(); setMessage(t('Gateway settings updated.', 'Pengaturan gateway diperbarui.')); }
-    catch (reason) { setMessage(''); await refresh().catch(() => {}); setError(reason instanceof Error ? reason.message : String(reason)); }
-    finally { setBusy(false); }
-  };
-  const copy = async (value: string) => { try { await navigator.clipboard.writeText(value); setMessage(t('Command copied. Run it in a terminal, then refresh this page.', 'Perintah disalin. Jalankan di terminal, lalu muat ulang halaman ini.')); } catch { setError(t('Clipboard unavailable. Allow clipboard access and retry.', 'Clipboard tidak tersedia. Izinkan akses clipboard lalu coba lagi.')); } };
   return <>
-    <div className="settings-notice"><span>{t('Use your own AI subscriptions. These accounts are separate from Phynite Cloud.', 'Gunakan langganan AI Anda sendiri. Akun ini terpisah dari Phynite Cloud.')}</span><Link href={usageView ? '/account/ai-providers' : '/account/usage'} className="lab-button">{usageView ? t('Manage accounts', 'Kelola akun') : t('AI usage', 'Pemakaian AI')}</Link></div>
-    {message && <p className="settings-notice" role="status">{message}</p>}
+    <div className="settings-notice"><span>{t('Use the account already signed in through the official AI CLI. Each provider has one active connection on this computer.', 'Gunakan akun yang sudah login melalui CLI AI resmi. Setiap provider memiliki satu koneksi aktif di komputer ini.')}</span><Link href={usageView ? '/account/ai-providers' : '/account/usage'} className="lab-button">{usageView ? t('Manage connection', 'Kelola koneksi') : t('AI usage', 'Pemakaian AI')}</Link></div>
+    {message && <p className="settings-notice local-ai-login-feedback" data-kind={messageKind} role="status"><CheckCircle2 size={16} />{message}</p>}
     {error && <p className="settings-notice" role="alert">{error}</p>}
-    <SettingsSection id={usageView ? 'provider-usage' : 'provider-accounts'} title={usageView ? t('AI usage & reset', 'Pemakaian & reset AI') : t('Provider accounts & limits', 'Akun provider & batas pemakaian')} description={usageView ? t('Provider-reported limits for the active account.', 'Batas yang dilaporkan provider untuk akun aktif.') : t('Switch accounts here. Subscription limits are reported as percentages, not token balances.', 'Ganti akun di sini. Batas langganan dilaporkan dalam persentase, bukan saldo token.')} actions={<button className="lab-button" type="button" disabled={busy || usageLoading} onClick={() => void refreshUsage()}><RefreshCw size={14} />{usageLoading ? t('Refreshing usage…', 'Memuat pemakaian…') : t('Refresh usage', 'Muat ulang pemakaian')}</button>}>
+    <SettingsSection id={usageView ? 'provider-usage' : 'provider-accounts'} title={usageView ? t('AI usage & reset', 'Pemakaian & reset AI') : t('AI provider connections', 'Koneksi provider AI')} description={usageView ? t('Provider-reported limits for the connected account.', 'Batas yang dilaporkan provider untuk akun yang terhubung.') : t('Connect the official CLI account on this computer. Model readiness updates automatically after login.', 'Hubungkan akun CLI resmi di komputer ini. Kesiapan model diperbarui otomatis setelah login.')} actions={<button className="lab-button" type="button" disabled={busy || usageLoading} onClick={() => void refreshUsage()}><RefreshCw size={14} />{usageLoading ? t('Refreshing usage…', 'Memuat pemakaian…') : t('Refresh usage', 'Muat ulang pemakaian')}</button>}>
       {nativeAi.providers.map(provider => {
         const accounts = provider.accounts ?? [], models = nativeAi.models.filter(model => model.provider === provider.id), ready = models.filter(model => model.available === true).length;
-        const activeAccount = accounts.find(item => item.active), quota = activeAccount?.quota, windows = (quota?.windows ?? []).filter(window => validPercent(window.usedPercent));
+        const activeAccount = provider.optedIn ? (accounts.find(item => item.active) ?? accounts[0]) : undefined, quota = activeAccount?.quota, windows = (quota?.windows ?? []).filter(window => validPercent(window.usedPercent));
         const report = usageReports.find(item => item.provider === provider.id && item.accountId === provider.activeAccountId), usageUnavailable = quota?.source !== 'provider';
         const groups = [...new Set(windows.map(window => window.group ?? ''))];
         return <article key={provider.id} className="local-ai-accounts-provider" data-connected={provider.optedIn} data-provider={provider.id}>
           <header className="local-ai-accounts-provider-header"><div className="local-ai-provider-identity"><span className="local-ai-provider-icon" data-provider={provider.id}><AiProviderLogo provider={provider.id} width={21} height={21} /></span><div><h3>{providerName(provider.id, t)}</h3><p>{provider.installed ? `${t('Official CLI', 'CLI resmi')}${provider.version ? ` · ${provider.version}` : ''}` : t('CLI not found on PATH', 'CLI tidak ditemukan di PATH')}</p></div></div><span className="local-ai-provider-status">{provider.status === 'login_pending' ? t('Login pending', 'Login berjalan') : ready > 0 ? <><CheckCircle2 size={14} />{ready} {t('models ready', 'model siap')}</> : provider.checkingModels ? t('Signed in · checking models…', 'Sudah login · memeriksa model…') : provider.optedIn ? t('Signed in · models unavailable', 'Sudah login · model belum tersedia') : t('Not connected', 'Belum terhubung')}</span></header>
-          <div className="local-ai-account-list">{accounts.map(account => <div className="local-ai-account-row" key={account.id} data-active={account.active}>
-            <div><strong>{account.label}</strong><p>{account.email || account.plan || t('CLI-managed account', 'Akun dikelola CLI')} · {account.status === 'needs_login' ? t('Needs sign-in', 'Perlu login') : account.quota?.source === 'provider' ? t('Usage reported by provider', 'Pemakaian dari provider') : t('Usage unavailable from official CLI', 'Pemakaian tidak tersedia dari CLI resmi')}</p></div>
-            <div className="local-ai-account-actions">{account.active ? <span className="lab-tag" data-status="connected">{t('Active', 'Aktif')}</span> : <button className="lab-button" type="button" disabled={busy} onClick={() => void action('accounts', { action: 'switch', provider: provider.id, accountId: account.id })}>{t('Switch', 'Ganti')}</button>}</div>
-          </div>)}</div>
+          <div className="local-ai-account-list">{activeAccount ? <div className="local-ai-account-row" data-active="true">
+            <div><strong>{activeAccount.label}</strong><p>{activeAccount.email || activeAccount.plan || t('Official CLI account', 'Akun CLI resmi')} · {activeAccount.status === 'needs_login' ? t('Needs sign-in', 'Perlu login') : activeAccount.quota?.source === 'provider' ? t('Usage reported by provider', 'Pemakaian dari provider') : t('Usage unavailable from official CLI', 'Pemakaian tidak tersedia dari CLI resmi')}</p></div>
+            <span className="lab-tag" data-status={provider.optedIn ? 'connected' : 'pending'}>{provider.optedIn ? t('Connected', 'Terhubung') : t('Needs sign-in', 'Perlu login')}</span>
+          </div> : <p className="settings-help">{t('No official CLI account is connected yet.', 'Belum ada akun CLI resmi yang terhubung.')}</p>}</div>
           {!provider.optedIn && <div className="local-ai-provider-login">
             <button className="lab-button lab-button-primary" type="button" disabled={busy} onClick={() => void action('login', { provider: provider.id })}><LogIn size={14} />{provider.installed ? provider.id === 'codex' ? t('Login with Codex', 'Login dengan Codex') : t('Open Antigravity login', 'Buka login Antigravity') : t('Check CLI and sign in', 'Cek CLI dan login')}</button>
             {!provider.installed && <p className="settings-help">{provider.id === 'codex' ? t('Install the official Codex CLI first, then keep `codex` on your PATH.', 'Instal CLI Codex resmi terlebih dahulu, lalu pastikan `codex` ada di PATH.') : t('Install the official Antigravity CLI first, then keep `agy` or `antigravity` on your PATH.', 'Instal CLI Antigravity resmi terlebih dahulu, lalu pastikan `agy` atau `antigravity` ada di PATH.')}</p>}
@@ -196,15 +182,5 @@ export function LocalAiProviderAccounts({ view = 'accounts' }: { view?: 'account
         </article>;
       })}
     </SettingsSection>
-    {!usageView && <SettingsSection title={t('Add provider account', 'Tambah akun provider')} description={t('Each slot gets its own CLI-owned profile directory. Sign in there manually, then switch back to this page.', 'Setiap slot memiliki direktori profile milik CLI sendiri. Login secara manual di sana, lalu kembali ke halaman ini.')}>
-      <form className="local-ai-add-account" onSubmit={addAccount}><label>{t('Provider', 'Provider')}<select value={newProvider} onChange={event => setNewProvider(event.target.value as 'codex' | 'antigravity')}><option value="codex">Codex</option><option value="antigravity">Antigravity</option></select></label><label>{t('Account label', 'Nama akun')}<input value={newLabel} onChange={event => setNewLabel(event.target.value)} placeholder={t('e.g. Work or Personal', 'mis. Kerja atau Personal')} maxLength={64} /></label><button className="lab-button lab-button-primary" type="submit" disabled={busy}><Plus size={14} />{t('Create account slot', 'Buat slot akun')}</button></form>
-      {nativeAi.providers.flatMap(provider => (provider.accounts ?? []).filter(account => account.status === 'needs_login' && account.homeDir).map(account => <SettingsRow key={account.id} title={account.label} description={t('Needs official CLI sign-in before it can be activated.', 'Perlu login CLI resmi sebelum dapat diaktifkan.')}><button className="lab-button" type="button" disabled={!account.loginCommand} onClick={() => void copy(account.loginCommand!)}><Copy size={14} />{t('Copy login command', 'Salin perintah login')}</button></SettingsRow>))}
-    </SettingsSection>}
-    {!usageView && <SettingsSection title={t('Local gateway', 'Gateway lokal')} description={t('Use 9Router or another loopback gateway when you want a provider outside the official CLIs. Credentials stay in the local vault.', 'Gunakan 9Router atau gateway loopback lain untuk provider di luar CLI resmi. Kredensial tetap berada di vault lokal.')}>
-      <form className="local-ai-gateway-form" onSubmit={saveGateway}><label>{t('Gateway URL', 'URL gateway')}<input type="url" required value={gatewayUrl || gateway.baseUrl || ''} onChange={event => setGatewayUrl(event.target.value)} placeholder="http://127.0.0.1:20128" /></label><label>{t('Gateway token (if required)', 'Token gateway (jika diperlukan)')}<input type="password" autoComplete="off" value={gatewayToken} onChange={event => setGatewayToken(event.target.value)} /></label><button className="lab-button lab-button-primary" disabled={busy}>{t('Save gateway', 'Simpan gateway')}</button></form>
-      <SettingsRow title={t('Gateway status', 'Status gateway')} description={gateway.baseUrl || t('No gateway connected.', 'Belum ada gateway terhubung.')}><div className="local-ai-account-actions"><span className="lab-tag" data-status={gateway.connectionStatus === 'connected' ? 'connected' : 'pending'}>{gateway.connectionStatus === 'connected' ? t('Connected', 'Terhubung') : gateway.connectionStatus === 'auth_required' ? t('Authentication failed', 'Autentikasi gagal') : gateway.connectionStatus === 'unavailable' ? t('Unavailable', 'Tidak tersedia') : gateway.configured ? t('Saved · not checked', 'Tersimpan · belum dicek') : t('Not configured', 'Belum dikonfigurasi')}</span><button className="lab-button" type="button" disabled={busy || !gateway.configured} onClick={() => void gatewayAction('gateway/discover')}>{t('Discover models', 'Cari model')}</button>{gateway.configured && <button className="lab-button" type="button" disabled={busy} onClick={() => void gatewayAction('gateway', 'DELETE')}>{t('Disconnect', 'Putuskan')}</button>}</div></SettingsRow>
-      {gateway.models?.map(model => <SettingsRow key={model.id} title={model.id} description={model.available ? t('Ready', 'Siap') : t('Not connected', 'Belum terhubung')}>{!model.available && <button className="lab-button" type="button" disabled={busy} onClick={() => void gatewayAction('gateway/probe', 'POST', { modelId: model.id })}>{t('Connect model', 'Hubungkan model')}</button>}</SettingsRow>)}
-      {gateway.connectors?.filter(connector => connector.id !== '9router').map(connector => <div className="settings-row" key={connector.id}><div><strong>{connector.label || connector.id}</strong><p>{connector.available ? t('Available', 'Tersedia') : connector.reason || t('Not available', 'Belum tersedia')}</p></div></div>)}
-    </SettingsSection>}
   </>;
 }

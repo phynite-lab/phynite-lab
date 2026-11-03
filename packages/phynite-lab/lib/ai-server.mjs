@@ -20,9 +20,9 @@ export async function createLocalAiServer({ dataDir, registry = new NativeAiRegi
     request.once('aborted', interrupted); response.once('close', interrupted);
     active.add(abort);
     try {
-      if (request.method === 'GET' && (request.url === '/status' || request.url === '/accounts')) { json(200, await registry.status()); return; }
+      if (request.method === 'GET' && request.url === '/status') { json(200, await registry.status()); return; }
       if (request.method === 'GET' && request.url === '/usage') { json(200, await registry.usage()); return; }
-      if (request.method !== 'POST' || !['/connect', '/login', '/disconnect', '/models', '/probe', '/accounts', '/v1/messages'].includes(request.url)) { json(404, { error: 'Local AI operation not found.', code: 'NOT_FOUND' }); return; }
+      if (request.method !== 'POST' || !['/connect', '/login', '/disconnect', '/models', '/probe', '/v1/messages'].includes(request.url)) { json(404, { error: 'Local AI operation not found.', code: 'NOT_FOUND' }); return; }
       if (!/^application\/json(?:\s*;|$)/i.test(request.headers['content-type'] ?? '')) { json(415, { error: 'Send JSON to the local AI service.', code: 'INVALID_CONTENT_TYPE' }); return; }
       const chunks = []; let size = 0;
       for await (const chunk of request) {
@@ -45,7 +45,7 @@ export async function createLocalAiServer({ dataDir, registry = new NativeAiRegi
         } finally { clearInterval(heartbeat); }
         response.end(); return;
       }
-      const methods = { '/connect': () => registry.connect(payload.provider, { signal: abort.signal }), '/login': () => registry.login(payload.provider, { signal: abort.signal }), '/disconnect': () => registry.disconnect(payload.provider), '/accounts': () => payload.action === 'add' ? registry.addAccount(payload.provider, payload.label) : payload.action === 'switch' ? registry.switchAccount(payload.provider, payload.accountId) : registry.status(), '/models': async () => {
+      const methods = { '/connect': () => registry.connect(payload.provider, { signal: abort.signal }), '/login': () => registry.login(payload.provider, { signal: abort.signal }), '/disconnect': () => registry.disconnect(payload.provider), '/models': async () => {
         // Catalog checks can involve several models. Return cached state now;
         // clients follow checkingModels without blocking the usable choices.
         void registry.models().catch(() => {});

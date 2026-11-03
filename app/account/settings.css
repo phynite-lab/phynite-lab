@@ -239,20 +239,14 @@
 .local-ai-provider-login { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:18px; padding-top:16px; border-top:1px solid var(--line); }
 .local-ai-provider-login .settings-help { flex:1 1 220px; margin:0; }
 .local-ai-provider-login .lab-button-primary { min-height:38px; padding-inline:14px; }
-.local-ai-add-account { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; padding: 22px 24px; }
-.local-ai-add-account label { display: grid; gap: 7px; min-width: 180px; flex: 1; color: var(--muted-ink); font-size: 11px; }
-.local-ai-add-account input, .local-ai-add-account select { min-height: 38px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); }
-.local-ai-gateway-form { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; padding: 22px 24px 8px; }
-.local-ai-gateway-form label { display: grid; gap: 7px; min-width: 220px; flex: 1; color: var(--muted-ink); font-size: 11px; }
-.local-ai-gateway-form input { min-height: 38px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); }
+.local-ai-login-feedback { display: flex; align-items: center; gap: 8px; }
+.local-ai-login-feedback[data-kind="success"] { border-color: color-mix(in srgb, #3ea97a 55%, var(--line)); color: color-mix(in srgb, #3ea97a 80%, var(--ink)); }
 @container settings (max-width: 540px) {
   .local-ai-accounts-provider { padding: 18px; }
   .local-ai-account-row, .local-ai-accounts-provider-header { align-items: stretch; flex-direction: column; }
   .local-ai-account-row .local-ai-account-actions { margin-top: 8px; }
   .local-ai-quota-grid { grid-template-columns: 1fr; }
   .local-ai-usage-card > header, .local-ai-usage-window-heading, .local-ai-usage-window-meta { align-items: stretch; flex-direction: column; }
-  .local-ai-add-account { align-items: stretch; flex-direction: column; padding: 18px; }
-  .local-ai-gateway-form { align-items: stretch; flex-direction: column; padding: 18px 18px 8px; }
 }
 .settings-page .settings-payment-adapter .payment-provider-cta { display: flex; width: 100%; min-height: 44px; margin-top: 20px; background: var(--accent); color: var(--on-accent); justify-content: space-between; }
 .settings-page .research-orgs { padding: 0; border: 0; background: transparent; margin-bottom: 32px; }

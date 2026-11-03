@@ -14,8 +14,8 @@ Requires Node.js 22.13 or later. The launcher opens a browser and keeps projects
 in `~/.phynite-lab`; no Docker, global Python, source checkout or cloud account
 is needed to use a complete published package. Install scientific runtimes once
 from the web setup page. DFT and MD potentials are selected separately under
-their respective licenses. AI requires a separately installed provider CLI or
-local gateway and the user's own provider account.
+their respective licenses. AI requires a separately installed official provider
+CLI and the user's own provider account.
 
 Before the first calculation, open **Compute → local setup** and install **DFT**
 and/or **MD & analysis**. Wait for the requested solver to be ready, then select

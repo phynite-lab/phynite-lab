@@ -292,8 +292,8 @@ class DesktopApplication:
             if not self.scheduler:
                 raise ApiError(503, "The native scheduler is unavailable.", "RUNTIME_UNAVAILABLE")
             return response(200, {"resources": self.scheduler.configure(payload)})
-        if path.startswith(("/__local/cloud", "/__local/sync", "/__local/gateway")):
-            return self.connections.handle(method, path, payload, query, internal=path == '/__local/gateway/environment')
+        if path.startswith(("/__local/cloud", "/__local/sync")):
+            return self.connections.handle(method, path, payload, query, internal=False)
         if path.startswith(("/public/", "/internal/", "/v1/developer/")):
             raise ApiError(404, "This endpoint is not part of the local workspace.", "NOT_FOUND")
         claims = {} if worker else {"sub": self.services.owner, "name": "Local Researcher"}
@@ -310,9 +310,6 @@ class DesktopApplication:
         # lock through the handler call as well as the refresh.
         with (self.ai_environment_lock if path.startswith('/v1/ai/') else nullcontext()):
             if path.startswith('/v1/ai/'):
-                # Only the discovered local gateway catalog is offered to the
-                # control plane; provider secrets remain in the credential vault.
-                os.environ['PHYNITE_AI_9ROUTER_MODELS'] = json.dumps(self.connections.gateway.status()['models'])
                 # The launcher-owned native bridge is a separate loopback process.
                 # Refresh its verified catalog for each AI mutation so the Python
                 # control plane never trusts a stale model list after connect,
