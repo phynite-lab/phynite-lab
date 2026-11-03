@@ -13,7 +13,7 @@ phynite-lab
 
 Requires Node.js 22.13 or later. Each published version ships matching native
 packages for macOS
-Apple Silicon (`darwin-arm64`), macOS Intel (`darwin-x64`), Linux ARM64
+Apple Silicon (`darwin-arm64`), Linux ARM64
 (`linux-arm64`) and Linux x64 (`linux-x64`, glibc >=2.39), including current
 Omarchy/Arch Linux. Windows is supported through WSL2, which uses the Linux x64
 package and launcher. Linux qualification runs on matching release builders;

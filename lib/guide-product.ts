@@ -12,7 +12,6 @@ export const productGuideSections: GuideSection[] = [
       ] },
       { title: 'Supported platforms', table: { headings: ['Platform', 'Package/runtime', 'Notes'], rows: [
         ['macOS Apple Silicon', 'darwin-arm64', 'Native arm64 package.'],
-        ['macOS Intel', 'darwin-x64', 'Native x64 package.'],
         ['Linux ARM64', 'linux-arm64', 'Requires glibc >=2.39 and verified user namespaces.'],
         ['Linux x64 / Omarchy / Arch', 'linux-x64', 'Requires glibc >=2.39 and verified user namespaces.'],
         ['Windows', 'WSL2 linux-x64', 'Run npm and phynite-lab inside WSL2; a Windows-native solver is not installed.'],

@@ -16,7 +16,7 @@ import { validateNativeInventory } from '../packages/phynite-lab/lib/native-inve
 import { validateBundledNoticeIndex, validateBundledNoticeReport } from '../packages/phynite-lab/lib/bundled-notices.mjs';
 
 export const RELEASE_TARGETS = Object.freeze([...DISTRIBUTION_TARGETS]);
-export const SMOKE_CHECKS = Object.freeze(['clean-install', 'native-core', 'loopback-security', 'local-workspace', 'ui-desktop-mobile', 'persistence-restart', 'project-import-export', 'local-ai-gateway', 'optional-cloud-no-auto-upload']);
+export const SMOKE_CHECKS = Object.freeze(['clean-install', 'native-core', 'loopback-security', 'local-workspace', 'ui-desktop-mobile', 'persistence-restart', 'project-import-export', 'local-ai-provider-connections', 'optional-cloud-no-auto-upload']);
 export const SCIENTIFIC_CHECKS = Object.freeze(['runtime-install', 'qe-reference', 'app-qe-queue-reference', 'app-queued-cancel-restart', 'md-guided-reference', 'md-manual-reference', 'analysis-reference', 'sandbox-probe', 'sandbox-denials', 'cancel-resource-recovery', 'installer-failure-recovery']);
 const HASH = /^[a-f0-9]{64}$/;
 const COMMIT = /^[a-f0-9]{40}$/;
