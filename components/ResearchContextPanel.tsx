@@ -64,7 +64,12 @@ export function ResearchContextPanel({ projectId, onClose }: { projectId: string
     } finally { setLoading(false); }
   }, [projectId, t]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    // Defer the initial fetch until after commit so loading state does not
+    // synchronously cascade from the effect itself.
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
   const runs = useMemo(() => (context?.runs ?? []).slice().sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? ''))), [context]);
   const latest = runs[0];
   const completed = runs.filter(run => run.status === 'COMPLETED' || run.status === 'completed').slice(0, 2);
