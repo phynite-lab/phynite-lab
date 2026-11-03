@@ -174,6 +174,11 @@ class AiWorkspace:
         project = context['project']
         if not project:
             fail(409, 'Select a project before accessing research data.', 'AI_PROJECT_REQUIRED')
+        if kind == 'research':
+            if project['kind'] != 'canvas' or item_id != project['id']:
+                fail(404, 'This research context is not in the selected project.', 'AI_NOT_FOUND')
+            from backend.local_api.domain.research_ledger import research_context
+            return {'item': {'id': project['id'], 'projectId': project['id'], 'name': project.get('name', 'Research context'), 'context': clean(research_context(self.services, owner, project['id']))}, 'revision': int(context.get('workspaceRevision', 0))}
         if kind in {'workflow', 'workflow_run'}:
             if project['kind'] != 'canvas':
                 fail(400, 'Select a Canvas project to read its workflow.')

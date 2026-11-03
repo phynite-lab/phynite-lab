@@ -19,7 +19,7 @@ export function subscribeLocalNotifications(listener: () => void) {
   window.addEventListener('storage', storage); window.addEventListener(LOCAL_NOTIFICATIONS_EVENT, listener);
   return () => { window.removeEventListener('storage', storage); window.removeEventListener(LOCAL_NOTIFICATIONS_EVENT, listener); };
 }
-export type NotificationRun = { id: string; name: string; status: string; calculationType?: string };
+export type NotificationRun = { id: string; name: string; status: string; calculationType?: string; failureReason?: string; failureCategory?: string };
 export function notificationRunPath(run: NotificationRun) {
   const kind = run.calculationType === 'LAMMPS simulation' ? 'md/simulations' : run.calculationType === 'OVITO analysis' ? 'md/analyses' : 'calculations';
   return `/api/phynite/v1/${kind}/${encodeURIComponent(run.id)}`;

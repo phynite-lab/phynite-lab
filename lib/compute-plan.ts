@@ -2,7 +2,7 @@ export type ComputePlanDestination = 'local' | 'cloud';
 export type ComputePlanCheck = { id: string; label: string; status: 'ready' | 'blocked' | 'unknown'; detail: string };
 export type ComputePlanInput = {
   destination: ComputePlanDestination;
-  runtimeInstalled: boolean;
+  runtimeInstalled?: boolean;
   runtimeLabel?: string;
   isolationAvailable?: boolean;
   solverCapability?: boolean;
@@ -21,7 +21,7 @@ function check(id: string, label: string, status: ComputePlanCheck['status'], de
 export function buildComputePlan(input: ComputePlanInput): ComputePlan {
   const checks: ComputePlanCheck[] = [];
   checks.push(input.inputSaved === false ? check('input', 'Saved input', 'blocked', 'Save the exact project input before submitting.') : check('input', 'Saved input', input.inputSaved === undefined ? 'unknown' : 'ready', input.inputSaved === undefined ? 'Input save state was not reported.' : 'Exact input is saved.'));
-  checks.push(input.runtimeInstalled ? check('runtime', input.runtimeLabel ?? 'Scientific runtime', 'ready', 'Required runtime is installed and available.') : check('runtime', input.runtimeLabel ?? 'Scientific runtime', 'blocked', 'Install and start the verified runtime before running.'));
+  checks.push(input.runtimeInstalled === undefined ? check('runtime', input.runtimeLabel ?? 'Scientific runtime', 'unknown', 'Runtime availability has not returned yet.') : input.runtimeInstalled ? check('runtime', input.runtimeLabel ?? 'Scientific runtime', 'ready', 'Required runtime is installed and available.') : check('runtime', input.runtimeLabel ?? 'Scientific runtime', 'blocked', 'Install and start the verified runtime before running.'));
   checks.push(input.solverCapability === undefined ? check('solver', 'Solver capability', 'unknown', 'Capability probe has not returned yet.') : input.solverCapability ? check('solver', 'Solver capability', 'ready', 'Solver capability is available.') : check('solver', 'Solver capability', 'blocked', 'The selected solver is unavailable on this runtime.'));
   checks.push(input.isolationAvailable === undefined ? check('isolation', 'Isolation probe', 'unknown', 'Isolation probe has not returned yet.') : input.isolationAvailable ? check('isolation', 'Isolation probe', 'ready', 'Native isolation is available.') : check('isolation', 'Isolation probe', 'blocked', 'Native isolation is unavailable; execution remains blocked.'));
   checks.push(input.potentialsReady === undefined ? check('potentials', 'Pseudopotentials / force field', 'unknown', 'Required potential identity has not been verified.') : input.potentialsReady ? check('potentials', 'Pseudopotentials / force field', 'ready', 'Required potential identity and checksum are available.') : check('potentials', 'Pseudopotentials / force field', 'blocked', 'Install or select the required potential before running.'));
