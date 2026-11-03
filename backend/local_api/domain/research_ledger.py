@@ -164,7 +164,7 @@ def research_context(services: MetadataServices, owner: str, project_id: str, *,
             if row.get("ownerId") != owner:
                 continue
             public = public_item(row)
-            failure_reason = public.get("failureReason")
+            failure_reason = public.get("failureReason") if isinstance(public.get("failureReason"), str) else None
             runs.append({
                 "id": public.get("id"),
                 "kind": kind,
