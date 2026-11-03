@@ -139,7 +139,11 @@ export function LocalAiProviderAccounts({ view = 'accounts' }: { view?: 'account
       else if (result.status === 'login_pending') setMessage(t('Finish sign-in in the opened official provider flow, then return here. The connected status will appear automatically.', 'Selesaikan login di alur provider resmi yang terbuka, lalu kembali ke sini. Status terhubung akan muncul otomatis.'));
       else if (path === 'login' && result.connected === true) { setMessageKind('success'); setMessage(t(`${providerName(provider, t)} login successful. Your account is connected on this computer.`, `Login ${providerName(provider, t)} berhasil. Akun Anda sudah terhubung di komputer ini.`)); }
       else setMessage(t('Provider connection updated on this computer.', 'Koneksi provider diperbarui di komputer ini.'));
-    } catch (reason) { loginWindow?.close(); setError(reason instanceof Error ? reason.message : String(reason)); }
+    } catch (reason) {
+      loginWindow?.close();
+      if (path === 'login' && provider) pendingLogins.current.delete(provider);
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
     finally { setBusy(false); }
   };
   const refreshUsage = async () => {

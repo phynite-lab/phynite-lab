@@ -1437,7 +1437,7 @@ Ketersediaan model dapat berubah mengikuti entitlement provider. Pengaturan mode
 
 ### Topik terkait
 
-
+- [Phynite Cloud, Cloud Sync, dan compute online](#cloud-sync)
 
 <a id="cloud-sync"></a>
 
@@ -1476,7 +1476,7 @@ MD Cloud belum tersedia sampai service yang didukung muncul di katalog aktif. Ja
 
 ### Topik terkait
 
-
+- [Koneksi provider AI di komputer Anda](#ai-providers)
 
 <a id="storage-backup"></a>
 

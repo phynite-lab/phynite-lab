@@ -10,9 +10,10 @@ import { GUIDE_TOPIC_IDS, guidePath } from './guide-routing.ts';
 const topicOrder: readonly string[] = GUIDE_TOPIC_IDS;
 const sortTopics = (sections: GuideSection[]) => [...sections].sort((a, b) => topicOrder.indexOf(a.id) - topicOrder.indexOf(b.id));
 function relatedTopics(sections: GuideSection[], locale: Locale): GuideSection[] {
+  const relatedGroup = new Set(['ai-providers', 'cloud-sync']);
   return sortTopics(sections).map(section => ({ ...section, blocks: [...section.blocks, {
     title: locale === 'id' ? 'Topik terkait' : 'Related topics',
-    links: sections.filter(other => other.id !== section.id && other.group === section.group).slice(0, 3).map(other => ({ label: other.title, href: guidePath(locale, other.id) })),
+    links: sections.filter(other => other.id !== section.id && (other.group === section.group || relatedGroup.has(section.id) && relatedGroup.has(other.id))).slice(0, 3).map(other => ({ label: other.title, href: guidePath(locale, other.id) })),
   }] }));
 }
 const guides = { en: relatedTopics([...guideSections, ...guideAdditions, ...productGuideSections], 'en'), id: relatedTopics([...guideSectionsId, ...guideAdditionsId, ...productGuideSectionsId], 'id') };

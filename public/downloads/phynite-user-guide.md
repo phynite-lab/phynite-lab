@@ -1436,7 +1436,7 @@ Model availability can change with the provider entitlement. Cloud model setting
 
 ### Related topics
 
-
+- [Phynite Cloud, Cloud Sync, and online compute](#cloud-sync)
 
 <a id="cloud-sync"></a>
 
@@ -1475,7 +1475,7 @@ MD Cloud is unavailable until a supported service is shown in the current catalo
 
 ### Related topics
 
-
+- [AI provider connections on your computer](#ai-providers)
 
 <a id="storage-backup"></a>
 
