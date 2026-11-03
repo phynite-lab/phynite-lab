@@ -44,6 +44,8 @@ PROJECT_PATH = re.compile('^/v1/projects/([A-Za-z0-9_-]+)$')
 PROJECT_STRUCTURES_PATH = re.compile('^/v1/projects/([A-Za-z0-9_-]+)/structures$')
 PROJECT_UPLOAD_PATH = re.compile('^/v1/projects/([A-Za-z0-9_-]+)/structures/upload-url$')
 PROJECT_CALCULATIONS_PATH = re.compile('^/v1/projects/([A-Za-z0-9_-]+)/calculations$')
+PROJECT_RESEARCH_CONTEXT_PATH = re.compile('^/v1/projects/([A-Za-z0-9_-]+)/research-context$')
+PROJECT_RESEARCH_EVENTS_PATH = re.compile('^/v1/projects/([A-Za-z0-9_-]+)/research-events$')
 STRUCTURE_PATH = re.compile('^/v1/structures/([A-Za-z0-9_-]+)$')
 CALCULATION_PATH = re.compile('^/v1/calculations/([A-Za-z0-9_-]+)$')
 CALCULATION_FILES_PATH = re.compile('^/v1/calculations/([A-Za-z0-9_-]+)/files$')
@@ -1013,6 +1015,14 @@ class PhyniteApi:
     def is_developer(self, claims):
         return False
 
+    def record_research_event(self, owner: str, project_id: str, payload: dict[str, Any]) -> None:
+        """Best-effort ledger write; a telemetry failure must not change a run."""
+        try:
+            from backend.local_api.domain.research_ledger import append_research_event
+            append_research_event(self.services, owner, project_id, payload, allow_server=True)
+        except Exception:
+            logging.getLogger(__name__).exception("Research ledger write failed for %s", project_id)
+
     def handle(self, event: dict[str, Any]) -> dict[str, Any]:
         method, path = route_details(event)
         if path.startswith(('/public/', '/internal/', '/developer/', '/cloud-worker/', '/paid-worker/', '/ai-worker/')):
@@ -1124,6 +1134,21 @@ class PhyniteApi:
                 return response(200, {'projects': [public_item(item) for item in items]})
             if method == 'POST':
                 return self.create_project(user_id, parse_body(event))
+        context_match = PROJECT_RESEARCH_CONTEXT_PATH.fullmatch(path)
+        if context_match and method == 'GET':
+            from backend.local_api.domain.research_ledger import research_context
+            project_id = context_match.group(1)
+            return response(200, {'context': research_context(self.services, user_id, project_id)})
+        events_match = PROJECT_RESEARCH_EVENTS_PATH.fullmatch(path)
+        if events_match:
+            from backend.local_api.domain.research_ledger import append_research_event, list_research_events
+            project_id = events_match.group(1)
+            if method == 'GET':
+                params = event.get('queryStringParameters') or {}
+                return response(200, {'events': list_research_events(self.services, user_id, project_id, limit=params.get('limit', 100), before=params.get('before'))})
+            if method == 'POST':
+                created = append_research_event(self.services, user_id, project_id, parse_body(event))
+                return response(201, {'event': created})
         match = PROJECT_PATH.fullmatch(path)
         if match:
             project_id = match.group(1)
@@ -1450,8 +1475,26 @@ class PhyniteApi:
             claimed = self.services.claim_local_calculation(item, worker_id, lease_expires_at, now_epoch, timestamp)
             if not claimed:
                 continue
+            self.record_research_event(claimed['ownerId'], claimed['projectId'], {
+                'eventType': 'calculation_started',
+                'title': 'Run started',
+                'summary': str(claimed.get('name') or claimed.get('calculationType') or 'Calculation'),
+                'runId': claimed['id'],
+                'calculationId': claimed['id'],
+                'jobKind': item_capability,
+                'metadata': {'status': claimed.get('status'), 'computeBackend': claimed.get('computeBackend'), 'vcpus': claimed.get('vcpus'), 'memoryMiB': claimed.get('memoryMiB')},
+            })
             if dependency_failure:
                 self.services.finish_local_calculation(claimed, worker_id, 'FAILED', dependency_failure, timestamp)
+                self.record_research_event(claimed['ownerId'], claimed['projectId'], {
+                    'eventType': 'calculation_failed',
+                    'title': 'Run failed before solver start',
+                    'summary': dependency_failure,
+                    'runId': claimed['id'],
+                    'calculationId': claimed['id'],
+                    'jobKind': item_capability,
+                    'metadata': {'phase': 'preflight', 'status': 'FAILED'},
+                })
                 continue
             try:
                 prepared_job = self.local_job_input(claimed)
@@ -1684,10 +1727,30 @@ class PhyniteApi:
                     pass
             if interrupted_recovery is None:
                 self.tick_project_workflows(item['ownerId'])
+            if item.get('projectId'):
+                self.record_research_event(item['ownerId'], item['projectId'], {
+                    'eventType': {'COMPLETED': 'calculation_completed', 'FAILED': 'calculation_failed', 'CANCELLED': 'calculation_cancelled'}[final_status],
+                    'title': {'COMPLETED': 'Run completed', 'FAILED': 'Run failed', 'CANCELLED': 'Run cancelled'}[final_status],
+                    'summary': str(failure_reason or updated.get('statusMessage') or item.get('name') or 'MD simulation'),
+                    'runId': calculation_id,
+                    'calculationId': calculation_id,
+                    'jobKind': 'md-simulation',
+                    'metadata': {'status': final_status, 'failureReason': failure_reason, 'effectiveResources': effective_resources, 'resultTrajectoryId': trajectory_id},
+                })
             return response(200, {'simulation': public_item(updated), 'trajectory': public_item(trajectory)})
         key = {'MD_SIMULATION': 'simulation', 'MD_ANALYSIS': 'analysis'}.get(item.get('entityType'), 'calculation')
         if interrupted_recovery is None:
             self.tick_project_workflows(item['ownerId'])
+        if item.get('projectId'):
+            self.record_research_event(item['ownerId'], item['projectId'], {
+                'eventType': {'COMPLETED': 'calculation_completed', 'FAILED': 'calculation_failed', 'CANCELLED': 'calculation_cancelled'}[final_status],
+                'title': {'COMPLETED': 'Run completed', 'FAILED': 'Run failed', 'CANCELLED': 'Run cancelled'}[final_status],
+                'summary': str(failure_reason or updated.get('statusMessage') or item.get('name') or 'Calculation'),
+                'runId': calculation_id,
+                'calculationId': calculation_id,
+                'jobKind': {'MD_ANALYSIS': 'md-analysis', 'MD_SIMULATION': 'md-simulation'}.get(item.get('entityType'), 'qe'),
+                'metadata': {'status': final_status, 'failureReason': failure_reason, 'effectiveResources': effective_resources, 'resultSummary': updated.get('resultSummary')},
+            })
         return response(200, {key: public_item(updated)})
 
     def tick_project_workflows(self, owner: str) -> None:
@@ -1804,6 +1867,7 @@ class PhyniteApi:
         timestamp = utc_now()
         item = {'PK': owner_partition(user_id), 'SK': f'PROJECT#{project_id}', 'entityType': 'PROJECT', 'id': project_id, 'ownerId': user_id, 'name': clean_text(payload.get('name'), 'Project name', minimum=1, maximum=120), 'description': clean_text(payload.get('description', ''), 'Description', maximum=1000), 'tags': normalize_project_tags(payload.get('tags')), 'createdAt': timestamp, 'updatedAt': timestamp, 'lastOpenedAt': timestamp}
         self.services.put_item(item, 'attribute_not_exists(PK)')
+        self.record_research_event(user_id, project_id, {'eventType': 'project_created', 'title': 'Project created', 'summary': item['name'], 'metadata': {'name': item['name'], 'tags': item.get('tags', [])}})
         return response(201, {'project': public_item(item)})
 
     def update_project(self, user_id: str, project_id: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -1851,6 +1915,7 @@ class PhyniteApi:
         self.services.s3.put_object(Bucket=self.services.bucket, Key=key, Body=encoded, ContentType='application/json', ServerSideEncryption='AES256')
         item = {'PK': owner_partition(user_id), 'SK': f'STRUCTURE#{structure_id}', 'GSI1PK': f'PROJECT#{project_id}', 'GSI1SK': f'STRUCTURE#{timestamp}#{structure_id}', 'entityType': 'STRUCTURE', 'id': structure_id, 'projectId': project_id, 'ownerId': user_id, 'name': name, 'formula': formula, 'atomCount': len(atoms), 'sha256': hashlib.sha256(encoded).hexdigest(), 'spaceGroup': clean_text(payload.get('spaceGroup', 'P1'), 'Space group', maximum=80), 'source': clean_text(payload.get('source', 'Phynite'), 'Source', maximum=80), 'status': 'READY', 'objectKey': key, 'createdAt': timestamp, 'updatedAt': timestamp}
         self.services.put_item(item, 'attribute_not_exists(PK)')
+        self.record_research_event(user_id, project_id, {'eventType': 'structure_imported', 'title': 'Structure imported', 'summary': name, 'metadata': {'atomCount': len(atoms), 'formula': formula}, 'artifactRefs': [{'kind': 'structure', 'id': structure_id, 'sha256': item['sha256']}]})
         return response(201, {'structure': public_item(item)})
 
     def create_structure_upload(self, user_id: str, project_id: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -2810,6 +2875,16 @@ class PhyniteApi:
         except Exception as exc:
             self.services.update_item(user_id, 'CALCULATION', calculation_id, {'status': 'FAILED', 'failureReason': 'Calculation input upload failed', 'updatedAt': utc_now()})
             raise ApiError(502, 'Calculation input could not be stored.', 'CALCULATION_INPUT_UPLOAD_FAILED') from exc
+        self.record_research_event(user_id, project_id, {
+            'eventType': 'calculation_submitted',
+            'title': 'Calculation submitted' if run_now else 'Calculation draft saved',
+            'summary': item['name'],
+            'runId': calculation_id,
+            'calculationId': calculation_id,
+            'jobKind': 'qe',
+            'inputSha256': hashlib.sha256(json.dumps(job_payload, separators=(',', ':'), sort_keys=True).encode('utf-8')).hexdigest(),
+            'metadata': {'status': item['status'], 'calculationType': calculation_type, 'vcpus': vcpus, 'memoryMiB': memory_mib, 'computeTarget': 'personal'},
+        })
         if not run_now:
             return response(201, {'calculation': public_item(item)})
         waiting_dependency = next((dependency for dependency in dependency_items if dependency.get('status') != 'COMPLETED'), None)
