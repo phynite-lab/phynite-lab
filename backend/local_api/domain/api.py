@@ -1749,7 +1749,7 @@ class PhyniteApi:
                 'runId': calculation_id,
                 'calculationId': calculation_id,
                 'jobKind': {'MD_ANALYSIS': 'md-analysis', 'MD_SIMULATION': 'md-simulation'}.get(item.get('entityType'), 'qe'),
-                'metadata': {'status': final_status, 'failureReason': failure_reason, 'effectiveResources': effective_resources, 'resultSummary': updated.get('resultSummary')},
+                'metadata': {'status': final_status, 'failureReason': failure_reason, 'effectiveResources': effective_resources},
             })
         return response(200, {key: public_item(updated)})
 
