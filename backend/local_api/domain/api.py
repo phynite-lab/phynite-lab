@@ -1722,6 +1722,7 @@ class PhyniteApi:
                 logging.getLogger(__name__).exception('Failure digest recording failed for %s', calculation_id)
         if analysis_manifest is not None:
             updated = self.services.update_item(item['ownerId'], 'MD_ANALYSIS', calculation_id, {'resultSummary': md_result_summary(analysis_manifest), 'statusMessage': 'Analysis complete', 'updatedAt': utc_now()})
+        trajectory_id: str | None = None
         if trajectory_result is not None:
             trajectory_id = f"mdt_{hashlib.sha256(f'md-result:{calculation_id}'.encode()).hexdigest()[:32]}"
             trajectory = self.services.get_item(item['ownerId'], 'MD_TRAJECTORY', trajectory_id)
