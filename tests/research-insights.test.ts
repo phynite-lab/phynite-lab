@@ -3,6 +3,8 @@ import test from 'node:test';
 import { buildComputePlan } from '../lib/compute-plan.ts';
 import { buildResearchContextPack, redactResearchContext } from '../lib/research-context-pack.ts';
 import { makeResearchNotification, unseenResearchNotifications } from '../lib/research-notifications.ts';
+import { compareRuns, summarizeRunFailure } from '../lib/run-observability.ts';
+import type { CalculationJob } from '../components/JobComposer.tsx';
 
 test('context packs preserve scientific values and omit credential-like keys', () => {
   const value = redactResearchContext({ cutoffRy: 80, token: 'do-not-send', nested: { apiKey: 'secret', energy: -1.25 } });
@@ -25,4 +27,14 @@ test('research notifications are deterministic and deduplicate on device', () =>
   const same = makeResearchNotification({ category: 'run-failed', subjectId: 'run_1', title: 'Run failed', detail: 'preflight', fingerprint: 'preflight:runtime' }, '2026-02-01T00:00:00.000Z');
   assert.equal(first.id, same.id);
   assert.equal(unseenResearchNotifications([first, same], new Set([first.id])).length, 0);
+});
+
+test('run observability keeps preflight and solver failures distinct', () => {
+  const preflight = { id: 'run_preflight', name: 'SCF', status: 'Failed', settings: 'runtime: dft', updated: '', resultDetail: 'Install and start the DFT runtime before running.' } as CalculationJob;
+  const solver = { id: 'run_solver', name: 'SCF', status: 'Failed', settings: 'runtime: dft', updated: '', backendCalculationId: 'calc_1', liveLogTail: 'pw.x: convergence was not achieved' } as CalculationJob;
+  assert.equal(summarizeRunFailure(preflight)?.phase, 'preflight');
+  assert.equal(summarizeRunFailure(solver)?.phase, 'solver');
+  const differences = compareRuns(preflight, solver);
+  assert.equal(differences.find(row => row.key === 'settings')?.same, true);
+  assert.equal(differences.find(row => row.key === 'resultDetail')?.same, false);
 });
