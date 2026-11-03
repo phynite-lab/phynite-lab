@@ -70,7 +70,7 @@ class ResearchLedgerTests(unittest.TestCase):
             "createdAt": "2026-11-03T00:00:00Z",
         })
         context = research_context(self.services, self.owner, self.project)
-        self.assertEqual(context["runs"][0]["failureCategory"], "SCF convergence")
+        self.assertEqual(context["runs"][0]["failureCategory"], "SCF_CONVERGENCE")
         self.assertEqual(context["runs"][0]["failureReason"], "SCF did not converge before electron_maxstep.")
 
     def test_routes_use_project_ownership(self):
