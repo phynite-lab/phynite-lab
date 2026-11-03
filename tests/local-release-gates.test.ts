@@ -190,7 +190,7 @@ test('unshipped platforms and qualification deferrals cannot widen or bypass thi
   try {
     await editJson(join(root, 'release.json'), value => { value.qualification = { wsl2: 'deferred', reason: 'Unshipped platform' }; });
     await assert.rejects(verifyLocalRelease(join(root, 'release.json')), /deferrals are not supported/);
-    await editJson(join(root, 'release.json'), value => { delete value.qualification; value.evidence[0].target = 'darwin-x64'; });
+    await editJson(join(root, 'release.json'), value => { delete value.qualification; value.evidence[0].target = 'linux-x64'; });
     await assert.rejects(verifyLocalRelease(join(root, 'release.json')), /exactly its own platform evidence/);
   } finally { await rm(root, { recursive: true }); }
 });

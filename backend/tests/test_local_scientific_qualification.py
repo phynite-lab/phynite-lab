@@ -309,7 +309,10 @@ class ScientificReleaseQualificationTests(unittest.TestCase):
             self.skipTest("The public package source and Node.js are required for metadata integration.")
         environment = json.loads(subprocess.check_output([node, "-e", "console.log(JSON.stringify({platform:process.platform,arch:process.arch}))"], text=True))
         target = environment["platform"] + "-" + environment["arch"]
-        targets = ("darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64")
+        # The public launcher ships only the targets listed here.  macOS Intel
+        # remains supported by maintenance tooling, but is intentionally not
+        # part of the npm distribution after release 0.1.8.
+        targets = ("darwin-arm64", "linux-arm64", "linux-x64")
         if target not in targets:
             self.skipTest("Native distribution metadata is tested on macOS or Linux/WSL2.")
         with tempfile.TemporaryDirectory() as temporary:

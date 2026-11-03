@@ -28,8 +28,8 @@ Do not assemble a release using stale cores or application output from another
 commit or platform. Solver scientific libraries belong in the optional runtime,
 not the npm package. Do not include restricted pseudopotentials or potentials.
 
-The published npm release ships `darwin-arm64` (macOS Apple Silicon), `darwin-x64`
-(macOS Intel), `linux-arm64`, and `linux-x64` (glibc >=2.39, including current
+The published npm release ships `darwin-arm64` (macOS Apple Silicon), `linux-arm64`,
+and `linux-x64` (glibc >=2.39, including current
 Omarchy/Arch Linux). Windows WSL2 uses the Linux x64 package because WSL2 reports
 that native platform to Node and npm. Each native package is built and qualified
 on its matching runner; direct testing on an Omarchy desktop or Windows host is

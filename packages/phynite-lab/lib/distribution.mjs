@@ -9,7 +9,7 @@ import { validateNativeInventory } from './native-inventory.mjs';
 import { validateBundledNoticeIndex, validateBundledNoticeReport } from './bundled-notices.mjs';
 
 export const RELEASE_REPOSITORY = 'https://github.com/phynite-lab/phynite-lab';
-export const DISTRIBUTION_TARGETS = Object.freeze(['darwin-arm64', 'darwin-x64', 'linux-arm64', 'linux-x64']);
+export const DISTRIBUTION_TARGETS = Object.freeze(['darwin-arm64', 'linux-arm64', 'linux-x64']);
 // Every native target has a separately assembled npm package. WSL2 runs the
 // Linux x64 package because Node reports its native platform as linux-x64.
 export const NPM_RELEASE_TARGETS = Object.freeze([...DISTRIBUTION_TARGETS]);

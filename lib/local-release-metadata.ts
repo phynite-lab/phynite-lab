@@ -22,7 +22,6 @@ const bundledVersion = typeof packageMetadata.version === 'string' && semver.tes
 
 const targets = [
   { label: 'macOS Apple Silicon', packageName: 'phynite-lab-runtime-darwin-arm64', runtime: 'darwin-arm64' },
-  { label: 'macOS Intel', packageName: 'phynite-lab-runtime-darwin-x64', runtime: 'darwin-x64' },
   { label: 'Linux ARM64', packageName: 'phynite-lab-runtime-linux-arm64', runtime: 'linux-arm64' },
   { label: 'Linux x64 / WSL2', packageName: 'phynite-lab-runtime-linux-x64', runtime: 'linux-x64' },
 ] as const;

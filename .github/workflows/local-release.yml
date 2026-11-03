@@ -79,8 +79,6 @@ jobs:
         include:
           - runner: macos-15
             target: darwin-arm64
-          - runner: macos-15-intel
-            target: darwin-x64
           - runner: ubuntu-24.04-arm
             target: linux-arm64
           - runner: ubuntu-24.04
@@ -109,8 +107,6 @@ jobs:
             # Use package-owned shared libraries with their original notices.
             # setup-python's macOS framework vendors unattributed dylibs.
             if ! brew list --versions python@3.12 >/dev/null 2>&1; then
-              # Intel runners may already have conflicting global symlinks.
-              # Use the formula's absolute executable; never overwrite links.
               brew install python@3.12 || test -x "$(brew --prefix python@3.12)/bin/python3.12"
             fi
             "$(brew --prefix python@3.12)/bin/python3.12" -m venv build/core-venv
@@ -256,7 +252,7 @@ jobs:
       - name: Publish GitHub corresponding source and qualification evidence
         if: inputs.publish
         run: |
-          gh release create "v$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --target "$SOURCE_COMMIT" --title "Phynite Lab $RELEASE_VERSION" --notes "GNU AGPL v3 only. Native packages: macOS Apple Silicon, macOS Intel, Linux ARM64 and Linux x64 (glibc >=2.39, including current Omarchy/Arch Linux). Windows WSL2 uses the Linux x64 package. Linux qualification runs on matching hosted runners; an Omarchy desktop or Windows host was not directly tested. Exact source, checksums and qualification evidence are attached. Scientific runtimes are installed through local setup." build/release/source.tar.gz build/release/SHA256SUMS build/release/release.json build/release/qualification-evidence.tar.gz build/release/tarballs/*.tgz
+          gh release create "v$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --target "$SOURCE_COMMIT" --title "Phynite Lab $RELEASE_VERSION" --notes "GNU AGPL v3 only. Native packages: macOS Apple Silicon, Linux ARM64 and Linux x64 (glibc >=2.39, including current Omarchy/Arch Linux). Windows WSL2 uses the Linux x64 package. Linux qualification runs on matching hosted runners; an Omarchy desktop or Windows host was not directly tested. Exact source, checksums and qualification evidence are attached. Scientific runtimes are installed through local setup." build/release/source.tar.gz build/release/SHA256SUMS build/release/release.json build/release/qualification-evidence.tar.gz build/release/tarballs/*.tgz
 
   registry:
     needs: [source, release]
@@ -267,8 +263,6 @@ jobs:
         include:
           - runner: macos-15
             target: darwin-arm64
-          - runner: macos-15-intel
-            target: darwin-x64
           - runner: ubuntu-24.04-arm
             target: linux-arm64
           - runner: ubuntu-24.04

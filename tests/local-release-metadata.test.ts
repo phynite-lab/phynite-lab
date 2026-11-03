@@ -13,7 +13,7 @@ test('release metadata prefers the validated npm registry version', async () => 
   assert.equal(requested, 'https://registry.npmjs.org/phynite-lab/latest');
   assert.equal(metadata.version, '1.2.3');
   assert.equal(metadata.versionSource, 'registry');
-  assert.equal(metadata.targets.length, 4);
+  assert.equal(metadata.targets.length, 3);
 });
 
 test('release metadata falls back to the bundled package when npm is unavailable or invalid', async () => {

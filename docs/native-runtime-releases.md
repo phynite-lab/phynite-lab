@@ -73,7 +73,7 @@ prepares a catalogue entry from that evidence and a separately verified native
 installer record. It never overwrites an existing target, activates a runtime,
 downloads packages or claims platform qualification. Review catalogue changes
 and run actual confined reference calculations before marking a target tested.
-The current macOS Intel lock uses official OVITO 3.11.3 because the upstream
+The macOS runtime lock uses official OVITO 3.11.3 because the upstream
 channel does not provide 3.16.1 for that target. Linux ARM64 uses the official PyPI wheel overlay described below because the
 OVITO conda channel has no Python package for that target. Its lock is prepared
 but remains `not-tested-on-target` until actual native execution passes. DFT and
@@ -188,7 +188,7 @@ cross-platform certification.
 
 ## Prepare a genuinely relocatable environment
 
-Build and qualify separately on `darwin-arm64`, `darwin-x64`, `linux-arm64`, and
+Build and qualify separately on `darwin-arm64`, `linux-arm64`, and
 `linux-x64`. Windows uses the Linux runtime inside WSL2; a Windows PE executable
 is not a supported scientific runtime.
 
