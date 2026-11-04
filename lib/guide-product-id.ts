@@ -50,7 +50,7 @@ export const productGuideSectionsId: GuideSection[] = [
         'Buka Pengaturan → Akun provider AI dan pilih Codex atau Antigravity.',
         'Selesaikan autentikasi melalui alur milik provider. Login CLI yang didukung dapat dipakai ulang tanpa mengimpor cookie atau file session.',
         'Biarkan aplikasi terbuka saat discovery model dan capability probe berjalan. Halaman hanya memilih model yang lulus pemeriksaan teks, streaming, dan tool.',
-      ], links: [{ label: 'Pengaturan provider AI', href: '/id/account/ai-providers' }] },
+      ], links: [{ label: 'Pengaturan provider AI', href: '/account/ai-providers' }] },
       { title: 'Provider, model, dan limit', paragraphs: [
         'Aplikasi lokal memakai satu profil yang dikelola CLI provider resmi. Request yang gagal atau terkena rate limit tidak mengganti provider atau akun secara diam-diam.',
         'Kartu pemakaian hanya menampilkan telemetry yang dilaporkan provider: grup model, persentase session atau mingguan, window, dan waktu reset bila tersedia. Laporan yang hilang tetap ditampilkan tidak tersedia; aplikasi tidak membuat angka token, saldo, atau tanggal reset.',
@@ -85,7 +85,7 @@ export const productGuideSectionsId: GuideSection[] = [
         'Antrean sync dan mapping akun terikat pada akun Cloud yang sedang login. Berganti akun tidak melanjutkan upload milik akun lain.',
         'Kuota Cloud, retensi artefak, Trash, dan allowance Free hosted terpisah dari ruang disk lokal. Billing dan perubahan paket tersedia di website hosted; pembelian tidak otomatis menjalankan job.',
         'MD Cloud belum tersedia sampai service yang didukung muncul di katalog aktif. Jangan menyimpulkan ketersediaannya dari runtime MD lokal.',
-      ], links: [{ label: 'Pengaturan akun Cloud', href: '/id/account/account' }, { label: 'Pemakaian dan kuota', href: '/id/account/usage' }, { label: 'Billing hosted', href: '/billing' }] },
+      ], links: [{ label: 'Pengaturan akun Cloud', href: '/account/account' }, { label: 'Pemakaian dan kuota', href: '/account/usage' }, { label: 'Billing hosted', href: '/billing' }] },
     ],
   },
   {
@@ -107,7 +107,7 @@ export const productGuideSectionsId: GuideSection[] = [
         'Simpan backup kedua di luar ~/.phynite-lab, termasuk input eksak, identitas/checksum potential, provenance, dan state intermediate yang diperlukan workflow lanjutan.',
         'Impor ke data directory baru terlebih dahulu dan periksa struktur, konfigurasi, hasil, serta checksum sebelum mengganti salinan kerja.',
         'Gunakan Source package untuk figur; itu tidak menggantikan arsip project atau backup runtime solver.',
-      ], links: [{ label: 'Pengaturan penyimpanan', href: '/id/account/storage' }] },
+      ], links: [{ label: 'Pengaturan penyimpanan', href: '/account/storage' }] },
     ],
   },
   {

@@ -1,0 +1,150 @@
+{
+  "format": "phynite-guide-concept-diagrams",
+  "schemaVersion": 1,
+  "assets": [
+    {
+      "file": "research-lifecycle-en-light.png",
+      "locale": "en",
+      "theme": "light",
+      "kind": "concept",
+      "width": 1120,
+      "height": 530,
+      "sha256": "2bfade30afa0a038ea7bb182497f5b9a6df7315c7607a2f3888be6f2ea588822"
+    },
+    {
+      "file": "local-cloud-paths-en-light.png",
+      "locale": "en",
+      "theme": "light",
+      "kind": "concept",
+      "width": 1120,
+      "height": 530,
+      "sha256": "cc2c166f28630e2e27fde3d5f214e608e4384148f251ce9cfde5a94170fc770d"
+    },
+    {
+      "file": "storage-layers-en-light.png",
+      "locale": "en",
+      "theme": "light",
+      "kind": "concept",
+      "width": 1120,
+      "height": 530,
+      "sha256": "9ee45788047942a3a1b1dff6e37a141d13bb90b8d8bfe24c2c4393470a8ea806"
+    },
+    {
+      "file": "failure-stages-en-light.png",
+      "locale": "en",
+      "theme": "light",
+      "kind": "concept",
+      "width": 1120,
+      "height": 530,
+      "sha256": "c3a3886a1e6f25a2b0dc5055d458c5ffaef6266d4f04358ce8f433949ca56429"
+    },
+    {
+      "file": "research-lifecycle-en-dark.png",
+      "locale": "en",
+      "theme": "dark",
+      "kind": "concept",
+      "width": 1120,
+      "height": 530,
+      "sha256": "72b40bd91bad084940cbfb0d8558af4ca5775d1f43e95d3ac1b3ea5b3cb752a1"
+    },
+    {
+      "file": "local-cloud-paths-en-dark.png",
+      "locale": "en",
+      "theme": "dark",
+      "kind": "concept",
+      "width": 1120,
+      "height": 530,
+      "sha256": "3d2769319c69639669b434c0acc181f4310a2d909a35fd473aeb085d826cf1e1"
+    },
+    {
+      "file": "storage-layers-en-dark.png",
+      "locale": "en",
+      "theme": "dark",
+      "kind": "concept",
+      "width": 1120,
+      "height": 530,
+      "sha256": "a0b13d109734617ab544ed47efce1683fade5f1ba446dc855c5804fcb090de98"
+    },
+    {
+      "file": "failure-stages-en-dark.png",
+      "locale": "en",
+      "theme": "dark",
+      "kind": "concept",
+      "width": 1120,
+      "height": 530,
+      "sha256": "783a6c07d0a426463a03bb8bf851b4c5dda0cf9e4eb8a77e9a77008831906fb3"
+    },
+    {
+      "file": "research-lifecycle-id-light.png",
+      "locale": "id",
+      "theme": "light",
+      "kind": "concept",
+      "width": 1120,
+      "height": 530,
+      "sha256": "ffb497f21bd66f4f384a6f897873fd0bf5f88ec8ba7d850d9401fc74c7e6bbf5"
+    },
+    {
+      "file": "local-cloud-paths-id-light.png",
+      "locale": "id",
+      "theme": "light",
+      "kind": "concept",
+      "width": 1120,
+      "height": 530,
+      "sha256": "ddb0e57c0a0e37ec17644725e830707eeeb044da588d00023c3dadfcd197935f"
+    },
+    {
+      "file": "storage-layers-id-light.png",
+      "locale": "id",
+      "theme": "light",
+      "kind": "concept",
+      "width": 1120,
+      "height": 530,
+      "sha256": "2f4db04e9885f2ab6633386cdb49addafae3008af9149fbe3d48cca960cdd89a"
+    },
+    {
+      "file": "failure-stages-id-light.png",
+      "locale": "id",
+      "theme": "light",
+      "kind": "concept",
+      "width": 1120,
+      "height": 530,
+      "sha256": "9656c1d2ac6bd1acc16e285c04fed6f262edc69ee45a00340c9fd06f44e7c01b"
+    },
+    {
+      "file": "research-lifecycle-id-dark.png",
+      "locale": "id",
+      "theme": "dark",
+      "kind": "concept",
+      "width": 1120,
+      "height": 530,
+      "sha256": "e450facf4044314f2dc9d3a3962bb93c9fdc240da31c71671a00503d37a924cd"
+    },
+    {
+      "file": "local-cloud-paths-id-dark.png",
+      "locale": "id",
+      "theme": "dark",
+      "kind": "concept",
+      "width": 1120,
+      "height": 530,
+      "sha256": "83b606cceead704388bf206db9be90c8f225adedc75cf4917e1b43d882794c3f"
+    },
+    {
+      "file": "storage-layers-id-dark.png",
+      "locale": "id",
+      "theme": "dark",
+      "kind": "concept",
+      "width": 1120,
+      "height": 530,
+      "sha256": "4273fa31ca89eecce6bb87513835feea746e97345a40d34981b3f19fe1cf7533"
+    },
+    {
+      "file": "failure-stages-id-dark.png",
+      "locale": "id",
+      "theme": "dark",
+      "kind": "concept",
+      "width": 1120,
+      "height": 530,
+      "sha256": "e89e28f6abd87a1274f987b20d2644881f0ebfcba8acb7e0c1ccf4da3d99e0b1"
+    }
+  ]
+}

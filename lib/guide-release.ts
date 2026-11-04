@@ -22,6 +22,10 @@ function materializeBlock(block: GuideBlock, release: LocalReleaseMetadata): Gui
       rows: block.table.rows.map(row => row.map(value => replaceText(value, release))),
     } : undefined,
     links: block.links?.map(link => ({ ...link, label: replaceText(link.label, release), href: replaceText(link.href, release) })),
+    visuals: block.visuals?.map(visual => ({ ...visual,
+      alt: replaceText(visual.alt, release),
+      caption: visual.caption ? replaceText(visual.caption, release) : undefined,
+    })),
   };
 }
 

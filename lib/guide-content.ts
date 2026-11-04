@@ -17,6 +17,11 @@ export type GuideVisual = {
   caption?: string;
   lightSrc?: string;
   darkSrc?: string;
+  width?: number;
+  height?: number;
+  mobileSrc?: string;
+  mobileWidth?: number;
+  mobileHeight?: number;
 };
 export type GuideSection = { id: string; group: string; title: string; intro: string; blocks: GuideBlock[] };
 
