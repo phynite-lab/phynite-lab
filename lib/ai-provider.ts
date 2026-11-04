@@ -6,6 +6,16 @@ export class AiError extends Error {
   readonly details?: { issues?: Array<{ nodeId?: string; path?: string; message: string }>; requestId?: string };
   constructor(status: number, code: string, message: string, details?: AiError['details']) { super(message); this.status = status; this.code = code; this.details = details; }
 }
+const safeNativeStreamCodes = new Set(['AUTH_REQUIRED', 'CLI_MISSING', 'UNVERIFIED_VERSION', 'NOT_CONNECTED', 'INVALID_MODEL', 'INVALID_ACCOUNT', 'UNSAFE_TOOLS', 'UNSAFE_CONFIGURATION', 'PROBE_FAILED', 'UNSUPPORTED_EFFORT', 'CLI_START_FAILED', 'INFERENCE_FAILED', 'INCOMPLETE_RESPONSE', 'INVALID_PROTOCOL', 'UNVERIFIED_MODEL', 'LOGIN_FAILED', 'INVALID_REQUEST', 'AI_CONTEXT_LIMIT']);
+function nativeStreamError(value: unknown): AiError {
+  const detail = value && typeof value === 'object' && !Array.isArray(value) ? value as { type?: unknown; message?: unknown } : {};
+  const code = typeof detail.type === 'string' && safeNativeStreamCodes.has(detail.type) ? detail.type : 'AI_PROVIDER_STREAM_ERROR';
+  const fallback = 'The model interrupted its response. Review completed actions before retrying.';
+  const message = typeof detail.message === 'string' && detail.message.trim()
+    ? detail.message.replace(/(?:bearer\s+|sk-[A-Za-z0-9_-]{16,})\S*/ig, '[redacted]').slice(0, 500)
+    : fallback;
+  return new AiError(503, code, message);
+}
 export function aiTurnFailure(error: unknown, signal?: AbortSignal): AiError {
   if (error instanceof AiError) return error;
   if (signal?.aborted && signal.reason instanceof AiError) return signal.reason;
@@ -74,7 +84,7 @@ async function streamClaudeResponse(options: {
   await readSse(response, raw => {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw) || !('type' in raw) || typeof raw.type !== 'string') throw new AiError(502, 'AI_PROVIDER_STREAM_INVALID', 'The model returned an invalid stream event. No incomplete tool arguments were executed.');
     const e = raw as { type: string; index: number; message?: { usage?: { input_tokens?: number; output_tokens?: number } }; usage?: { output_tokens?: number }; content_block?: ClaudeBlock | PrivateThinkingBlock; delta?: { type?: string; text?: string; thinking?: string; signature?: string; partial_json?: string; stop_reason?: string } };
-    if (e.type === 'error') throw new AiError(503, 'AI_PROVIDER_STREAM_ERROR', 'The model interrupted its response. Review completed actions before retrying.');
+    if (e.type === 'error') throw nativeStreamError((raw as { error?: unknown }).error);
     if (e.type === 'message_start') { inputTokens = e.message?.usage?.input_tokens ?? 0; outputTokens = e.message?.usage?.output_tokens ?? 0; }
     if (e.type === 'content_block_start' && e.content_block && ['text', 'tool_use', 'thinking', 'redacted_thinking'].includes(e.content_block.type)) {
       blocks.set(e.index, { block: e.content_block, json: '', closed: false });

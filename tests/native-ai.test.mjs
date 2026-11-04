@@ -43,6 +43,9 @@ test('CLI discovery finds user npm bins and the Antigravity alias without shell 
     process.env.HOME = dir; process.env.PATH = '';
     assert.equal((await registry.detect('codex')).command, join(bin, 'codex'));
     assert.equal((await registry.detect('antigravity')).command, join(bin, 'antigravity'));
+    // Detection and execution happen in the same stripped desktop PATH. The
+    // child must still resolve the Node interpreter used by the CLI shebang.
+    assert.match(await registry.runText('codex', ['--version'], dir), /0\.162\.1/);
     const added = await registry.addAccount('antigravity', 'Personal');
     assert.ok(added.command.includes(join(bin, 'antigravity')));
     const status = await registry.status();
@@ -100,6 +103,15 @@ test('reviewed CLI minor lines accept compatible patch releases and reject new p
   await assert.rejects(other.version('codex', otherCwd), { code: 'UNVERIFIED_VERSION' });
   await rm(otherCwd, { recursive: true, force: true });
   await registry.close(); await other.close();
+});
+
+test('Antigravity 1.5.x remains on the reviewed stream-json minor line', async () => {
+  const dir = await mkdtemp('/tmp/phynite-native-agy-version-test-'), bin = await mkdtemp('/tmp/phynite-native-agy-version-bin-');
+  const agy = await executable(bin, 'agy', agyStub.replace('1.4.10', '1.5.0'));
+  const registry = new NativeAiRegistry({ dataDir: dir, executables: { antigravity: agy } });
+  const cwd = await registry.scratch();
+  try { assert.equal(await registry.version('antigravity', cwd), '1.5.0'); }
+  finally { await rm(cwd, { recursive: true, force: true }); await registry.close(); }
 });
 
 test('Codex usage refresh reports provider windows and real reset timestamps', async () => {
@@ -275,14 +287,23 @@ for await (const line of createInterface({input:process.stdin})) {
  }
  const text=turn===1?'4':'AGY_OK';
  const json=JSON.stringify({text,toolCalls:turn===2?[{name:'host_action',argumentsJson:'{"value":1}'}]:[]});
- const body=mode==='fenced'?'\`\`\`json\\n'+json+'\\n\`\`\`':mode==='prose'?'Here is a response: '+json:json;
+ const rawJson=mode==='latex' && turn===2
+  ? json.replace('AGY_OK', ${JSON.stringify('Lattice $a \\approx 2.46$ \\AA, $\\gamma = 120^\\circ$, cutoff $E_{cut} \\sim 40$ Ry')})
+  : json;
+ const body=mode==='fenced'? '\`\`\`json\\n'+rawJson+'\\n\`\`\`':mode==='prose'?'Here is a response: '+rawJson:rawJson;
  const step={conversation_id:'safe-session',step_index:turn*2-1,state:'ACTIVE',step_type:'agent_response',text_delta:body};
  if(mode==='wrong-step-session') step.conversation_id='other';
  if(mode==='unknown-step') step.step_type='native_action';
  if(mode==='native-tool') step.tool_info={name:'read_file'};
  if(mode==='stale-step' && turn===2) step.step_index=1;
  send({event:'step_update',step_update:step});
- send({event:'result',result:{conversation_id:mode==='wrong-result-session'?'other':'safe-session',num_turns:mode==='duplicate-result' && turn===2?1:turn,status:'SUCCESS',response:body}});
+ const result={event:'result',result:{conversation_id:mode==='wrong-result-session'?'other':'safe-session',num_turns:mode==='duplicate-result' && turn===2?1:turn,status:'SUCCESS',response:body}};
+ if(turn===2 && ['terminal-no-newline','terminal-truncated'].includes(mode)) {
+  const terminal=JSON.stringify(result);
+  process.stdout.write(mode==='terminal-truncated'?terminal.slice(0,-1):terminal,()=>process.exit(0));
+  await new Promise(()=>{});
+ }
+ send(result);
 }
 `;
 }
@@ -315,10 +336,33 @@ test('Antigravity verifies guard before project context and streams only the act
   });
 });
 
+test('Antigravity preserves LaTeX backslashes in structured scientific text', async () => {
+  await agyFixture('latex', async ({ execute, events }) => {
+    await execute();
+    assert.equal(events.at(-1).proposal.text, 'Lattice $a \\approx 2.46$ \\AA, $\\gamma = 120^\\circ$, cutoff $E_{cut} \\sim 40$ Ry');
+    assert.deepEqual(events.at(-1).proposal.calls, [{ name: 'host_action', input: { value: 1 } }]);
+  });
+});
+
 test('Antigravity accepts a complete JSON fence and preserves proposal validation', async () => {
   await agyFixture('fenced', async ({ execute, events }) => {
     await execute();
     assert.deepEqual(events.at(-1).proposal, { text: 'AGY_OK', calls: [{ name: 'host_action', input: { value: 1 } }] });
+  });
+});
+
+test('Antigravity consumes a complete terminal event without a trailing newline', async () => {
+  await agyFixture('terminal-no-newline', async ({ execute, events }) => {
+    await execute();
+    assert.deepEqual(events.at(-1).proposal, { text: 'AGY_OK', calls: [{ name: 'host_action', input: { value: 1 } }] });
+    assert.equal(events.at(-1).streamed, true);
+  });
+});
+
+test('Antigravity rejects a truncated terminal record without exposing a tool proposal', async () => {
+  await agyFixture('terminal-truncated', async ({ execute, events }) => {
+    await assert.rejects(execute, reason => reason.code === 'INVALID_PROTOCOL');
+    assert.equal(events.some(event => event.type === 'result'), false);
   });
 });
 
@@ -404,6 +448,23 @@ test('Codex probe accepts only completed streamed structured proposal', async ()
   assert.equal(events.at(-1).type, 'message_stop');
   assert.equal(events.some((event) => event.content_block?.type === 'tool_use'), true);
   await registry.close();
+});
+
+test('Codex consumes a complete terminal notification without a trailing newline', async () => {
+  const dir = await mkdtemp('/tmp/phynite-native-terminal-test-');
+  const streaming = codexStub.replace(
+    "else if(m.method==='turn/start') send({id:m.id,result:{turn:{id:'turn_synthetic'}}});",
+    "else if(m.method==='turn/start') { const body=JSON.stringify({text:'COMPLETE',toolCalls:[]}); send({id:m.id,result:{turn:{id:'turn_synthetic'}}}); setTimeout(()=>{ send({method:'item/agentMessage/delta',params:{threadId:'thr_synthetic',turnId:'turn_synthetic',delta:body}}); process.stdout.write(JSON.stringify({method:'turn/completed',params:{threadId:'thr_synthetic',turn:{id:'turn_synthetic',status:'completed'}}}),()=>process.exit(0)); }, 2); }",
+  );
+  const codex = await executable(dir, 'codex', streaming);
+  const registry = new NativeAiRegistry({ dataDir: join(dir, 'data'), executables: { codex }, timeoutMs: 5000 });
+  try {
+    const events = [];
+    const prepared = { provider: 'codex', rawModel: 'gpt-6.1-sol', prompt: 'Synthetic framing verification only.', schema: { type: 'object' }, names: new Set() };
+    for await (const event of registry.execute(prepared)) events.push(event);
+    assert.deepEqual(events.at(-1).proposal, { text: 'COMPLETE', calls: [] });
+    assert.equal(events.at(-1).streamed, true);
+  } finally { await registry.close(); await rm(dir, { recursive: true, force: true }); }
 });
 
 test('model refresh probes every detected native model, not only the first', async () => {

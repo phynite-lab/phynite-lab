@@ -13,7 +13,10 @@ import { createAgyPolicy } from './agy-policy.mjs';
 // enter the bridge without a new review.
 const VERIFIED_VERSION_RANGES = {
   codex: { minimum: [0, 162, 1], maximumExclusive: [0, 163, 0] },
-  antigravity: { minimum: [1, 4, 10], maximumExclusive: [1, 5, 0] },
+  // Antigravity 1.5.x keeps the reviewed stream-json contract used by the
+  // restricted bridge. Keep this minor line open so Linux package updates do
+  // not strand a connected Gemini account as "unsupported".
+  antigravity: { minimum: [1, 4, 10], maximumExclusive: [1, 6, 0] },
 };
 const shellQuote = value => `'${value.replaceAll("'", "'\\''")}'`;
 function accountLoginCommand(provider, homeDir, executable) {
@@ -24,7 +27,10 @@ const MAX_BYTES = 12 * 1024 * 1024;
 const MAX_LINE = 2 * 1024 * 1024;
 const MAX_INPUT = 4 * 1024 * 1024;
 const MAX_TOOLS = 128;
-const DEFAULT_TIMEOUT = 120_000;
+// Native provider turns can spend several minutes in a remote model queue,
+// especially on Linux. The timeout is an inactivity deadline and is renewed
+// whenever the CLI emits output, so a live stream is not cut off mid-answer.
+const DEFAULT_TIMEOUT = 300_000;
 const MODEL_ID = /^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,200}$/;
 const TOOL_NAME = /^[A-Za-z0-9_-]{1,64}$/;
 const DISABLED_FEATURES = ['shell_tool', 'apps', 'hooks', 'multi_agent', 'remote_plugin', 'memories', 'shell_snapshot', 'goals', 'apply_patch_freeform', 'request_permissions', 'js_repl', 'browser_use', 'computer_use'];
@@ -45,6 +51,18 @@ function cleanEnvironment(overrides = {}) {
   // subscription, but never pass Phynite's service/session values, cloud
   // credentials, or an inherited API-key route into that process.
   return env;
+}
+
+function cliPath(command) {
+  // A desktop process may locate an absolute npm CLI even though its PATH is
+  // missing the Node installation used by `#!/usr/bin/env node`. Keep the
+  // caller's path precedence and add only known executable directories; never
+  // add the request scratch directory or invoke a shell to recover PATH.
+  const directories = (process.env.PATH ?? '').split(delimiter).filter(Boolean);
+  for (const directory of [dirname(process.execPath), dirname(command), ...(process.platform === 'win32' ? [] : ['/usr/local/bin', '/usr/bin', '/bin'])]) {
+    if (!directories.includes(directory)) directories.push(directory);
+  }
+  return directories.join(delimiter);
 }
 
 async function executable(spec, fallback) {
@@ -117,11 +135,13 @@ class ChildSession {
     this.bytes = 0;
     this.closed = false;
     this.json = json;
-    this.child = spawn(command, args, { cwd, env: cleanEnvironment(env), stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, detached: process.platform !== 'win32' });
+    this.timeoutMs = timeoutMs;
+    this.child = spawn(command, args, { cwd, env: cleanEnvironment({ ...env, PATH: cliPath(command) }), stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, detached: process.platform !== 'win32' });
     this.done = new Promise((resolveDone) => { this.resolveDone = resolveDone; });
     this.child.stdout.setEncoding('utf8');
     this.child.stderr.setEncoding('utf8');
     this.child.stdout.on('data', (chunk) => {
+      this.resetTimeout();
       this.bytes += Buffer.byteLength(chunk);
       if (this.bytes > MAX_BYTES) return this.fail(error('OUTPUT_LIMIT', 'AI response exceeded the output limit.'));
       if (!json) { this.output += chunk; return; }
@@ -131,22 +151,7 @@ class ChildSession {
       while ((newline = this.buffer.indexOf('\n')) >= 0) {
         const line = this.buffer.slice(0, newline).trim();
         this.buffer = this.buffer.slice(newline + 1);
-        if (!line) continue;
-        let message;
-        try { message = JSON.parse(line); } catch { this.fail(error('INVALID_PROTOCOL', 'CLI returned invalid JSON. Update or reconnect the CLI.')); return; }
-        if (!object(message)) { this.fail(error('INVALID_PROTOCOL', 'CLI returned an invalid event.')); return; }
-        if (Object.hasOwn(message, 'id') && !message.method && this.pending.has(message.id)) {
-          const request = this.pending.get(message.id);
-          this.pending.delete(message.id);
-          clearTimeout(request.timeout);
-          if (message.error) request.reject(error('CLI_ERROR', String(message.error.message ?? 'CLI request failed.').slice(0, 500)));
-          else request.resolve(message.result);
-        } else if (Object.hasOwn(message, 'id') && message.method) {
-          // Even an unexpected new builtin approval protocol cannot execute tools.
-          this.write({ id: message.id, error: { code: -32601, message: 'Phynite does not permit native CLI tools.' } });
-          this.fail(error('UNSAFE_TOOLS', 'CLI requested a builtin tool or permission. Native AI was stopped.'));
-          return;
-        } else this.events.push(message);
+        if (!this.handleJsonLine(line)) return;
       }
     });
     this.child.stderr.on('data', (chunk) => {
@@ -156,6 +161,14 @@ class ChildSession {
     });
     this.child.on('error', () => this.fail(error('CLI_START_FAILED', 'Could not start the selected AI CLI.')));
     this.child.on('close', (code, terminationSignal) => {
+      // A CLI may close stdout immediately after the final JSON object without
+      // a trailing newline. Flush that complete frame before deciding whether
+      // the response ended, while still rejecting malformed terminal frames.
+      if (this.json && !this.failure && this.buffer.trim()) {
+        const line = this.buffer.trim();
+        this.buffer = '';
+        this.handleJsonLine(line);
+      }
       clearTimeout(this.timeout);
       signal?.removeEventListener('abort', this.onAbort);
       this.closed = true;
@@ -167,8 +180,32 @@ class ChildSession {
     });
     this.onAbort = () => this.fail(abortError());
     signal?.addEventListener('abort', this.onAbort, { once: true });
+    this.resetTimeout();
+  }
+  resetTimeout(timeoutMs = this.timeoutMs) {
+    if (this.closed || this.failure) return;
+    clearTimeout(this.timeout);
     this.timeout = setTimeout(() => this.fail(error('TIMEOUT', 'AI CLI exceeded its time limit.')), timeoutMs);
     this.timeout.unref?.();
+  }
+  handleJsonLine(line) {
+    if (!line) return true;
+    let message;
+    try { message = JSON.parse(line); } catch { this.fail(error('INVALID_PROTOCOL', 'CLI returned invalid JSON. Update or reconnect the CLI.')); return false; }
+    if (!object(message)) { this.fail(error('INVALID_PROTOCOL', 'CLI returned an invalid event.')); return false; }
+    if (Object.hasOwn(message, 'id') && !message.method && this.pending.has(message.id)) {
+      const request = this.pending.get(message.id);
+      this.pending.delete(message.id);
+      clearTimeout(request.timeout);
+      if (message.error) request.reject(error('CLI_ERROR', String(message.error.message ?? 'CLI request failed.').slice(0, 500)));
+      else request.resolve(message.result);
+    } else if (Object.hasOwn(message, 'id') && message.method) {
+      // Even an unexpected new builtin approval protocol cannot execute tools.
+      this.write({ id: message.id, error: { code: -32601, message: 'Phynite does not permit native CLI tools.' } });
+      this.fail(error('UNSAFE_TOOLS', 'CLI requested a builtin tool or permission. Native AI was stopped.'));
+      return false;
+    } else this.events.push(message);
+    return true;
   }
   write(value) {
     if (this.closed || this.failure) return;
@@ -254,16 +291,50 @@ function preparePayload(payload) {
   return { provider: match[1] === 'codex' ? 'codex' : 'antigravity', rawModel: match[2], modelId, tools, names, schema, prompt, effort: payload.effort ?? 'auto' };
 }
 
+// Antigravity occasionally emits LaTeX backslashes inside JSON string values
+// (for example `\approx` or `\AA`) without JSON escaping them. Preserve those
+// literal scientific symbols while repairing only invalid string escapes; valid
+// JSON is always parsed first and therefore remains byte-for-byte unchanged.
+function sanitizeJson(raw) {
+  let inString = false, result = '';
+  for (let index = 0; index < raw.length; index++) {
+    const character = raw[index];
+    if (inString) {
+      if (character === '\\') {
+        const next = raw[index + 1];
+        if (next === undefined) result += '\\\\';
+        else if ('"\\/bfnrt'.includes(next)) { result += character + next; index++; }
+        else if (next === 'u' && /^[0-9a-fA-F]{4}$/.test(raw.slice(index + 2, index + 6))) { result += raw.slice(index, index + 6); index += 5; }
+        else result += '\\\\';
+      } else if (character === '"') { inString = false; result += character; }
+      else if (character === '\n') result += '\\n';
+      else if (character === '\r') result += '\\r';
+      else if (character === '\t') result += '\\t';
+      else result += character;
+    } else { if (character === '"') inString = true; result += character; }
+  }
+  return result;
+}
+
 function proposal(raw, prepared) {
   let value;
   // Accept one whole JSON fence; never extract JSON from arbitrary prose.
   const enclosed = typeof raw === 'string' ? /^\s*```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n```\s*$/.exec(raw) : null;
-  try { value = typeof raw === 'string' ? JSON.parse(enclosed ? enclosed[1] : raw) : raw; } catch { throw error('INVALID_RESPONSE', 'CLI returned incomplete structured output.'); }
+  const target = enclosed ? enclosed[1] : raw;
+  try { value = typeof target === 'string' ? JSON.parse(target) : target; }
+  catch {
+    try { value = typeof target === 'string' ? JSON.parse(sanitizeJson(target)) : target; }
+    catch { throw error('INVALID_RESPONSE', 'CLI returned incomplete structured output.'); }
+  }
   if (!object(value) || typeof value.text !== 'string' || !Array.isArray(value.toolCalls) || value.toolCalls.length > 16 || Object.keys(value).some((key) => !['text', 'toolCalls'].includes(key))) throw error('INVALID_RESPONSE', 'CLI response did not match the proposal schema.');
   const calls = value.toolCalls.map((call) => {
     if (!object(call) || !prepared.names.has(call.name) || typeof call.argumentsJson !== 'string' || Object.keys(call).some((key) => !['name', 'argumentsJson'].includes(key))) throw error('INVALID_TOOL', 'CLI proposed a tool outside the allowed Canvas catalog.');
     let input;
-    try { input = JSON.parse(call.argumentsJson); } catch { throw error('INVALID_TOOL_ARGUMENTS', 'CLI proposed incomplete tool arguments.'); }
+    try { input = JSON.parse(call.argumentsJson); }
+    catch {
+      try { input = JSON.parse(sanitizeJson(call.argumentsJson)); }
+      catch { throw error('INVALID_TOOL_ARGUMENTS', 'CLI proposed incomplete tool arguments.'); }
+    }
     if (!object(input)) throw error('INVALID_TOOL_ARGUMENTS', 'Canvas tool arguments must be a JSON object.');
     safeJson(input);
     // The existing runAiAgent performs the authoritative tool/domain validation.
@@ -288,10 +359,23 @@ class TextExtractor {
       if (character === '"') break;
       if (character === '\\') {
         if (index + 1 >= content.length) break;
-        if (content[index + 1] === 'u') {
-          if (index + 5 >= content.length) break;
-          encoded += content.slice(index, index + 6); index += 5;
-        } else { encoded += content.slice(index, index + 2); index++; }
+        const next = content[index + 1];
+        if (next === 'u') {
+          if (index + 5 >= content.length) {
+            if (/^[0-9a-fA-F]*$/.test(content.slice(index + 2))) break;
+            encoded += '\\\\';
+          } else if (/^[0-9a-fA-F]{4}$/.test(content.slice(index + 2, index + 6))) {
+            encoded += content.slice(index, index + 6); index += 5;
+          } else encoded += '\\\\';
+        } else if ('"\\/bfnrt'.includes(next)) {
+          encoded += content.slice(index, index + 2); index++;
+        } else encoded += '\\\\';
+      } else if (character === '\n') {
+        encoded += '\\n';
+      } else if (character === '\r') {
+        encoded += '\\r';
+      } else if (character === '\t') {
+        encoded += '\\t';
       } else encoded += character;
     }
     let decoded;
@@ -954,6 +1038,9 @@ export class NativeAiRegistry {
             await policy.verify(conversationId, prepared.rawModel);
             if (this.closed || signal?.aborted) throw abortError();
             verified = true; raw = ''; sawDelta = false;
+            // The guard turn and the actual request have independent latency;
+            // start a fresh inactivity window before sending the user prompt.
+            session.resetTimeout();
             const prompt = prepared.probe?.natural
               ? `Please check the Phynite connection using ${prepared.probe.toolName} with this public echo value as nonce: ${prepared.probe.nonce}. Reply using the response JSON format described above.`
               : prepared.prompt;

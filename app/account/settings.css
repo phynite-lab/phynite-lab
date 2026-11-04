@@ -35,6 +35,10 @@
 .settings-page .settings-section-heading p { max-width: 620px; margin: 5px 0 0; color: var(--muted-ink); font-size: 12px; line-height: 1.65; }
 .settings-group { min-width: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
 .settings-group-content, .settings-fields, .settings-storage-summary { min-width: 0; padding: 24px; }
+/* Provider accounts are independent cards. Remove the generic section shell so
+   Codex and Antigravity do not look like rows inside one shared card. */
+.settings-section--ai-providers > .settings-group { display: grid; gap: 14px; border: 0; border-radius: 0; background: transparent; }
+.settings-section--ai-providers > .settings-group > .local-ai-accounts-provider + .local-ai-accounts-provider { margin-top: 0; }
 .settings-page fieldset.settings-fields { min-width: 0; border: 0; margin: 0; }
 .settings-fields > .workspace-compute-destination { margin-top: 20px; }
 .settings-fields > .workspace-compute-destination > .compute-destination-copy { display: none; }

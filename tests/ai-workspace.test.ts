@@ -119,6 +119,7 @@ test('output checkpoints keep every segment and never execute a token-limited to
 test('network loss, malformed SSE and incomplete frames have distinct safe provider errors without replay', async () => {
   const cases: Array<{ code: string; fetcher: typeof fetch }> = [
     { code: 'AI_PROVIDER_CONNECTION_FAILED', fetcher: async () => { throw new TypeError('private host and token'); } },
+    { code: 'UNVERIFIED_VERSION', fetcher: async () => sse([{ type: 'error', error: { type: 'UNVERIFIED_VERSION', message: 'Native antigravity protocol version 1.5.0 has not been verified.' } }]) },
     { code: 'AI_PROVIDER_STREAM_INVALID', fetcher: async () => new Response('data: private malformed gateway response\n\n') },
     { code: 'AI_RESPONSE_INCOMPLETE', fetcher: async () => new Response('data: {"unfinished"') },
     { code: 'AI_PROVIDER_STREAM_INVALID', fetcher: async () => sse([null]) },

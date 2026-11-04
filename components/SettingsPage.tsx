@@ -22,8 +22,8 @@ export function SettingsPage({ session, title, description, children, actions, e
   </div></main>;
 }
 
-export function SettingsSection({ id, title, description, children, actions }: { id?: string; title: string; description?: string; children: ReactNode; actions?: ReactNode }) {
-  return <section className="settings-section" id={id} tabIndex={id ? -1 : undefined}><header className="settings-section-heading"><div><h2>{title}</h2>{description && <p>{description}</p>}</div>{actions}</header><div className="settings-group">{children}</div></section>;
+export function SettingsSection({ id, title, description, children, actions, className = '' }: { id?: string; title: string; description?: string; children: ReactNode; actions?: ReactNode; className?: string }) {
+  return <section className={`settings-section${className ? ` ${className}` : ''}`} id={id} tabIndex={id ? -1 : undefined}><header className="settings-section-heading"><div><h2>{title}</h2>{description && <p>{description}</p>}</div>{actions}</header><div className="settings-group">{children}</div></section>;
 }
 
 export function SettingsRow({ id, title, description, children }: { id?: string; title: string; description?: ReactNode; children: ReactNode }) {

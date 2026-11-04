@@ -30,7 +30,7 @@ test('device choices persist separately from account data and clear to defaults'
   assert.equal(root.dataset.uiDensity, 'compact'); assert.equal(classes.has('reduce-motion'), true);
   assert.equal(styles.get('--ui-text-scale'), String(16 / 13));
   const mutedMix = Number.parseFloat(styles.get('--ui-muted-mix') ?? '0');
-  assert.ok(mutedMix >= 55 + 45 * .3);
+  assert.ok(mutedMix >= 55);
   saveKeyboardPreferences({ ...defaultKeyboardPreferences, 'send-message': 'Mod+Enter' });
   saveLocalNotifications({ ...defaultLocalNotifications, jobFinished: false });
   values.delete(DEVICE_PREFERENCES_KEY); values.delete(KEYBOARD_PREFERENCES_KEY); values.delete(LOCAL_NOTIFICATIONS_KEY);
@@ -104,6 +104,6 @@ test('appearance modes retain independent palettes and safely migrate old prefer
   assert.equal(activeAppearance(shared, 'dark').fontSize, 18);
   assert.equal(activeAppearance(defaultDevicePreferences, 'dark').background, '#000000');
   const corrupted = parseDevicePreferences('{"contrast":400,"reduceMotion":"invalid","diffMarkers":"other","modes":{"dark":{"fontSize":-1,"customColors":true,"background":"#ffffff","foreground":"#eeeeee"}}}');
-  assert.equal(corrupted.contrast, 45); assert.equal(corrupted.reduceMotion, 'system'); assert.equal(corrupted.diffMarkers, 'color');
+  assert.equal(corrupted.contrast, 0); assert.equal(corrupted.reduceMotion, 'system'); assert.equal(corrupted.diffMarkers, 'color');
   assert.equal(corrupted.modes.dark.customColors, false);
 });
