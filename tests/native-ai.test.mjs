@@ -43,6 +43,9 @@ test('CLI discovery finds user npm bins and the Antigravity alias without shell 
     process.env.HOME = dir; process.env.PATH = '';
     assert.equal((await registry.detect('codex')).command, join(bin, 'codex'));
     assert.equal((await registry.detect('antigravity')).command, join(bin, 'antigravity'));
+    // Detection and execution happen in the same stripped desktop PATH. The
+    // child must still resolve the Node interpreter used by the CLI shebang.
+    assert.match(await registry.runText('codex', ['--version'], dir), /0\.162\.1/);
     const added = await registry.addAccount('antigravity', 'Personal');
     assert.ok(added.command.includes(join(bin, 'antigravity')));
     const status = await registry.status();
@@ -282,7 +285,13 @@ for await (const line of createInterface({input:process.stdin})) {
  if(mode==='native-tool') step.tool_info={name:'read_file'};
  if(mode==='stale-step' && turn===2) step.step_index=1;
  send({event:'step_update',step_update:step});
- send({event:'result',result:{conversation_id:mode==='wrong-result-session'?'other':'safe-session',num_turns:mode==='duplicate-result' && turn===2?1:turn,status:'SUCCESS',response:body}});
+ const result={event:'result',result:{conversation_id:mode==='wrong-result-session'?'other':'safe-session',num_turns:mode==='duplicate-result' && turn===2?1:turn,status:'SUCCESS',response:body}};
+ if(turn===2 && ['terminal-no-newline','terminal-truncated'].includes(mode)) {
+  const terminal=JSON.stringify(result);
+  process.stdout.write(mode==='terminal-truncated'?terminal.slice(0,-1):terminal,()=>process.exit(0));
+  await new Promise(()=>{});
+ }
+ send(result);
 }
 `;
 }
@@ -319,6 +328,21 @@ test('Antigravity accepts a complete JSON fence and preserves proposal validatio
   await agyFixture('fenced', async ({ execute, events }) => {
     await execute();
     assert.deepEqual(events.at(-1).proposal, { text: 'AGY_OK', calls: [{ name: 'host_action', input: { value: 1 } }] });
+  });
+});
+
+test('Antigravity consumes a complete terminal event without a trailing newline', async () => {
+  await agyFixture('terminal-no-newline', async ({ execute, events }) => {
+    await execute();
+    assert.deepEqual(events.at(-1).proposal, { text: 'AGY_OK', calls: [{ name: 'host_action', input: { value: 1 } }] });
+    assert.equal(events.at(-1).streamed, true);
+  });
+});
+
+test('Antigravity rejects a truncated terminal record without exposing a tool proposal', async () => {
+  await agyFixture('terminal-truncated', async ({ execute, events }) => {
+    await assert.rejects(execute, reason => reason.code === 'INVALID_PROTOCOL');
+    assert.equal(events.some(event => event.type === 'result'), false);
   });
 });
 
@@ -404,6 +428,23 @@ test('Codex probe accepts only completed streamed structured proposal', async ()
   assert.equal(events.at(-1).type, 'message_stop');
   assert.equal(events.some((event) => event.content_block?.type === 'tool_use'), true);
   await registry.close();
+});
+
+test('Codex consumes a complete terminal notification without a trailing newline', async () => {
+  const dir = await mkdtemp('/tmp/phynite-native-terminal-test-');
+  const streaming = codexStub.replace(
+    "else if(m.method==='turn/start') send({id:m.id,result:{turn:{id:'turn_synthetic'}}});",
+    "else if(m.method==='turn/start') { const body=JSON.stringify({text:'COMPLETE',toolCalls:[]}); send({id:m.id,result:{turn:{id:'turn_synthetic'}}}); setTimeout(()=>{ send({method:'item/agentMessage/delta',params:{threadId:'thr_synthetic',turnId:'turn_synthetic',delta:body}}); process.stdout.write(JSON.stringify({method:'turn/completed',params:{threadId:'thr_synthetic',turn:{id:'turn_synthetic',status:'completed'}}}),()=>process.exit(0)); }, 2); }",
+  );
+  const codex = await executable(dir, 'codex', streaming);
+  const registry = new NativeAiRegistry({ dataDir: join(dir, 'data'), executables: { codex }, timeoutMs: 5000 });
+  try {
+    const events = [];
+    const prepared = { provider: 'codex', rawModel: 'gpt-6.1-sol', prompt: 'Synthetic framing verification only.', schema: { type: 'object' }, names: new Set() };
+    for await (const event of registry.execute(prepared)) events.push(event);
+    assert.deepEqual(events.at(-1).proposal, { text: 'COMPLETE', calls: [] });
+    assert.equal(events.at(-1).streamed, true);
+  } finally { await registry.close(); await rm(dir, { recursive: true, force: true }); }
 });
 
 test('model refresh probes every detected native model, not only the first', async () => {
