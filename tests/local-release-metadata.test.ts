@@ -22,3 +22,8 @@ test('release metadata falls back to the bundled package when npm is unavailable
   const invalid = await getLocalReleaseMetadata(async () => Response.json({ name: 'other-package', version: '99.0.0' }));
   assert.deepEqual(invalid, bundledLocalRelease);
 });
+
+test('release metadata keeps a newer bundled release while npm propagation is pending', async () => {
+  const metadata = await getLocalReleaseMetadata(async () => Response.json({ name: 'phynite-lab', version: '0.0.1' }));
+  assert.deepEqual(metadata, bundledLocalRelease);
+});
