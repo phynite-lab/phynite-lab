@@ -13,7 +13,7 @@ import { createAgyPolicy } from './agy-policy.mjs';
 // enter the bridge without a new review.
 const VERIFIED_VERSION_RANGES = {
   codex: { minimum: [0, 162, 1], maximumExclusive: [0, 163, 0] },
-  antigravity: { minimum: [1, 4, 10], maximumExclusive: [1, 5, 0] },
+  antigravity: { minimum: [1, 4, 10], maximumExclusive: [1, 6, 0] },
 };
 const shellQuote = value => `'${value.replaceAll("'", "'\\''")}'`;
 function accountLoginCommand(provider, homeDir, executable) {
