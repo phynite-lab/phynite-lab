@@ -204,7 +204,10 @@ function ResearchApplicationShell({ children }: { children: ReactNode }) {
     Array.from(navigation.current?.querySelectorAll<HTMLElement>('a[href],button:not(:disabled),input:not(:disabled)') ?? []).find(element => element.getClientRects().length > 0)?.focus();
     return () => { document.body.style.overflow = previous; if (trigger?.isConnected && trigger.getClientRects().length) trigger.focus(); };
   }, [mobileOpen]);
-  const projects = useMemo(() => mergeStudioProjects(cloud.ready ? local.projects : [], remote, cloud.ready ? local.trashProjects : []).filter(project => !remoteReady || !project.remoteId || remote.some(item => item.id === project.remoteId)), [cloud.ready, local.projects, local.trashProjects, remote, remoteReady]);
+  // Only expose the device snapshot after its owner has been verified. Keep
+  // those local projects even when a linked ID is absent from the inventory;
+  // stale remote metadata must not hide the preserved research project.
+  const projects = useMemo(() => mergeStudioProjects(cloud.ready ? local.projects : [], remote, cloud.ready ? local.trashProjects : []), [cloud.ready, local.projects, local.trashProjects, remote]);
   const registerSlot = useCallback((id: string, value: NavigationSection) => {
     setSlotSections(current => ({ ...current, [id]: value }));
     return () => setSlotSections(current => { const next = { ...current }; delete next[id]; return next; });

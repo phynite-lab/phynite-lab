@@ -1,0 +1,132 @@
+{
+  "notice": "Synthetic test fixtures generated through searchCrystalDatabase; not scientific reference results.",
+  "cod": {
+    "source": "Crystallography Open Database",
+    "materialId": "cod-9000001",
+    "formula": "Si",
+    "spaceGroupSymbol": "unknown",
+    "spaceGroupNumber": 1,
+    "crystalSystem": "unknown",
+    "numSites": 1,
+    "lastUpdated": null,
+    "sourceUrl": "https://www.crystallography.net/cod/9000001.html",
+    "lattice": {
+      "a": 5.43,
+      "b": 5.43,
+      "c": 5.43,
+      "alpha": 90,
+      "beta": 90,
+      "gamma": 90,
+      "periodic": [
+        true,
+        true,
+        true
+      ]
+    },
+    "atoms": [
+      {
+        "id": "imported-atom-1",
+        "species": "Si",
+        "label": "Si1",
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    ],
+    "sourceData": {
+      "filename": "9000001.cif",
+      "format": "cif",
+      "content": "data_9000001\n_chemical_formula_sum 'Si'\n_cell_length_a 5.43\n_cell_length_b 5.43\n_cell_length_c 5.43\n_cell_angle_alpha 90\n_cell_angle_beta 90\n_cell_angle_gamma 90\n_space_group_IT_number 1\nloop_\n_atom_site_label\n_atom_site_type_symbol\n_atom_site_fract_x\n_atom_site_fract_y\n_atom_site_fract_z\nSi1 Si 0 0 0\n",
+      "sha256": "2511c5d3a2335a8b12c438b1436defe55ad98b46244845b6a5f9b8a91715e10f"
+    },
+    "provenance": {
+      "database": "cod",
+      "id": "cod-9000001",
+      "url": "https://www.crystallography.net/cod/9000001.html",
+      "retrievedAt": "2026-11-04T00:00:00.000Z",
+      "sourceUpdatedAt": null,
+      "sourceFormat": "cif",
+      "sourceSha256": "2511c5d3a2335a8b12c438b1436defe55ad98b46244845b6a5f9b8a91715e10f",
+      "structureSha256": "c6e33a5a2bfd0e93ce6dceabb6b01398e82777182147ab01eb19314db1f3a5a2",
+      "termsUrl": "https://www.crystallography.net/cod/"
+    },
+    "warnings": []
+  },
+  "materialsProject": {
+    "source": "Materials Project",
+    "materialId": "mp-149",
+    "formula": "Si",
+    "spaceGroupSymbol": "P1",
+    "spaceGroupNumber": 1,
+    "crystalSystem": "unknown",
+    "numSites": 1,
+    "lastUpdated": "2026-11-04T00:00:00Z",
+    "sourceUrl": "https://materialsproject.org/materials/mp-149",
+    "lattice": {
+      "a": 3.818376618407357,
+      "b": 3.818376618407357,
+      "c": 3.818376618407357,
+      "alpha": 60.00000000000001,
+      "beta": 60.00000000000001,
+      "gamma": 60.00000000000001,
+      "vectors": [
+        [
+          0,
+          2.7,
+          2.7
+        ],
+        [
+          2.7,
+          0,
+          2.7
+        ],
+        [
+          2.7,
+          2.7,
+          0
+        ]
+      ],
+      "periodic": [
+        true,
+        true,
+        true
+      ]
+    },
+    "atoms": [
+      {
+        "id": "mp-149-site-1",
+        "species": "Si",
+        "label": "Si",
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "occupancy": 1,
+        "siteSpecies": [
+          {
+            "element": "Si",
+            "species": "Si",
+            "occupancy": 1
+          }
+        ]
+      }
+    ],
+    "sourceData": {
+      "filename": "mp-149.json",
+      "format": "materials-project-json",
+      "content": "{\"material_id\":\"mp-149\",\"formula_pretty\":\"Si\",\"structure\":{\"lattice\":{\"matrix\":[[0,2.7,2.7],[2.7,0,2.7],[2.7,2.7,0]]},\"sites\":[{\"label\":\"Si\",\"species\":[{\"element\":\"Si\",\"occu\":1}],\"abc\":[0,0,0]}]},\"symmetry\":{\"symbol\":\"P1\",\"number\":1},\"last_updated\":\"2026-11-04T00:00:00Z\"}",
+      "sha256": "6523243f570bad8cc941aa8d48e01c75ee30822fca937f8374830d089ef47d6d"
+    },
+    "provenance": {
+      "database": "materials-project",
+      "id": "mp-149",
+      "url": "https://materialsproject.org/materials/mp-149",
+      "retrievedAt": "2026-11-04T00:00:00.000Z",
+      "sourceUpdatedAt": "2026-11-04T00:00:00Z",
+      "sourceFormat": "materials-project-json",
+      "sourceSha256": "6523243f570bad8cc941aa8d48e01c75ee30822fca937f8374830d089ef47d6d",
+      "structureSha256": "2dab5cfe134fe2d96ee471f8dc4b4685451f4186962a87598b1bd048dd228d6d",
+      "termsUrl": "https://materialsproject.org/about/terms"
+    },
+    "warnings": []
+  }
+}

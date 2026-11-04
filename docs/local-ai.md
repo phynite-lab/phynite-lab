@@ -36,3 +36,18 @@ provider the user selected, independently of optional Phynite Cloud services.
 See [settings and preferences](settings-preferences.md) for account, usage, and
 notification navigation. Provider CLI installation and subscription requirements
 remain separate from the scientific-compute runtime.
+
+## Crystal database tools
+
+In a project Canvas, the AI can search public structure records with
+`search_crystal_structures` and import a selected record with
+`import_crystal_structure`. COD searches need no API key. Materials Project
+searches require `MP_API_KEY` in the server environment; keys must never be sent
+through chat or stored in a project.
+
+Search is read-only and accepts public material queries. An import refetches the
+selected source record and verifies its checksum before preparing the normal
+reviewed change. The application preserves coordinates and source provenance;
+the model does not transcribe atom positions. Import creates a structure module
+and does not start a solver. Check the physical model, occupancies,
+pseudopotentials and convergence settings before running a calculation.

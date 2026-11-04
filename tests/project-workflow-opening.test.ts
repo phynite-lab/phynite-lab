@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { openProjectWorkflow } from '../lib/project-workflow-opening.ts';
+import { openProjectWorkflow, preservedProjectEditorHref } from '../lib/project-workflow-opening.ts';
 import { emptyProjectWorkflow, type WorkflowEnvelope } from '../lib/project-workflow.ts';
 import type { PhyniteProject } from '../lib/phynite-api.ts';
 import type { StoredWorkspaceSnapshot } from '../lib/workspace-storage.ts';
@@ -10,7 +10,7 @@ const snapshot: StoredWorkspaceSnapshot = { version: 1, projects: [{ id: 'old', 
 function fixture(revision = 0) {
   const saved: WorkflowEnvelope[] = [];
   const envelope = { workflow: emptyProjectWorkflow(project.id), revision } as WorkflowEnvelope;
-  const api = { project: async () => ({ project }), migrate: async () => ({ project }), get: async () => envelope, save: async (_id: string, workflow: typeof envelope.workflow, baseRevision: number) => { assert.equal(baseRevision, 0); const result = { ...envelope, workflow, revision: 1 }; saved.push(result); return result; } };
+  const api = { project: async () => ({ project }), migrate: async (input: { legacyId: string; remoteId?: string; name: string; description?: string }) => { assert.equal(input.legacyId, 'old'); return { project }; }, get: async () => envelope, save: async (_id: string, workflow: typeof envelope.workflow, baseRevision: number) => { assert.equal(baseRevision, 0); const result = { ...envelope, workflow, revision: 1 }; saved.push(result); return result; } };
   return { api, saved, envelope };
 }
 test('canonical legacy alias restores local structures and exact input/history without stored remoteId', async () => {
@@ -21,6 +21,35 @@ test('canonical legacy alias restores local structures and exact input/history w
   assert.deepEqual(saved[0].workflow.nodes[1].configuration.preservedConfigurations, snapshot.calculationConfigurations);
   assert.deepEqual(saved[0].workflow.nodes[1].configuration.preservedHistory, snapshot.jobs);
   assert.equal(snapshot.projects![0].remoteId, undefined);
+});
+test('a direct link to an older local project id migrates it without treating the id as canonical', async () => {
+  const { api, saved } = fixture(); let migration: { legacyId: string; remoteId?: string } | undefined;
+  api.project = async () => { throw new Error('A legacy local ID is not a server project.'); };
+  api.migrate = async input => {
+    migration = input;
+    if (input.remoteId) throw Object.assign(new Error('Project was not found.'), { status: 404, code: 'PROJECT_NOT_FOUND' });
+    return { project, alias: 'legacy-old' };
+  };
+  assert.deepEqual(await openProjectWorkflow('old', snapshot, api), { projectId: 'canonical' });
+  assert.equal(migration?.legacyId, 'old');
+  assert.equal(migration?.remoteId, undefined);
+  assert.equal(saved.length, 1);
+  assert.deepEqual(saved[0].workflow.nodes[1].configuration.preservedConfigurations, snapshot.calculationConfigurations);
+  assert.deepEqual(saved[0].workflow.nodes[1].configuration.preservedHistory, snapshot.jobs);
+});
+test('direct legacy links fall back to their original editor on an older server', async () => {
+  const { api } = fixture();
+  api.migrate = async () => { throw { status: 404, code: 'NOT_FOUND', message: 'API route was not found.' }; };
+  assert.deepEqual(await openProjectWorkflow('old', snapshot, api), { projectId: '', legacyHref: '/calculation?legacy=1&project=old' });
+});
+test('original-editor recovery resolves old and linked URLs only inside the verified snapshot', () => {
+  assert.equal(preservedProjectEditorHref('old', snapshot), '/calculation?legacy=1&project=old');
+  assert.equal(preservedProjectEditorHref('legacy-old', snapshot), '/calculation?legacy=1&project=old');
+  const linked = { ...snapshot, projects: [{ ...snapshot.projects![0], remoteId: 'canonical' }] };
+  assert.equal(preservedProjectEditorHref('canonical', linked), '/calculation?legacy=1&project=old');
+  assert.equal(preservedProjectEditorHref('canonical', snapshot), undefined);
+  assert.equal(preservedProjectEditorHref('legacy-other', snapshot), undefined);
+  assert.equal(preservedProjectEditorHref('legacy-old', null), undefined);
 });
 test('legacy URL resolves once and never overwrites an existing canonical revision', async () => {
   const { api, saved } = fixture(3);
@@ -56,6 +85,21 @@ test('an older server still opens the preserved local editor; permission failure
   const { api } = fixture();
   api.migrate = async () => { throw { status: 404, code: 'NOT_FOUND', message: 'API route was not found.' }; };
   assert.equal((await openProjectWorkflow('legacy-old', snapshot, api)).legacyHref, '/calculation?legacy=1&project=old');
+  assert.equal((await openProjectWorkflow('old', snapshot, api)).legacyHref, '/calculation?legacy=1&project=old');
+  const linked = { ...snapshot, projects: [{ ...snapshot.projects![0], remoteId: 'canonical' }] };
+  assert.equal((await openProjectWorkflow('canonical', linked, api)).legacyHref, '/calculation?legacy=1&project=old');
   api.migrate = async () => { throw Object.assign(new Error('Forbidden'), { status: 403 }); };
   await assert.rejects(openProjectWorkflow('legacy-old', snapshot, api), /Forbidden/);
+});
+test('a missing linked project opens the preserved local copy without recreating or rewriting research', async () => {
+  const { api, saved } = fixture();
+  const linked = { ...snapshot, projects: [{ ...snapshot.projects![0], remoteId: 'missing' }] };
+  const original = structuredClone(linked); let calls = 0;
+  api.migrate = async () => { calls += 1; throw Object.assign(new Error('Project was not found.'), { status: 404, code: 'PROJECT_NOT_FOUND' }); };
+  assert.deepEqual(await openProjectWorkflow('missing', linked, api), { projectId: '', legacyHref: '/calculation?legacy=1&project=old' });
+  assert.equal(calls, 1);
+  assert.equal(saved.length, 0);
+  assert.deepEqual(linked, original);
+  api.migrate = async () => { throw Object.assign(new Error('Stored workflow is corrupt.'), { status: 409, code: 'WORKFLOW_CORRUPT' }); };
+  await assert.rejects(openProjectWorkflow('missing', linked, api), /corrupt/);
 });

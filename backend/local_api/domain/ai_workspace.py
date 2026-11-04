@@ -8,11 +8,13 @@ import os
 import re
 import secrets
 import time
+from datetime import datetime
 from typing import Any
+from urllib.parse import urlsplit
 from backend.local_api.domain.phynite_core import ApiError, json_safe, owner_partition, public_item, response, storage_owner, utc_now
 MODES = {'chat', 'approval', 'full'}
 RESOURCE_KINDS = {'structure': 'STRUCTURE', 'calculation': 'CALCULATION', 'trajectory': 'MD_TRAJECTORY', 'simulation': 'MD_SIMULATION', 'analysis': 'MD_ANALYSIS', 'md_configuration': 'MD_CONFIGURATION', 'potential': 'MD_POTENTIAL', 'dataset': 'DATASET', 'figure': 'FIGURE'}
-ACTIONS = {'derive_structure', 'save_dft', 'run_dft', 'save_md', 'run_md', 'run_analysis', 'cancel_job', 'save_figure', 'export_figure', 'save_workflow', 'run_workflow', 'cancel_workflow'}
+ACTIONS = {'derive_structure', 'import_structure', 'save_dft', 'run_dft', 'save_md', 'run_md', 'run_analysis', 'cancel_job', 'save_figure', 'export_figure', 'save_workflow', 'run_workflow', 'cancel_workflow'}
 PATH = re.compile('^/v1/ai/conversations(?:/([a-z0-9_]+)(?:/(detail|settings|start|resume|renew|stop|context|read|canvas|step|message|finish|prepare|execute|actions|queue|steer|continue|events|control|attachment_read|attachment_provider|save_plan|complete_call|replay|references|artifacts|report)(?:/([a-z0-9_]+))?)?)?$')
 
 def router_models(provider: str='9router') -> list[str]:
@@ -96,6 +98,93 @@ def valid_id(value: Any) -> str:
     if not isinstance(value, str) or not re.fullmatch('[A-Za-z0-9_-]{1,200}', value):
         fail(400, 'A valid resource identifier is required.')
     return value
+
+def structure_geometry(atoms: Any, vectors: Any) -> None:
+    """Check exact supplied coordinates without normalizing scientific values."""
+    if not isinstance(atoms, list) or not 1 <= len(atoms) <= 50000 or not isinstance(vectors, list) or len(vectors) != 3:
+        fail(400, 'A structure needs valid atoms and a cell.')
+    if any(not isinstance(vector, list) or len(vector) != 3 or any(type(number) not in {int, float} or not math.isfinite(number) for number in vector) for vector in vectors):
+        fail(400, 'The structure cell must be finite.')
+    for atom in atoms:
+        if not isinstance(atom, dict) or not isinstance(atom.get('species'), str) or any(type(atom.get(axis)) not in {int, float} or not math.isfinite(atom[axis]) for axis in ('x', 'y', 'z')):
+            fail(400, 'Structure coordinates must be finite and preserve element identities.')
+
+def database_structure(document: Any) -> None:
+    """Verify reviewed database bytes and metadata locally; this never fetches a URL."""
+    fields = {'name', 'formula', 'atoms', 'lattice', 'periodic', 'source', 'externalId', 'sourceUrl', 'sourceData', 'provenance'}
+    if not isinstance(document, dict) or set(document) != fields:
+        fail(400, 'A database import needs the exact structure, source bytes and provenance.', 'AI_STRUCTURE_INVALID')
+    for field, maximum in (('name', 140), ('formula', 120), ('source', 80)):
+        value = document.get(field)
+        if not isinstance(value, str) or not value.strip() or len(value) > maximum:
+            fail(400, 'The database structure identity is invalid.', 'AI_STRUCTURE_INVALID')
+    lattice = document.get('lattice')
+    if not isinstance(lattice, dict):
+        fail(400, 'The imported structure needs a lattice.', 'AI_STRUCTURE_INVALID')
+    for field in ('a', 'b', 'c', 'alpha', 'beta', 'gamma'):
+        value = lattice.get(field)
+        if type(value) not in {int, float} or not math.isfinite(value) or value <= 0 or field in {'alpha', 'beta', 'gamma'} and value >= 180:
+            fail(400, 'The imported lattice parameters must be finite and physical.', 'AI_STRUCTURE_INVALID')
+    from backend.local_api.domain.workflow_structure import lattice_vectors
+    try:
+        vectors = lattice_vectors(lattice)
+    except (ApiError, ValueError, TypeError, KeyError, OverflowError):
+        fail(400, 'The imported structure cell is invalid.', 'AI_STRUCTURE_INVALID')
+    structure_geometry(document.get('atoms'), vectors)
+    a, b, c = vectors
+    determinant = a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0])
+    if not math.isfinite(determinant) or abs(determinant) < 1e-12:
+        fail(400, 'The imported structure cell must be nonsingular.', 'AI_STRUCTURE_INVALID')
+    periodic = document.get('periodic')
+    if not isinstance(periodic, list) or len(periodic) != 3 or any(type(axis) is not bool for axis in periodic) or 'periodic' in lattice and lattice['periodic'] != periodic:
+        fail(400, 'Confirm three matching periodic axes for the imported structure.', 'AI_STRUCTURE_INVALID')
+    from backend.local_api.domain.elements import ELEMENT_SYMBOLS
+    for atom in document['atoms']:
+        if atom['species'] not in ELEMENT_SYMBOLS:
+            fail(400, 'Database structures require explicit periodic-table elements.', 'AI_STRUCTURE_INVALID')
+    source, provenance = document.get('sourceData'), document.get('provenance')
+    provenance_fields = {'database', 'id', 'url', 'retrievedAt', 'sourceUpdatedAt', 'sourceFormat', 'sourceSha256', 'structureSha256', 'termsUrl'}
+    if not isinstance(source, dict) or set(source) != {'filename', 'format', 'content', 'sha256'} or not isinstance(provenance, dict) or set(provenance) != provenance_fields:
+        fail(400, 'Retain the database source and complete provenance.', 'AI_STRUCTURE_PROVENANCE_INVALID')
+    try:
+        source_bytes = source['content'].encode('utf-8') if isinstance(source.get('content'), str) else b''
+    except UnicodeError:
+        source_bytes = b''
+    if not 1 <= len(source_bytes) <= 3_000_000 or not isinstance(source.get('filename'), str) or not re.fullmatch(r'[A-Za-z0-9_.-]{1,200}', source['filename']) or source['filename'] in {'.', '..'}:
+        fail(400, 'The database source file is invalid or exceeds its limit.', 'AI_STRUCTURE_PROVENANCE_INVALID')
+    sha = hashlib.sha256(source_bytes).hexdigest()
+    # The TS database parser supplies the normalized geometry identity. Keep it
+    # verbatim; recomputing it here would reinterpret CIF/JSON floats differently.
+    if source.get('sha256') != sha or provenance.get('sourceSha256') != sha or not isinstance(provenance.get('structureSha256'), str) or not re.fullmatch('[a-f0-9]{64}', provenance['structureSha256']):
+        fail(409, 'The imported source checksum does not match its provenance.', 'AI_STRUCTURE_PROVENANCE_INVALID')
+    database, external_id = provenance.get('database'), provenance.get('id')
+    definitions = {'cod': (r'cod-[0-9]{7}', 'www.crystallography.net', lambda value: f'/cod/{value[4:]}.html', 'cif', '.cif'), 'materials-project': (r'mp-[0-9]+', 'materialsproject.org', lambda value: f'/materials/{value}', 'materials-project-json', '.json')}
+    if not isinstance(database, str) or database not in definitions or not isinstance(external_id, str):
+        fail(400, 'Choose a supported crystal database and source ID.', 'AI_STRUCTURE_PROVENANCE_INVALID')
+    pattern, hostname, source_path, source_format, extension = definitions[database]
+    if not re.fullmatch(pattern, external_id) or document.get('externalId') != external_id or source['format'] != source_format or provenance.get('sourceFormat') != source_format or not source['filename'].endswith(extension):
+        fail(400, 'The database ID or retained source format is inconsistent.', 'AI_STRUCTURE_PROVENANCE_INVALID')
+    if document.get('sourceUrl') != provenance.get('url'):
+        fail(400, 'The source URL must match the retained provenance.', 'AI_STRUCTURE_PROVENANCE_INVALID')
+    for field in ('url', 'termsUrl'):
+        value = provenance.get(field)
+        try:
+            parsed = urlsplit(value) if isinstance(value, str) and len(value) <= 1000 and not any(ord(character) < 33 for character in value) else None
+            valid = parsed and parsed.scheme == 'https' and parsed.hostname == hostname and parsed.port is None and not parsed.username and not parsed.password and not parsed.query and not parsed.fragment
+        except ValueError:
+            valid = False
+        if not valid or field == 'url' and parsed.path != source_path(external_id):
+            fail(400, 'Database source links must use the matching official host and ID.', 'AI_STRUCTURE_PROVENANCE_INVALID')
+    for field in ('retrievedAt', 'sourceUpdatedAt'):
+        value = provenance.get(field)
+        if field == 'sourceUpdatedAt' and value is None:
+            continue
+        try:
+            parsed_time = datetime.fromisoformat(value.replace('Z', '+00:00')) if isinstance(value, str) and len(value) <= 80 else None
+        except ValueError:
+            parsed_time = None
+        if parsed_time is None or field == 'retrievedAt' and parsed_time.tzinfo is None:
+            fail(400, 'Retain a valid source date and the time zone of retrieval.', 'AI_STRUCTURE_PROVENANCE_INVALID')
 
 class AiWorkspace:
 
@@ -322,6 +411,9 @@ class AiWorkspace:
         after = {'operation': kind, 'name': data.get('name'), 'computeTarget': 'personal' if kind.startswith('run_') else None}
         if kind == 'save_workflow':
             after['changes'] = [{'nodeId': c['nodeId'], 'name': (c.get('after') or c.get('before') or {}).get('name'), 'operation': 'add' if c.get('before') is None else 'remove' if c.get('after') is None else 'update', 'before': c.get('before'), 'after': c.get('after')} for c in data.get('changes', [])]
+        elif kind == 'import_structure':
+            structure = data['node']['configuration']['structure']
+            after['structure'] = {'nodeId': data['node']['id'], 'name': structure['name'], 'atomCount': len(structure['atoms']), 'lattice': structure['lattice'], 'provenance': structure['provenance']}
         elif kind in {'save_dft', 'run_dft'}:
             current = next((c for c in context['workspace']['configurations'] if c.get('id') == data.get('configurationId')), None)
             before['settings'] = current.get('draft') if current else None
@@ -355,6 +447,22 @@ class AiWorkspace:
         project = self.scope(owner, conversation['projectKey'])
         if any((key in data for key in ('computeTarget', 'cloudMode', 'quoteId', 'url', 'path', 'ownerId'))):
             fail(400, 'AI actions cannot override ownership, network destinations or compute targets.')
+        if kind == 'import_structure':
+            if not project or project['kind'] != 'canvas':
+                fail(400, 'Select a Canvas project to import a database structure.', 'AI_PROJECT_REQUIRED')
+            if set(data) != {'baseRevision', 'node'}:
+                fail(400, 'A database import can only add its reviewed structure node.', 'AI_STRUCTURE_INVALID')
+            from backend.local_api.domain.project_workflow import ProjectWorkflowApi, validate_graph
+            envelope = ProjectWorkflowApi(self.api).load(owner, project['id'])
+            if type(data.get('baseRevision')) is not int or data['baseRevision'] != envelope['revision']:
+                fail(409, 'The Canvas workflow changed. Read its current revision.', 'AI_CONTEXT_CHANGED')
+            node = data.get('node')
+            if not isinstance(node, dict) or set(node) != {'id', 'kind', 'name', 'position', 'configuration', 'resources'} or node.get('kind') != 'structure' or node.get('resources') != [] or not isinstance(node.get('configuration'), dict) or set(node['configuration']) != {'structure'}:
+                fail(400, 'A database import needs one unbound crystal-structure node.', 'AI_STRUCTURE_INVALID')
+            database_structure(node['configuration']['structure'])
+            graph = copy.deepcopy(envelope['workflow'])
+            graph['nodes'].append(node)
+            validate_graph(graph, project['id'])
         if kind in {'save_workflow', 'run_workflow', 'cancel_workflow'}:
             if project['kind'] != 'canvas':
                 fail(400, 'Select a Canvas project for this action.')
@@ -412,14 +520,7 @@ class AiWorkspace:
                 fail(400, 'Exact Quantum ESPRESSO input is required.')
         if kind == 'derive_structure':
             material = data.get('material') or {}
-            atoms, vectors = (material.get('atoms'), material.get('cellVectors'))
-            if not isinstance(atoms, list) or not 1 <= len(atoms) <= 50000 or (not isinstance(vectors, list)) or (len(vectors) != 3):
-                fail(400, 'A derived structure needs valid atoms and a cell.')
-            if any((not isinstance(v, list) or len(v) != 3 or any((type(n) not in {int, float} or not math.isfinite(n) for n in v)) for v in vectors)):
-                fail(400, 'The structure cell must be finite.')
-            for atom in atoms:
-                if not isinstance(atom, dict) or not isinstance(atom.get('species'), str) or any((type(atom.get(axis)) not in {int, float} or not math.isfinite(atom[axis]) for axis in ('x', 'y', 'z'))):
-                    fail(400, 'Derived coordinates must be finite and preserve element identities.')
+            structure_geometry(material.get('atoms'), material.get('cellVectors'))
         if kind == 'save_md':
             workflow = self.api.normalize_md_workflow_for_user(owner, 'ai-save-configuration', data.get('workflow'))
             self.api.require_md_potential_scope(owner, project.get('remoteId') or '', workflow)
@@ -490,6 +591,23 @@ class AiWorkspace:
         kind = action['kind']
         project = self.scope(owner, conversation['projectKey'])
         now = utc_now()
+        if kind == 'import_structure':
+            from backend.local_api.domain.project_workflow import ProjectWorkflowApi
+            service = ProjectWorkflowApi(self.api)
+            # Keep resource creation and graph binding in the local transaction.
+            # A changed revision must not leave a visible, unattached import.
+            with self.services.table.atomic():
+                envelope = service.load(owner, project['id'])
+                if envelope['revision'] != data['baseRevision']:
+                    fail(409, 'The Canvas workflow changed after approval. Prepare the import again.', 'AI_CONTEXT_CHANGED')
+                node = copy.deepcopy(data['node'])
+                document = node['configuration']['structure']
+                structure = body(self.api.create_structure(owner, project['id'], document))['structure']
+                node['resources'] = [{'kind': 'structure', 'id': structure['id'], 'sha256': structure['sha256']}]
+                graph = copy.deepcopy(envelope['workflow'])
+                graph['nodes'].append(node)
+                saved = service.save(owner, project['id'], {'workflow': graph, 'baseRevision': data['baseRevision']})
+            return {'saved': True, 'revision': saved['revision'], 'nodeId': node['id'], 'structureId': structure['id'], 'provenance': document['provenance']}
         if kind in {'save_workflow', 'run_workflow', 'cancel_workflow'}:
             from backend.local_api.domain.project_workflow import ProjectWorkflowApi
             service = ProjectWorkflowApi(self.api)

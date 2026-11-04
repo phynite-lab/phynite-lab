@@ -210,7 +210,7 @@ Real local demo workspace. Start with New project; Cloud login is optional.
 
 The local launcher opens the workspace on your computer.
 
-The current published package is phynite-lab@0.1.10. Node.js version >=22.13.0 is required. npm installs the launcher and the matching optional native application package for the host OS and CPU.
+The current published package is phynite-lab@0.1.11. Node.js version >=22.13.0 is required. npm installs the launcher and the matching optional native application package for the host OS and CPU.
 
 Keep npm optional dependencies enabled. If a package manager was configured with --omit=optional or the selected platform package was removed, the launcher reports a missing runtime instead of silently using a development fixture.
 
@@ -582,6 +582,14 @@ A figure references immutable numerical datasets. Replacing data in a figure is 
 
 <a id="docs-project-4"></a>
 
+### Open an older project
+
+Older local project links are recognized and migrated into the current Canvas only when the destination has no saved revision. Exact legacy configurations and run history are retained; an existing Canvas revision is not overwritten.
+
+If the workflow service or linked project is unavailable, a verified local copy can open in the original editor. Other opening failures keep their error and may offer Open original editor when a matching local copy exists. Do not clear browser data as a troubleshooting step; export a backup of important research before further recovery.
+
+<a id="docs-project-5"></a>
+
 ### Related topics
 
 - [Import and inspect a structure](<#structure>)
@@ -623,6 +631,24 @@ Inspect species, coordinates, and the simulation cell before running.
 
 <a id="docs-structure-3"></a>
 
+### Search a crystal database
+
+Open Crystal database in a project to search public structure records. Crystallography Open Database (COD) works without an API key; Materials Project requires MP_API_KEY in the server environment. Search uses the provider shown in the browser, and a provider failure stays visible.
+
+Select and import the intended record, then inspect its formula, lattice, atom count, occupancies, and source identity. Database structures are starting models, not proof that a phase, magnetic state, or calculation setup is appropriate. Unreported numerical properties remain unavailable.
+
+1. Choose the database and enter a chemical formula, element list, material name, or supported source ID.
+2. Review the results and import the selected structure into the current project.
+3. For an AI-assisted import, ask Phynite AI to search the database and use a specific record. Search is read-only; applying an import follows the conversation permission mode and its action review.
+4. Read the imported source identity and checksum. Check the geometry and pseudopotentials before connecting the structure to a calculation.
+
+> Database access needs an internet connection. Credentials for Materials Project stay in the server environment; never paste an API key into chat or include it in a project export.
+
+- [Crystallography Open Database](<https://www.crystallography.net/cod/>)
+- [Materials Project documentation](<https://docs.materialsproject.org/>)
+
+<a id="docs-structure-4"></a>
+
 ### Fractional and Cartesian coordinates
 
 Fractional coordinates locate an atom by a combination of the cell vectors: r = f1 a + f2 b + f3 c. Cartesian coordinates specify x, y, and z in a length unit. A value of 0.5 in a fractional field is half a lattice vector, not half an angstrom.
@@ -631,7 +657,7 @@ For tilted cells, cell length and perpendicular vacuum thickness are different. 
 
 > Neighbor lines are distance-based coordination guides, not calculated chemical bond orders. Their cutoff and display cap can hide or include neighbors without changing the scientific structure.
 
-<a id="docs-structure-4"></a>
+<a id="docs-structure-5"></a>
 
 ### Related topics
 
@@ -2448,7 +2474,7 @@ phynite-lab --no-open --port 3000 --data-dir ~/.phynite-lab
 
 ### Release identity, license, and update verification
 
-The documentation release metadata currently resolves phynite-lab@0.1.10. The first command reports your installed launcher; the second reads npm registry metadata. A newer registry version does not update an already running process.
+The documentation release metadata currently resolves phynite-lab@0.1.11. The first command reports your installed launcher; the second reads npm registry metadata. A newer registry version does not update an already running process.
 
 Open Source code and license in the app for its corresponding source. A published distribution records its exact public source commit and source archive; release assets provide package checksums and qualification evidence. Phynite-owned local code is AGPL-3.0-only; third-party solvers and potential files retain their own licenses.
 

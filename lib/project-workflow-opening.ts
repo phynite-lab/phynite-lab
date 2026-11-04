@@ -11,6 +11,13 @@ type OpeningApi = {
   save: (id: string, workflow: ProjectWorkflow, revision: number) => Promise<WorkflowEnvelope>;
 };
 
+/** Only expose the preserved editor for a project in an owner-verified snapshot. */
+export function preservedProjectEditorHref(requestedId: string, snapshot: StoredWorkspaceSnapshot | null): string | undefined {
+  const localId = requestedId.startsWith('legacy-') ? requestedId.slice(7) : requestedId;
+  const local = snapshot?.projects?.find(project => project.id === localId || project.remoteId === requestedId);
+  return local ? `/calculation?legacy=1&project=${encodeURIComponent(local.id)}` : undefined;
+}
+
 /** The caller only supplies a snapshot after its account owner has been verified. */
 export async function openProjectWorkflow(requestedId: string, snapshot: StoredWorkspaceSnapshot | null, api: OpeningApi): Promise<{ projectId: string; legacyHref?: string }> {
   const legacyRoute = requestedId.startsWith('legacy-');
@@ -24,8 +31,13 @@ export async function openProjectWorkflow(requestedId: string, snapshot: StoredW
     if (legacyRoute) throw new Error('The original project could not be found. Open Home and try again.');
     return { projectId: requestedId };
   }
+  // Projects created by the original local editor were addressed by their
+  // local id. Treat a direct link to one of those ids as a legacy opening,
+  // rather than sending that id as the canonical remote id. This keeps old
+  // project links migratable after the workflow routes were introduced.
+  const openingLegacy = legacyRoute || (local.id === requestedId && !local.remoteId);
   try {
-    const { project } = await api.migrate({ legacyId: local.id, remoteId: local.remoteId ?? (legacyRoute ? undefined : requestedId), name: local.name, description: local.description });
+    const { project } = await api.migrate({ legacyId: local.id, remoteId: local.remoteId ?? (openingLegacy ? undefined : requestedId), name: local.name, description: local.description });
     const envelope = await api.get(project.id);
     if (envelope.revision === 0 && snapshot) {
       const migrated = migrateWorkspaceProject(project.id, local.id, snapshot);
@@ -41,9 +53,12 @@ export async function openProjectWorkflow(requestedId: string, snapshot: StoredW
     }
     return { projectId: project.id };
   } catch (failure) {
-    if (!isWorkflowServiceUnavailable(failure)) throw failure;
-    return local.remoteId || !legacyRoute
-      ? { projectId: local.remoteId ?? requestedId }
-      : { projectId: '', legacyHref: `/calculation?legacy=1&project=${encodeURIComponent(local.id)}` };
+    // A preserved local copy remains usable when its linked project no longer
+    // exists or the server predates workflow routes. Do not recreate missing
+    // remote research or hide permission, corruption, or save failures.
+    const missingProject = failure && typeof failure === 'object' && 'status' in failure && failure.status === 404
+      && 'code' in failure && failure.code === 'PROJECT_NOT_FOUND';
+    if (!isWorkflowServiceUnavailable(failure) && !missingProject) throw failure;
+    return { projectId: '', legacyHref: `/calculation?legacy=1&project=${encodeURIComponent(local.id)}` };
   }
 }
