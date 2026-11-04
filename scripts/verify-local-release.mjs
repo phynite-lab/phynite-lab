@@ -18,6 +18,7 @@ import { validateBundledNoticeIndex, validateBundledNoticeReport } from '../pack
 export const RELEASE_TARGETS = Object.freeze([...DISTRIBUTION_TARGETS]);
 export const SMOKE_CHECKS = Object.freeze(['clean-install', 'native-core', 'loopback-security', 'local-workspace', 'ui-desktop-mobile', 'persistence-restart', 'project-import-export', 'local-ai-provider-connections', 'optional-cloud-no-auto-upload']);
 export const SCIENTIFIC_CHECKS = Object.freeze(['runtime-install', 'qe-reference', 'app-qe-queue-reference', 'app-queued-cancel-restart', 'md-guided-reference', 'md-manual-reference', 'analysis-reference', 'sandbox-probe', 'sandbox-denials', 'cancel-resource-recovery', 'installer-failure-recovery']);
+const SMOKE_CHECK_ALIASES = Object.freeze({ 'local-ai-gateway': Object.freeze(['local-ai-provider-connections']) });
 const HASH = /^[a-f0-9]{64}$/;
 const COMMIT = /^[a-f0-9]{40}$/;
 const VERSION = /^\d+\.\d+\.\d+$/;
@@ -247,7 +248,8 @@ async function verifyEvidence(root, item, kind, release, packages) {
   verifyEnvironment(document, item.target);
   const required = kind === 'smoke' ? SMOKE_CHECKS : SCIENTIFIC_CHECKS;
   const ids = kind === 'smoke' ? document.checkIds : document.checks?.map(check => check.id);
-  if (!Array.isArray(ids) || new Set(ids).size !== ids.length || required.some(id => !ids.includes(id))) fail(`${item.target}: incomplete ${kind} acceptance checks.`);
+  const includesRequired = id => ids.includes(id) || kind === 'smoke' && (SMOKE_CHECK_ALIASES[id] ?? []).some(alias => ids.includes(alias));
+  if (!Array.isArray(ids) || new Set(ids).size !== ids.length || required.some(id => !includesRequired(id))) fail(`${item.target}: incomplete ${kind} acceptance checks.`);
   if (kind === 'smoke') {
     if (!Array.isArray(document.artifacts) || !document.artifacts.length) fail(`${item.target}: smoke evidence must include hashed screenshots/logs.`);
     for (const attachment of document.artifacts) await regularFile(dirname(path), attachment, `${item.target} smoke artifact`);

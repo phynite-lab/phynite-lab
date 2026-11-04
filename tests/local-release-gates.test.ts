@@ -217,6 +217,16 @@ test('wrong platform, architecture and Node baseline cannot qualify macOS', asyn
   }
 });
 
+test('legacy smoke local AI check identifier remains accepted', async () => {
+  const root = await fixture();
+  try {
+    await editReport(root, 'darwin-arm64', 'smoke', value => {
+      value.checkIds = value.checkIds.map((id: string) => id === 'local-ai-gateway' ? 'local-ai-provider-connections' : id);
+    });
+    await verifyLocalRelease(join(root, 'release.json'));
+  } finally { await rm(root, { recursive: true }); }
+});
+
 test('handwritten successful check names without attached output are insufficient', async () => {
   const root = await fixture();
   try {
