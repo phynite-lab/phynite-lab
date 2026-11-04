@@ -16,7 +16,7 @@ export function localComputeGuide(locale: Locale): GuideSection {
     blocks: [
       {
         title: t('Choose the execution path', 'Pilih jalur eksekusi'),
-        visuals: [{ kind: 'diagram', src: '/brand/phynite-mark-light.png', alt: t('Phynite compute path mark', 'Logo jalur compute Phynite'), caption: t('Choose local, hosted worker, or Cloud compute explicitly for each run.', 'Pilih compute lokal, worker hosted, atau Cloud secara eksplisit untuk setiap run.') }],
+        visuals: [{ kind: 'screenshot', src: '/docs/guide/compute-runtime-setup-desktop-dark.png', alt: t('Compute runtime setup page', 'Halaman setup runtime compute'), caption: t('Install and verify DFT or MD runtimes before choosing Your computer.', 'Instal dan verifikasi runtime DFT atau MD sebelum memilih Komputer Anda.') }, { kind: 'diagram', src: '/brand/phynite-mark-light.png', alt: t('Phynite compute path mark', 'Logo jalur compute Phynite'), caption: t('Choose local, hosted worker, or Cloud compute explicitly for each run.', 'Pilih compute lokal, worker hosted, atau Cloud secara eksplisit untuk setiap run.') }],
         table: {
           headings: [t('Path', 'Jalur'), t('Needs', 'Kebutuhan'), t('Data behavior', 'Perilaku data')],
           rows: [

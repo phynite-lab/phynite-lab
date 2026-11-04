@@ -4,8 +4,8 @@ This guide describes the implemented interface. Use it alongside solver document
 
 - [From structure to a paper figure](#workflow)
 - [Tutorial: a first silicon calculation](#quickstart-silicon)
-- [Tutorial: a first local MD simulation](#quickstart-md)
 - [Projects, structures, and calculation records](#project)
+- [Install, update, and diagnose the npm app](#npm-local-app)
 - [Import and inspect a structure](#structure)
 - [Edit atoms and cell geometry](#edit)
 - [Periodic directions, vacuum, and dimensionality](#periodicity)
@@ -14,6 +14,15 @@ This guide describes the implemented interface. Use it alongside solver document
 - [Configure and validate Quantum ESPRESSO](#configure)
 - [Procedure: design a convergence study](#convergence)
 - [Execution, resources, and cancellation](#execution)
+- [Tutorial: a first local MD simulation](#quickstart-md)
+- [Local npm compute and hosted workers](#local-compute)
+- [AI provider connections on your computer](#ai-providers)
+- [Phynite Cloud, Cloud Sync, and online compute](#cloud-sync)
+- [Autosave, storage, and multiple devices](#saving)
+- [Manage plans, billing, and resource usage](#billing)
+- [Storage, export, backup, and large QE state](#storage-backup)
+- [Settings, preferences, profile, and usage](#settings-reference)
+- [Appearance, language, and accessibility](#language)
 - [Open and interpret calculation results](#results)
 - [Compose a figure](#figures)
 - [Energy, k-path, DOS, and fair comparison](#alignment)
@@ -22,20 +31,11 @@ This guide describes the implemented interface. Use it alongside solver document
 - [PDOS, unfolding, and insets](#advanced)
 - [Export and preserve a reproducible figure](#export)
 - [Procedure: prepare a publication figure](#publication)
-- [Autosave, storage, and multiple devices](#saving)
-- [Settings, accounts, profile, and usage](#account)
-- [Manage plans, billing, and resource usage](#billing)
-- [Local npm compute and hosted workers](#local-compute)
-- [Install, update, and diagnose the npm app](#npm-local-app)
-- [AI provider connections on your computer](#ai-providers)
-- [Phynite Cloud, Cloud Sync, and online compute](#cloud-sync)
-- [Storage, export, backup, and large QE state](#storage-backup)
-- [Settings, preferences, profile, and usage](#settings-reference)
-- [Appearance, language, and accessibility](#language)
-- [Keyboard and pointer shortcuts](#shortcuts)
-- [Reference: calculation fields and units](#field-reference)
 - [Troubleshooting and recovery](#troubleshooting)
 - [Troubleshooting: locate a failed workflow stage](#diagnostics)
+- [Keyboard and pointer shortcuts](#shortcuts)
+- [Reference: calculation fields and units](#field-reference)
+- [Settings, accounts, profile, and usage](#account)
 - [Availability and planned workflows](#roadmap)
 - [Units, terms, and scientific references](#reference)
 
@@ -82,7 +82,6 @@ A project is the container for a material study. It connects structures, calcula
 
 - [Projects, structures, and calculation records](#project)
 - [Tutorial: a first silicon calculation](#quickstart-silicon)
-- [Tutorial: a first local MD simulation](#quickstart-md)
 
 <a id="quickstart-silicon"></a>
 
@@ -143,47 +142,6 @@ There is no universal target energy for this tutorial: the value depends on the 
 
 - [From structure to a paper figure](#workflow)
 - [Projects, structures, and calculation records](#project)
-- [Tutorial: a first local MD simulation](#quickstart-md)
-
-<a id="quickstart-md"></a>
-
-## Tutorial: a first local MD simulation
-
-Use a small argon system to learn the structure-to-settings-to-execution-to-result path in MD Lab. This is a workflow exercise, not a validated physical study.
-
-### Prepare your computer and structure
-
-1. In the npm app, install MD/analysis in Settings → Compute and keep the CLI running; no Phynite login is required. The hosted website instead needs a signed-in account and a connected personal worker.
-2. Open MD Lab and create a project named Argon equilibration.
-3. Import or build a small argon structure with a physically suitable periodic box. Check atom count, element identity, coordinates, box lengths, units, and atomic masses. An XYZ with Ar species or a LAMMPS data file with Masses works; a type-only dump has no mass for dynamics.
-4. Retain the original structure file and record its source. A visual repeat does not add atoms to the simulation.
-
-### Review the simulation
-
-1. Open the configuration drawer and choose Guided mode. Select the built-in Lennard-Jones model for Ar; do not use Generic parameters without recording their source.
-2. Choose a short equilibration recipe. Inspect temperature, timestep, boundary conditions, random seed, unit system, potential parameters, and output interval.
-3. Run browser preflight and read the generated LAMMPS input. Confirm it uses the intended structure and potential.
-
-### Execute once and inspect
-
-1. Select Your computer and submit one run. Follow Queued and Running in the job record and check the worker connection.
-2. If the worker is offline, reconnect it and wait for the queued job; do not submit a duplicate.
-3. After completion, open the log, thermo data, trajectory, and retained input from the project. Check for LAMMPS errors and inspect whether temperature and energy behavior support the intended equilibration.
-4. Completed means the process finished; it does not validate the force field, timestep, equilibration, or scientific conclusion.
-
-### Failure and recovery
-
-- For Failed, inspect the first meaningful LAMMPS error and saved input before changing settings.
-- For Cancelled, review the partial log and submit a new run only after the previous job reaches a final state.
-- For a missing trajectory, check output settings and retained artifacts. An empty viewer is not a physical result.
-
-> There is no universal target energy or temperature trace. Record the actual input, potential identity, run ID, and output before comparing systems.
-
-### Related topics
-
-- [From structure to a paper figure](#workflow)
-- [Projects, structures, and calculation records](#project)
-- [Tutorial: a first silicon calculation](#quickstart-silicon)
 
 <a id="project"></a>
 
@@ -218,7 +176,91 @@ A figure references immutable numerical datasets. Replacing data in a figure is 
 
 - [From structure to a paper figure](#workflow)
 - [Tutorial: a first silicon calculation](#quickstart-silicon)
-- [Tutorial: a first local MD simulation](#quickstart-md)
+
+<a id="npm-local-app"></a>
+
+## Install, update, and diagnose the npm app
+
+The published npm app is the local-first path for running the workspace, native DFT, MD, and analysis on your computer. It does not require a Phynite login, Docker, a source checkout, or global Python.
+
+### Install and start
+
+<figure class="docs-visual docs-visual-screenshot">
+![Phynite Lab local workspace on first launch](https://phynitelab.com/docs/guide/onboarding-workspace-desktop-dark.png)
+<figcaption>The local workspace opens without a Cloud login.</figcaption>
+</figure>
+
+<figure class="docs-visual docs-visual-icon">
+![Phynite Lab mark](https://phynitelab.com/brand/phynite-mark-dark.png)
+<figcaption>The local launcher opens the workspace on your computer.</figcaption>
+</figure>
+
+The current published package is phynite-lab@0.1.10. Node.js version >=22.13.0 is required. npm installs the launcher and the matching optional native application package for the host OS and CPU.
+
+Keep npm optional dependencies enabled. If a package manager was configured with --omit=optional or the selected platform package was removed, the launcher reports a missing runtime instead of silently using a development fixture.
+
+The launcher binds services to loopback, opens a browser, and stores the local workspace under ~/.phynite-lab. User projects and runtimes remain outside the npm installation directory.
+
+```text
+npm install -g phynite-lab@latest
+phynite-lab
+```
+
+### Supported platforms
+
+| Platform | Package/runtime | Notes |
+| --- | --- | --- |
+| macOS Apple Silicon | darwin-arm64 | Native arm64 package. |
+| Linux ARM64 | linux-arm64 | Requires glibc >=2.39 and verified user namespaces. |
+| Linux x64 / Omarchy / Arch | linux-x64 | Requires glibc >=2.39 and verified user namespaces. |
+| Windows | WSL2 linux-x64 | Run npm and phynite-lab inside WSL2; a Windows-native solver is not installed. |
+
+> The package declares darwin/linux and arm64/x64 targets. A platform is supported only when its native runtime, isolation probe, and scientific checks pass; package availability alone is not a qualification.
+
+### Launcher commands and workspace identity
+
+The default command starts the service in the foreground. --no-open prints the loopback URL without opening a browser. --port requests a port; if it is already used, the launcher selects an available loopback port and reports the actual origin. --data-dir gives each workspace its own database, projects, runtimes, and logs.
+
+status reports the healthy instance for that data directory. stop asks the instance owned by that workspace to shut down cleanly. doctor checks distribution identity, service readiness, data paths, and startup diagnostics. Launching the same workspace again reuses its healthy instance instead of starting a duplicate.
+
+```text
+phynite-lab --no-open --port 3000 --data-dir /path/to/workspace
+phynite-lab status --data-dir /path/to/workspace
+phynite-lab doctor --data-dir /path/to/workspace
+phynite-lab stop --data-dir /path/to/workspace
+```
+
+### Update without losing projects
+
+The local app may show an update notice after checking https://registry.npmjs.org/phynite-lab/latest. A successful check is cached for up to six hours; an unavailable or invalid response is retried after about five minutes. The check sends no project data or credentials, does not install anything automatically, and never blocks local work while offline.
+
+1. Finish or cancel active jobs and stop the current instance.
+2. Run the npm update command from the same Node installation that owns the global package.
+3. Start the app again and open Settings → Compute to confirm the runtime capabilities remain available.
+4. If startup fails, run phynite-lab doctor and inspect the logs in the selected data directory; reinstalling the package does not remove ~/.phynite-lab.
+
+```text
+npm install -g phynite-lab@latest
+phynite-lab --version
+```
+
+### Common npm startup fixes
+
+| Symptom | Check |
+| --- | --- |
+| Node version rejected | Run node --version and install a Node.js version satisfying >=22.13.0. |
+| Missing runtime package | Reinstall with optional dependencies enabled; check the package target reported by doctor. |
+| Port already used | Use --no-open, follow the printed port, or choose --port with a free value. |
+| Projects are missing | Use the original --data-dir; each directory is an independent workspace. |
+| Startup service stopped | Run status and doctor, then read logs/<service>.log in the data directory. |
+| Update is unavailable | Continue offline, check npm/network later, and retry; the notice is informational. |
+
+- [Local distribution reference](#local-compute)
+- [Troubleshooting and recovery](#troubleshooting)
+
+### Related topics
+
+
 
 <a id="structure"></a>
 
@@ -552,6 +594,612 @@ Native jobs follow the local scheduler capacity configured in Settings → Compu
 - [Choose and connect calculations](#calculation)
 - [Configure and validate Quantum ESPRESSO](#configure)
 - [Procedure: design a convergence study](#convergence)
+
+<a id="quickstart-md"></a>
+
+## Tutorial: a first local MD simulation
+
+Use a small argon system to learn the structure-to-settings-to-execution-to-result path in MD Lab. This is a workflow exercise, not a validated physical study.
+
+### Prepare your computer and structure
+
+1. In the npm app, install MD/analysis in Settings → Compute and keep the CLI running; no Phynite login is required. The hosted website instead needs a signed-in account and a connected personal worker.
+2. Open MD Lab and create a project named Argon equilibration.
+3. Import or build a small argon structure with a physically suitable periodic box. Check atom count, element identity, coordinates, box lengths, units, and atomic masses. An XYZ with Ar species or a LAMMPS data file with Masses works; a type-only dump has no mass for dynamics.
+4. Retain the original structure file and record its source. A visual repeat does not add atoms to the simulation.
+
+### Review the simulation
+
+1. Open the configuration drawer and choose Guided mode. Select the built-in Lennard-Jones model for Ar; do not use Generic parameters without recording their source.
+2. Choose a short equilibration recipe. Inspect temperature, timestep, boundary conditions, random seed, unit system, potential parameters, and output interval.
+3. Run browser preflight and read the generated LAMMPS input. Confirm it uses the intended structure and potential.
+
+### Execute once and inspect
+
+1. Select Your computer and submit one run. Follow Queued and Running in the job record and check the worker connection.
+2. If the worker is offline, reconnect it and wait for the queued job; do not submit a duplicate.
+3. After completion, open the log, thermo data, trajectory, and retained input from the project. Check for LAMMPS errors and inspect whether temperature and energy behavior support the intended equilibration.
+4. Completed means the process finished; it does not validate the force field, timestep, equilibration, or scientific conclusion.
+
+### Failure and recovery
+
+- For Failed, inspect the first meaningful LAMMPS error and saved input before changing settings.
+- For Cancelled, review the partial log and submit a new run only after the previous job reaches a final state.
+- For a missing trajectory, check output settings and retained artifacts. An empty viewer is not a physical result.
+
+> There is no universal target energy or temperature trace. Record the actual input, potential identity, run ID, and output before comparing systems.
+
+### Related topics
+
+
+
+<a id="local-compute"></a>
+
+## Local npm compute and hosted workers
+
+The local npm app runs DFT, MD, and analysis through installed native runtimes without Phynite login or Docker. Its setup lives in Settings → Compute. The hosted website uses a separate paired-worker flow, described later in this chapter; it is not a fallback runtime for the npm app.
+
+### Choose the execution path
+
+<figure class="docs-visual docs-visual-screenshot">
+![Compute runtime setup page](https://phynitelab.com/docs/guide/compute-runtime-setup-desktop-dark.png)
+<figcaption>Install and verify DFT or MD runtimes before choosing Your computer.</figcaption>
+</figure>
+
+<figure class="docs-visual docs-visual-diagram">
+![Phynite compute path mark](https://phynitelab.com/brand/phynite-mark-light.png)
+<figcaption>Choose local, hosted worker, or Cloud compute explicitly for each run.</figcaption>
+</figure>
+
+| Path | Needs | Data behavior |
+| --- | --- | --- |
+| Your computer / npm app | Node.js, native runtime, potentials, and isolation probe. | Projects and results stay in the selected local data directory. |
+| Hosted personal worker | Cloud login, paired worker, and the hosted worker requirements. | Submitted project/job artifacts follow the hosted account and retention rules. |
+| Phynite Cloud compute | Cloud account, supported catalog, quota, and transfer review. | Only the reviewed job inputs are transferred; this does not enable Cloud Sync. |
+
+### Native app: install and open
+
+Use Node.js 22.13 or newer. The launcher opens a browser on loopback and stores the database, projects, artifacts, runtimes, and logs under ~/.phynite-lab. A complete published package includes the native core; no source checkout, global Python, Docker, AWS CLI, or Phynite account is required.
+
+Open Settings → Compute. Inspect the detected platform, CPU/RAM, installed solver capabilities, and isolation probe. Choose DFT, MD/analysis, or both. Internet is needed for initial verified downloads; local scientific execution can work offline once its runtime and required potentials are present.
+
+Downloads use pinned versions and checksums, staging, and atomic activation. A failed update retains the previous runtime. Select potential files according to their license, exact identity, checksum, and element mapping.
+
+```text
+npm install -g phynite-lab
+phynite-lab
+```
+
+- [Open Compute](/account/compute)
+
+### Native app: resources, jobs, and recovery
+
+1. Set default CPU, RAM budget, and parallel jobs in Compute. Defaults start at one job, approximately half the logical cores, and at most half physical RAM. New defaults affect future jobs; an explicit job override does not resize an active job.
+2. Begin with a small reference calculation. Select Your computer and inspect Log through the final state. Verify actual solver success, convergence, inputs, provenance, and numerical output before interpreting the result.
+3. Guided and manual LAMMPS preserve the chosen physical settings. Manual input also requires a successful native sandbox probe. If isolation is unavailable, follow the shown remediation; manual execution stays blocked.
+4. Keep the CLI running and the computer awake. Cancel in the job log and wait for the final state. After a crash or restart, inspect interrupted jobs; they are not automatically rerun. A monitored RAM budget is not advertised as an operating-system hard limit.
+
+```text
+phynite-lab status
+phynite-lab doctor
+phynite-lab stop
+```
+
+### First local calculation: the shortest safe path
+
+1. Install and start the app, then open Settings → Compute.
+2. Install DFT or MD/analysis, or both. Wait for the pinned download, checksum verification, and atomic activation to finish.
+3. Confirm the detected solver capability and a successful native isolation probe. Manual LAMMPS stays unavailable when the probe fails.
+4. Install the pseudopotential or potential files required by the selected elements and record their exact identity and checksum.
+5. In the run review choose Your computer, submit a small reference calculation, and wait for a final state.
+6. Read the queue and execution status, the first solver error when one exists, the convergence markers, provenance, checksums, and numerical result before scaling up.
+
+- [Compute setup](/account/compute)
+- [Calculation diagnostics](#diagnostics)
+
+### Native app: data, preferences, and optional connections
+
+SQLite and filesystem data are the primary local copy. Use Settings → Storage to export/import project archives, and keep independent backups. Browser storage holds recoverable drafts and device preferences, not the full native workspace.
+
+Appearance, language, keyboard shortcuts, and local notification choices stay in this browser. AI provider connections use the official Codex or Antigravity CLI; each provider has one CLI-managed connection and the local app has no gateway setup. Account manages Phynite Cloud separately; login does not upload projects. Cloud Sync is enabled per project, and cloud compute reviews its own input transfer without enabling sync.
+
+Billing opens the Phynite website. Finish or cancel jobs, stop the app, update with npm install -g phynite-lab@latest, then reopen. Updating the package preserves data outside its installation directory.
+
+### Local storage and large Quantum ESPRESSO state
+
+The default local workspace is ~/.phynite-lab; use phynite-lab --data-dir /path/to/workspace when another disk is appropriate. SQLite stores metadata and the filesystem stores project artifacts, runtime installations, and logs. The Storage page measures inventoried project artifacts only; database metadata, solver/runtime installations, logs, and unrelated files on the disk are outside that number.
+
+Local mode has no fixed 10 GiB quota and no automatic seven-day cleanup. Its practical limit is the free space on the selected disk; runtime installers and logs consume that disk even when excluded from the inventory. Export/import project archives and an independent backup are required for important work.
+
+Quantum ESPRESSO disk_io settings and intermediate state can be much larger than the final output. Wavefunction and tmp data may be required for bands, DOS, phonon, projected workflows, or external interoperability. Do not delete intermediate state until every downstream workflow is finished; keep the exact input, pseudopotential identity/checksum, provenance, and state artifacts together.
+
+Wannier90 is an external/manual workflow unless a separately documented native integration is available. Export the required Quantum ESPRESSO state and follow the official Wannier90 documentation; Phynite does not claim to run that tool natively here.
+
+| Counted by local Storage | Not counted by local Storage |
+| --- | --- |
+| Inventoried project inputs, structures, configurations, results, trajectories, and exported artifacts. | SQLite metadata, solver/runtime installation files, logs, browser cache, and unrelated files on the disk. |
+| Completed artifacts retained in the project, including large QE state when it is recorded there. | Free space used by the operating system or by another application. |
+
+- [Storage settings](/account/storage)
+- [Quantum ESPRESSO documentation](https://www.quantum-espresso.org/documentation/)
+- [Wannier90 documentation](https://wannier.org/documentation/)
+
+### Hosted website: connect a personal worker
+
+The following connection-code, downloadable-helper, and Docker instructions apply when using the hosted Phynite website. They are not required by the native npm app. This worker receives hosted jobs and uploads their results to the signed-in account.
+
+### Plan, review, monitor, compare
+
+1. Open Resources from the workspace sidebar, the collapsed rail, or Workspace options on a small screen. Check available Quanta after reservations, storage measured at its last inventory, CPU/RAM, and the estimated affordable Cloud time. That time describes capacity for one new job at the selected paid profile rate, including its minimum billable duration; it is not a completion ETA. Pilot grants have separate job/time limits.
+2. Review the run before starting. A run override takes precedence over the account default for that workload, then the existing service default. Make default explicitly saves choices for future runs. Estimated duration helps quote a budget; it does not change the enforced runtime timeout.
+3. Monitor the selected active job: queued, preparation, computing, and saving results. Elapsed time starts at the recorded start, and each job has its own clock. Finish includes uploading results. Resource data refreshes every 15 seconds with active jobs or every 60 seconds while idle; refresh errors retain the last available values.
+4. Compare short representative runs with several CPU allocations before a large campaign. Keep the same scientific inputs when comparing performance. More cores do not always improve speed: Quantum ESPRESSO scaling depends on the system and parallel work distribution, and LAMMPS recommends measuring your actual workload. Phynite does not automatically start a paid benchmark.
+
+| Metric | Meaning |
+| --- | --- |
+| Run wall time | Recorded completion minus recorded start, including preparation and result upload; queue waiting before start is excluded. |
+| Solver / analysis time | Measured compute duration reported to the Phynite ledger. Paid charges follow that ledger and profile rate, with the per-job minimum; external HPC charging policies do not determine Phynite charges. |
+| CPU-hours | Recorded run wall hours multiplied by worker-reported vCPUs, or the Cloud grant when no worker report exists. Personal jobs without reported runtime allocation are excluded and marked partial, never assumed to use one core. |
+| GPU / VRAM | GPU is unsupported by this runtime. Missing VRAM telemetry is unreported. Missing historical duration, allocation, or charges appear as unavailable, rather than zero. |
+
+- [Compute defaults](/account/compute)
+- [Usage and run receipts](/account/usage)
+- [NERSC: resource accounting](https://docs.nersc.gov/policies/resource-usage/)
+- [Quantum ESPRESSO: parallelization](https://www.quantum-espresso.org/Doc/pw_user_guide/node18.html)
+- [LAMMPS: measure performance](https://docs.lammps.org/stable/Speed_measure.html)
+
+### Hosted worker: before you start
+
+Choose CPU and RAM per job in Compute settings or the workspace drawer, within the limits shown for DFT, MD simulation, or MD analysis. Allocation describes resources requested for the job. New workers also report the CPU/RAM allocation passed to the launched runtime; this is not hardware utilization. Required capacity depends on atoms, cutoffs, k-points, bands, and calculation type.
+
+Keep several GB of disk space free for the verified runtime and scientific libraries, plus working space for results. Internet is needed to connect the account, receive calculations, and upload results.
+
+| Computer | Download | Open |
+| --- | --- | --- |
+| macOS | Phynite Compute for macOS | Open Phynite Compute.command |
+| Windows 10 / 11 | Phynite Compute for Windows | Open Phynite Compute.cmd |
+| Linux | Phynite Compute for Linux | ./phynite-compute |
+
+- [Download Phynite Compute](/account/compute#your-computer)
+
+### 1. Download and open
+
+1. Open Your computer from the avatar menu. The website recommends the correct download for your operating system; links for other supported systems remain available.
+2. Extract the ZIP and open its launcher. The helper checks the local engine and opens its official installer page only when that prerequisite is missing.
+3. The first setup downloads a pinned, architecture-compatible scientific runtime. Later launches reuse it and preserve the private Phynite Compute volume.
+
+- [Open Your computer](/account/compute#your-computer)
+
+### 2. Approve this computer
+
+1. The launcher returns to Your computer with the 12-digit Connection code already filled in. Review the page and choose Connect computer.
+2. Each code works once and expires after 10 minutes. Only approve a computer you control.
+3. If another computer is linked, finish or cancel its active calculations before confirming replacement.
+4. After approval, Phynite Compute downloads and verifies the scientific libraries. Wait until the web status changes to Connected. That single connection enables both DFT Lab and MD Lab.
+
+> The short-lived code authorizes one computer without exposing its private credential.
+
+### 3. Run your first calculation
+
+1. Open DFT Lab and begin with a small silicon Total energy calculation. Select Your computer as the compute destination.
+2. Watch the execution log. A queued job waits for your connected computer and earlier dependencies. One calculation runs at a time on this computer.
+3. For a successful SCF result, check convergence, JOB DONE, and the final Completed state. Completion also requires result upload.
+4. Open Figure Lab from the completed result. Its data remains linked to the project, source calculation, and numerical settings.
+5. Open MD Lab and run a small Lennard-Jones equilibration. It uses the same connected computer and does not require a second pairing.
+
+- [Silicon tutorial](#quickstart-silicon)
+- [Read execution logs](#execution)
+
+### Everyday use
+
+The private Phynite Compute volume remembers the connection and downloaded libraries. Keep the computer awake and internet available while a calculation is active; the website may be closed.
+
+Stopping the local engine or putting the computer to sleep can interrupt a calculation. Restore connectivity and inspect the job state before sending a duplicate. Local project artifacts remain on the selected data disk until you delete or export them; hosted worker retention and Trash rules are separate.
+
+| Action | Location |
+| --- | --- |
+| Open or restart Phynite Compute | Open the downloaded launcher again |
+| Check connection | Your computer in the account menu |
+| View technical messages | Advanced manual setup → Show service logs |
+| Cancel a calculation | Use Cancel in the execution log and wait for its final state |
+
+### Update, disconnect, or move computers
+
+1. Finish or cancel active calculations before an update, replacement, or disconnection.
+2. For an update, download and open the current launcher. It asks before replacing a changed runtime and preserves the private volume.
+3. To move computers, disconnect the old one in Your computer, download Phynite Compute on the new machine, and approve its new code.
+
+> One active personal-computer credential is supported per account. Never copy or share the private runtime volume.
+
+### Troubleshooting
+
+| What you see | What to do |
+| --- | --- |
+| The local engine is missing | The launcher opens its official installer page. Install it, wait until ready, then reopen Phynite Compute. |
+| No code appears | Allow the first runtime download to finish. Reopen the launcher, or use Show service logs under Advanced manual setup. |
+| Code expired or was used | Reopen the launcher to request and open the latest code. |
+| Approved, but still Offline | First-time library setup can take several minutes. Check service logs and refresh the connection afterward. |
+| Job stays queued | Check Connected status, Your computer destination, and completed dependencies. Do not submit a duplicate. |
+| Setup/preflight rejected before solver start | No solver log exists because the runtime did not start. Read the visible capability, isolation, potential, or input validation message, fix that prerequisite, then submit once. |
+| Solver starts, then fails | Open the execution log and the first solver error, keep the failed provenance and artifacts, and check memory/disk/convergence before changing a scientific input. |
+| OOMKilled / exit 137 | The calculation exceeded available memory. Reduce system size or bands only where scientifically appropriate. |
+
+- [Contact support](/contact)
+- [Calculation diagnostics](#diagnostics)
+
+### Hosted worker: advanced Docker diagnostics
+
+Normal setup does not require Terminal or PowerShell. Support may ask you to run the pinned command or read recent service logs. These commands use the same read-only, non-root Docker runtime as the launcher.
+
+```text
+docker run -d --name phynite-compute --restart unless-stopped --init --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 512 --cpus 4 --memory 8g --tmpfs /tmp:rw,size=512m -v phynite-compute:/state public.ecr.aws/p8i3a1t8/phynite/personal-compute@sha256:2e478dd301384eaa9ea754fcf6630de7fe7ad1ccb114fb5f5c5d8dba3d49a185
+docker logs --tail 30 phynite-compute
+```
+
+> Do not change the image reference, share the private volume, or paste connection codes into support messages.
+
+### Access, data, and scientific checks
+
+The isolated service receives only calculations belonging to the account that approved its code. Disconnecting revokes access. No incoming port, Docker socket, or host home folder is shared.
+
+The runtime uses a read-only image, dedicated storage volume, non-root user, and CPU, memory, and process limits. It requires outgoing internet access for Phynite and verified library downloads.
+
+Local machine owners can modify their own software. Account binding protects access to other accounts; it does not certify a scientific result. Check convergence, numerical settings, solver versions, and pseudopotentials before publication.
+
+- [Convergence studies](#convergence)
+- [Prepare publication figures](#publication)
+
+### Related topics
+
+
+
+<a id="ai-providers"></a>
+
+## AI provider connections on your computer
+
+Local AI uses the provider CLI you choose. It is independent from Phynite Cloud login and does not use a hosted Phynite AI service.
+
+### Connect an account
+
+<figure class="docs-visual docs-visual-screenshot">
+![AI provider accounts settings page](https://phynitelab.com/docs/guide/ai-provider-accounts-desktop-dark.png)
+<figcaption>Provider status and login actions appear in Settings.</figcaption>
+</figure>
+
+<figure class="docs-visual docs-visual-icon">
+![Codex provider icon](https://phynitelab.com/brand/ai/codex.png)
+<figcaption>Connect through the provider CLI you already use.</figcaption>
+</figure>
+
+<figure class="docs-visual docs-visual-icon">
+![Antigravity provider icon](https://phynitelab.com/brand/ai/antigravity.png)
+<figcaption>Provider authentication stays with the official local CLI.</figcaption>
+</figure>
+
+1. Install and authenticate the official provider CLI on this computer.
+2. Open Settings → AI provider accounts and choose Codex or Antigravity.
+3. Complete authentication through the provider’s own flow. An existing supported CLI login can be reused without importing its cookie or session files.
+4. Keep the application open while model discovery and the capability probe run. The page selects only models that pass the supported text, streaming, and tool checks.
+
+- [AI provider settings](/account/ai-providers)
+
+### Provider, model, and limits
+
+The local app uses the single signed-in profile managed by the official provider CLI. A failed or rate-limited request never silently changes provider or account.
+
+Usage cards show only telemetry reported by the provider: model group, session or weekly percentage, window, and reset time when available. A missing report stays unavailable; the app never invents token counts, balances, or reset dates.
+
+Model availability can change with the provider entitlement. Cloud model settings do not control local provider accounts.
+
+### Security and unsupported states
+
+- Provider credentials stay in the provider-managed CLI or local credential store and are kept out of browser storage, logs, project archives, and Cloud Sync. The local app does not accept a gateway URL or gateway token.
+- The local bridge runs on loopback with shell, MCP, plugin, browser, and unverified network actions disabled. Canvas changes still require the existing approval and validation flow.
+- If authentication, discovery, streaming, or tool verification fails, the provider remains visibly disconnected or unavailable until you fix it. There is no automatic provider fallback.
+- AI provider access is separate from scientific runtime installation and separate from Phynite Cloud login.
+
+### Related topics
+
+- [Phynite Cloud, Cloud Sync, and online compute](#cloud-sync)
+
+<a id="cloud-sync"></a>
+
+## Phynite Cloud, Cloud Sync, and online compute
+
+Cloud services are optional connections layered on top of a complete local workspace. Signing in does not upload a local project or replace its local identity.
+
+### Local, Cloud Sync, and cloud compute
+
+<figure class="docs-visual docs-visual-screenshot">
+![Phynite Cloud account settings page](https://phynitelab.com/docs/guide/cloud-account-desktop-dark.png)
+<figcaption>Cloud login remains separate from local compute and AI.</figcaption>
+</figure>
+
+<figure class="docs-visual docs-visual-diagram">
+![Phynite Cloud connection mark](https://phynitelab.com/brand/phynite-mark-light.png)
+<figcaption>Cloud services are optional connections layered over local work.</figcaption>
+</figure>
+
+| Choice | What happens |
+| --- | --- |
+| Local only | Project, inputs, results, and runtime data remain on the selected computer. No Cloud login is required. |
+| Cloud login | Enables account features; local projects remain local until a project action enables sync. |
+| Cloud Sync | Enabled per project after reviewing scope, size, and quota. Syncs approved project revisions and artifacts. |
+| Run on cloud | Uploads only the reviewed job inputs/dependencies, creates a separate cloud execution, and downloads verified results. It does not enable project sync. |
+
+### Sync lifecycle and conflicts
+
+1. Sign in from Settings → Account and keep the local workspace identity unchanged.
+2. Open the project sync control, review the files, size, quota, and retention shown, then enable Cloud Sync explicitly.
+3. Let the persistent outbox finish. Interrupted transfers resume with checksums; a cloud revision is published only after its snapshot artifacts are verified.
+4. If another device changed the project, compare local and cloud revisions before choosing use local, use cloud, or save as a copy.
+5. Use Trash for cloud deletion. A tombstone and retention window protect the cloud copy; disabling sync keeps local and cloud copies, and logout stops sync without deleting local data.
+
+### Account boundaries and billing
+
+Sync queues and account mappings belong to the signed-in Cloud account. Switching accounts does not continue uploads created by another account.
+
+Cloud quota, artifact retention, Trash, and the hosted Free allowance are separate from local disk space. Billing and plan changes are available on the hosted website; a purchase does not start a job automatically.
+
+MD Cloud is unavailable until a supported service is shown in the current catalog. Do not infer availability from a local MD runtime.
+
+- [Cloud account settings](/account/account)
+- [Usage and quota](/account/usage)
+- [Hosted billing](/billing)
+
+### Related topics
+
+- [Autosave, storage, and multiple devices](#saving)
+- [Manage plans, billing, and resource usage](#billing)
+- [AI provider connections on your computer](#ai-providers)
+
+<a id="saving"></a>
+
+## Autosave, storage, and multiple devices
+
+DFT Lab and Figure Lab show save status for the active context. The npm app stores projects in SQLite/filesystem; browser storage holds recoverable drafts. Local projects do not upload automatically and have no fixed 10 GiB quota. The cloud save states below apply to the hosted website or a project with explicitly enabled Cloud Sync.
+
+### Save states
+
+| Label | Meaning | What to do |
+| --- | --- | --- |
+| Saving... | A local draft or cloud synchronization is in progress. | Keep working; allow a short pause before relying on another device. |
+| Saved to cloud | The current figure and its required datasets, or workspace snapshot, are confirmed remotely. | You can reopen the saved work with the same account. |
+| Saved on device / Offline | A browser copy exists; cloud upload has not completed. | Keep browser data intact and reconnect. |
+| Sync pending | The local copy is retained while upload retries. | Check network access and storage limits. |
+| Sync conflict | The remote revision differs from the one being edited. | Review the versions in History; avoid blindly overwriting another device. |
+
+### Local storage and research archives
+
+The local workspace defaults to ~/.phynite-lab and can be moved with phynite-lab --data-dir /path/to/workspace. SQLite stores metadata while the filesystem stores project artifacts. Settings → Storage measures inventoried project artifacts only; database metadata, solver/runtime installations, logs, browser cache, and unrelated files on the disk are excluded.
+
+Local mode is limited by free disk space, not a hosted 10 GiB allowance, and local artifacts do not receive an automatic seven-day cleanup. Runtime installers and logs still consume disk. Export/import project archives and keep an independent backup for important work.
+
+| Counted by local Storage | Not counted by local Storage |
+| --- | --- |
+| Inventoried structures, inputs, configurations, completed results, trajectories, and exported project artifacts. | SQLite metadata, solver/runtime installations, logs, browser cache, and unrelated disk files. |
+| Large intermediate state when it is retained as a project artifact. | Operating-system free space or data owned by another application. |
+
+- [Storage settings](/account/storage)
+
+### Quantum ESPRESSO intermediate data
+
+QE disk_io choices and intermediate output can grow far beyond the final result. Wavefunction/tmp data may be needed for bands, DOS, phonon, projected workflows, or external interoperability; do not remove it until downstream workflows finish. Keep the exact input, pseudopotential identity and checksum, provenance, and state artifacts together.
+
+Wannier90 is an external/manual workflow unless a separately documented native integration is available. Follow the official Quantum ESPRESSO and Wannier90 documentation; this guide does not claim a native Wannier90 runner.
+
+- [Quantum ESPRESSO documentation](https://www.quantum-espresso.org/documentation/)
+- [Wannier90 documentation](https://wannier.org/documentation/)
+
+### Hosted Figure Lab autosave behavior
+
+Figure Lab saves a local draft after approximately 350 ms without a new edit and starts cloud synchronization after approximately 1.2 seconds. Active uploads are serialized; an edit during upload is saved next.
+
+Leaving Figure Lab flushes pending draft edits. Online and focus events help retry pending cloud saves. A failed save remains visible instead of being labeled successful.
+
+There is no required Save revision button. Ctrl/Cmd+S is an optional explicit history checkpoint.
+
+### Document limits and hosted storage history
+
+| Resource | Current limit |
+| --- | --- |
+| Workspace snapshot | 4.5 MB per saved workspace snapshot. |
+| Research document | 4 MB per dataset, figure, or template document. |
+| Dataset samples | 250,000 points per dataset. |
+| Figure composition | 64 panels; 32 layers per panel. |
+| Figure checkpoints | 100 explicit revisions plus the current automatic working copy. |
+| Figure Lab allowance | Shares the total cloud allowance: 10 GiB Free, or the active paid account capacity. Retained revisions and upload reservations count. |
+| Data-file import | 20 MB input-file limit; resulting documents must still meet their own limits. |
+| Source package | 200 MB package/selected expanded JSON limit, plus individual document limits. |
+
+### Keep a portable copy
+
+- Export a Source package for important figures and project archives for local studies.
+- Retain original structure files, executed calculation inputs, pseudopotential identity/checksum, provenance, and any intermediate state needed by a downstream workflow.
+- Browser storage has its own device quota and can be removed by clearing site data.
+- An archive still occupies storage; it is intended for organization, not deletion.
+- Account storage shows current cloud objects separately from the research-document allowance. Cloud login does not upload a local project; Cloud Sync is enabled per project.
+
+### Related topics
+
+- [Manage plans, billing, and resource usage](#billing)
+- [Phynite Cloud, Cloud Sync, and online compute](#cloud-sync)
+
+<a id="billing"></a>
+
+## Manage plans, billing, and resource usage
+
+Billing manages Phynite Cloud purchases and invoices on the hosted website. The local app opens https://phynitelab.com/billing; local compute, AI accounts, and device preferences are managed separately in Settings.
+
+### Review your account
+
+1. Open Billing on the Phynite website. From the local application, the link opens https://phynitelab.com/billing.
+2. Read the active plan, subscription status, and per-run allocation. These values come from your account.
+3. Open Recorded usage and choose Refresh after a calculation finishes or cloud files change.
+4. Review Figure Lab retained bytes and current cloud files. Paid storage shares one total allowance across cloud files and pending uploads.
+5. Choose Export usage to download a dated JSON record. The export contains resource measurements, not a payment receipt.
+
+### Plan actions
+
+| Plan | Action | Effect |
+| --- | --- | --- |
+| Free | Use Free | Includes local DFT and MD runs. The npm app uses native runtimes without login; the hosted website uses a connected personal worker. |
+| Cloud | Top up Quanta | Early-access accounts use verified production credit; public visitors stay on the waitlist. Payment never starts a job. |
+| Enterprise | Discuss requirements | Opens the contact route for institutional capacity and terms. |
+
+### Interpret time and storage
+
+Paid usage lists each resource profile, measured solver/analysis time, actual Quanta charge and refund, with total, reserved and available credit shown separately. Recorded run time sums valid worker-start-to-completion intervals. It can include setup and result upload, as well as failed or cancelled runs that have valid timing.
+
+Allocated CPU-hours multiply recorded duration by allocated cores. They do not measure CPU utilization, electricity consumption, or a tariff.
+
+Current cloud storage counts current object versions. Older versions, metadata records, and your local disk are outside that number. A plus sign means the inventory reached its object limit and the displayed size is a lower bound.
+
+The Figure Lab allowance counts retained datasets, figure documents, templates, and revisions. Archiving a figure does not remove those records or free that allowance.
+
+### Payments and invoices
+
+Billing opens Phynite checkout at /billing/checkout after merchant activation. Choose Direct Virtual Account or QRIS when available; DOKU processes the payment. Virtual Account adds Rp4,000; QRIS has no surcharge. Quanta sells at Rp18,000 per Quanta, starting at 0.5 Quanta (Rp9,000 base, Rp13,000 via VA). /billing/payments/[id] shows instructions and verified status; /billing/history lists 20 purchases per page with status filters. Existing hosted invoices retain their original amounts. Order creation, verified fulfillment, failed attempts and confirmed expiry create inbox notifications; transactional emails are enabled only after SES verification, from and reply-to support@phynitelab.com. Email failures do not cancel payments. The page does not collect card numbers. Tax invoice issuing is not connected.
+
+Early-access accounts can use the Cloud workflows available in the current catalog after a verified production top-up, according to balance and capacity. MD stays on personal compute until its Cloud service is supported. Pilot remains controlled by admin grants. Institution capacity follows agreed terms. Local compute is free, but your hardware, internet, storage, and electricity remain your responsibility.
+
+> Usage exports can contain calculation names and identifiers. Share them only with the intended collaborator or support contact.
+
+### Related topics
+
+- [Autosave, storage, and multiple devices](#saving)
+- [Phynite Cloud, Cloud Sync, and online compute](#cloud-sync)
+
+<a id="storage-backup"></a>
+
+## Storage, export, backup, and large QE state
+
+Local storage is the disk available to the selected workspace. Cloud storage is an account service with its own quota and retention policy.
+
+### What local Storage measures
+
+<figure class="docs-visual docs-visual-screenshot">
+![Storage and project archive settings page](https://phynitelab.com/docs/guide/storage-archives-desktop-dark.png)
+<figcaption>Storage inventory and archive actions are shown separately from disk capacity.</figcaption>
+</figure>
+
+The default data directory is ~/.phynite-lab. Use --data-dir when a larger or separate disk is appropriate. Local mode has no fixed 10 GiB quota and does not automatically delete artifacts after seven days; free disk space is the practical limit.
+
+| Counted | Outside the project inventory |
+| --- | --- |
+| Inventoried structures, inputs, configurations, completed results, trajectories, and project archives. | SQLite metadata, installed solver/runtime files, worker logs, browser cache, and unrelated files on the disk. |
+| Intermediate state retained as a project artifact. | Operating-system free space and other applications’ data. |
+
+### QE intermediate files and wavefunctions
+
+- disk_io settings and temporary state can be much larger than the final SCF summary.
+- Wavefunction and tmp data may be required for bands, DOS, phonons, projected workflows, checkpoints, or external interoperability.
+- Do not remove intermediate state until every downstream workflow finishes. Keep the exact input, pseudopotential identity and checksum, provenance, and state artifacts together.
+- Wannier90 is an external/manual workflow unless a separately documented native integration is available; follow its official handoff requirements.
+
+- [Quantum ESPRESSO documentation](https://www.quantum-espresso.org/documentation/)
+- [Wannier90 documentation](https://wannier.org/documentation/)
+
+### Export, import, and backup
+
+1. Export the project archive from Settings → Storage before moving a workspace or making a destructive change.
+2. Keep a second backup outside ~/.phynite-lab, including exact inputs, potential identities/checksums, provenance, and intermediate state needed by downstream work.
+3. Import into a new data directory first and verify structures, configurations, results, and checksums before replacing the working copy.
+4. Use Source package export for figures; it does not replace the project archive or solver runtime backup.
+
+- [Storage settings](/account/storage)
+
+### Related topics
+
+
+
+<a id="settings-reference"></a>
+
+## Settings, preferences, profile, and usage
+
+Settings separates device preferences, scientific compute, AI provider accounts, Cloud account state, usage, storage, and privacy.
+
+### Choose the right page
+
+<figure class="docs-visual docs-visual-screenshot">
+![Appearance settings page](https://phynitelab.com/docs/guide/appearance-settings-desktop-dark.png)
+<figcaption>Settings are separated into focused pages for device and account controls.</figcaption>
+</figure>
+
+| Page | Purpose | Where it is stored |
+| --- | --- | --- |
+| Appearance & language | Theme, accent, density, text size, reduced motion, and language. | This browser/device. |
+| Keyboard shortcuts | Supported application bindings. | This browser/device. |
+| Notifications | Job/runtime alerts and desktop permission. | This browser/device; hosted delivery follows account state. |
+| Compute | Runtime installation, isolation probe, CPU/RAM/job defaults, and cloud transfer settings. | Local workspace or Cloud account, depending on control. |
+| AI provider accounts | Provider login, model readiness, limits, and reset. | Provider CLI/local credential store. |
+| Account | Optional Phynite Cloud login/logout and per-project sync. | Cloud account; local data remains local. |
+| Profile | Research identity shown after Cloud login. | Cloud account. |
+| Usage | Recorded scientific jobs and provider-reported AI usage. | Actual execution/provider records. |
+| Storage / Privacy | Project inventory, archives, session, and local data boundaries. | Local workspace and browser. |
+
+### Theme, notifications, and shortcuts
+
+Appearance changes apply immediately and remain device-only unless the page explicitly offers a Cloud account default. Light, dark, system, accent, density, code text size, reduced motion, and language can be customized independently.
+
+Notification preferences control local job/runtime alerts and browser permission. They do not create a Cloud session or upload project data.
+
+Keyboard changes apply only to supported application bindings in the current browser. Native browser and operating-system shortcuts may still take precedence.
+
+### Profile and login visibility
+
+A local workspace without Cloud login has no user profile. Connect a Cloud account before opening Profile; logout removes the profile controls while preserving local projects and identity.
+
+AI provider login is independent from Cloud login. A provider account can be connected while Phynite Cloud remains signed out.
+
+### Related topics
+
+
+
+<a id="language"></a>
+
+## Appearance, language, and accessibility
+
+Settings → Appearance & language controls this browser. Theme, accent, density, text size, motion, and language apply immediately without changing your Phynite account or scientific inputs.
+
+### Choose appearance
+
+1. Choose System, Light, or Dark for this browser. System follows the OS color scheme; optional custom background/text colors require at least 4.5:1 contrast.
+2. Select the available accent and comfortable/compact density, and adjust interface and code text sizes within the shown ranges.
+3. Enable reduced motion when wanted. Restore defaults resets the device controls.
+4. These values stay in this browser and site origin. Another device, browser, or local port can use different choices; clearing site data resets them.
+
+> Interface text scaling and theme do not change exported figure dimensions, plot samples, units, or solver settings.
+
+### Choose language
+
+1. Open Settings → Appearance & language.
+2. Choose English, Bahasa Indonesia, or automatic detection from browser preferences.
+3. Open another page or reload to confirm the choice. The preference stays in this browser rather than a cloud account default.
+
+### Automatic language detection
+
+An explicit choice takes priority. Automatic mode reads supported browser/device languages in preference order. The initial server response can also use the language header and, on the hosted site, an edge country hint. English is the fallback when no supported language is found.
+
+Phynite does not request GPS or use a separate IP-location service to select language. A suggestion does not override an explicit choice. Different browsers may use different languages.
+
+### Scientific text and data
+
+Solver keywords, chemical symbols, keyboard labels, numerical data, and user publication text are not translated into a different scientific meaning. QE and CSV retain their parser syntax.
+
+English documentation uses /guide/topic and Indonesian documentation /id/guide/topic. Switching language preserves the active topic; downloads use the selected language.
+
+### Keyboard, notifications, and readability
+
+- Tab moves among controls; the visible focus ring identifies the active control. Enter/Space activates a control and Escape closes supported menus/dialogs.
+- Customize only the listed working application actions in Settings → Keyboard shortcuts. Editor-specific shortcuts keep their documented context and text fields keep native editing.
+- Use Settings → Notifications for local job/runtime alerts and optional desktop permission. The app must remain open; local settings do not enable cloud email delivery.
+- Documentation search uses Primary+K or / outside text fields. On mobile, open the table of contents only when needed.
+- The reduced-motion device choice and supported operating-system motion preference reduce decorative transitions.
+
+### Related topics
+
+- [Settings, accounts, profile, and usage](#account)
 
 <a id="results"></a>
 
@@ -902,82 +1550,224 @@ Source package and run identifiers:
 
 ### Related topics
 
-- [Open and interpret calculation results](#results)
-- [Compose a figure](#figures)
-- [Energy, k-path, DOS, and fair comparison](#alignment)
 
-<a id="saving"></a>
 
-## Autosave, storage, and multiple devices
+<a id="troubleshooting"></a>
 
-DFT Lab and Figure Lab show save status for the active context. The npm app stores projects in SQLite/filesystem; browser storage holds recoverable drafts. Local projects do not upload automatically and have no fixed 10 GiB quota. The cloud save states below apply to the hosted website or a project with explicitly enabled Cloud Sync.
+## Troubleshooting and recovery
 
-### Save states
+Start with the exact state and the most recent message. Repeatedly rerunning a failing input often wastes time without fixing its cause.
 
-| Label | Meaning | What to do |
+### Local npm run diagnosis
+
+A Completed status means the process and required persistence steps finished; it does not establish convergence or scientific validity. Preserve the exact input and failed log before retrying. A new attempt should use an explicit, reviewed change.
+
+| Stage | What it means | Where to look |
 | --- | --- | --- |
-| Saving... | A local draft or cloud synchronization is in progress. | Keep working; allow a short pause before relying on another device. |
-| Saved to cloud | The current figure and its required datasets, or workspace snapshot, are confirmed remotely. | You can reopen the saved work with the same account. |
-| Saved on device / Offline | A browser copy exists; cloud upload has not completed. | Keep browser data intact and reconnect. |
-| Sync pending | The local copy is retained while upload retries. | Check network access and storage limits. |
-| Sync conflict | The remote revision differs from the one being edited. | Review the versions in History; avoid blindly overwriting another device. |
+| Before solver start | Setup, runtime, potential, input validation, isolation, or worker readiness rejected the job. No solver output exists. | Run review, Settings → Compute, phynite-lab doctor, and the selected data directory logs. |
+| Queued | The job is waiting for a dependency or available local worker. | Job status, dependency record, worker status, and notification history. |
+| After solver start | The solver or analysis process returned an error or was interrupted. | Execution log, first meaningful solver error, saved input, provenance, and retained artifacts. |
+| Persistence/upload | The calculation may have finished but saving or transfer failed. | Result state, checksum/provenance, storage inventory, network, and Cloud transfer status. |
 
-### Local storage and research archives
+### Launcher recovery sequence
 
-The local workspace defaults to ~/.phynite-lab and can be moved with phynite-lab --data-dir /path/to/workspace. SQLite stores metadata while the filesystem stores project artifacts. Settings → Storage measures inventoried project artifacts only; database metadata, solver/runtime installations, logs, browser cache, and unrelated files on the disk are excluded.
+1. Run phynite-lab status with the same --data-dir used to start the app.
+2. Run phynite-lab doctor and record the displayed distribution, port, runtime, and data-path diagnostics.
+3. Read the latest service and worker log in the selected data directory.
+4. If the instance is healthy, open the printed loopback origin rather than starting another workspace.
+5. If an update or runtime activation failed, keep the previous active runtime, fix the reported cause, and retry from Settings → Compute.
+6. After a restart, inspect interrupted jobs; local jobs are not automatically rerun.
 
-Local mode is limited by free disk space, not a hosted 10 GiB allowance, and local artifacts do not receive an automatic seven-day cleanup. Runtime installers and logs still consume disk. Export/import project archives and keep an independent backup for important work.
+### Common problems
 
-| Counted by local Storage | Not counted by local Storage |
+| Problem | What to do |
 | --- | --- |
-| Inventoried structures, inputs, configurations, completed results, trajectories, and exported project artifacts. | SQLite metadata, solver/runtime installations, logs, browser cache, and unrelated disk files. |
-| Large intermediate state when it is retained as a project artifact. | Operating-system free space or data owned by another application. |
+| Figure opens empty | Check that the project has completed plottable data. Open a specific run, retry source loading, or import an original numerical file. |
+| Band + DOS is not verified | Check geometry/electronic source identity and energy metadata. Do not force unrelated calculations into a verified pair. |
+| Lines or labels appear too dense | Set final dimensions, reduce unnecessary layers, use a grid, and inspect bounds and legend placement. |
+| Cloud save stays pending | Check network, sign-in, document limits, and account allowance. Keep the local browser copy and export a Source package. |
+| Cloud revision conflict | Open History and compare local and remote versions. Resolve deliberately before further automatic synchronization. |
+| Outdated data after switching accounts | Wait for the current account workspace to load. If needed, reload and check the signed-in identity. |
+| SCF does not converge | Inspect geometry, occupations, spin, pseudopotentials, mixing, cutoffs, and solver logs before adjusting iteration limits. |
+| Resource check rejects a k mesh | Use a physically justified mesh within the deployment limits; set nonperiodic directions to one. Larger jobs need appropriate capacity. |
+| Export fails | Check data validity, output size, font availability, and network; try again after the preview completes. |
+| Old raw download expired | Open retained numerical data if available, import your original file, or run again. A preview image cannot recover missing numerical samples. |
 
-- [Storage settings](/account/storage)
+### What to include in a support request
 
-### Quantum ESPRESSO intermediate data
-
-QE disk_io choices and intermediate output can grow far beyond the final result. Wavefunction/tmp data may be needed for bands, DOS, phonon, projected workflows, or external interoperability; do not remove it until downstream workflows finish. Keep the exact input, pseudopotential identity and checksum, provenance, and state artifacts together.
-
-Wannier90 is an external/manual workflow unless a separately documented native integration is available. Follow the official Quantum ESPRESSO and Wannier90 documentation; this guide does not claim a native Wannier90 runner.
-
-- [Quantum ESPRESSO documentation](https://www.quantum-espresso.org/documentation/)
-- [Wannier90 documentation](https://wannier.org/documentation/)
-
-### Hosted Figure Lab autosave behavior
-
-Figure Lab saves a local draft after approximately 350 ms without a new edit and starts cloud synchronization after approximately 1.2 seconds. Active uploads are serialized; an edit during upload is saved next.
-
-Leaving Figure Lab flushes pending draft edits. Online and focus events help retry pending cloud saves. A failed save remains visible instead of being labeled successful.
-
-There is no required Save revision button. Ctrl/Cmd+S is an optional explicit history checkpoint.
-
-### Document limits and hosted storage history
-
-| Resource | Current limit |
-| --- | --- |
-| Workspace snapshot | 4.5 MB per saved workspace snapshot. |
-| Research document | 4 MB per dataset, figure, or template document. |
-| Dataset samples | 250,000 points per dataset. |
-| Figure composition | 64 panels; 32 layers per panel. |
-| Figure checkpoints | 100 explicit revisions plus the current automatic working copy. |
-| Figure Lab allowance | Shares the total cloud allowance: 10 GiB Free, or the active paid account capacity. Retained revisions and upload reservations count. |
-| Data-file import | 20 MB input-file limit; resulting documents must still meet their own limits. |
-| Source package | 200 MB package/selected expanded JSON limit, plus individual document limits. |
-
-### Keep a portable copy
-
-- Export a Source package for important figures and project archives for local studies.
-- Retain original structure files, executed calculation inputs, pseudopotential identity/checksum, provenance, and any intermediate state needed by a downstream workflow.
-- Browser storage has its own device quota and can be removed by clearing site data.
-- An archive still occupies storage; it is intended for organization, not deletion.
-- Account storage shows current cloud objects separately from the research-document allowance. Cloud login does not upload a local project; Cloud Sync is enabled per project.
+- The page, action, and exact visible error.
+- Project and calculation names or IDs that you are comfortable sharing.
+- Whether the failure happens before submission, in queue, during execution, during upload, or in Figure Lab.
+- Relevant solver-log excerpts and the expected behavior.
+- Never include passwords, browser cookies, access tokens, or the private computer configuration.
 
 ### Related topics
 
-- [Settings, accounts, profile, and usage](#account)
-- [Local npm compute and hosted workers](#local-compute)
-- [Manage plans, billing, and resource usage](#billing)
+- [Troubleshooting: locate a failed workflow stage](#diagnostics)
+
+<a id="diagnostics"></a>
+
+## Troubleshooting: locate a failed workflow stage
+
+Identify the first stage that did not complete. Retrying a downstream action cannot repair an earlier missing structure, disconnected worker, or incompatible numerical source.
+
+### Decision table
+
+| What you see | Likely stage | Next check |
+| --- | --- | --- |
+| New project is unavailable | Account workspace initialization | Allow the workspace to load. On a cloud error, reload; do not clear browser data containing unsynchronized edits. |
+| Structure will not import | Parsing or geometry | Check format, encoding, lattice, coordinates, and occupancies. Keep the source file for diagnosis. |
+| Run is rejected immediately | Submission validation | Field messages, local runtime/isolation status, resource limits, and method; cloud authentication only for a cloud action. |
+| Run remains Queued | Worker or dependency | Check destination, private worker heartbeat, shared availability, and predecessors. |
+| Worker starts but QE exits | Runtime or scientific input | Read the first solver error. Check pseudopotential files, species names, syntax, memory, and disk. |
+| SCF cycles do not settle | Electronic self-consistency | Inspect geometry, occupations, magnetism, mixing, thresholds, and near-degenerate states. |
+| Solver finished but result unavailable | Persistence or upload | Inspect local disk/runtime and final status; hosted upload also depends on network and credentials. Keep the worker running. |
+| Open in Figure Lab fails | Numerical source retrieval | Retry the source. Older runs may need their original numerical file when retained datasets are absent. |
+| Overlay or pair warns about context | Scientific comparison | Read geometry, energy-reference, and path identity. Use independent panels when comparability is not established. |
+| Export fails | Rendering or font resources | Reconnect, reduce an oversized raster, and retry. Keep the figure document and source package. |
+
+### Collect useful evidence
+
+1. Record the page and exact action, time, project, and run identifier.
+2. Copy the visible error and relevant solver-log lines around the first failure.
+3. Note the destination, allocation, operating system, worker image, and whether the problem repeats.
+4. For a plot issue, retain the numerical dataset, figure Source package, and expected axis convention.
+5. Contact support with the smallest reproducible example. Remove private credentials, cookies, passwords, and unrelated project data.
+
+### Protect recoverable work
+
+Keep the current browser session open when it contains an unsynchronized figure or project. Export source files before clearing site storage.
+
+A retry creates or repeats work according to the active action. Inspect existing queued and running calculations before submitting duplicates.
+
+Replacing a personal credential invalidates the old worker. Finish or cancel active work before rotating it so a completed solver can still upload its result.
+
+### Related topics
+
+- [Troubleshooting and recovery](#troubleshooting)
+
+<a id="shortcuts"></a>
+
+## Keyboard and pointer shortcuts
+
+Primary means Command on macOS and Control on Windows/Linux. Shortcuts are scoped to the active editor. Text fields keep their own editing behavior unless an action is explicitly listed.
+
+### Customize supported application shortcuts
+
+Open Settings → Keyboard shortcuts. Rebind opening Settings, toggling the sidebar, focusing an open AI chat, or sending a message using the supported combinations. Changes apply immediately and stay in this browser; restore defaults whenever needed.
+
+The tables below describe editor-specific defaults and context. Custom application bindings do not replace native text editing, geometry operations, or browser accessibility keys.
+
+### DFT Lab
+
+| Shortcut | Action | Context |
+| --- | --- | --- |
+| Primary + K | Open command menu | DFT Lab workspace |
+| Space | Open command menu | Builder, outside editable controls |
+| Primary + Z | Undo | Builder editing history |
+| Primary + Shift + Z / Primary + Y | Redo | Builder editing history |
+| V | Select tool | Viewport editing |
+| G | Move tool | Viewport editing |
+| A | Add atom | Viewport editing |
+| M | Measure tool | Viewport editing |
+| F | Focus selection | A selected atom |
+| Delete / Backspace | Delete selection | Viewport; not a text input |
+| X / Y / Z | Constrain move to an axis | Move mode |
+| Shift + X / Y / Z | Constrain move to YZ / XZ / XY plane | Move mode |
+| Enter | Apply move | Move mode |
+| Escape | Cancel move or close the active tool/dialog | Depends on current interaction |
+| Arrow Left / Right | Resize sidebar by 16 px | Focused resize separator |
+
+### Figure Lab
+
+| Shortcut | Action | Context |
+| --- | --- | --- |
+| Primary + Z | Undo figure change | Outside editable controls |
+| Primary + Shift + Z / Primary + Y | Redo figure change | Outside editable controls |
+| Primary + S | Keep an explicit checkpoint | Commits a focused number draft first; automatic saving already runs |
+| Primary + Shift + E | Export in the selected format | Ready figure outside editable controls |
+| + or = | Zoom in | Canvas view |
+| - | Zoom out | Canvas view |
+| 0 | Fit figure | Canvas view |
+| ? | Toggle shortcut help | Figure Lab |
+| Space + drag / Alt + drag / middle drag | Pan the page | Figure Lab canvas |
+| Primary + mouse wheel | Zoom the page | Figure Lab canvas |
+| Escape | Close help or a drawer | Figure Lab |
+
+### Fields and custom menus
+
+| Shortcut | Action |
+| --- | --- |
+| Tab / Shift + Tab | Move forward/backward through interactive controls. |
+| Enter / Space | Activate a focused button or select a highlighted menu option. |
+| Arrow Up / Down | Open or move through a custom select; navigate a command menu. |
+| Home / End | Move to the first/last enabled option in a custom select. |
+| Type letters | Find an option by label in an open custom select; type a command query in the command menu. |
+| Escape | Dismiss the current menu; cancel an uncommitted numeric draft. |
+| Enter / leave the field | Commit a numeric draft, including decimals or scientific notation where allowed. |
+| Primary + Z in text | Undo text editing rather than changing the figure or crystal. |
+
+### Pointer and mobile interaction
+
+Use the viewport camera controls to rotate, pan, and zoom the crystal. Atom tools operate on the selected atom; choose the appropriate tool before dragging.
+
+On a small screen, open Results or Inspector from the Figure Lab toolbar, then close the drawer with its backdrop or Escape. The page remains scrollable when zoomed.
+
+Dragging a sidebar separator adjusts its width on desktop. Keyboard users can focus the separator and use the horizontal arrow keys.
+
+> Browser and operating-system shortcuts may intercept a key before the web page receives it. Buttons and menus provide the same primary actions.
+
+### Related topics
+
+- [Availability and planned workflows](#roadmap)
+- [Units, terms, and scientific references](#reference)
+- [Reference: calculation fields and units](#field-reference)
+
+<a id="field-reference"></a>
+
+## Reference: calculation fields and units
+
+Use the labels and units shown by the active calculation panel. These entries explain common QE inputs; the exact set of exposed controls depends on the workflow and whether generated or expert input is selected.
+
+### Geometry and electronic setup
+
+| Field or QE keyword | Unit / form | Interpretation |
+| --- | --- | --- |
+| CELL_PARAMETERS | Three lattice vectors; read the card unit | Defines the simulated cell, including vacuum. |
+| ATOMIC_POSITIONS | crystal or a stated length unit | crystal means fractional coordinates in the supplied lattice basis. |
+| ecutwfc | Ry | Maximum plane-wave kinetic energy for the wavefunctions. |
+| ecutrho | Ry | Charge-density and potential cutoff; converge with the chosen potential. |
+| K_POINTS automatic | N1 N2 N3 s1 s2 s3 | Mesh counts and offsets for reciprocal integration; offsets are not fractional atom shifts. |
+| K_POINTS crystal_b | Reciprocal path vertices and weights | A line-mode path for band sampling; it is not the SCF integration mesh. |
+| nbnd | Integer | Number of electronic states calculated at each k point. |
+| tot_charge | Electron-charge convention used by QE | Positive values remove electrons; review periodic-charge treatment. |
+| nspin / noncolin / lspinorb | Discrete settings | Spin model and spin-orbit coupling; compatible pseudopotentials are required. |
+
+### Convergence and relaxation
+
+| Keyword | Meaning | Interpretation |
+| --- | --- | --- |
+| conv_thr | SCF threshold in Ry | Controls the estimated electronic energy error; not a force threshold. |
+| electron_maxstep | Maximum electronic iterations | A limit; reaching it does not establish convergence. |
+| mixing_beta | Density-mixing parameter | Can affect convergence stability; no single value fits all systems. |
+| degauss | Smearing width in Ry | An integration/occupation choice, not automatically a physical lattice temperature. |
+| forc_conv_thr | Force threshold in Ry/bohr | Used with ionic relaxation; electronic convergence must be sufficiently tight. |
+| press | Target pressure in kbar | Relevant to cell relaxation; distinguish applied pressure from residual stress. |
+| cell_dofree | Allowed cell degrees of freedom | Defines which metric components can relax; inspect suitability for a slab or constrained strain. |
+
+### Numerical entry and units
+
+Numeric fields accept intermediate drafts while you type. Enter or leaving the field commits a valid value; Escape cancels a draft in supported controls. An empty axis bound means automatic, while a zero is an explicit physical bound.
+
+Do not convert all scientific values to display-region formatting. QE inputs, CSV source files, and code use the syntax required by their parser. The interface language does not rewrite a solver input or change a numerical dataset.
+
+> Refer to the installed QE version and its official INPUT_PW documentation for precise keyword semantics. This reference does not promise support for every QE module in the Phynite form.
+
+### Related topics
+
+- [Keyboard and pointer shortcuts](#shortcuts)
+- [Availability and planned workflows](#roadmap)
+- [Units, terms, and scientific references](#reference)
 
 <a id="account"></a>
 
@@ -1066,759 +1856,7 @@ Billing in local mode opens https://phynitelab.com/billing. Cloud access, price,
 
 ### Related topics
 
-- [Autosave, storage, and multiple devices](#saving)
-- [Local npm compute and hosted workers](#local-compute)
-- [Manage plans, billing, and resource usage](#billing)
-
-<a id="billing"></a>
-
-## Manage plans, billing, and resource usage
-
-Billing manages Phynite Cloud purchases and invoices on the hosted website. The local app opens https://phynitelab.com/billing; local compute, AI accounts, and device preferences are managed separately in Settings.
-
-### Review your account
-
-1. Open Billing on the Phynite website. From the local application, the link opens https://phynitelab.com/billing.
-2. Read the active plan, subscription status, and per-run allocation. These values come from your account.
-3. Open Recorded usage and choose Refresh after a calculation finishes or cloud files change.
-4. Review Figure Lab retained bytes and current cloud files. Paid storage shares one total allowance across cloud files and pending uploads.
-5. Choose Export usage to download a dated JSON record. The export contains resource measurements, not a payment receipt.
-
-### Plan actions
-
-| Plan | Action | Effect |
-| --- | --- | --- |
-| Free | Use Free | Includes local DFT and MD runs. The npm app uses native runtimes without login; the hosted website uses a connected personal worker. |
-| Cloud | Top up Quanta | Early-access accounts use verified production credit; public visitors stay on the waitlist. Payment never starts a job. |
-| Enterprise | Discuss requirements | Opens the contact route for institutional capacity and terms. |
-
-### Interpret time and storage
-
-Paid usage lists each resource profile, measured solver/analysis time, actual Quanta charge and refund, with total, reserved and available credit shown separately. Recorded run time sums valid worker-start-to-completion intervals. It can include setup and result upload, as well as failed or cancelled runs that have valid timing.
-
-Allocated CPU-hours multiply recorded duration by allocated cores. They do not measure CPU utilization, electricity consumption, or a tariff.
-
-Current cloud storage counts current object versions. Older versions, metadata records, and your local disk are outside that number. A plus sign means the inventory reached its object limit and the displayed size is a lower bound.
-
-The Figure Lab allowance counts retained datasets, figure documents, templates, and revisions. Archiving a figure does not remove those records or free that allowance.
-
-### Payments and invoices
-
-Billing opens Phynite checkout at /billing/checkout after merchant activation. Choose Direct Virtual Account or QRIS when available; DOKU processes the payment. Virtual Account adds Rp4,000; QRIS has no surcharge. Quanta sells at Rp18,000 per Quanta, starting at 0.5 Quanta (Rp9,000 base, Rp13,000 via VA). /billing/payments/[id] shows instructions and verified status; /billing/history lists 20 purchases per page with status filters. Existing hosted invoices retain their original amounts. Order creation, verified fulfillment, failed attempts and confirmed expiry create inbox notifications; transactional emails are enabled only after SES verification, from and reply-to support@phynitelab.com. Email failures do not cancel payments. The page does not collect card numbers. Tax invoice issuing is not connected.
-
-Early-access accounts can use the Cloud workflows available in the current catalog after a verified production top-up, according to balance and capacity. MD stays on personal compute until its Cloud service is supported. Pilot remains controlled by admin grants. Institution capacity follows agreed terms. Local compute is free, but your hardware, internet, storage, and electricity remain your responsibility.
-
-> Usage exports can contain calculation names and identifiers. Share them only with the intended collaborator or support contact.
-
-### Related topics
-
-- [Autosave, storage, and multiple devices](#saving)
-- [Settings, accounts, profile, and usage](#account)
-- [Local npm compute and hosted workers](#local-compute)
-
-<a id="local-compute"></a>
-
-## Local npm compute and hosted workers
-
-The local npm app runs DFT, MD, and analysis through installed native runtimes without Phynite login or Docker. Its setup lives in Settings → Compute. The hosted website uses a separate paired-worker flow, described later in this chapter; it is not a fallback runtime for the npm app.
-
-### Choose the execution path
-
-| Path | Needs | Data behavior |
-| --- | --- | --- |
-| Your computer / npm app | Node.js, native runtime, potentials, and isolation probe. | Projects and results stay in the selected local data directory. |
-| Hosted personal worker | Cloud login, paired worker, and the hosted worker requirements. | Submitted project/job artifacts follow the hosted account and retention rules. |
-| Phynite Cloud compute | Cloud account, supported catalog, quota, and transfer review. | Only the reviewed job inputs are transferred; this does not enable Cloud Sync. |
-
-### Native app: install and open
-
-Use Node.js 22.13 or newer. The launcher opens a browser on loopback and stores the database, projects, artifacts, runtimes, and logs under ~/.phynite-lab. A complete published package includes the native core; no source checkout, global Python, Docker, AWS CLI, or Phynite account is required.
-
-Open Settings → Compute. Inspect the detected platform, CPU/RAM, installed solver capabilities, and isolation probe. Choose DFT, MD/analysis, or both. Internet is needed for initial verified downloads; local scientific execution can work offline once its runtime and required potentials are present.
-
-Downloads use pinned versions and checksums, staging, and atomic activation. A failed update retains the previous runtime. Select potential files according to their license, exact identity, checksum, and element mapping.
-
-```text
-npm install -g phynite-lab
-phynite-lab
-```
-
-- [Open Compute](/account/compute)
-
-### Native app: resources, jobs, and recovery
-
-1. Set default CPU, RAM budget, and parallel jobs in Compute. Defaults start at one job, approximately half the logical cores, and at most half physical RAM. New defaults affect future jobs; an explicit job override does not resize an active job.
-2. Begin with a small reference calculation. Select Your computer and inspect Log through the final state. Verify actual solver success, convergence, inputs, provenance, and numerical output before interpreting the result.
-3. Guided and manual LAMMPS preserve the chosen physical settings. Manual input also requires a successful native sandbox probe. If isolation is unavailable, follow the shown remediation; manual execution stays blocked.
-4. Keep the CLI running and the computer awake. Cancel in the job log and wait for the final state. After a crash or restart, inspect interrupted jobs; they are not automatically rerun. A monitored RAM budget is not advertised as an operating-system hard limit.
-
-```text
-phynite-lab status
-phynite-lab doctor
-phynite-lab stop
-```
-
-### First local calculation: the shortest safe path
-
-1. Install and start the app, then open Settings → Compute.
-2. Install DFT or MD/analysis, or both. Wait for the pinned download, checksum verification, and atomic activation to finish.
-3. Confirm the detected solver capability and a successful native isolation probe. Manual LAMMPS stays unavailable when the probe fails.
-4. Install the pseudopotential or potential files required by the selected elements and record their exact identity and checksum.
-5. In the run review choose Your computer, submit a small reference calculation, and wait for a final state.
-6. Read the queue and execution status, the first solver error when one exists, the convergence markers, provenance, checksums, and numerical result before scaling up.
-
-- [Compute setup](/account/compute)
-- [Calculation diagnostics](#diagnostics)
-
-### Native app: data, preferences, and optional connections
-
-SQLite and filesystem data are the primary local copy. Use Settings → Storage to export/import project archives, and keep independent backups. Browser storage holds recoverable drafts and device preferences, not the full native workspace.
-
-Appearance, language, keyboard shortcuts, and local notification choices stay in this browser. AI provider connections use the official Codex or Antigravity CLI; each provider has one CLI-managed connection and the local app has no gateway setup. Account manages Phynite Cloud separately; login does not upload projects. Cloud Sync is enabled per project, and cloud compute reviews its own input transfer without enabling sync.
-
-Billing opens the Phynite website. Finish or cancel jobs, stop the app, update with npm install -g phynite-lab@latest, then reopen. Updating the package preserves data outside its installation directory.
-
-### Local storage and large Quantum ESPRESSO state
-
-The default local workspace is ~/.phynite-lab; use phynite-lab --data-dir /path/to/workspace when another disk is appropriate. SQLite stores metadata and the filesystem stores project artifacts, runtime installations, and logs. The Storage page measures inventoried project artifacts only; database metadata, solver/runtime installations, logs, and unrelated files on the disk are outside that number.
-
-Local mode has no fixed 10 GiB quota and no automatic seven-day cleanup. Its practical limit is the free space on the selected disk; runtime installers and logs consume that disk even when excluded from the inventory. Export/import project archives and an independent backup are required for important work.
-
-Quantum ESPRESSO disk_io settings and intermediate state can be much larger than the final output. Wavefunction and tmp data may be required for bands, DOS, phonon, projected workflows, or external interoperability. Do not delete intermediate state until every downstream workflow is finished; keep the exact input, pseudopotential identity/checksum, provenance, and state artifacts together.
-
-Wannier90 is an external/manual workflow unless a separately documented native integration is available. Export the required Quantum ESPRESSO state and follow the official Wannier90 documentation; Phynite does not claim to run that tool natively here.
-
-| Counted by local Storage | Not counted by local Storage |
-| --- | --- |
-| Inventoried project inputs, structures, configurations, results, trajectories, and exported artifacts. | SQLite metadata, solver/runtime installation files, logs, browser cache, and unrelated files on the disk. |
-| Completed artifacts retained in the project, including large QE state when it is recorded there. | Free space used by the operating system or by another application. |
-
-- [Storage settings](/account/storage)
-- [Quantum ESPRESSO documentation](https://www.quantum-espresso.org/documentation/)
-- [Wannier90 documentation](https://wannier.org/documentation/)
-
-### Hosted website: connect a personal worker
-
-The following connection-code, downloadable-helper, and Docker instructions apply when using the hosted Phynite website. They are not required by the native npm app. This worker receives hosted jobs and uploads their results to the signed-in account.
-
-### Plan, review, monitor, compare
-
-1. Open Resources from the workspace sidebar, the collapsed rail, or Workspace options on a small screen. Check available Quanta after reservations, storage measured at its last inventory, CPU/RAM, and the estimated affordable Cloud time. That time describes capacity for one new job at the selected paid profile rate, including its minimum billable duration; it is not a completion ETA. Pilot grants have separate job/time limits.
-2. Review the run before starting. A run override takes precedence over the account default for that workload, then the existing service default. Make default explicitly saves choices for future runs. Estimated duration helps quote a budget; it does not change the enforced runtime timeout.
-3. Monitor the selected active job: queued, preparation, computing, and saving results. Elapsed time starts at the recorded start, and each job has its own clock. Finish includes uploading results. Resource data refreshes every 15 seconds with active jobs or every 60 seconds while idle; refresh errors retain the last available values.
-4. Compare short representative runs with several CPU allocations before a large campaign. Keep the same scientific inputs when comparing performance. More cores do not always improve speed: Quantum ESPRESSO scaling depends on the system and parallel work distribution, and LAMMPS recommends measuring your actual workload. Phynite does not automatically start a paid benchmark.
-
-| Metric | Meaning |
-| --- | --- |
-| Run wall time | Recorded completion minus recorded start, including preparation and result upload; queue waiting before start is excluded. |
-| Solver / analysis time | Measured compute duration reported to the Phynite ledger. Paid charges follow that ledger and profile rate, with the per-job minimum; external HPC charging policies do not determine Phynite charges. |
-| CPU-hours | Recorded run wall hours multiplied by worker-reported vCPUs, or the Cloud grant when no worker report exists. Personal jobs without reported runtime allocation are excluded and marked partial, never assumed to use one core. |
-| GPU / VRAM | GPU is unsupported by this runtime. Missing VRAM telemetry is unreported. Missing historical duration, allocation, or charges appear as unavailable, rather than zero. |
-
-- [Compute defaults](/account/compute)
-- [Usage and run receipts](/account/usage)
-- [NERSC: resource accounting](https://docs.nersc.gov/policies/resource-usage/)
-- [Quantum ESPRESSO: parallelization](https://www.quantum-espresso.org/Doc/pw_user_guide/node18.html)
-- [LAMMPS: measure performance](https://docs.lammps.org/stable/Speed_measure.html)
-
-### Hosted worker: before you start
-
-Choose CPU and RAM per job in Compute settings or the workspace drawer, within the limits shown for DFT, MD simulation, or MD analysis. Allocation describes resources requested for the job. New workers also report the CPU/RAM allocation passed to the launched runtime; this is not hardware utilization. Required capacity depends on atoms, cutoffs, k-points, bands, and calculation type.
-
-Keep several GB of disk space free for the verified runtime and scientific libraries, plus working space for results. Internet is needed to connect the account, receive calculations, and upload results.
-
-| Computer | Download | Open |
-| --- | --- | --- |
-| macOS | Phynite Compute for macOS | Open Phynite Compute.command |
-| Windows 10 / 11 | Phynite Compute for Windows | Open Phynite Compute.cmd |
-| Linux | Phynite Compute for Linux | ./phynite-compute |
-
-- [Download Phynite Compute](/account/compute#your-computer)
-
-### 1. Download and open
-
-1. Open Your computer from the avatar menu. The website recommends the correct download for your operating system; links for other supported systems remain available.
-2. Extract the ZIP and open its launcher. The helper checks the local engine and opens its official installer page only when that prerequisite is missing.
-3. The first setup downloads a pinned, architecture-compatible scientific runtime. Later launches reuse it and preserve the private Phynite Compute volume.
-
-- [Open Your computer](/account/compute#your-computer)
-
-### 2. Approve this computer
-
-1. The launcher returns to Your computer with the 12-digit Connection code already filled in. Review the page and choose Connect computer.
-2. Each code works once and expires after 10 minutes. Only approve a computer you control.
-3. If another computer is linked, finish or cancel its active calculations before confirming replacement.
-4. After approval, Phynite Compute downloads and verifies the scientific libraries. Wait until the web status changes to Connected. That single connection enables both DFT Lab and MD Lab.
-
-> The short-lived code authorizes one computer without exposing its private credential.
-
-### 3. Run your first calculation
-
-1. Open DFT Lab and begin with a small silicon Total energy calculation. Select Your computer as the compute destination.
-2. Watch the execution log. A queued job waits for your connected computer and earlier dependencies. One calculation runs at a time on this computer.
-3. For a successful SCF result, check convergence, JOB DONE, and the final Completed state. Completion also requires result upload.
-4. Open Figure Lab from the completed result. Its data remains linked to the project, source calculation, and numerical settings.
-5. Open MD Lab and run a small Lennard-Jones equilibration. It uses the same connected computer and does not require a second pairing.
-
-- [Silicon tutorial](#quickstart-silicon)
-- [Read execution logs](#execution)
-
-### Everyday use
-
-The private Phynite Compute volume remembers the connection and downloaded libraries. Keep the computer awake and internet available while a calculation is active; the website may be closed.
-
-Stopping the local engine or putting the computer to sleep can interrupt a calculation. Restore connectivity and inspect the job state before sending a duplicate. Local project artifacts remain on the selected data disk until you delete or export them; hosted worker retention and Trash rules are separate.
-
-| Action | Location |
-| --- | --- |
-| Open or restart Phynite Compute | Open the downloaded launcher again |
-| Check connection | Your computer in the account menu |
-| View technical messages | Advanced manual setup → Show service logs |
-| Cancel a calculation | Use Cancel in the execution log and wait for its final state |
-
-### Update, disconnect, or move computers
-
-1. Finish or cancel active calculations before an update, replacement, or disconnection.
-2. For an update, download and open the current launcher. It asks before replacing a changed runtime and preserves the private volume.
-3. To move computers, disconnect the old one in Your computer, download Phynite Compute on the new machine, and approve its new code.
-
-> One active personal-computer credential is supported per account. Never copy or share the private runtime volume.
-
-### Troubleshooting
-
-| What you see | What to do |
-| --- | --- |
-| The local engine is missing | The launcher opens its official installer page. Install it, wait until ready, then reopen Phynite Compute. |
-| No code appears | Allow the first runtime download to finish. Reopen the launcher, or use Show service logs under Advanced manual setup. |
-| Code expired or was used | Reopen the launcher to request and open the latest code. |
-| Approved, but still Offline | First-time library setup can take several minutes. Check service logs and refresh the connection afterward. |
-| Job stays queued | Check Connected status, Your computer destination, and completed dependencies. Do not submit a duplicate. |
-| Setup/preflight rejected before solver start | No solver log exists because the runtime did not start. Read the visible capability, isolation, potential, or input validation message, fix that prerequisite, then submit once. |
-| Solver starts, then fails | Open the execution log and the first solver error, keep the failed provenance and artifacts, and check memory/disk/convergence before changing a scientific input. |
-| OOMKilled / exit 137 | The calculation exceeded available memory. Reduce system size or bands only where scientifically appropriate. |
-
-- [Contact support](/contact)
-- [Calculation diagnostics](#diagnostics)
-
-### Hosted worker: advanced Docker diagnostics
-
-Normal setup does not require Terminal or PowerShell. Support may ask you to run the pinned command or read recent service logs. These commands use the same read-only, non-root Docker runtime as the launcher.
-
-```text
-docker run -d --name phynite-compute --restart unless-stopped --init --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 512 --cpus 4 --memory 8g --tmpfs /tmp:rw,size=512m -v phynite-compute:/state public.ecr.aws/p8i3a1t8/phynite/personal-compute@sha256:2e478dd301384eaa9ea754fcf6630de7fe7ad1ccb114fb5f5c5d8dba3d49a185
-docker logs --tail 30 phynite-compute
-```
-
-> Do not change the image reference, share the private volume, or paste connection codes into support messages.
-
-### Access, data, and scientific checks
-
-The isolated service receives only calculations belonging to the account that approved its code. Disconnecting revokes access. No incoming port, Docker socket, or host home folder is shared.
-
-The runtime uses a read-only image, dedicated storage volume, non-root user, and CPU, memory, and process limits. It requires outgoing internet access for Phynite and verified library downloads.
-
-Local machine owners can modify their own software. Account binding protects access to other accounts; it does not certify a scientific result. Check convergence, numerical settings, solver versions, and pseudopotentials before publication.
-
-- [Convergence studies](#convergence)
-- [Prepare publication figures](#publication)
-
-### Related topics
-
-- [Autosave, storage, and multiple devices](#saving)
-- [Settings, accounts, profile, and usage](#account)
-- [Manage plans, billing, and resource usage](#billing)
-
-<a id="npm-local-app"></a>
-
-## Install, update, and diagnose the npm app
-
-The published npm app is the local-first path for running the workspace, native DFT, MD, and analysis on your computer. It does not require a Phynite login, Docker, a source checkout, or global Python.
-
-### Install and start
-
-The current published package is phynite-lab@0.1.8. Node.js version >=22.13.0 is required. npm installs the launcher and the matching optional native application package for the host OS and CPU.
-
-Keep npm optional dependencies enabled. If a package manager was configured with --omit=optional or the selected platform package was removed, the launcher reports a missing runtime instead of silently using a development fixture.
-
-The launcher binds services to loopback, opens a browser, and stores the local workspace under ~/.phynite-lab. User projects and runtimes remain outside the npm installation directory.
-
-```text
-npm install -g phynite-lab@latest
-phynite-lab
-```
-
-### Supported platforms
-
-| Platform | Package/runtime | Notes |
-| --- | --- | --- |
-| macOS Apple Silicon | darwin-arm64 | Native arm64 package. |
-| Linux ARM64 | linux-arm64 | Requires glibc >=2.39 and verified user namespaces. |
-| Linux x64 | linux-x64 | Requires glibc >=2.39 (e.g. Ubuntu 24.04+, Arch Linux) and verified user namespaces. |
-| Windows | WSL2 linux-x64 | Run npm and phynite-lab inside WSL2; a Windows-native solver is not installed. |
-
-> The package declares darwin/linux and arm64/x64 targets. A platform is supported only when its native runtime, isolation probe, and scientific checks pass; package availability alone is not a qualification.
-
-### Launcher commands and workspace identity
-
-The default command starts the service in the foreground. --no-open prints the loopback URL without opening a browser. --port requests a port; if it is already used, the launcher selects an available loopback port and reports the actual origin. --data-dir gives each workspace its own database, projects, runtimes, and logs.
-
-status reports the healthy instance for that data directory. stop asks the instance owned by that workspace to shut down cleanly. doctor checks distribution identity, service readiness, data paths, and startup diagnostics. Launching the same workspace again reuses its healthy instance instead of starting a duplicate.
-
-```text
-phynite-lab --no-open --port 3000 --data-dir /path/to/workspace
-phynite-lab status --data-dir /path/to/workspace
-phynite-lab doctor --data-dir /path/to/workspace
-phynite-lab stop --data-dir /path/to/workspace
-```
-
-### Update without losing projects
-
-The local app may show an update notice after checking https://registry.npmjs.org/phynite-lab/latest. A successful check is cached for up to six hours; an unavailable or invalid response is retried after about five minutes. The check sends no project data or credentials, does not install anything automatically, and never blocks local work while offline.
-
-1. Finish or cancel active jobs and stop the current instance.
-2. Run the npm update command from the same Node installation that owns the global package.
-3. Start the app again and open Settings → Compute to confirm the runtime capabilities remain available.
-4. If startup fails, run phynite-lab doctor and inspect the logs in the selected data directory; reinstalling the package does not remove ~/.phynite-lab.
-
-```text
-npm install -g phynite-lab@latest
-phynite-lab --version
-```
-
-### Common npm startup fixes
-
-| Symptom | Check |
-| --- | --- |
-| Node version rejected | Run node --version and install a Node.js version satisfying >=22.13.0. |
-| Missing runtime package | Reinstall with optional dependencies enabled; check the package target reported by doctor. |
-| Port already used | Use --no-open, follow the printed port, or choose --port with a free value. |
-| Projects are missing | Use the original --data-dir; each directory is an independent workspace. |
-| Startup service stopped | Run status and doctor, then read logs/<service>.log in the data directory. |
-| Update is unavailable | Continue offline, check npm/network later, and retry; the notice is informational. |
-
-- [Local distribution reference](#local-compute)
-- [Troubleshooting and recovery](#troubleshooting)
-
-### Related topics
-
-
-
-<a id="ai-providers"></a>
-
-## AI provider connections on your computer
-
-Local AI uses the provider CLI you choose. It is independent from Phynite Cloud login and does not use a hosted Phynite AI service.
-
-### Connect an account
-
-1. Install and authenticate the official provider CLI on this computer.
-2. Open Settings → AI provider accounts and choose Codex or Antigravity.
-3. Complete authentication through the provider’s own flow. An existing supported CLI login can be reused without importing its cookie or session files.
-4. Keep the application open while model discovery and the capability probe run. The page selects only models that pass the supported text, streaming, and tool checks.
-
-- [AI provider settings](/account/ai-providers)
-
-### Provider, model, and limits
-
-The local app uses the single signed-in profile managed by the official provider CLI. A failed or rate-limited request never silently changes provider or account.
-
-Usage cards show only telemetry reported by the provider: model group, session or weekly percentage, window, and reset time when available. A missing report stays unavailable; the app never invents token counts, balances, or reset dates.
-
-Model availability can change with the provider entitlement. Cloud model settings do not control local provider accounts.
-
-### Security and unsupported states
-
-- Provider credentials stay in the provider-managed CLI or local credential store and are kept out of browser storage, logs, project archives, and Cloud Sync. The local app does not accept a gateway URL or gateway token.
-- The local bridge runs on loopback with shell, MCP, plugin, browser, and unverified network actions disabled. Canvas changes still require the existing approval and validation flow.
-- If authentication, discovery, streaming, or tool verification fails, the provider remains visibly disconnected or unavailable until you fix it. There is no automatic provider fallback.
-- AI provider access is separate from scientific runtime installation and separate from Phynite Cloud login.
-
-### Related topics
-
-- [Phynite Cloud, Cloud Sync, and online compute](#cloud-sync)
-
-<a id="cloud-sync"></a>
-
-## Phynite Cloud, Cloud Sync, and online compute
-
-Cloud services are optional connections layered on top of a complete local workspace. Signing in does not upload a local project or replace its local identity.
-
-### Local, Cloud Sync, and cloud compute
-
-| Choice | What happens |
-| --- | --- |
-| Local only | Project, inputs, results, and runtime data remain on the selected computer. No Cloud login is required. |
-| Cloud login | Enables account features; local projects remain local until a project action enables sync. |
-| Cloud Sync | Enabled per project after reviewing scope, size, and quota. Syncs approved project revisions and artifacts. |
-| Run on cloud | Uploads only the reviewed job inputs/dependencies, creates a separate cloud execution, and downloads verified results. It does not enable project sync. |
-
-### Sync lifecycle and conflicts
-
-1. Sign in from Settings → Account and keep the local workspace identity unchanged.
-2. Open the project sync control, review the files, size, quota, and retention shown, then enable Cloud Sync explicitly.
-3. Let the persistent outbox finish. Interrupted transfers resume with checksums; a cloud revision is published only after its snapshot artifacts are verified.
-4. If another device changed the project, compare local and cloud revisions before choosing use local, use cloud, or save as a copy.
-5. Use Trash for cloud deletion. A tombstone and retention window protect the cloud copy; disabling sync keeps local and cloud copies, and logout stops sync without deleting local data.
-
-### Account boundaries and billing
-
-Sync queues and account mappings belong to the signed-in Cloud account. Switching accounts does not continue uploads created by another account.
-
-Cloud quota, artifact retention, Trash, and the hosted Free allowance are separate from local disk space. Billing and plan changes are available on the hosted website; a purchase does not start a job automatically.
-
-MD Cloud is unavailable until a supported service is shown in the current catalog. Do not infer availability from a local MD runtime.
-
-- [Cloud account settings](/account/account)
-- [Usage and quota](/account/usage)
-- [Hosted billing](/billing)
-
-### Related topics
-
-- [AI provider connections on your computer](#ai-providers)
-
-<a id="storage-backup"></a>
-
-## Storage, export, backup, and large QE state
-
-Local storage is the disk available to the selected workspace. Cloud storage is an account service with its own quota and retention policy.
-
-### What local Storage measures
-
-The default data directory is ~/.phynite-lab. Use --data-dir when a larger or separate disk is appropriate. Local mode has no fixed 10 GiB quota and does not automatically delete artifacts after seven days; free disk space is the practical limit.
-
-| Counted | Outside the project inventory |
-| --- | --- |
-| Inventoried structures, inputs, configurations, completed results, trajectories, and project archives. | SQLite metadata, installed solver/runtime files, worker logs, browser cache, and unrelated files on the disk. |
-| Intermediate state retained as a project artifact. | Operating-system free space and other applications’ data. |
-
-### QE intermediate files and wavefunctions
-
-- disk_io settings and temporary state can be much larger than the final SCF summary.
-- Wavefunction and tmp data may be required for bands, DOS, phonons, projected workflows, checkpoints, or external interoperability.
-- Do not remove intermediate state until every downstream workflow finishes. Keep the exact input, pseudopotential identity and checksum, provenance, and state artifacts together.
-- Wannier90 is an external/manual workflow unless a separately documented native integration is available; follow its official handoff requirements.
-
-- [Quantum ESPRESSO documentation](https://www.quantum-espresso.org/documentation/)
-- [Wannier90 documentation](https://wannier.org/documentation/)
-
-### Export, import, and backup
-
-1. Export the project archive from Settings → Storage before moving a workspace or making a destructive change.
-2. Keep a second backup outside ~/.phynite-lab, including exact inputs, potential identities/checksums, provenance, and intermediate state needed by downstream work.
-3. Import into a new data directory first and verify structures, configurations, results, and checksums before replacing the working copy.
-4. Use Source package export for figures; it does not replace the project archive or solver runtime backup.
-
-- [Storage settings](/account/storage)
-
-### Related topics
-
-
-
-<a id="settings-reference"></a>
-
-## Settings, preferences, profile, and usage
-
-Settings separates device preferences, scientific compute, AI provider accounts, Cloud account state, usage, storage, and privacy.
-
-### Choose the right page
-
-| Page | Purpose | Where it is stored |
-| --- | --- | --- |
-| Appearance & language | Theme, accent, density, text size, reduced motion, and language. | This browser/device. |
-| Keyboard shortcuts | Supported application bindings. | This browser/device. |
-| Notifications | Job/runtime alerts and desktop permission. | This browser/device; hosted delivery follows account state. |
-| Compute | Runtime installation, isolation probe, CPU/RAM/job defaults, and cloud transfer settings. | Local workspace or Cloud account, depending on control. |
-| AI provider accounts | Provider login, model readiness, limits, and reset. | Provider CLI/local credential store. |
-| Account | Optional Phynite Cloud login/logout and per-project sync. | Cloud account; local data remains local. |
-| Profile | Research identity shown after Cloud login. | Cloud account. |
-| Usage | Recorded scientific jobs and provider-reported AI usage. | Actual execution/provider records. |
-| Storage / Privacy | Project inventory, archives, session, and local data boundaries. | Local workspace and browser. |
-
-### Theme, notifications, and shortcuts
-
-Appearance changes apply immediately and remain device-only unless the page explicitly offers a Cloud account default. Light, dark, system, accent, density, code text size, reduced motion, and language can be customized independently.
-
-Notification preferences control local job/runtime alerts and browser permission. They do not create a Cloud session or upload project data.
-
-Keyboard changes apply only to supported application bindings in the current browser. Native browser and operating-system shortcuts may still take precedence.
-
-### Profile and login visibility
-
-A local workspace without Cloud login has no user profile. Connect a Cloud account before opening Profile; logout removes the profile controls while preserving local projects and identity.
-
-AI provider login is independent from Cloud login. A provider account can be connected while Phynite Cloud remains signed out.
-
-### Related topics
-
-
-
-<a id="language"></a>
-
-## Appearance, language, and accessibility
-
-Settings → Appearance & language controls this browser. Theme, accent, density, text size, motion, and language apply immediately without changing your Phynite account or scientific inputs.
-
-### Choose appearance
-
-1. Choose System, Light, or Dark for this browser. System follows the OS color scheme; optional custom background/text colors require at least 4.5:1 contrast.
-2. Select the available accent and comfortable/compact density, and adjust interface and code text sizes within the shown ranges.
-3. Enable reduced motion when wanted. Restore defaults resets the device controls.
-4. These values stay in this browser and site origin. Another device, browser, or local port can use different choices; clearing site data resets them.
-
-> Interface text scaling and theme do not change exported figure dimensions, plot samples, units, or solver settings.
-
-### Choose language
-
-1. Open Settings → Appearance & language.
-2. Choose English, Bahasa Indonesia, or automatic detection from browser preferences.
-3. Open another page or reload to confirm the choice. The preference stays in this browser rather than a cloud account default.
-
-### Automatic language detection
-
-An explicit choice takes priority. Automatic mode reads supported browser/device languages in preference order. The initial server response can also use the language header and, on the hosted site, an edge country hint. English is the fallback when no supported language is found.
-
-Phynite does not request GPS or use a separate IP-location service to select language. A suggestion does not override an explicit choice. Different browsers may use different languages.
-
-### Scientific text and data
-
-Solver keywords, chemical symbols, keyboard labels, numerical data, and user publication text are not translated into a different scientific meaning. QE and CSV retain their parser syntax.
-
-English documentation uses /guide/topic and Indonesian documentation /id/guide/topic. Switching language preserves the active topic; downloads use the selected language.
-
-### Keyboard, notifications, and readability
-
-- Tab moves among controls; the visible focus ring identifies the active control. Enter/Space activates a control and Escape closes supported menus/dialogs.
-- Customize only the listed working application actions in Settings → Keyboard shortcuts. Editor-specific shortcuts keep their documented context and text fields keep native editing.
-- Use Settings → Notifications for local job/runtime alerts and optional desktop permission. The app must remain open; local settings do not enable cloud email delivery.
-- Documentation search uses Primary+K or / outside text fields. On mobile, open the table of contents only when needed.
-- The reduced-motion device choice and supported operating-system motion preference reduce decorative transitions.
-
-### Related topics
-
-- [Autosave, storage, and multiple devices](#saving)
-- [Settings, accounts, profile, and usage](#account)
-- [Local npm compute and hosted workers](#local-compute)
-
-<a id="shortcuts"></a>
-
-## Keyboard and pointer shortcuts
-
-Primary means Command on macOS and Control on Windows/Linux. Shortcuts are scoped to the active editor. Text fields keep their own editing behavior unless an action is explicitly listed.
-
-### Customize supported application shortcuts
-
-Open Settings → Keyboard shortcuts. Rebind opening Settings, toggling the sidebar, focusing an open AI chat, or sending a message using the supported combinations. Changes apply immediately and stay in this browser; restore defaults whenever needed.
-
-The tables below describe editor-specific defaults and context. Custom application bindings do not replace native text editing, geometry operations, or browser accessibility keys.
-
-### DFT Lab
-
-| Shortcut | Action | Context |
-| --- | --- | --- |
-| Primary + K | Open command menu | DFT Lab workspace |
-| Space | Open command menu | Builder, outside editable controls |
-| Primary + Z | Undo | Builder editing history |
-| Primary + Shift + Z / Primary + Y | Redo | Builder editing history |
-| V | Select tool | Viewport editing |
-| G | Move tool | Viewport editing |
-| A | Add atom | Viewport editing |
-| M | Measure tool | Viewport editing |
-| F | Focus selection | A selected atom |
-| Delete / Backspace | Delete selection | Viewport; not a text input |
-| X / Y / Z | Constrain move to an axis | Move mode |
-| Shift + X / Y / Z | Constrain move to YZ / XZ / XY plane | Move mode |
-| Enter | Apply move | Move mode |
-| Escape | Cancel move or close the active tool/dialog | Depends on current interaction |
-| Arrow Left / Right | Resize sidebar by 16 px | Focused resize separator |
-
-### Figure Lab
-
-| Shortcut | Action | Context |
-| --- | --- | --- |
-| Primary + Z | Undo figure change | Outside editable controls |
-| Primary + Shift + Z / Primary + Y | Redo figure change | Outside editable controls |
-| Primary + S | Keep an explicit checkpoint | Commits a focused number draft first; automatic saving already runs |
-| Primary + Shift + E | Export in the selected format | Ready figure outside editable controls |
-| + or = | Zoom in | Canvas view |
-| - | Zoom out | Canvas view |
-| 0 | Fit figure | Canvas view |
-| ? | Toggle shortcut help | Figure Lab |
-| Space + drag / Alt + drag / middle drag | Pan the page | Figure Lab canvas |
-| Primary + mouse wheel | Zoom the page | Figure Lab canvas |
-| Escape | Close help or a drawer | Figure Lab |
-
-### Fields and custom menus
-
-| Shortcut | Action |
-| --- | --- |
-| Tab / Shift + Tab | Move forward/backward through interactive controls. |
-| Enter / Space | Activate a focused button or select a highlighted menu option. |
-| Arrow Up / Down | Open or move through a custom select; navigate a command menu. |
-| Home / End | Move to the first/last enabled option in a custom select. |
-| Type letters | Find an option by label in an open custom select; type a command query in the command menu. |
-| Escape | Dismiss the current menu; cancel an uncommitted numeric draft. |
-| Enter / leave the field | Commit a numeric draft, including decimals or scientific notation where allowed. |
-| Primary + Z in text | Undo text editing rather than changing the figure or crystal. |
-
-### Pointer and mobile interaction
-
-Use the viewport camera controls to rotate, pan, and zoom the crystal. Atom tools operate on the selected atom; choose the appropriate tool before dragging.
-
-On a small screen, open Results or Inspector from the Figure Lab toolbar, then close the drawer with its backdrop or Escape. The page remains scrollable when zoomed.
-
-Dragging a sidebar separator adjusts its width on desktop. Keyboard users can focus the separator and use the horizontal arrow keys.
-
-> Browser and operating-system shortcuts may intercept a key before the web page receives it. Buttons and menus provide the same primary actions.
-
-### Related topics
-
-- [Troubleshooting and recovery](#troubleshooting)
-- [Availability and planned workflows](#roadmap)
-- [Units, terms, and scientific references](#reference)
-
-<a id="field-reference"></a>
-
-## Reference: calculation fields and units
-
-Use the labels and units shown by the active calculation panel. These entries explain common QE inputs; the exact set of exposed controls depends on the workflow and whether generated or expert input is selected.
-
-### Geometry and electronic setup
-
-| Field or QE keyword | Unit / form | Interpretation |
-| --- | --- | --- |
-| CELL_PARAMETERS | Three lattice vectors; read the card unit | Defines the simulated cell, including vacuum. |
-| ATOMIC_POSITIONS | crystal or a stated length unit | crystal means fractional coordinates in the supplied lattice basis. |
-| ecutwfc | Ry | Maximum plane-wave kinetic energy for the wavefunctions. |
-| ecutrho | Ry | Charge-density and potential cutoff; converge with the chosen potential. |
-| K_POINTS automatic | N1 N2 N3 s1 s2 s3 | Mesh counts and offsets for reciprocal integration; offsets are not fractional atom shifts. |
-| K_POINTS crystal_b | Reciprocal path vertices and weights | A line-mode path for band sampling; it is not the SCF integration mesh. |
-| nbnd | Integer | Number of electronic states calculated at each k point. |
-| tot_charge | Electron-charge convention used by QE | Positive values remove electrons; review periodic-charge treatment. |
-| nspin / noncolin / lspinorb | Discrete settings | Spin model and spin-orbit coupling; compatible pseudopotentials are required. |
-
-### Convergence and relaxation
-
-| Keyword | Meaning | Interpretation |
-| --- | --- | --- |
-| conv_thr | SCF threshold in Ry | Controls the estimated electronic energy error; not a force threshold. |
-| electron_maxstep | Maximum electronic iterations | A limit; reaching it does not establish convergence. |
-| mixing_beta | Density-mixing parameter | Can affect convergence stability; no single value fits all systems. |
-| degauss | Smearing width in Ry | An integration/occupation choice, not automatically a physical lattice temperature. |
-| forc_conv_thr | Force threshold in Ry/bohr | Used with ionic relaxation; electronic convergence must be sufficiently tight. |
-| press | Target pressure in kbar | Relevant to cell relaxation; distinguish applied pressure from residual stress. |
-| cell_dofree | Allowed cell degrees of freedom | Defines which metric components can relax; inspect suitability for a slab or constrained strain. |
-
-### Numerical entry and units
-
-Numeric fields accept intermediate drafts while you type. Enter or leaving the field commits a valid value; Escape cancels a draft in supported controls. An empty axis bound means automatic, while a zero is an explicit physical bound.
-
-Do not convert all scientific values to display-region formatting. QE inputs, CSV source files, and code use the syntax required by their parser. The interface language does not rewrite a solver input or change a numerical dataset.
-
-> Refer to the installed QE version and its official INPUT_PW documentation for precise keyword semantics. This reference does not promise support for every QE module in the Phynite form.
-
-### Related topics
-
-- [Keyboard and pointer shortcuts](#shortcuts)
-- [Troubleshooting and recovery](#troubleshooting)
-- [Availability and planned workflows](#roadmap)
-
-<a id="troubleshooting"></a>
-
-## Troubleshooting and recovery
-
-Start with the exact state and the most recent message. Repeatedly rerunning a failing input often wastes time without fixing its cause.
-
-### Local npm run diagnosis
-
-A Completed status means the process and required persistence steps finished; it does not establish convergence or scientific validity. Preserve the exact input and failed log before retrying. A new attempt should use an explicit, reviewed change.
-
-| Stage | What it means | Where to look |
-| --- | --- | --- |
-| Before solver start | Setup, runtime, potential, input validation, isolation, or worker readiness rejected the job. No solver output exists. | Run review, Settings → Compute, phynite-lab doctor, and the selected data directory logs. |
-| Queued | The job is waiting for a dependency or available local worker. | Job status, dependency record, worker status, and notification history. |
-| After solver start | The solver or analysis process returned an error or was interrupted. | Execution log, first meaningful solver error, saved input, provenance, and retained artifacts. |
-| Persistence/upload | The calculation may have finished but saving or transfer failed. | Result state, checksum/provenance, storage inventory, network, and Cloud transfer status. |
-
-### Launcher recovery sequence
-
-1. Run phynite-lab status with the same --data-dir used to start the app.
-2. Run phynite-lab doctor and record the displayed distribution, port, runtime, and data-path diagnostics.
-3. Read the latest service and worker log in the selected data directory.
-4. If the instance is healthy, open the printed loopback origin rather than starting another workspace.
-5. If an update or runtime activation failed, keep the previous active runtime, fix the reported cause, and retry from Settings → Compute.
-6. After a restart, inspect interrupted jobs; local jobs are not automatically rerun.
-
-### Common problems
-
-| Problem | What to do |
-| --- | --- |
-| Figure opens empty | Check that the project has completed plottable data. Open a specific run, retry source loading, or import an original numerical file. |
-| Band + DOS is not verified | Check geometry/electronic source identity and energy metadata. Do not force unrelated calculations into a verified pair. |
-| Lines or labels appear too dense | Set final dimensions, reduce unnecessary layers, use a grid, and inspect bounds and legend placement. |
-| Cloud save stays pending | Check network, sign-in, document limits, and account allowance. Keep the local browser copy and export a Source package. |
-| Cloud revision conflict | Open History and compare local and remote versions. Resolve deliberately before further automatic synchronization. |
-| Outdated data after switching accounts | Wait for the current account workspace to load. If needed, reload and check the signed-in identity. |
-| SCF does not converge | Inspect geometry, occupations, spin, pseudopotentials, mixing, cutoffs, and solver logs before adjusting iteration limits. |
-| Resource check rejects a k mesh | Use a physically justified mesh within the deployment limits; set nonperiodic directions to one. Larger jobs need appropriate capacity. |
-| Export fails | Check data validity, output size, font availability, and network; try again after the preview completes. |
-| Old raw download expired | Open retained numerical data if available, import your original file, or run again. A preview image cannot recover missing numerical samples. |
-
-### What to include in a support request
-
-- The page, action, and exact visible error.
-- Project and calculation names or IDs that you are comfortable sharing.
-- Whether the failure happens before submission, in queue, during execution, during upload, or in Figure Lab.
-- Relevant solver-log excerpts and the expected behavior.
-- Never include passwords, browser cookies, access tokens, or the private computer configuration.
-
-### Related topics
-
-- [Keyboard and pointer shortcuts](#shortcuts)
-- [Availability and planned workflows](#roadmap)
-- [Units, terms, and scientific references](#reference)
-
-<a id="diagnostics"></a>
-
-## Troubleshooting: locate a failed workflow stage
-
-Identify the first stage that did not complete. Retrying a downstream action cannot repair an earlier missing structure, disconnected worker, or incompatible numerical source.
-
-### Decision table
-
-| What you see | Likely stage | Next check |
-| --- | --- | --- |
-| New project is unavailable | Account workspace initialization | Allow the workspace to load. On a cloud error, reload; do not clear browser data containing unsynchronized edits. |
-| Structure will not import | Parsing or geometry | Check format, encoding, lattice, coordinates, and occupancies. Keep the source file for diagnosis. |
-| Run is rejected immediately | Submission validation | Field messages, local runtime/isolation status, resource limits, and method; cloud authentication only for a cloud action. |
-| Run remains Queued | Worker or dependency | Check destination, private worker heartbeat, shared availability, and predecessors. |
-| Worker starts but QE exits | Runtime or scientific input | Read the first solver error. Check pseudopotential files, species names, syntax, memory, and disk. |
-| SCF cycles do not settle | Electronic self-consistency | Inspect geometry, occupations, magnetism, mixing, thresholds, and near-degenerate states. |
-| Solver finished but result unavailable | Persistence or upload | Inspect local disk/runtime and final status; hosted upload also depends on network and credentials. Keep the worker running. |
-| Open in Figure Lab fails | Numerical source retrieval | Retry the source. Older runs may need their original numerical file when retained datasets are absent. |
-| Overlay or pair warns about context | Scientific comparison | Read geometry, energy-reference, and path identity. Use independent panels when comparability is not established. |
-| Export fails | Rendering or font resources | Reconnect, reduce an oversized raster, and retry. Keep the figure document and source package. |
-
-### Collect useful evidence
-
-1. Record the page and exact action, time, project, and run identifier.
-2. Copy the visible error and relevant solver-log lines around the first failure.
-3. Note the destination, allocation, operating system, worker image, and whether the problem repeats.
-4. For a plot issue, retain the numerical dataset, figure Source package, and expected axis convention.
-5. Contact support with the smallest reproducible example. Remove private credentials, cookies, passwords, and unrelated project data.
-
-### Protect recoverable work
-
-Keep the current browser session open when it contains an unsynchronized figure or project. Export source files before clearing site storage.
-
-A retry creates or repeats work according to the active action. Inspect existing queued and running calculations before submitting duplicates.
-
-Replacing a personal credential invalidates the old worker. Finish or cancel active work before rotating it so a completed solver can still upload its result.
-
-### Related topics
-
-- [Keyboard and pointer shortcuts](#shortcuts)
-- [Troubleshooting and recovery](#troubleshooting)
-- [Availability and planned workflows](#roadmap)
+- [Appearance, language, and accessibility](#language)
 
 <a id="roadmap"></a>
 
@@ -1841,8 +1879,8 @@ Paid Cloud uses verified production credit; sandbox payments cannot fund product
 ### Related topics
 
 - [Keyboard and pointer shortcuts](#shortcuts)
-- [Troubleshooting and recovery](#troubleshooting)
 - [Units, terms, and scientific references](#reference)
+- [Reference: calculation fields and units](#field-reference)
 
 <a id="reference"></a>
 
@@ -1878,8 +1916,8 @@ This guide describes the implemented Phynite interface and its current behavior.
 ### Related topics
 
 - [Keyboard and pointer shortcuts](#shortcuts)
-- [Troubleshooting and recovery](#troubleshooting)
 - [Availability and planned workflows](#roadmap)
+- [Reference: calculation fields and units](#field-reference)
 
 ## Scientific references
 

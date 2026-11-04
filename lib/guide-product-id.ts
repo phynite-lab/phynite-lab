@@ -5,7 +5,7 @@ export const productGuideSectionsId: GuideSection[] = [
     id: 'npm-local-app', group: 'Instal & perbarui', title: 'Instal, perbarui, dan diagnosis aplikasi npm',
     intro: 'Aplikasi npm publik adalah jalur local-first untuk menjalankan workspace, DFT, MD, dan analisis native di komputer Anda. Login Phynite, Docker, checkout source, dan Python global tidak diperlukan.',
     blocks: [
-      { title: 'Instal dan jalankan', visuals: [{ kind: 'icon', src: '/brand/phynite-mark-dark.png', alt: 'Logo Phynite Lab', caption: 'Launcher lokal membuka workspace di komputer Anda.' }], code: 'npm install -g phynite-lab@latest\nphynite-lab', paragraphs: [
+      { title: 'Instal dan jalankan', visuals: [{ kind: 'screenshot', src: '/docs/guide/onboarding-workspace-desktop-dark.png', alt: 'Workspace lokal Phynite Lab saat pertama dibuka', caption: 'Workspace lokal terbuka tanpa login Cloud.' }, { kind: 'icon', src: '/brand/phynite-mark-dark.png', alt: 'Logo Phynite Lab', caption: 'Launcher lokal membuka workspace di komputer Anda.' }], code: 'npm install -g phynite-lab@latest\nphynite-lab', paragraphs: [
         'Paket publik saat ini adalah phynite-lab@{{LOCAL_NPM_VERSION}}. Gunakan Node.js dengan versi yang memenuhi {{NODE_REQUIREMENT}}. npm memasang launcher dan paket aplikasi native opsional yang sesuai dengan OS serta CPU.',
         'Pastikan optional dependencies npm tidak dinonaktifkan. Jika paket dipasang dengan --omit=optional atau paket platform dihapus, launcher menampilkan error runtime yang hilang dan tidak diam-diam memakai fixture development.',
         'Launcher mengikat layanan ke loopback, membuka browser, dan menyimpan workspace lokal di ~/.phynite-lab. Project serta runtime pengguna berada di luar direktori instalasi npm.',
@@ -42,7 +42,7 @@ export const productGuideSectionsId: GuideSection[] = [
     id: 'ai-providers', group: 'Provider AI', title: 'Koneksi provider AI di komputer Anda',
     intro: 'AI lokal memakai CLI provider yang Anda pilih. Ini terpisah dari login Phynite Cloud dan tidak memakai layanan AI hosted Phynite.',
     blocks: [
-      { title: 'Hubungkan akun', visuals: [
+      { title: 'Hubungkan akun', visuals: [{ kind: 'screenshot', src: '/docs/guide/ai-provider-accounts-desktop-dark.png', alt: 'Halaman pengaturan akun provider AI', caption: 'Status dan aksi login provider muncul di Pengaturan.' },
         { kind: 'icon', src: '/brand/ai/codex.png', alt: 'Ikon provider Codex', caption: 'Hubungkan melalui CLI provider resmi yang Anda gunakan.' },
         { kind: 'icon', src: '/brand/ai/antigravity.png', alt: 'Ikon provider Antigravity', caption: 'Autentikasi provider tetap berada pada CLI lokal resminya.' },
       ], steps: [
@@ -68,7 +68,7 @@ export const productGuideSectionsId: GuideSection[] = [
     id: 'cloud-sync', group: 'Phynite Cloud', title: 'Phynite Cloud, Cloud Sync, dan compute online',
     intro: 'Layanan Cloud adalah koneksi opsional di atas workspace lokal yang lengkap. Login tidak mengunggah project lokal atau mengganti identitas lokalnya.',
     blocks: [
-      { title: 'Lokal, Cloud Sync, dan compute cloud', visuals: [{ kind: 'diagram', src: '/brand/phynite-mark-light.png', alt: 'Logo koneksi Phynite Cloud', caption: 'Layanan Cloud adalah koneksi opsional di atas pekerjaan lokal.' }], table: { headings: ['Pilihan', 'Yang terjadi'], rows: [
+      { title: 'Lokal, Cloud Sync, dan compute cloud', visuals: [{ kind: 'screenshot', src: '/docs/guide/cloud-account-desktop-dark.png', alt: 'Halaman pengaturan akun Phynite Cloud', caption: 'Login Cloud terpisah dari compute lokal dan AI.' }, { kind: 'diagram', src: '/brand/phynite-mark-light.png', alt: 'Logo koneksi Phynite Cloud', caption: 'Layanan Cloud adalah koneksi opsional di atas pekerjaan lokal.' }], table: { headings: ['Pilihan', 'Yang terjadi'], rows: [
         ['Lokal saja', 'Project, input, hasil, dan runtime tetap di komputer yang dipilih. Login Cloud tidak diperlukan.'],
         ['Login Cloud', 'Membuka fitur akun; project lokal tetap lokal sampai aksi project mengaktifkan sync.'],
         ['Cloud Sync', 'Diaktifkan per project setelah meninjau cakupan, ukuran, dan kuota. Revision serta artefak project yang diizinkan disinkronkan.'],
