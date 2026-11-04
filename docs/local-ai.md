@@ -39,6 +39,10 @@ remain separate from the scientific-compute runtime.
 
 ## Crystal database tools
 
+For a manual import, open or add a Crystal structure module and choose
+**Crystal database** inside its editor. Importing a selected record fills that
+module while retaining its Canvas connections.
+
 In a project Canvas, the AI can search public structure records with
 `search_crystal_structures` and import a selected record with
 `import_crystal_structure`. COD searches need no API key. Materials Project

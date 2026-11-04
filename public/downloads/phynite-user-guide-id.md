@@ -635,14 +635,15 @@ Periksa spesies, koordinat, dan sel simulasi sebelum run.
 
 ### Mencari database kristal
 
-Buka Crystal database di dalam project untuk mencari record struktur publik. Crystallography Open Database (COD) dapat digunakan tanpa API key; Materials Project membutuhkan MP_API_KEY pada environment server. Pencarian memakai provider yang ditampilkan pada browser, dan kegagalan provider tetap terlihat.
+Buka atau tambahkan modul Crystal structure, lalu pilih Crystal database di dalam editornya untuk mencari record struktur publik. Crystallography Open Database (COD) dapat digunakan tanpa API key; Materials Project membutuhkan MP_API_KEY pada environment server. Pencarian memakai provider yang ditampilkan pada browser, dan kegagalan provider tetap terlihat.
 
 Pilih dan impor record yang dimaksud, lalu periksa rumus kimia, kisi, jumlah atom, okupansi, dan identitas sumber. Struktur database merupakan model awal, bukan bukti bahwa fase, keadaan magnetik, atau pengaturan kalkulasinya sesuai. Properti numerik yang tidak dilaporkan tetap tidak tersedia.
 
-1. Pilih database lalu masukkan rumus kimia, daftar unsur, nama material, atau ID sumber yang didukung.
-2. Periksa hasil dan impor struktur pilihan ke project aktif.
-3. Untuk impor dibantu AI, minta Phynite AI mencari database lalu memakai record tertentu. Pencarian hanya membaca; penerapan impor mengikuti mode izin percakapan serta review aksinya.
-4. Baca identitas sumber dan checksum hasil impor. Periksa geometri dan pseudopotensial sebelum menghubungkan struktur ke kalkulasi.
+1. Buka modul Crystal structure tujuan lalu pilih Crystal database dari toolbar editornya.
+2. Pilih database lalu masukkan rumus kimia, daftar unsur, nama material, atau ID sumber yang didukung.
+3. Periksa hasil dan impor satu struktur pilihan ke modul tersebut. Koneksi Kanvas dan identitas modul tetap dipertahankan.
+4. Untuk impor dibantu AI, minta Phynite AI mencari database lalu memakai record tertentu. Pencarian hanya membaca; penerapan impor mengikuti mode izin percakapan serta review aksinya.
+5. Baca identitas sumber dan checksum hasil impor. Periksa geometri dan pseudopotensial sebelum menghubungkan struktur ke kalkulasi.
 
 > Akses database membutuhkan internet. Kredensial Materials Project tetap di environment server; jangan menempelkan API key ke chat atau menyertakannya dalam ekspor project.
 

@@ -9,6 +9,8 @@ import type { MdPotentialAsset } from '@/lib/md-simulation-types';
 import { FiguresWorkspace } from './FiguresWorkspace';
 import { WorkflowFigureEditor } from './WorkflowFigureEditor';
 import { CrystalBuilderEditor } from './CrystalBuilderEditor';
+import { replaceWorkflowCrystalInput } from '@/lib/crystal-database-input';
+import type { CrystalSourceMetadata } from './CrystalStructureInspector';
 import { CalculationConfigDrawer } from './CalculationConfigDrawer';
 import { MdSimulationConfigDrawer } from './MdSimulationConfigDrawer';
 import { createSimulationComponentInstance, MD_SIMULATION_RECIPES, type MdSimulationComponentInstance, type MdSimulationRecipeId } from '@/lib/md-simulation-types';
@@ -26,7 +28,7 @@ import type { MdCloudPipeline } from '@/lib/md-cloud-api';
 
 export function WorkflowNodeEditor({ node, graph, projectName, onChange, onSaveStructure, onRun, onClose, onError, owner, attempt, onInputChange, onSave, saveStatus, runDisabled = false, onOpenSource, onCanvas, attempts = [] }: {
   node: WorkflowNode; attempt?: WorkflowAttempt; graph: ProjectWorkflow; projectName: string; owner: string;
-  onChange: (node: WorkflowNode) => void; onSaveStructure: (node: WorkflowNode) => Promise<void>; onRun: () => void; onClose: () => void; onError: (message: string) => void;
+  onChange: (node: WorkflowNode) => void | boolean; onSaveStructure: (node: WorkflowNode) => Promise<void>; onRun: () => void; onClose: () => void; onError: (message: string) => void;
   onInputChange: (sourceId: string) => void; onSave:()=>Promise<void>; saveStatus:string; runDisabled?:boolean; onOpenSource?: (id:string) => void; onCanvas: () => void; attempts?: WorkflowAttempt[];
 }) {
   const { t } = useLocale(), { theme } = useSiteTheme();
@@ -53,10 +55,10 @@ export function WorkflowNodeEditor({ node, graph, projectName, onChange, onSaveS
     return () => { live = false; };
   }, [graph.projectId, node.kind, node.configuration.structure, sourceResource, onError]);
   if (node.kind === 'structure') {
-    const structure = node.configuration.structure as ParsedStructure | undefined;
+    const structure = node.configuration.structure as (ParsedStructure & CrystalSourceMetadata) | undefined;
     const source = node.configuration.legacySource as Record<string,unknown> | undefined;
-    const metadata={externalId:typeof source?.externalId==='string'?source.externalId:undefined,bandGap:typeof source?.bandGap==='number'&&Number.isFinite(source.bandGap)?source.bandGap:undefined};
-    return <CrystalBuilderEditor metadata={metadata} structure={structure ?? { name:node.name, atoms:[], lattice:{a:5,b:5,c:5,alpha:90,beta:90,gamma:90,periodic:[true,true,true]} }} onChange={value => onChange({...node,configuration:{...node.configuration,structure:value}})} onSave={()=>onSaveStructure(node)} saveStatus={saveStatus} viewKey={`phynite:crystal-editor:v2:${owner}:${graph.projectId}:${node.id}`} theme={theme}/>;
+    const metadata={externalId:structure?.externalId ?? (typeof source?.externalId==='string'?source.externalId:undefined),bandGap:structure?.bandGap ?? (typeof source?.bandGap==='number'&&Number.isFinite(source.bandGap)?source.bandGap:undefined)};
+    return <CrystalBuilderEditor database metadata={metadata} structure={structure ? {...structure,...metadata} : { name:node.name, atoms:[], lattice:{a:5,b:5,c:5,alpha:90,beta:90,gamma:90,periodic:[true,true,true]} }} onChange={value => onChange(replaceWorkflowCrystalInput(node,value))} onSave={()=>onSaveStructure(node)} saveStatus={saveStatus} viewKey={`phynite:crystal-editor:v2:${owner}:${graph.projectId}:${node.id}`} theme={theme}/>;
   }
   if (workflowCalculationTypes[node.kind]) {
     const draft = workflowQeDraft(graph, node), material = workflowMaterial(workflowStructure(graph, node.id), projectName);

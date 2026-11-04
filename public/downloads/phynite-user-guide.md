@@ -633,14 +633,15 @@ Inspect species, coordinates, and the simulation cell before running.
 
 ### Search a crystal database
 
-Open Crystal database in a project to search public structure records. Crystallography Open Database (COD) works without an API key; Materials Project requires MP_API_KEY in the server environment. Search uses the provider shown in the browser, and a provider failure stays visible.
+Open or add a Crystal structure module, then choose Crystal database inside its editor to search public structure records. Crystallography Open Database (COD) works without an API key; Materials Project requires MP_API_KEY in the server environment. Search uses the provider shown in the browser, and a provider failure stays visible.
 
 Select and import the intended record, then inspect its formula, lattice, atom count, occupancies, and source identity. Database structures are starting models, not proof that a phase, magnetic state, or calculation setup is appropriate. Unreported numerical properties remain unavailable.
 
-1. Choose the database and enter a chemical formula, element list, material name, or supported source ID.
-2. Review the results and import the selected structure into the current project.
-3. For an AI-assisted import, ask Phynite AI to search the database and use a specific record. Search is read-only; applying an import follows the conversation permission mode and its action review.
-4. Read the imported source identity and checksum. Check the geometry and pseudopotentials before connecting the structure to a calculation.
+1. Open the destination Crystal structure module and choose Crystal database from its editor toolbar.
+2. Choose the database and enter a chemical formula, element list, material name, or supported source ID.
+3. Review the results and import one selected structure into that module. The Canvas connections and module identity remain in place.
+4. For an AI-assisted import, ask Phynite AI to search the database and use a specific record. Search is read-only; applying an import follows the conversation permission mode and its action review.
+5. Read the imported source identity and checksum. Check the geometry and pseudopotentials before connecting the structure to a calculation.
 
 > Database access needs an internet connection. Credentials for Materials Project stay in the server environment; never paste an API key into chat or include it in a project export.
 
