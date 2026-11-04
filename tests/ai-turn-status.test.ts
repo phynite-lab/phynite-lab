@@ -66,6 +66,11 @@ test('public provider failure categories have actionable Indonesian copy', () =>
     assert.ok(text.length > 30);
   }
   assert.match(aiFailureReason({ code: 'AI_PROVIDER_UNAVAILABLE', message: '' }, 'en'), /selected model is unavailable/);
+  for (const code of ['AUTH_REQUIRED', 'CLI_MISSING', 'UNVERIFIED_VERSION', 'UNSAFE_CONFIGURATION', 'INCOMPLETE_RESPONSE']) {
+    const text = aiFailureReason({ code, message: 'Raw English diagnostics.' }, 'id');
+    assert.notEqual(text, 'Raw English diagnostics.');
+    assert.ok(text.length > 30);
+  }
 });
 
 test('overlapping history pages and polls preserve the oldest pagination cursor', () => {

@@ -105,6 +105,15 @@ test('reviewed CLI minor lines accept compatible patch releases and reject new p
   await registry.close(); await other.close();
 });
 
+test('Antigravity 1.5.x remains on the reviewed stream-json minor line', async () => {
+  const dir = await mkdtemp('/tmp/phynite-native-agy-version-test-'), bin = await mkdtemp('/tmp/phynite-native-agy-version-bin-');
+  const agy = await executable(bin, 'agy', agyStub.replace('1.4.10', '1.5.0'));
+  const registry = new NativeAiRegistry({ dataDir: dir, executables: { antigravity: agy } });
+  const cwd = await registry.scratch();
+  try { assert.equal(await registry.version('antigravity', cwd), '1.5.0'); }
+  finally { await rm(cwd, { recursive: true, force: true }); await registry.close(); }
+});
+
 test('Codex usage refresh reports provider windows and real reset timestamps', async () => {
   const dir = await mkdtemp('/tmp/phynite-native-usage-test-'), bin = await mkdtemp('/tmp/phynite-native-usage-bin-');
   const codex = await executable(bin, 'codex', codexStub), registry = new NativeAiRegistry({ dataDir: dir, executables: { codex } });
@@ -278,7 +287,10 @@ for await (const line of createInterface({input:process.stdin})) {
  }
  const text=turn===1?'4':'AGY_OK';
  const json=JSON.stringify({text,toolCalls:turn===2?[{name:'host_action',argumentsJson:'{"value":1}'}]:[]});
- const body=mode==='fenced'?'\`\`\`json\\n'+json+'\\n\`\`\`':mode==='prose'?'Here is a response: '+json:json;
+ const rawJson=mode==='latex' && turn===2
+  ? json.replace('AGY_OK', ${JSON.stringify('Lattice $a \\approx 2.46$ \\AA, $\\gamma = 120^\\circ$, cutoff $E_{cut} \\sim 40$ Ry')})
+  : json;
+ const body=mode==='fenced'? '\`\`\`json\\n'+rawJson+'\\n\`\`\`':mode==='prose'?'Here is a response: '+rawJson:rawJson;
  const step={conversation_id:'safe-session',step_index:turn*2-1,state:'ACTIVE',step_type:'agent_response',text_delta:body};
  if(mode==='wrong-step-session') step.conversation_id='other';
  if(mode==='unknown-step') step.step_type='native_action';
@@ -321,6 +333,14 @@ test('Antigravity verifies guard before project context and streams only the act
     assert.equal(turns.length, 2);
     assert.equal(turns[0].prompt.includes('SYNTHETIC_PROJECT_CONTEXT'), false);
     assert.equal(turns[1].prompt.includes('SYNTHETIC_PROJECT_CONTEXT'), true);
+  });
+});
+
+test('Antigravity preserves LaTeX backslashes in structured scientific text', async () => {
+  await agyFixture('latex', async ({ execute, events }) => {
+    await execute();
+    assert.equal(events.at(-1).proposal.text, 'Lattice $a \\approx 2.46$ \\AA, $\\gamma = 120^\\circ$, cutoff $E_{cut} \\sim 40$ Ry');
+    assert.deepEqual(events.at(-1).proposal.calls, [{ name: 'host_action', input: { value: 1 } }]);
   });
 });
 

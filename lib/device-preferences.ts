@@ -11,7 +11,9 @@ export function themePreset(preset: Exclude<ThemePreset, 'custom'>, mode: Appear
   const palette = { phynite: { light: ['#fcfcfc', '#171717'], dark: ['#000000', '#ededed'] }, paper: { light: ['#fffdf7', '#29251f'], dark: ['#201e19', '#f1eadd'] }, slate: { light: ['#f6f8fc', '#202936'], dark: ['#121821', '#e5ecf6'] } }[preset][mode];
   return { preset, background: palette[0], foreground: palette[1], customColors: preset !== 'phynite' };
 }
-const defaultAppearance: AppearanceValues = { ...themePreset('phynite', 'light'), fontSize: 13, codeFontSize: 12, accent: 'neutral', contrast: 45 };
+// Keep the unmodified Phynite theme at the neutral contrast baseline. Users can
+// opt into a stronger text/line mix from Appearance → Advanced → Contrast.
+const defaultAppearance: AppearanceValues = { ...themePreset('phynite', 'light'), fontSize: 13, codeFontSize: 12, accent: 'neutral', contrast: 0 };
 export const defaultDevicePreferences: DevicePreferences = { ...defaultAppearance, reduceMotion: 'system', density: 'comfortable', separateModes: false, modes: { light: { ...defaultAppearance }, dark: { ...defaultAppearance, ...themePreset('phynite', 'dark') } }, diffMarkers: 'color' };
 export function colorContrast(background: string, foreground: string): number {
   const luminance = (color: string) => {
@@ -41,7 +43,7 @@ function parseAppearance(value: Record<string, unknown>, fallback: AppearanceVal
   const color = (input: unknown, defaultValue: string) => typeof input === 'string' && /^#[a-f0-9]{6}$/i.test(input) ? input.toLowerCase() : defaultValue;
   const background = color(value.background, fallback.background), foreground = color(value.foreground, fallback.foreground);
   const preset = ['phynite', 'paper', 'slate', 'custom'].includes(String(value.preset)) ? value.preset as ThemePreset : value.customColors === true ? 'custom' : 'phynite';
-  return { fontSize: bounded(value.fontSize === 'large' ? 15 : value.fontSize, fallback.fontSize, 12, 18), codeFontSize: bounded(value.codeFontSize, fallback.codeFontSize, 11, 18), accent: ['neutral', 'blue', 'violet', 'green', 'orange'].includes(String(value.accent)) ? value.accent as AccentColor : fallback.accent, customColors: (value.customColors === true || preset !== 'phynite') && colorContrast(background, foreground) >= 4.5, background, foreground, preset, contrast: bounded(value.contrast, 45, 0, 100) };
+  return { fontSize: bounded(value.fontSize === 'large' ? 15 : value.fontSize, fallback.fontSize, 12, 18), codeFontSize: bounded(value.codeFontSize, fallback.codeFontSize, 11, 18), accent: ['neutral', 'blue', 'violet', 'green', 'orange'].includes(String(value.accent)) ? value.accent as AccentColor : fallback.accent, customColors: (value.customColors === true || preset !== 'phynite') && colorContrast(background, foreground) >= 4.5, background, foreground, preset, contrast: bounded(value.contrast, fallback.contrast, 0, 100) };
 }
 export function parseDevicePreferences(raw: string | null): DevicePreferences {
   try {
