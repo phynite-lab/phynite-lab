@@ -8,6 +8,12 @@ The package templates are deliberately incomplete: npm prepack refuses a package
 without its release manifest, corresponding-source metadata and required notices.
 Commands below assemble reviewable artifacts; none publishes or deploys a service.
 
+For the user-facing installation path, start with the bilingual guide at
+https://phynitelab.com/guide/npm-local-app. It includes annotated screenshots
+from a clean demo workspace, platform-specific launcher commands, update
+notices, and recovery steps. The guide's **Compute paths** topic explains how
+the local npm runtime differs from the optional hosted worker.
+
 ## Native builds
 
 Build the standalone app and frozen core on each exact target, using the source
