@@ -275,7 +275,10 @@ for await (const line of createInterface({input:process.stdin})) {
  }
  const text=turn===1?'4':'AGY_OK';
  const json=JSON.stringify({text,toolCalls:turn===2?[{name:'host_action',argumentsJson:'{"value":1}'}]:[]});
- const body=mode==='fenced'?'\`\`\`json\\n'+json+'\\n\`\`\`':mode==='prose'?'Here is a response: '+json:json;
+ const rawJson=mode==='latex' && turn===2
+  ? json.replace('AGY_OK', ${JSON.stringify('Lattice $a \\approx 2.46$ \\AA, $\\gamma = 120^\\circ$, cutoff $E_{cut} \\sim 40$ Ry')})
+  : json;
+ const body=mode==='fenced'?'\`\`\`json\\n'+rawJson+'\\n\`\`\`':mode==='prose'?'Here is a response: '+rawJson:rawJson;
  const step={conversation_id:'safe-session',step_index:turn*2-1,state:'ACTIVE',step_type:'agent_response',text_delta:body};
  if(mode==='wrong-step-session') step.conversation_id='other';
  if(mode==='unknown-step') step.step_type='native_action';
@@ -319,6 +322,15 @@ test('Antigravity accepts a complete JSON fence and preserves proposal validatio
   await agyFixture('fenced', async ({ execute, events }) => {
     await execute();
     assert.deepEqual(events.at(-1).proposal, { text: 'AGY_OK', calls: [{ name: 'host_action', input: { value: 1 } }] });
+  });
+});
+
+test('Antigravity decodes and preserves LaTeX math formulas and symbols in structured text', async () => {
+  await agyFixture('latex', async ({ execute, events }) => {
+    await execute();
+    assert.equal(events[0].type, 'delta');
+    assert.equal(events.at(-1).proposal.text, 'Lattice $a \\approx 2.46$ \\AA, $\\gamma = 120^\\circ$, cutoff $E_{cut} \\sim 40$ Ry');
+    assert.deepEqual(events.at(-1).proposal.calls, [{ name: 'host_action', input: { value: 1 } }]);
   });
 });
 
