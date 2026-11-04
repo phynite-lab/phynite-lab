@@ -44,47 +44,54 @@ const browser = await chromium.launch({
   headless: !options.headed,
   ...(options['browser-executable'] ? { executablePath: resolve(options['browser-executable']) } : {}),
 });
-const context = await browser.newContext({
-  viewport: { width: 1440, height: 960 },
-  deviceScaleFactor: 1,
-  locale: 'en-US',
-  colorScheme: 'dark',
-  serviceWorkers: 'block',
-});
-const blockedRequests = [];
-await context.route('**/*', route => {
-  const requestUrl = new URL(route.request().url());
-  if (requestUrl.origin !== origin.origin && ['http:', 'https:', 'ws:', 'wss:'].includes(requestUrl.protocol)) {
-    blockedRequests.push({ url: requestUrl.origin, path: requestUrl.pathname });
-    return route.abort('blockedbyclient');
-  }
-  return route.continue();
-});
-const page = await context.newPage();
 const manifest = {
   format: 'phynite-guide-screenshots',
   schemaVersion: 1,
   origin: origin.origin,
   capturedAt: new Date().toISOString(),
-  colorScheme: 'dark',
-  viewport: { width: 1440, height: 960 },
+  variants: [
+    { id: 'desktop-dark', viewport: { width: 1440, height: 960 }, colorScheme: 'dark' },
+    { id: 'desktop-light', viewport: { width: 1440, height: 960 }, colorScheme: 'light' },
+    { id: 'mobile-dark', viewport: { width: 390, height: 844 }, colorScheme: 'dark' },
+  ],
   captures: [],
 };
 
 try {
-  for (const capture of captures) {
-    const response = await page.goto(new URL(capture.route, origin).href, { waitUntil: 'networkidle', timeout: 30_000 });
-    if (!response || response.status() >= 400) throw new Error(`${capture.route} returned ${response?.status() ?? 'no response'}.`);
-    await page.locator('body').waitFor({ state: 'visible', timeout: 10_000 });
-    await page.screenshot({ path: join(output, `${capture.id}.png`), fullPage: true });
-    manifest.captures.push({ ...capture, file: `${capture.id}.png`, status: response.status() });
+  for (const variant of manifest.variants) {
+    const context = await browser.newContext({
+      viewport: variant.viewport,
+      deviceScaleFactor: 1,
+      locale: 'en-US',
+      colorScheme: variant.colorScheme,
+      serviceWorkers: 'block',
+    });
+    const blockedRequests = [];
+    await context.route('**/*', route => {
+      const requestUrl = new URL(route.request().url());
+      if (requestUrl.origin !== origin.origin && ['http:', 'https:', 'ws:', 'wss:'].includes(requestUrl.protocol)) {
+        blockedRequests.push({ url: requestUrl.origin, path: requestUrl.pathname });
+        return route.abort('blockedbyclient');
+      }
+      return route.continue();
+    });
+    const page = await context.newPage();
+    for (const capture of captures) {
+      const response = await page.goto(new URL(capture.route, origin).href, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      if (!response || response.status() >= 400) throw new Error(`${capture.route} returned ${response?.status() ?? 'no response'}.`);
+      await page.locator('body').waitFor({ state: 'visible', timeout: 10_000 });
+      const file = `${capture.id}-${variant.id}.png`;
+      await page.screenshot({ path: join(output, file), fullPage: true });
+      manifest.captures.push({ ...capture, file, variant: variant.id, status: response.status() });
+    }
+    await context.close();
+    manifest.blockedRequests = [...(manifest.blockedRequests ?? []), ...blockedRequests];
   }
-  await writeFile(join(output, 'manifest.json'), `${JSON.stringify({ ...manifest, blockedRequests }, null, 2)}\n`);
+  await writeFile(join(output, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 } catch (error) {
   await writeFile(join(output, 'capture-error.log'), `${error instanceof Error ? error.stack ?? error.message : String(error)}\n`, { mode: 0o600 });
   throw error;
 } finally {
-  await context.close();
   await browser.close();
 }
 
