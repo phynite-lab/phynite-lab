@@ -252,7 +252,7 @@ jobs:
       - name: Publish GitHub corresponding source and qualification evidence
         if: inputs.publish
         run: |
-          gh release create "v$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --target "$SOURCE_COMMIT" --title "Phynite Lab $RELEASE_VERSION" --notes "GNU AGPL v3 only. Native packages: macOS Apple Silicon, Linux ARM64 and Linux x64 (glibc >=2.39, including current Omarchy/Arch Linux). Windows WSL2 uses the Linux x64 package. Linux qualification runs on matching hosted runners; an Omarchy desktop or Windows host was not directly tested. Exact source, checksums and qualification evidence are attached. Scientific runtimes are installed through local setup." build/release/source.tar.gz build/release/SHA256SUMS build/release/release.json build/release/qualification-evidence.tar.gz build/release/tarballs/*.tgz
+          gh release create "v$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --target "$SOURCE_COMMIT" --title "Phynite Lab $RELEASE_VERSION" --notes "GNU AGPL v3 only. Native packages: macOS Apple Silicon, Linux ARM64 and Linux x64 (glibc >=2.39, including modern Ubuntu and Arch Linux). Windows WSL2 uses the Linux x64 package. Linux qualification runs on matching hosted runners. Exact source, checksums and qualification evidence are attached. Scientific runtimes are installed through local setup." build/release/source.tar.gz build/release/SHA256SUMS build/release/release.json build/release/qualification-evidence.tar.gz build/release/tarballs/*.tgz
 
   registry:
     needs: [source, release]

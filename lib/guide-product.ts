@@ -13,7 +13,7 @@ export const productGuideSections: GuideSection[] = [
       { title: 'Supported platforms', table: { headings: ['Platform', 'Package/runtime', 'Notes'], rows: [
         ['macOS Apple Silicon', 'darwin-arm64', 'Native arm64 package.'],
         ['Linux ARM64', 'linux-arm64', 'Requires glibc >=2.39 and verified user namespaces.'],
-        ['Linux x64 / Omarchy / Arch', 'linux-x64', 'Requires glibc >=2.39 and verified user namespaces.'],
+        ['Linux x64', 'linux-x64', 'Requires glibc >=2.39 (e.g. Ubuntu 24.04+, Arch Linux) and verified user namespaces.'],
         ['Windows', 'WSL2 linux-x64', 'Run npm and phynite-lab inside WSL2; a Windows-native solver is not installed.'],
       ] }, note: 'The package declares darwin/linux and arm64/x64 targets. A platform is supported only when its native runtime, isolation probe, and scientific checks pass; package availability alone is not a qualification.' },
       { title: 'Launcher commands and workspace identity', code: 'phynite-lab --no-open --port 3000 --data-dir /path/to/workspace\nphynite-lab status --data-dir /path/to/workspace\nphynite-lab doctor --data-dir /path/to/workspace\nphynite-lab stop --data-dir /path/to/workspace', paragraphs: [

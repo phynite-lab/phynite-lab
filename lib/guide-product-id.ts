@@ -13,7 +13,7 @@ export const productGuideSectionsId: GuideSection[] = [
       { title: 'Platform yang didukung', table: { headings: ['Platform', 'Paket/runtime', 'Catatan'], rows: [
         ['macOS Apple Silicon', 'darwin-arm64', 'Paket native arm64.'],
         ['Linux ARM64', 'linux-arm64', 'Memerlukan glibc >=2.39 dan user namespace yang tersedia.'],
-        ['Linux x64 / Omarchy / Arch', 'linux-x64', 'Memerlukan glibc >=2.39 dan user namespace yang tersedia.'],
+        ['Linux x64', 'linux-x64', 'Memerlukan glibc >=2.39 (seperti Ubuntu 24.04+, Arch Linux) dan user namespace yang tersedia.'],
         ['Windows', 'WSL2 linux-x64', 'Jalankan npm dan phynite-lab di dalam WSL2; solver native Windows tidak dipasang.'],
       ] }, note: 'Paket mendeklarasikan target darwin/linux dan arm64/x64. Platform didukung setelah runtime native, probe isolasi, dan pemeriksaan scientific-nya lulus; tersedianya paket saja bukan bukti kualifikasi.' },
       { title: 'Perintah launcher dan identitas workspace', code: 'phynite-lab --no-open --port 3000 --data-dir /path/to/workspace\nphynite-lab status --data-dir /path/to/workspace\nphynite-lab doctor --data-dir /path/to/workspace\nphynite-lab stop --data-dir /path/to/workspace', paragraphs: [

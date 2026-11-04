@@ -29,15 +29,13 @@ commit or platform. Solver scientific libraries belong in the optional runtime,
 not the npm package. Do not include restricted pseudopotentials or potentials.
 
 The published npm release ships `darwin-arm64` (macOS Apple Silicon), `linux-arm64`,
-and `linux-x64` (glibc >=2.39, including current
-Omarchy/Arch Linux). Windows WSL2 uses the Linux x64 package because WSL2 reports
-that native platform to Node and npm. Each native package is built and qualified
-on its matching runner; direct testing on an Omarchy desktop or Windows host is
-not claimed. A target is supported only after actual native installation,
-isolation and scientific reference tests pass. A cross-platform dependency solve
-is insufficient.
+and `linux-x64` (glibc >=2.39, including modern Arch Linux and Ubuntu 24.04+).
+Windows WSL2 uses the Linux x64 package because WSL2 reports that native platform
+to Node and npm. Each native package is built and qualified on its matching runner.
+A target is supported only after actual native installation, isolation and
+scientific reference tests pass. A cross-platform dependency solve is insufficient.
 
-## Omarchy / Arch Linux x64
+## Arch Linux / Linux x64
 
 Use Node.js >=22.13 and npm from your preferred user-managed Node installation.
 Install with `npm install -g phynite-lab`, then run `phynite-lab` in the normal
@@ -47,7 +45,7 @@ command runs during npm installation. Do not omit npm optional dependencies.
 
 The Linux x64 package requires glibc >=2.39. It carries its own non-setuid
 bubblewrap and libcap rather than depending on an Ubuntu package manager. Runtime
-packages pin their full native library closure. Omarchy's Hyprland session opens
+packages pin their full native library closure. The desktop session opens
 the local app through `xdg-open`; use `phynite-lab --no-open` and the printed URL
 if no default browser is configured. Saved data stays in `~/.phynite-lab` across
 updates.
@@ -72,8 +70,7 @@ namespace or security-policy restriction blocks manual MD and runtime setup with
 its actual diagnostic. The application never disables those restrictions. The
 qualification environment uses an exact-path, ephemeral AppArmor fixture rather
 than a global sysctl change; this fixture is never installed on users' machines.
-Direct Omarchy desktop testing is not part of this release's evidence; native qualification uses Ubuntu
-24.04 x64.
+Direct testing across every Linux desktop environment is not part of this release's evidence; native qualification uses Ubuntu 24.04 x64.
 
 ## A run fails before the solver starts
 

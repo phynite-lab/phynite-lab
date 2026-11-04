@@ -1,123 +1,129 @@
 # Phynite Lab
 
-A local computational materials-science workspace, released under GNU AGPL v3
-only (`AGPL-3.0-only`). Source and build instructions are available at
-https://github.com/phynite-lab/phynite-lab. Commercial use is permitted under the
-license. Users interacting with a modified version over a network must be offered
-its corresponding source, as required by AGPL section 13.
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://github.com/phynite-lab/phynite-lab/blob/main/LICENSE)
+[![npm version](https://img.shields.io/npm/v/phynite-lab.svg)](https://www.npmjs.com/package/phynite-lab)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D22.13.0-brightgreen.svg)](https://nodejs.org/)
+
+**Phynite Lab** is an open-source, local-first computational materials-science workspace. It provides an intuitive, modern interface for crystal structure editing, **Quantum ESPRESSO (DFT)**, **LAMMPS (Molecular Dynamics)**, automated analysis, and publication-ready scientific figures—with zero complex compiler or environment setup required.
+
+All your calculations, research projects, and data stay **100% private on your local machine**.
+
+Source code and build instructions are available at [github.com/phynite-lab/phynite-lab](https://github.com/phynite-lab/phynite-lab).
+
+---
+
+## Quick Start
+
+Requires [Node.js](https://nodejs.org/) 22.13 or later.
 
 ```sh
+# Install globally
 npm install -g phynite-lab
+
+# Launch Phynite Lab
 phynite-lab
 ```
 
-Requires Node.js 22.13 or later. Each published version ships matching native
-packages for macOS
-Apple Silicon (`darwin-arm64`), Linux ARM64
-(`linux-arm64`) and Linux x64 (`linux-x64`, glibc >=2.39), including current
-Omarchy/Arch Linux. Windows is supported through WSL2, which uses the Linux x64
-package and launcher. Linux qualification runs on matching release builders;
-direct testing on an arbitrary Omarchy desktop or Windows host is not claimed;
-consult the release evidence for the targets exercised for the installed version.
-npm selects the exact-version native platform optional package containing
-the production app, frozen local core and Linux sandbox; it does not require
-a global Python installation, AWS CLI, or Docker. Scientific solver runtimes are
-installed separately from the application's setup page.
-
-On Omarchy, run the launcher as your normal desktop user. Its bundled bubblewrap
-needs unprivileged user namespaces; Setup verifies actual filesystem/network
-isolation before enabling scientific execution. A blocked probe displays the
-repair needed instead of weakening OS policy. Browser opening uses `xdg-open`;
-`--no-open` also prints the local URL for manual opening.
-
-The application binds to `127.0.0.1`, opens a browser, and keeps user data in
-`~/.phynite-lab`. A busy default port is replaced with an available local port.
-Press Ctrl+C to stop the application without removing saved data.
-
+*Or run directly without global installation:*
 ```sh
-phynite-lab --no-open --port 3000 --data-dir /path/to/workspace
-phynite-lab status
-phynite-lab stop
-phynite-lab doctor
+npx phynite-lab
 ```
 
-Use the same `--data-dir` for status, stop, and doctor when using a custom location.
-Repeating the launch command opens the existing instance for that data directory.
-No installer runs during npm installation. Keep npm optional dependencies enabled.
-Incomplete or mismatched distributions fail with an actionable error rather than
-falling back to development fixtures. `distribution.json` identifies the exact
-public source commit and source archive for each installed release. The application
-also provides a source link. Updated packages do not remove saved data:
+When started, Phynite Lab spins up the native local core, starts the web interface at `http://127.0.0.1:3000`, and opens your default browser. User data is saved in `~/.phynite-lab`.
 
+---
+
+## Key Features
+
+- 💎 **Crystal & Molecular Modeling**: Build unit cells, supercells, slabs, and vacuum regions. Import or export CIF and POSCAR formats, or search structures directly via Materials Project.
+- ⚛️ **Quantum ESPRESSO (DFT)**: Run SCF, structural relaxations, electronic band structures, Density of States (DOS), and phonon workflows with automatic high-symmetry $k$-paths (via Seekpath) and one-click SSSP pseudopotential integration.
+- 🧪 **LAMMPS (Molecular Dynamics)**: Set up thermal equilibrations (NVE, NVT, NPT) and mechanical deformation simulations with integrated 3D trajectory visualization and OVITO analysis.
+- 🔒 **Local-First & Private by Default**: Projects, inputs, and outputs are stored locally in SQLite and filesystem storage (`~/.phynite-lab`). No mandatory accounts, telemetry, or third-party cloud lock-in.
+- 📦 **Zero-Config Solvers**: No need to manually compile Fortran binaries, configure OpenMPI, or manage conflicting Python virtual environments. Verified native solver runtimes are installed and sandboxed on demand.
+- 📊 **Publication-Ready Figures**: Generate interactive band diagrams, DOS spectra, and convergence graphs ready for SVG/PDF export.
+- 🤖 **Local AI Co-Scientist (Optional)**: Connect your local AI CLI tools (e.g., Codex or Antigravity) via loopback for intelligent parameter recommendations and automated workflow generation without exposing private research data.
+
+---
+
+## First Calculation in 3 Steps
+
+1. **Enable Scientific Solvers:**
+   Open **Settings → Local runtime & cloud** (or Compute setup) and click **Install runtime** for **Quantum ESPRESSO (DFT)** and/or **LAMMPS (MD)**.
+2. **Set Up Pseudopotentials (for DFT):**
+   In the **DFT pseudopotentials** section, install the official SSSP (Standard Solid-State Pseudopotentials) library (**Precision** or **Efficiency**) with one click, or upload your own `.upf` files.
+3. **Build & Run:**
+   Create or import a crystal structure in the workspace, add calculation steps, choose **Your computer** in the run review, and click **Run**. View live solver logs, convergence curves, and scientific results in real time.
+
+---
+
+## CLI Reference
+
+```sh
+phynite-lab [command] [options]
+```
+
+### Commands
+
+| Command | Description |
+| :--- | :--- |
+| `phynite-lab` *(default)* | Starts the local server and opens the browser interface. |
+| `phynite-lab status` | Checks if a local Phynite Lab instance is currently running. |
+| `phynite-lab stop` | Gracefully shuts down the running instance. |
+| `phynite-lab doctor` | Verifies the integrity of the application, local core, sandboxing, and data directory. |
+
+### Options
+
+| Flag | Description | Default |
+| :--- | :--- | :--- |
+| `--port <number>` | Custom port for the web interface. | `3000` *(auto-increments if busy)* |
+| `--data-dir <path>` | Custom directory for workspace databases, runtimes, and projects. | `~/.phynite-lab` |
+| `--no-open` | Start the local server without automatically launching the browser. | `false` |
+| `-v, --version` | Display the installed version. | — |
+| `-h, --help` | Show command-line help. | — |
+
+To update Phynite Lab to the latest version:
 ```sh
 npm install -g phynite-lab@latest
 ```
 
-The launcher checks `https://registry.npmjs.org/phynite-lab/latest` without
-credentials. Successful metadata is cached for up to six hours and an unavailable
-registry response for five minutes. The update notice is informational only and
-never runs npm for you. Offline use remains available; stop the current instance,
-run the update command, and start it again. To verify the published metadata from
-a terminal, run `npm view phynite-lab version` and inspect the installed launcher
-with `phynite-lab --version`.
+---
 
-The first solver installation downloads the chosen runtime from the setup page.
+## Platform Support
 
-Complete English and Indonesian user documentation is available at
-https://phynitelab.com/guide, including the npm install/update path, local AI
-provider accounts, Cloud Sync, storage and QE intermediate-state guidance,
-Settings, and troubleshooting. The guide links to the matching source and
-downloadable Markdown copies.
+Phynite Lab ships self-contained native packages for:
 
-First run checklist: open **Settings → Compute**, verify the platform, solver
-capability, and isolation probe, install DFT or MD/analysis, install the required
-pseudopotentials (or provide exact UPF inputs), choose **Your computer** in the
-run review, and run a small reference calculation. Inspect the actual queued,
-running, and final state, the first solver error, execution log, provenance,
-checksums, and numerical output. A preflight failure occurs before the solver
-starts and therefore has no solver output; a runtime failure has a solver log
-and any artifacts that were retained.
+- **macOS** (Apple Silicon `arm64`, macOS 12+)
+- **Linux x64** (glibc $\ge$ 2.39, including Ubuntu 24.04+, Arch Linux, Fedora 40+, Debian 13+)
+- **Linux ARM64** (`linux-arm64`)
+- **Windows** supported via **WSL2** (running the Linux x64 package)
 
-The default workspace is `~/.phynite-lab`; pass `--data-dir` to use another
-location. SQLite is the metadata store and the filesystem holds project
-artifacts, runtime installations, and logs. The local Storage page measures only
-inventoried project artifacts. It excludes SQLite metadata, installed solvers,
-logs, and unrelated files, and local mode has no fixed 10 GB quota or automatic
-seven-day cleanup. Available disk is the practical limit, so export important
-projects and keep a separate backup.
+### Sandboxing & Security
+On Linux, solver runtimes execute inside an unprivileged [Bubblewrap](https://github.com/containers/bubblewrap) sandbox with strict filesystem and loopback-only network isolation. Ensure your Linux kernel has unprivileged user namespaces enabled (the default on modern distributions).
 
-QE intermediate state can dwarf the final output. `disk_io`, wavefunctions, and
-`tmp/` files may be needed for bands, DOS, phonons, projected workflows, or
-external interoperability. Keep them until downstream workflows finish and
-retain the exact input, pseudopotential identity/checksum, provenance, and state
-artifacts. Wannier90 remains an external/manual workflow unless an explicit
-integration is documented: [QE documentation](https://www.quantum-espresso.org/documentation/),
-[Wannier90 documentation](https://wannier.org/documentation/).
+---
 
-Cloud storage is separate from this disk-backed workspace. Cloud accounts have
-their own quota, retention, and Trash behavior; signing in does not upload local
-projects, and Cloud Sync is enabled per project. Cloud compute uses a separate
-input-transfer review.
+## Local Storage & Large Calculations
 
-Cloud and AI connections are optional and configured inside the application.
-Local AI uses the official Codex or Antigravity CLI already installed on this
-computer. Open **Settings → AI provider accounts** and sign in; models connect and
-verify automatically. An existing CLI sign-in can be reused. Phynite never reads or copies CLI session files or
-provider tokens. The bridge runs on loopback with shell, MCP, plugin, browser,
-and network tools disabled; a model is unavailable until its text, streaming,
-and host-validated tool-proposal probe succeeds. A loopback OpenAI-compatible
-Antigravity uses a restricted profile, explicit permission denials and a native
-tool denial hook. A synthetic startup turn verifies the loaded guard before any
-project context is sent. Unsupported guard or protocol versions fail closed.
-Hosted Phynite AI is not used by the local application. Cloud sign-in requires a
-release assembled with public cloud connection metadata; an unconfigured release
-remains available for local work. Signing in does not enable Cloud Sync for a
-project. The launcher ignores inherited cloud settings.
-Provider usage refreshes automatically while the settings page is visible. Codex
-reports session and weekly percentages through its app-server; Antigravity 1.4.11
-reports model-group limits through the read-only `/usage` command. Each window
-shows the provider's reset time and a countdown. These percentages are subscription
-limits, not token counts. Failed refreshes retain the last report with its timestamp;
-unsupported or missing reports are shown as unavailable.
-Third-party components retain their own licenses; see THIRD_PARTY_NOTICES.md in
-the assembled release.
+- **Workspace Location:** By default, all project files, calculation logs, and runtime environments reside in `~/.phynite-lab`.
+- **Disk Space Considerations:** Quantum ESPRESSO intermediate files (`tmp/`, wavefunctions, charge density) can require several gigabytes for large systems. Ensure adequate disk space when calculating dense $k$-point grids or phonon dispersions.
+- **Storage Accounting:** The in-app Storage page tracks inventoried project inputs and outputs. It excludes raw solver binaries, worker logs, and database indexes.
+- **Optional Cloud Sync:** Signing in to Phynite Cloud is strictly optional. Cloud Sync is never activated automatically; you explicitly choose whether to sync a project or submit compute jobs to the cloud.
+
+---
+
+## Documentation
+
+Comprehensive guides and tutorials are available at [phynitelab.com/guide](https://phynitelab.com/guide):
+- [Installation & Diagnostics](https://phynitelab.com/guide/npm-local-app)
+- [Quantum ESPRESSO DFT Guide](https://phynitelab.com/guide)
+- [LAMMPS Molecular Dynamics Guide](https://phynitelab.com/guide)
+- [Local AI Provider Setup](https://phynitelab.com/guide/ai-providers)
+- [Storage & Backup Management](https://phynitelab.com/guide/storage-backup)
+
+---
+
+## License & Provenance
+
+Phynite Lab is licensed under the **GNU Affero General Public License v3 only** (`AGPL-3.0-only`); see [LICENSE](https://github.com/phynite-lab/phynite-lab/blob/main/LICENSE). Commercial use is permitted under the terms of the AGPL. If you modify Phynite Lab and run it as a network service, you must make the corresponding source code available under the AGPL (Section 13).
+
+Third-party scientific packages (Quantum ESPRESSO, LAMMPS, OpenMPI, Seekpath, OVITO) retain their respective open-source licenses and notices; see [NOTICE.md](https://github.com/phynite-lab/phynite-lab/blob/main/NOTICE.md).

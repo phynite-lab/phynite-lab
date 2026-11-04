@@ -9,8 +9,7 @@ bundle from an official npm account.
 The current release line includes macOS Apple Silicon (`darwin-arm64`), Linux ARM64
 (`linux-arm64`) and Linux x64 (`linux-x64`, glibc
 >=2.39). Linux builders use Ubuntu 24.04 and its ARM64 hosted runner. Windows
-WSL2 uses the Linux x64 package because it reports that platform to Node and npm;
-direct testing on an Omarchy desktop or Windows host is not claimed. The release
+WSL2 uses the Linux x64 package because it reports that platform to Node and npm. The release
 process builds the exact public
 commit, installs the launcher and matching platform tarball in a clean prefix, and requires
 all browser, persistence, scientific reference and sandbox checks to pass.

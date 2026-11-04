@@ -1353,7 +1353,7 @@ phynite-lab
 | --- | --- | --- |
 | macOS Apple Silicon | darwin-arm64 | Native arm64 package. |
 | Linux ARM64 | linux-arm64 | Requires glibc >=2.39 and verified user namespaces. |
-| Linux x64 / Omarchy / Arch | linux-x64 | Requires glibc >=2.39 and verified user namespaces. |
+| Linux x64 | linux-x64 | Requires glibc >=2.39 (e.g. Ubuntu 24.04+, Arch Linux) and verified user namespaces. |
 | Windows | WSL2 linux-x64 | Run npm and phynite-lab inside WSL2; a Windows-native solver is not installed. |
 
 > The package declares darwin/linux and arm64/x64 targets. A platform is supported only when its native runtime, isolation probe, and scientific checks pass; package availability alone is not a qualification.
