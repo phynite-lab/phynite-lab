@@ -1336,7 +1336,7 @@ The published npm app is the local-first path for running the workspace, native 
 
 ### Install and start
 
-The current published package is phynite-lab@0.1.5. Node.js version >=22.13.0 is required. npm installs the launcher and the matching optional native application package for the host OS and CPU.
+The current published package is phynite-lab@0.1.8. Node.js version >=22.13.0 is required. npm installs the launcher and the matching optional native application package for the host OS and CPU.
 
 Keep npm optional dependencies enabled. If a package manager was configured with --omit=optional or the selected platform package was removed, the launcher reports a missing runtime instead of silently using a development fixture.
 

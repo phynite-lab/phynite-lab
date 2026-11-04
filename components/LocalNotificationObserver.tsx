@@ -5,6 +5,7 @@ import { useLocale } from '@/app/locale-provider';
 import { accountComputeUsageRequest } from '@/lib/account-api';
 import { localRequest } from '@/lib/local-api';
 import { finishedRuns, notificationRunPath, reconcileNotificationRuns, readLocalNotifications, type NotificationRun, type LocalNotificationPreferences } from '@/lib/local-notifications';
+import { notificationForFailure } from '@/lib/research-notifications';
 
 type Notice = { id: string; title: string; body: string };
 export function LocalNotificationObserver({ owner }: { owner: string }) {
@@ -39,12 +40,16 @@ export function LocalNotificationObserver({ owner }: { owner: string }) {
           const response = await fetch(notificationRunPath(run), { cache: 'no-store', signal: AbortSignal.timeout(10000) });
           if (response.status === 404) return null;
           if (!response.ok) throw new Error('Job status is unavailable.');
-          const body = await response.json() as { calculation?: { id?: string; status?: unknown }; simulation?: { id?: string; status?: unknown }; analysis?: { id?: string; status?: unknown } }; const item = body.calculation ?? body.simulation ?? body.analysis;
+          const body = await response.json() as { calculation?: { id?: string; status?: unknown; failureReason?: unknown; failureCategory?: unknown }; simulation?: { id?: string; status?: unknown; failureReason?: unknown; failureCategory?: unknown }; analysis?: { id?: string; status?: unknown; failureReason?: unknown; failureCategory?: unknown } }; const item = body.calculation ?? body.simulation ?? body.analysis;
           if (item?.id !== run.id || typeof item.status !== 'string') throw new Error('Invalid job status.');
-          return { ...run, status: item.status };
+          return { ...run, status: item.status, failureReason: typeof item.failureReason === 'string' ? item.failureReason : undefined, failureCategory: typeof item.failureCategory === 'string' ? item.failureCategory : undefined };
         });
         const oldStatuses = previous ? new Map([...previous.values()].map(run => [run.id, run.status])) : null;
-        for (const run of finishedRuns(oldStatuses, [...next.values()])) notify(run.status.toUpperCase() === 'COMPLETED' ? 'jobFinished' : 'jobFailed', { id: `job:${run.id}:${run.status}`, title: t('Calculation update', 'Pembaruan kalkulasi'), body: `${run.name} · ${run.status}` });
+        for (const run of finishedRuns(oldStatuses, [...next.values()])) {
+          if (run.status.toUpperCase() === 'COMPLETED') { notify('jobFinished', { id: `job:${run.id}:${run.status}`, title: t('Calculation update', 'Pembaruan kalkulasi'), body: `${run.name} · ${run.status}` }); continue; }
+          const research = notificationForFailure(run.id, run.failureCategory ?? 'unknown', run.failureReason ?? `${run.name} · ${run.status}`);
+          notify('jobFailed', { id: research.id, title: t('Research run failed', 'Run riset gagal'), body: research.detail });
+        }
         previous = next;
       }
       if (results[1].status === 'fulfilled') {

@@ -404,8 +404,9 @@ export class NativeAiRegistry {
     if (!current()) throw abortError();
     const cwd = await this.scratch();
     try {
-      const version = await this.version(provider, cwd, control.signal);
-      if (version !== '1.4.11') throw error('NOT_REPORTED_BY_CLI', 'Update Antigravity to a version supporting read-only usage reports.');
+      await this.version(provider, cwd, control.signal);
+      // `version()` already enforces the reviewed 1.4.x protocol range. Keep
+      // patch releases usable so usage reporting does not regress on updates.
       // This exact read-only slash command emits TSV without an agent turn.
       const output = await this.runText(provider, ['-p', '/usage', '--print-timeout', '20s'], cwd, 25_000, control.signal);
       const windows = [];

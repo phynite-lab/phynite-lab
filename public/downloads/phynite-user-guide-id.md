@@ -1337,7 +1337,7 @@ Aplikasi npm publik adalah jalur local-first untuk menjalankan workspace, DFT, M
 
 ### Instal dan jalankan
 
-Paket publik saat ini adalah phynite-lab@0.1.5. Gunakan Node.js dengan versi yang memenuhi >=22.13.0. npm memasang launcher dan paket aplikasi native opsional yang sesuai dengan OS serta CPU.
+Paket publik saat ini adalah phynite-lab@0.1.8. Gunakan Node.js dengan versi yang memenuhi >=22.13.0. npm memasang launcher dan paket aplikasi native opsional yang sesuai dengan OS serta CPU.
 
 Pastikan optional dependencies npm tidak dinonaktifkan. Jika paket dipasang dengan --omit=optional atau paket platform dihapus, launcher menampilkan error runtime yang hilang dan tidak diam-diam memakai fixture development.
 

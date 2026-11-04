@@ -65,6 +65,7 @@ import {
 } from '@/lib/result-plot';
 import { cn } from '@/lib/utils';
 import { bandDosCompatibility } from '@/lib/electronic-plot-pairing';
+import { compareRuns, summarizeRunFailure } from '@/lib/run-observability';
 
 type View = 'dft' | 'log' | 'library';
 
@@ -238,13 +239,15 @@ function PlotPreviewDialog({ open, artifact, previewUrl, calculationName, downlo
   );
 }
 
-function LogJobRow({ job, compatibleCompanions, onDeleteJob, onCancelJob, onAddToFigure, onRenameJob }: {
+function LogJobRow({ job, compatibleCompanions, onDeleteJob, onCancelJob, onAddToFigure, onRenameJob, compareSelected, onToggleCompare }: {
   job: CalculationJob;
   compatibleCompanions: ResultPlotCompanion[];
   onRenameJob?: (id: string, name: string) => void;
   onDeleteJob: (id: string) => void;
   onCancelJob: (id: string) => void;
   onAddToFigure?: (id: string) => void;
+  compareSelected?: boolean;
+  onToggleCompare?: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(job.status === 'Queued' || job.status === 'Running');
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -269,6 +272,7 @@ function LogJobRow({ job, compatibleCompanions, onDeleteJob, onCancelJob, onAddT
   const editedPreviewUrlRef = useRef<string | null>(null);
   const actionRef = useRef<HTMLDivElement>(null);
   const artifactDeadline = formatArtifactDeadline(job.artifactsExpireAt);
+  const failureSummary = summarizeRunFailure(job);
   const artifactsExpired = job.artifactsExpired || retentionExpired;
   const artifacts = artifactsExpired ? [] : refreshedArtifacts ?? job.resultArtifacts ?? [];
   const preferredOutputNames: Record<string, string[]> = {
@@ -511,7 +515,8 @@ function LogJobRow({ job, compatibleCompanions, onDeleteJob, onCancelJob, onAddT
     <div className="flex items-start gap-1.5">
       <button type="button" aria-expanded={expanded} aria-controls={detailsId} onClick={() => setExpanded((current) => !current)} className="group flex min-w-0 flex-1 items-start gap-2 rounded-[5px] text-left outline-none focus-visible:ring-2 focus-visible:ring-[var(--line-strong)]/25">
         <ChevronDown className={cn('mt-0.5 h-3.5 w-3.5 shrink-0 text-[#9aa0a7] transition-transform duration-150', !expanded && '-rotate-90')} />
-        <span className="min-w-0 flex-1">
+          {onToggleCompare && <input type="checkbox" checked={compareSelected === true} onChange={() => onToggleCompare(job.id)} onClick={(event) => event.stopPropagation()} aria-label={`Select ${job.name} for comparison`} className="mt-1 h-3 w-3 shrink-0 accent-[var(--panel-accent)]" />}
+          <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2"><span className="execution-job-name">{job.name}</span><Status value={job.status} showLabel /></span>
           <span className="execution-job-summary">{job.calculationType}</span>
           <span className="execution-job-summary" title="Run time in your local timezone">{job.completedAt ? 'Completed' : 'Started'} {formatRunDate(job.completedAt ?? job.startedAt)} · {job.id.slice(-8)}</span>
@@ -539,6 +544,7 @@ function LogJobRow({ job, compatibleCompanions, onDeleteJob, onCancelJob, onAddT
       {job.status === 'Completed' && job.backendCalculationId && !artifactsExpired && <DftStudyDownload calculationId={job.backendCalculationId} name={job.name} />}
       <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[9px] tabular-nums text-[#878a8f]"><span className="flex min-w-0 items-center gap-1.5"><Clock3 className="h-2.5 w-2.5 shrink-0 text-[#9a9da2]" /><span className="truncate">Started {formatRunDate(job.startedAt ?? job.updated)}</span></span><span className="flex min-w-0 items-center gap-1.5"><Activity className="h-2.5 w-2.5 shrink-0 text-[#9a9da2]" /><span className="truncate">{job.status === 'Running' ? job.duration ?? 'Running' : `Duration ${job.duration ?? '—'}`}</span></span>{job.completedAt && <span className="col-span-2 flex min-w-0 items-center gap-1.5"><ChevronRight className="h-2.5 w-2.5 shrink-0 text-[#9a9da2]" /><span className="truncate">Completed {formatRunDate(job.completedAt)}</span></span>}{artifactDeadline && <span className="col-span-2 flex min-w-0 items-center gap-1.5"><Clock3 className="h-2.5 w-2.5 shrink-0 text-[#9a9da2]" /><span className="truncate">{artifactsExpired ? 'Files expired' : `Files available until ${artifactDeadline}`}</span></span>}</div>
       {job.status === 'Running' && <div className="mt-2"><div className="mb-1 flex items-center justify-between text-[9px] tabular-nums text-[var(--panel-muted)]"><span>{job.result ?? 'Running Quantum ESPRESSO'}</span><span>{job.progress ?? 0}%</span></div><div className="h-1 overflow-hidden rounded-full bg-[var(--panel-border)]"><i style={{ width: `${job.progress ?? 0}%` }} className="block h-full rounded-full bg-[var(--panel-accent)] transition-[width]" /></div>{job.liveLogTail && <pre className="mt-2 max-h-28 overflow-auto whitespace-pre-wrap break-words rounded-[5px] bg-[#15181c] p-2 font-mono text-[11px] leading-5 text-[#bac4cf]">{job.liveLogTail}</pre>}</div>}
+      {failureSummary && <section aria-label="Failure diagnosis" className="mt-2 rounded-[6px] border border-rose-500/25 bg-rose-500/[.06] px-2.5 py-2.5"><div className="flex items-center justify-between gap-2"><span className="text-[9px] font-semibold text-[var(--panel-text)]">{failureSummary.label}</span><span className="font-mono text-[8px] uppercase tracking-wide text-[var(--panel-muted)]">{failureSummary.phase}</span></div><p className="mt-1 text-[9px] leading-4 text-[var(--panel-muted)]">{failureSummary.detail}</p>{failureSummary.evidence && <details className="mt-1.5"><summary className="cursor-pointer text-[8px] font-medium text-[var(--panel-text)]">First retained diagnostic</summary><pre className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap break-words rounded-[4px] bg-[#15181c] p-1.5 font-mono text-[8px] leading-3.5 text-[#bac4cf]">{failureSummary.evidence}</pre></details>}</section>}
       <div className="mt-2 rounded-[5px] border border-[var(--panel-border)] bg-[var(--panel-raised)] px-2.5 py-2"><span className="block text-[10px] font-medium text-[var(--panel-text)]">{job.result ?? 'Calculation ended without a parsed result'}</span><span className="mt-0.5 block text-[9px] leading-3.5 text-[var(--panel-muted)]">{job.resultDetail ?? 'Open the raw output for full Quantum ESPRESSO details.'}</span></div>
       {job.status === 'Failed' && job.backendCalculationId && <div className="mt-2">
         {!diagnosis && <button type="button" disabled={diagnosing} onClick={() => void diagnoseFailure()} className="inline-flex h-7 items-center gap-1.5 rounded-[5px] border border-[var(--panel-border)] bg-[var(--panel-bg)] px-2.5 text-[9px] font-medium text-[var(--panel-text)] hover:bg-[var(--panel-hover)] disabled:cursor-wait disabled:opacity-60"><Sparkles className="h-3 w-3 text-[var(--panel-text)]" />{diagnosing ? 'Analyzing error…' : 'Explain error'}</button>}
@@ -560,6 +566,11 @@ function LogJobRow({ job, compatibleCompanions, onDeleteJob, onCancelJob, onAddT
       {downloadError && <div role="alert" className="mt-2 flex items-start justify-between gap-2 rounded-[5px] border border-rose-500/30 bg-rose-500/10 px-2.5 py-2 text-[9px] text-rose-400"><span>{downloadError}. Refresh the calculation log and try again.</span><button type="button" onClick={() => setDownloadError(null)} aria-label="Dismiss download error" className="grid h-4 w-4 shrink-0 place-items-center"><X className="h-3 w-3" /></button></div>}
     </div>}
   </article>{plotArtifact && displayPreviewUrl && <PlotPreviewDialog open={previewOpen} artifact={plotArtifact} previewUrl={displayPreviewUrl} calculationName={job.name} downloading={downloadingPath === plotArtifact.path} multiPlotDownload={job.calculationType === 'Thermoelectric properties'} onClose={closePreview} onDownload={() => void handlePlotDownload()} onEdit={onAddToFigure && plottable ? () => { setPreviewOpen(false); onAddToFigure(job.id); } : undefined} />}</>;
+}
+
+function RunComparison({ left, right, onClose }: { left: CalculationJob; right: CalculationJob; onClose: () => void }) {
+  const rows = compareRuns(left, right);
+  return <section aria-label="Run comparison" className="mx-2.5 my-2 rounded-[7px] border border-[var(--panel-border)] bg-[var(--panel-raised)] p-2.5"><header className="mb-2 flex items-start justify-between gap-2"><div><h3 className="text-[10px] font-semibold text-[var(--panel-text)]">Compare runs</h3><p className="mt-0.5 text-[8px] text-[var(--panel-muted)]">Recorded inputs and outcomes are shown as saved; no scientific values are changed.</p></div><button type="button" onClick={onClose} className="rounded-[4px] px-1.5 py-1 text-[9px] text-[var(--panel-muted)] hover:bg-[var(--panel-hover)]">Close</button></header><div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2 border-b border-[var(--panel-border)] pb-2"><div className="min-w-0"><strong className="block truncate text-[9px] text-[var(--panel-text)]">{left.name}</strong><span className="font-mono text-[8px] text-[var(--panel-muted)]">{left.id.slice(-8)}</span></div><div className="min-w-0"><strong className="block truncate text-[9px] text-[var(--panel-text)]">{right.name}</strong><span className="font-mono text-[8px] text-[var(--panel-muted)]">{right.id.slice(-8)}</span></div></div><div className="mt-1 divide-y divide-[var(--panel-border)]">{rows.map(row => <div key={row.key} className="grid grid-cols-[92px_minmax(0,1fr)_minmax(0,1fr)] gap-2 py-1.5 text-[8px]"><span className="text-[var(--panel-muted)]">{row.label}</span><span className={cn('min-w-0 whitespace-pre-wrap break-words', row.same ? 'text-[var(--panel-text)]' : 'text-amber-300')}>{row.left}</span><span className={cn('min-w-0 whitespace-pre-wrap break-words', row.same ? 'text-[var(--panel-text)]' : 'text-amber-300')}>{row.right}</span></div>)}</div></section>;
 }
 
 export function CalculationPanel({ material, jobs, configurations, components, onAddCalculation, onToggleCalculation, onReorderCalculation, onMoveCalculation, onDuplicateCalculation, onDownloadInputFiles, onDeleteCalculation, onSaveSelected, onRunCalculation, onRunSelected, onDeleteJob, onRenameJob, onCancelJob, onAddToFigure, onImportConfiguration, onDeleteConfiguration, onConfigureCalculation, activeConfigurationId, onClose }: {
@@ -600,6 +611,8 @@ export function CalculationPanel({ material, jobs, configurations, components, o
   const [logQuery, setLogQuery] = useState('');
   const [logStatus, setLogStatus] = useState('all');
   const [logLimit, setLogLimit] = useState(30);
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [comparisonOpen, setComparisonOpen] = useState(false);
   const visibleConfigurations = configurations.filter((configuration) => `${configuration.name} ${configuration.databaseName} ${configuration.materialName} ${configuration.calculation}`.toLowerCase().includes(query.toLowerCase()));
   const executionJobs = jobs.filter((job) => job.status === 'Queued' || job.status === 'Running' || job.status === 'Completed' || job.status === 'Failed' || job.status === 'Cancelled');
   const plotCompanionsByJobId = useMemo(() => {
@@ -621,6 +634,8 @@ export function CalculationPanel({ material, jobs, configurations, components, o
       })]));
   }, [jobs]);
   const filteredJobs = executionJobs.filter((job) => (logStatus === 'all' || job.status === logStatus) && `${job.name} ${job.calculationType} ${job.settings}`.toLowerCase().includes(logQuery.toLowerCase()));
+  const compareJobs = compareIds.map((id) => executionJobs.find((job) => job.id === id)).filter((job): job is CalculationJob => Boolean(job)).slice(0, 2);
+  const toggleCompare = (id: string) => setCompareIds((current) => current.includes(id) ? current.filter((value) => value !== id) : current.length >= 2 ? [current[1], id] : [...current, id]);
   const selectedCount = components.filter((component) => component.selected).length;
   const selectedRunCount = components.filter((component) => {
     if (!component.selected) return false;
@@ -822,9 +837,10 @@ export function CalculationPanel({ material, jobs, configurations, components, o
       </div>}
 
       {activeView === 'log' && <section className="execution-log" aria-label="Execution log">
-        <header className="execution-log-header"><div><h2>Execution log</h2><p>{executionJobs.filter((job) => job.status === 'Running' || job.status === 'Queued').length} active · {executionJobs.filter((job) => job.status === 'Completed').length} completed</p></div><button type="button" aria-label={logExpanded ? 'Collapse execution log' : 'Expand execution log'} aria-pressed={logExpanded} onClick={() => setLogExpanded((value) => !value)}>{logExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button></header>
+        <header className="execution-log-header"><div><h2>Execution log</h2><p>{executionJobs.filter((job) => job.status === 'Running' || job.status === 'Queued').length} active · {executionJobs.filter((job) => job.status === 'Completed').length} completed · {executionJobs.filter((job) => job.status === 'Failed').length} failed</p></div><div className="flex items-center gap-1.5"><button type="button" disabled={compareJobs.length !== 2} onClick={() => setComparisonOpen(true)} className="rounded-[5px] border border-[var(--panel-border)] px-2 py-1 text-[9px] font-medium text-[var(--panel-muted)] hover:bg-[var(--panel-hover)] disabled:cursor-not-allowed disabled:opacity-45">Compare {compareIds.length}/2</button><button type="button" aria-label={logExpanded ? 'Collapse execution log' : 'Expand execution log'} aria-pressed={logExpanded} onClick={() => setLogExpanded((value) => !value)}>{logExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button></div></header>
         <div className="execution-log-filters"><label><Search size={14} /><input aria-label="Search execution log" placeholder="Search runs" value={logQuery} onChange={(event) => { setLogQuery(event.target.value); setLogLimit(30); }} /></label><UiSelect compact ariaLabel="Filter execution status" value={logStatus} onChange={(value) => { setLogStatus(value); setLogLimit(30); }} options={[{ value: 'all', label: 'All statuses' }, ...['Running', 'Queued', 'Completed', 'Failed', 'Cancelled'].map((status) => ({ value: status, label: status }))]} /></div>
-        <div>{filteredJobs.slice(0, logLimit).map((job) => <LogJobRow key={job.id} job={job} compatibleCompanions={plotCompanionsByJobId[job.id] ?? []} onDeleteJob={onDeleteJob} onRenameJob={onRenameJob} onCancelJob={onCancelJob} onAddToFigure={onAddToFigure} />)}</div>
+        {comparisonOpen && compareJobs.length === 2 && <RunComparison left={compareJobs[0]} right={compareJobs[1]} onClose={() => setComparisonOpen(false)} />}
+        <div>{filteredJobs.slice(0, logLimit).map((job) => <LogJobRow key={job.id} job={job} compatibleCompanions={plotCompanionsByJobId[job.id] ?? []} onDeleteJob={onDeleteJob} onRenameJob={onRenameJob} onCancelJob={onCancelJob} onAddToFigure={onAddToFigure} compareSelected={compareIds.includes(job.id)} onToggleCompare={toggleCompare} />)}</div>
         {!filteredJobs.length && <p className="execution-log-empty">{executionJobs.length ? 'No runs match these filters.' : 'Run a calculation to see its progress and results here.'}</p>}
         {filteredJobs.length > logLimit && <button className="execution-log-more" onClick={() => setLogLimit((value) => value + 30)}>Show more runs ({filteredJobs.length - logLimit})</button>}
       </section>}
