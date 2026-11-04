@@ -1,4 +1,5 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { access, mkdir, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { getGuideSections } from '../lib/guide-library.ts';
 import { materializeGuideSections } from '../lib/guide-release.ts';
 import { getLocalReleaseMetadata } from '../lib/local-release-metadata.ts';
@@ -7,6 +8,33 @@ import { publicSiteOrigin } from '../lib/site-metadata.ts';
 
 const release = await getLocalReleaseMetadata();
 console.log(`Documentation release metadata: ${release.packageName}@${release.version} (${release.versionSource})`);
+
+function visualUrl(src) {
+  if (/^https?:\/\//.test(src)) return src;
+  return new URL(src.startsWith('/') ? src : `/${src}`, publicSiteOrigin()).href;
+}
+
+async function verifyVisualAsset(src) {
+  if (/^https?:\/\//.test(src)) return;
+  const localPath = src.startsWith('/') ? resolve('public', `.${src}`) : resolve(src);
+  await access(localPath);
+}
+
+async function renderVisuals(visuals) {
+  if (!visuals?.length) return '';
+  const rendered = [];
+  for (const visual of visuals) {
+    await verifyVisualAsset(visual.src);
+    if (visual.lightSrc) await verifyVisualAsset(visual.lightSrc);
+    if (visual.darkSrc) await verifyVisualAsset(visual.darkSrc);
+    const fallback = `![${visual.alt}](${visualUrl(visual.src)})`;
+    const image = visual.lightSrc || visual.darkSrc
+      ? `<picture>${visual.darkSrc ? `<source media="(prefers-color-scheme: dark)" srcset="${visualUrl(visual.darkSrc)}">` : ''}${visual.lightSrc ? `<source media="(prefers-color-scheme: light)" srcset="${visualUrl(visual.lightSrc)}">` : ''}<img src="${visualUrl(visual.src)}" alt="${visual.alt.replaceAll('"', '&quot;')}"></picture>`
+      : fallback;
+    rendered.push(`<figure class="docs-visual docs-visual-${visual.kind}">\n${image}${visual.caption ? `\n<figcaption>${visual.caption}</figcaption>` : ''}\n</figure>\n\n`);
+  }
+  return rendered.join('');
+}
 
 for (const locale of ['en', 'id']) {
 const guideSections = materializeGuideSections(getGuideSections(locale), release);
@@ -19,6 +47,7 @@ for (const section of guideSections) {
   markdown += `<a id="${section.id}"></a>\n\n## ${section.title}\n\n${section.intro}\n\n`;
   for (const block of section.blocks) {
     markdown += `### ${block.title}\n\n`;
+    markdown += await renderVisuals(block.visuals);
     if (block.paragraphs) markdown += block.paragraphs.join('\n\n') + '\n\n';
     if (block.steps) markdown += block.steps.map((step, i) => `${i + 1}. ${step}`).join('\n') + '\n\n';
     if (block.bullets) markdown += block.bullets.map(item => `- ${item}`).join('\n') + '\n\n';

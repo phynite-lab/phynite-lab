@@ -1657,6 +1657,16 @@ html[data-workspace-theme="dark"] .contact-select-menu > button:focus-visible {
 .docs-code > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--lab-border); font-size: var(--text-caption); color: var(--lab-muted); }
 .docs-code button { display: inline-flex; gap: 6px; align-items: center; padding: 4px; }
 .docs-code pre { padding: 18px; margin: 0; overflow-x: auto; font: 12px/1.85 var(--font-code); color: var(--lab-text); }
+.docs-visual { margin: 24px 0 28px; border: 1px solid var(--lab-border); border-radius: 6px; overflow: hidden; background: var(--lab-subtle); }
+.docs-visual picture, .docs-visual > img { display: block; }
+.docs-visual img { display: block; width: 100%; height: auto; max-height: 720px; object-fit: contain; background: var(--lab-surface); }
+.docs-visual-screenshot img { border-bottom: 1px solid var(--lab-border); }
+.docs-visual-diagram { max-width: 760px; }
+.docs-visual-diagram img { padding: 26px; }
+.docs-visual-icon { display: inline-flex; align-items: center; gap: 14px; padding: 14px 16px; width: fit-content; max-width: 100%; }
+.docs-visual-icon img { width: 48px; height: 48px; object-fit: contain; border-radius: 8px; }
+.docs-visual figcaption { padding: 12px 16px 14px; color: var(--lab-muted); font-size: var(--text-caption); line-height: 1.65; }
+.docs-visual-icon figcaption { padding: 0; }
 .docs-on-page { position: sticky; top: 160px; align-self: start; max-height: calc(100dvh - 190px); overflow-y: auto; padding: 0 24px 20px 0; margin-top: 86px; }
 .docs-on-page > p { font-size: var(--text-label); font-weight: 600; margin-bottom: 10px; }
 .docs-on-page nav { border-left: 1px solid var(--lab-border); }
@@ -1729,6 +1739,9 @@ html[data-workspace-theme="dark"] .contact-select-menu > button:focus-visible {
   .docs-article { font-size: 14px; }
   .docs-pagination { gap: 18px; }
   .docs-note { padding: 14px 16px; }
+  .docs-visual { margin-block: 20px 24px; }
+  .docs-visual-diagram img { padding: 16px; }
+  .docs-visual-icon { width: 100%; }
 }
 @media print {
   main.public-experience.docs-page {
@@ -1745,7 +1758,7 @@ html[data-workspace-theme="dark"] .contact-select-menu > button:focus-visible {
   .docs-table-scroll table { min-width: 0; }
   .docs-code pre { white-space: pre-wrap; overflow-wrap: anywhere; }
   .docs-block h2 { break-after: avoid; }
-  .docs-block tr, .docs-note { break-inside: avoid; }
+  .docs-block tr, .docs-note, .docs-visual { break-inside: avoid; }
 }
 .pricing-currency-control { margin-block: 20px; }
 .pricing-currency-control > .ui-select { max-width: 260px; }

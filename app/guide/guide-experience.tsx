@@ -1,5 +1,6 @@
 'use client';
 
+/* eslint-disable @next/next/no-img-element -- guide assets are committed public files and may have light/dark variants. */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, Check, ChevronRight, Copy, Keyboard, List, Monitor, Printer, Search, X } from 'lucide-react';
@@ -22,9 +23,21 @@ function CodeExample({ code }: { code: string }) {
   return <div className="docs-code"><div><span>{t('Example / commands', 'Contoh / perintah')}</span><button onClick={async () => { try { await navigator.clipboard.writeText(code); setStatus('copied'); } catch { setStatus('error'); } if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(() => setStatus('idle'), 2200); }}>{status === 'copied' ? <Check size={14} /> : <Copy size={14} />}{status === 'copied' ? t('Copied', 'Disalin') : status === 'error' ? t('Select and copy the text', 'Pilih dan salin teks') : t('Copy', 'Salin')}</button></div><pre><code>{code}</code></pre></div>;
 }
 
+function VisualFigure({ visual }: { visual: NonNullable<GuideBlock['visuals']>[number] }) {
+  const image = <img src={visual.src} alt={visual.alt} loading="lazy" decoding="async" />;
+  return <figure className={`docs-visual docs-visual-${visual.kind}`}>
+    {visual.lightSrc || visual.darkSrc ? <picture>
+      {visual.darkSrc && <source media="(prefers-color-scheme: dark)" srcSet={visual.darkSrc} />}
+      {visual.lightSrc && <source media="(prefers-color-scheme: light)" srcSet={visual.lightSrc} />}
+      {image}
+    </picture> : image}
+    {visual.caption && <figcaption>{visual.caption}</figcaption>}
+  </figure>;
+}
+
 function ArticleBlock({ block, id }: { block: GuideBlock; id: string }) {
   const { t } = useLocale();
-  return <section className="docs-block" id={id}><h2>{block.title}</h2>{block.paragraphs?.map(paragraph => <p key={paragraph}>{paragraph}</p>)}{block.steps && <ol className="docs-steps">{block.steps.map(step => <li key={step}>{step}</li>)}</ol>}{block.bullets && <ul>{block.bullets.map(bullet => <li key={bullet}>{bullet}</li>)}</ul>}{block.table && <div className="docs-table-scroll" role="region" aria-label={block.title} tabIndex={0}><table><thead><tr>{block.table.headings.map(heading => <th key={heading} scope="col">{heading}</th>)}</tr></thead><tbody>{block.table.rows.map((row, index) => <tr key={index}>{row.map((cell, column) => column === 0 ? <th key={column} scope="row">{cell}</th> : <td key={column}>{cell}</td>)}</tr>)}</tbody></table></div>}{block.code && <CodeExample code={block.code} />}{block.links && <ul className="docs-related-links">{block.links.map(link => <li key={link.href}><a href={link.href} {...(link.href.startsWith('https://') ? { target: '_blank', rel: 'noreferrer' } : {})}>{link.label}<ArrowUpRight size={13} /></a></li>)}</ul>}{block.note && <aside className="docs-note"><strong>{t('Note', 'Catatan')}</strong><p>{block.note}</p></aside>}</section>;
+  return <section className="docs-block" id={id}><h2>{block.title}</h2>{block.visuals?.map((visual, index) => <VisualFigure key={`${visual.src}-${index}`} visual={visual} />)}{block.paragraphs?.map(paragraph => <p key={paragraph}>{paragraph}</p>)}{block.steps && <ol className="docs-steps">{block.steps.map(step => <li key={step}>{step}</li>)}</ol>}{block.bullets && <ul>{block.bullets.map(bullet => <li key={bullet}>{bullet}</li>)}</ul>}{block.table && <div className="docs-table-scroll" role="region" aria-label={block.title} tabIndex={0}><table><thead><tr>{block.table.headings.map(heading => <th key={heading} scope="col">{heading}</th>)}</tr></thead><tbody>{block.table.rows.map((row, index) => <tr key={index}>{row.map((cell, column) => column === 0 ? <th key={column} scope="row">{cell}</th> : <td key={column}>{cell}</td>)}</tr>)}</tbody></table></div>}{block.code && <CodeExample code={block.code} />}{block.links && <ul className="docs-related-links">{block.links.map(link => <li key={link.href}><a href={link.href} {...(link.href.startsWith('https://') ? { target: '_blank', rel: 'noreferrer' } : {})}>{link.label}<ArrowUpRight size={13} /></a></li>)}</ul>}{block.note && <aside className="docs-note"><strong>{t('Note', 'Catatan')}</strong><p>{block.note}</p></aside>}</section>;
 }
 
 export function GuideExperience({ topic = '', release }: { topic?: string; release: LocalReleaseMetadata }) {

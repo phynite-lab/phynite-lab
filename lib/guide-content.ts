@@ -8,12 +8,21 @@ export type GuideBlock = {
   code?: string;
   note?: string;
   links?: { label: string; href: string }[];
+  visuals?: GuideVisual[];
+};
+export type GuideVisual = {
+  kind: 'screenshot' | 'diagram' | 'icon';
+  src: string;
+  alt: string;
+  caption?: string;
+  lightSrc?: string;
+  darkSrc?: string;
 };
 export type GuideSection = { id: string; group: string; title: string; intro: string; blocks: GuideBlock[] };
 
 export const guideSections: GuideSection[] = [
   {
-    id: 'workflow', group: 'Getting started', title: 'From structure to a paper figure',
+    id: 'workflow', group: 'Start here', title: 'From structure to a paper figure',
     intro: 'A project is the container for a material study. It connects structures, calculation setups, execution records, numerical datasets, and reusable figures. Start with the physical question, then choose the calculations and comparisons that answer it.',
     blocks: [
       { title: 'Your first complete workflow', steps: [
@@ -40,7 +49,7 @@ export const guideSections: GuideSection[] = [
     ],
   },
   {
-    id: 'project', group: 'Getting started', title: 'Projects, structures, and calculation records',
+    id: 'project', group: 'Start here', title: 'Projects, structures, and calculation records',
     intro: 'Use one project for a coherent study, then keep material variants as separate named structures within it. A calculation setup is editable; each execution is a historical record of a submitted input.',
     blocks: [
       { title: 'Organize a study', steps: ['In Workspace, choose New project, enter a name (up to 100 characters) and optional description (up to 500 characters), then choose Create project. The Project panel in DFT Lab provides another creation route.', 'Name it by question or dataset: strain response, alloy comparison, or convergence study.', 'Add structures and give variants explicit names, such as MoS2 strain -2 percent, 0 percent, and +2 percent.', 'Add the relevant calculation stack under each structure. Duplicate a setup when the same method should be reused.', 'Use project or structure menus for rename and duplicate. Read the confirmation before deleting anything.'] },
@@ -49,7 +58,7 @@ export const guideSections: GuideSection[] = [
     ],
   },
   {
-    id: 'structure', group: 'Structure & physics', title: 'Import and inspect a structure',
+    id: 'structure', group: 'Projects & structures', title: 'Import and inspect a structure',
     intro: 'DFT Lab shows direct, real space: lattice vectors and atoms. Reciprocal-space k-points and band paths belong to calculation configuration and result interpretation.',
     blocks: [
       { title: 'Choose an input route', table: { headings: ['Route', 'What to check'], rows: [
@@ -65,7 +74,7 @@ export const guideSections: GuideSection[] = [
     ],
   },
   {
-    id: 'edit', group: 'Structure & physics', title: 'Edit atoms and cell geometry',
+    id: 'edit', group: 'Projects & structures', title: 'Edit atoms and cell geometry',
     intro: 'Select, move, add, substitute, delete, and measure atoms in the viewport. Keep geometry changes deliberate and inspect the result before rerunning a calculation.',
     blocks: [
       { title: 'Atom tools', table: { headings: ['Tool', 'Use'], rows: [
@@ -78,7 +87,7 @@ export const guideSections: GuideSection[] = [
     ],
   },
   {
-    id: 'periodicity', group: 'Structure & physics', title: 'Periodic directions, vacuum, and dimensionality',
+    id: 'periodicity', group: 'Projects & structures', title: 'Periodic directions, vacuum, and dimensionality',
     intro: 'Quantum ESPRESSO solves a periodically repeated three-dimensional simulation cell. Slabs and low-dimensional systems are configured via vacuum and k-point sampling in calculations.',
     blocks: [
       { title: 'Supercells, slabs, and vacuum', paragraphs: ['Cell repetition in the viewer allows inspecting extended lattices without modifying the underlying unit cell. Slabs and low-dimensional structures are constructed by explicitly introducing vacuum along the desired non-periodic direction (typically c).', 'Quantum ESPRESSO always assumes periodic boundary conditions in 3D: for a slab or 2D material, maintain sufficient vacuum separation between periodic replicas, set a single k-point along the vacuum direction (e.g. N × M × 1), and configure appropriate dipole/electrostatic corrections.'], note: 'For a slab, keep a finite simulation-cell height, add and converge vacuum explicitly, use a single k-point in the nonperiodic direction, and choose a suitable electrostatic treatment in the actual QE input.' },
@@ -92,7 +101,7 @@ export const guideSections: GuideSection[] = [
     ],
   },
   {
-    id: 'calculation', group: 'Calculations', title: 'Choose and connect calculations',
+    id: 'calculation', group: 'QE & DFT', title: 'Choose and connect calculations',
     intro: 'The Calculate panel separates DFT setups, the execution log, and reusable configurations. Select the scientific task first; the generated workflow then creates the required solver stages.',
     blocks: [
       { title: 'Available workflows', table: { headings: ['Calculation', 'Purpose', 'Main tools'], rows: [
@@ -105,7 +114,7 @@ export const guideSections: GuideSection[] = [
     ],
   },
   {
-    id: 'configure', group: 'Calculations', title: 'Configure and validate Quantum ESPRESSO',
+    id: 'configure', group: 'QE & DFT', title: 'Configure and validate Quantum ESPRESSO',
     intro: 'Smart defaults provide a starting point. They do not replace a convergence study or knowledge of the material. Generated inputs and expert raw input have different responsibilities.',
     blocks: [
       { title: 'Core choices', table: { headings: ['Setting', 'Meaning', 'Check before running'], rows: [
@@ -122,7 +131,7 @@ export const guideSections: GuideSection[] = [
     ],
   },
   {
-    id: 'execution', group: 'Calculations', title: 'Execution, resources, and cancellation',
+    id: 'execution', group: 'QE & DFT', title: 'Execution, resources, and cancellation',
     intro: 'A run moves through preparation, queueing, execution, result persistence, and completion. Native results are saved locally; hosted jobs also upload required artifacts. The log identifies the stage that needs attention.',
     blocks: [
       { title: 'Read the run state', table: { headings: ['State', 'Meaning', 'Next action'], rows: [
@@ -220,7 +229,7 @@ export const guideSections: GuideSection[] = [
     ],
   },
   {
-    id: 'saving', group: 'Account & compute', title: 'Autosave, storage, and multiple devices',
+    id: 'saving', group: 'Phynite Cloud', title: 'Autosave, storage, and multiple devices',
     intro: 'DFT Lab and Figure Lab show save status for the active context. The npm app stores projects in SQLite/filesystem; browser storage holds recoverable drafts. Local projects do not upload automatically and have no fixed 10 GiB quota. The cloud save states below apply to the hosted website or a project with explicitly enabled Cloud Sync.',
     blocks: [
       { title: 'Save states', table: { headings: ['Label', 'Meaning', 'What to do'], rows: [
@@ -417,7 +426,7 @@ export const guideSections: GuideSection[] = [
     ],
   },
   {
-    id: 'troubleshooting', group: 'Reference', title: 'Troubleshooting and recovery',
+    id: 'troubleshooting', group: 'Troubleshooting & recovery', title: 'Troubleshooting and recovery',
     intro: 'Start with the exact state and the most recent message. Repeatedly rerunning a failing input often wastes time without fixing its cause.',
     blocks: [
       { title: 'Local npm run diagnosis', table: { headings: ['Stage', 'What it means', 'Where to look'], rows: [
