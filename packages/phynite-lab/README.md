@@ -1,9 +1,5 @@
 # Phynite Lab
 
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://github.com/phynite-lab/phynite-lab/blob/main/LICENSE)
-[![npm version](https://img.shields.io/npm/v/phynite-lab.svg)](https://www.npmjs.com/package/phynite-lab)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D22.13.0-brightgreen.svg)](https://nodejs.org/)
-
 **Phynite Lab** is an open-source, local-first computational materials-science workspace. It provides an intuitive, modern interface for crystal structure editing, **Quantum ESPRESSO (DFT)**, **LAMMPS (Molecular Dynamics)**, automated analysis, and publication-ready scientific figures—with zero complex compiler or environment setup required.
 
 All your calculations, research projects, and data stay **100% private on your local machine**.
@@ -24,24 +20,19 @@ npm install -g phynite-lab
 phynite-lab
 ```
 
-*Or run directly without global installation:*
-```sh
-npx phynite-lab
-```
-
 When started, Phynite Lab spins up the native local core, starts the web interface at `http://127.0.0.1:3000`, and opens your default browser. User data is saved in `~/.phynite-lab`.
 
 ---
 
 ## Key Features
 
-- 💎 **Crystal & Molecular Modeling**: Build unit cells, supercells, slabs, and vacuum regions. Import or export CIF and POSCAR formats, or search structures directly via Materials Project.
-- ⚛️ **Quantum ESPRESSO (DFT)**: Run SCF, structural relaxations, electronic band structures, Density of States (DOS), and phonon workflows with automatic high-symmetry $k$-paths (via Seekpath) and one-click SSSP pseudopotential integration.
-- 🧪 **LAMMPS (Molecular Dynamics)**: Set up thermal equilibrations (NVE, NVT, NPT) and mechanical deformation simulations with integrated 3D trajectory visualization and OVITO analysis.
-- 🔒 **Local-First & Private by Default**: Projects, inputs, and outputs are stored locally in SQLite and filesystem storage (`~/.phynite-lab`). No mandatory accounts, telemetry, or third-party cloud lock-in.
-- 📦 **Zero-Config Solvers**: No need to manually compile Fortran binaries, configure OpenMPI, or manage conflicting Python virtual environments. Verified native solver runtimes are installed and sandboxed on demand.
-- 📊 **Publication-Ready Figures**: Generate interactive band diagrams, DOS spectra, and convergence graphs ready for SVG/PDF export.
-- 🤖 **Local AI Co-Scientist (Optional)**: Connect your local AI CLI tools (e.g., Codex or Antigravity) via loopback for intelligent parameter recommendations and automated workflow generation without exposing private research data.
+- **Crystal & Molecular Modeling**: Build unit cells, supercells, slabs, and vacuum regions. Import or export CIF and POSCAR formats, or search structures directly via Materials Project.
+- **Quantum ESPRESSO (DFT)**: Run SCF, structural relaxations, electronic band structures, Density of States (DOS), and phonon workflows with automatic high-symmetry $k$-paths (via Seekpath) and one-click SSSP pseudopotential integration.
+- **LAMMPS (Molecular Dynamics)**: Set up thermal equilibrations (NVE, NVT, NPT) and mechanical deformation simulations with integrated 3D trajectory visualization and OVITO analysis.
+- **Local-First & Private by Default**: Projects, inputs, and outputs are stored locally in SQLite and filesystem storage (`~/.phynite-lab`). No mandatory accounts, telemetry, or third-party cloud lock-in.
+- **Zero-Config Solvers**: No need to manually compile Fortran binaries, configure OpenMPI, or manage conflicting Python virtual environments. Verified native solver runtimes are installed and sandboxed on demand.
+- **Publication-Ready Figures**: Generate interactive band diagrams, DOS spectra, and convergence graphs ready for SVG/PDF export.
+- **Local AI Co-Scientist (Optional)**: Connect your local AI CLI tools (e.g., Codex or Antigravity) via loopback for intelligent parameter recommendations and automated workflow generation without exposing private research data.
 
 ---
 
@@ -113,12 +104,7 @@ On Linux, solver runtimes execute inside an unprivileged [Bubblewrap](https://gi
 
 ## Documentation
 
-Comprehensive guides and tutorials are available at [phynitelab.com/guide](https://phynitelab.com/guide):
-- [Installation & Diagnostics](https://phynitelab.com/guide/npm-local-app)
-- [Quantum ESPRESSO DFT Guide](https://phynitelab.com/guide)
-- [LAMMPS Molecular Dynamics Guide](https://phynitelab.com/guide)
-- [Local AI Provider Setup](https://phynitelab.com/guide/ai-providers)
-- [Storage & Backup Management](https://phynitelab.com/guide/storage-backup)
+Comprehensive guides and tutorials are available at [phynitelab.com/guide](https://phynitelab.com/guide)
 
 ---
 
