@@ -15,6 +15,11 @@ const registryUrl = 'https://registry.npmjs.org/phynite-lab/latest';
 const maximumBytes = 64 * 1024;
 const timeoutMs = 3000;
 const semver = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+const compareVersions = (left: string, right: string) => {
+  const a = left.split('.').map(Number), b = right.split('.').map(Number);
+  for (let index = 0; index < 3; index += 1) if (a[index] !== b[index]) return a[index] - b[index];
+  return 0;
+};
 
 const bundledVersion = typeof packageMetadata.version === 'string' && semver.test(packageMetadata.version)
   ? packageMetadata.version
@@ -76,6 +81,9 @@ export async function getLocalReleaseMetadata(fetcher: typeof fetch = fetch): Pr
     if (!document || document.name !== 'phynite-lab' || typeof document.version !== 'string' || !semver.test(document.version)) {
       throw new Error('Invalid registry metadata.');
     }
+    // During a release, npm may still expose the previous version while the
+    // bundled source already contains the new one. Do not publish stale docs.
+    if (compareVersions(document.version, bundledVersion) < 0) return bundledLocalRelease;
     return { ...bundledLocalRelease, version: document.version, versionSource: 'registry' };
   } catch {
     return bundledLocalRelease;
