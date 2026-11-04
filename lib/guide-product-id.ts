@@ -2,10 +2,10 @@ import type { GuideSection } from './guide-content.ts';
 
 export const productGuideSectionsId: GuideSection[] = [
   {
-    id: 'npm-local-app', group: 'Aplikasi lokal', title: 'Instal, perbarui, dan diagnosis aplikasi npm',
+    id: 'npm-local-app', group: 'Instal & perbarui', title: 'Instal, perbarui, dan diagnosis aplikasi npm',
     intro: 'Aplikasi npm publik adalah jalur local-first untuk menjalankan workspace, DFT, MD, dan analisis native di komputer Anda. Login Phynite, Docker, checkout source, dan Python global tidak diperlukan.',
     blocks: [
-      { title: 'Instal dan jalankan', code: 'npm install -g phynite-lab@latest\nphynite-lab', paragraphs: [
+      { title: 'Instal dan jalankan', visuals: [{ kind: 'screenshot', src: '/docs/guide/onboarding-workspace-desktop-dark.png', alt: 'Workspace lokal Phynite Lab saat pertama dibuka', caption: 'Workspace lokal terbuka tanpa login Cloud.' }, { kind: 'icon', src: '/brand/phynite-mark-dark.png', alt: 'Logo Phynite Lab', caption: 'Launcher lokal membuka workspace di komputer Anda.' }], code: 'npm install -g phynite-lab@latest\nphynite-lab', paragraphs: [
         'Paket publik saat ini adalah phynite-lab@{{LOCAL_NPM_VERSION}}. Gunakan Node.js dengan versi yang memenuhi {{NODE_REQUIREMENT}}. npm memasang launcher dan paket aplikasi native opsional yang sesuai dengan OS serta CPU.',
         'Pastikan optional dependencies npm tidak dinonaktifkan. Jika paket dipasang dengan --omit=optional atau paket platform dihapus, launcher menampilkan error runtime yang hilang dan tidak diam-diam memakai fixture development.',
         'Launcher mengikat layanan ke loopback, membuka browser, dan menyimpan workspace lokal di ~/.phynite-lab. Project serta runtime pengguna berada di luar direktori instalasi npm.',
@@ -39,15 +39,18 @@ export const productGuideSectionsId: GuideSection[] = [
     ],
   },
   {
-    id: 'ai-providers', group: 'Koneksi AI', title: 'Koneksi provider AI di komputer Anda',
+    id: 'ai-providers', group: 'Provider AI', title: 'Koneksi provider AI di komputer Anda',
     intro: 'AI lokal memakai CLI provider yang Anda pilih. Ini terpisah dari login Phynite Cloud dan tidak memakai layanan AI hosted Phynite.',
     blocks: [
-      { title: 'Hubungkan akun', steps: [
+      { title: 'Hubungkan akun', visuals: [{ kind: 'screenshot', src: '/docs/guide/ai-provider-accounts-desktop-dark.png', alt: 'Halaman pengaturan akun provider AI', caption: 'Status dan aksi login provider muncul di Pengaturan.' },
+        { kind: 'icon', src: '/brand/ai/codex.png', alt: 'Ikon provider Codex', caption: 'Hubungkan melalui CLI provider resmi yang Anda gunakan.' },
+        { kind: 'icon', src: '/brand/ai/antigravity.png', alt: 'Ikon provider Antigravity', caption: 'Autentikasi provider tetap berada pada CLI lokal resminya.' },
+      ], steps: [
         'Instal dan autentikasi CLI provider resmi di komputer ini.',
         'Buka Pengaturan → Akun provider AI dan pilih Codex atau Antigravity.',
         'Selesaikan autentikasi melalui alur milik provider. Login CLI yang didukung dapat dipakai ulang tanpa mengimpor cookie atau file session.',
         'Biarkan aplikasi terbuka saat discovery model dan capability probe berjalan. Halaman hanya memilih model yang lulus pemeriksaan teks, streaming, dan tool.',
-      ], links: [{ label: 'Pengaturan provider AI', href: '/id/account/ai-providers' }] },
+      ], links: [{ label: 'Pengaturan provider AI', href: '/account/ai-providers' }] },
       { title: 'Provider, model, dan limit', paragraphs: [
         'Aplikasi lokal memakai satu profil yang dikelola CLI provider resmi. Request yang gagal atau terkena rate limit tidak mengganti provider atau akun secara diam-diam.',
         'Kartu pemakaian hanya menampilkan telemetry yang dilaporkan provider: grup model, persentase session atau mingguan, window, dan waktu reset bila tersedia. Laporan yang hilang tetap ditampilkan tidak tersedia; aplikasi tidak membuat angka token, saldo, atau tanggal reset.',
@@ -62,10 +65,10 @@ export const productGuideSectionsId: GuideSection[] = [
     ],
   },
   {
-    id: 'cloud-sync', group: 'Akun & koneksi', title: 'Phynite Cloud, Cloud Sync, dan compute online',
+    id: 'cloud-sync', group: 'Phynite Cloud', title: 'Phynite Cloud, Cloud Sync, dan compute online',
     intro: 'Layanan Cloud adalah koneksi opsional di atas workspace lokal yang lengkap. Login tidak mengunggah project lokal atau mengganti identitas lokalnya.',
     blocks: [
-      { title: 'Lokal, Cloud Sync, dan compute cloud', table: { headings: ['Pilihan', 'Yang terjadi'], rows: [
+      { title: 'Lokal, Cloud Sync, dan compute cloud', visuals: [{ kind: 'screenshot', src: '/docs/guide/cloud-account-desktop-dark.png', alt: 'Halaman pengaturan akun Phynite Cloud', caption: 'Login Cloud terpisah dari compute lokal dan AI.' }, { kind: 'diagram', src: '/brand/phynite-mark-light.png', alt: 'Logo koneksi Phynite Cloud', caption: 'Layanan Cloud adalah koneksi opsional di atas pekerjaan lokal.' }], table: { headings: ['Pilihan', 'Yang terjadi'], rows: [
         ['Lokal saja', 'Project, input, hasil, dan runtime tetap di komputer yang dipilih. Login Cloud tidak diperlukan.'],
         ['Login Cloud', 'Membuka fitur akun; project lokal tetap lokal sampai aksi project mengaktifkan sync.'],
         ['Cloud Sync', 'Diaktifkan per project setelah meninjau cakupan, ukuran, dan kuota. Revision serta artefak project yang diizinkan disinkronkan.'],
@@ -82,11 +85,11 @@ export const productGuideSectionsId: GuideSection[] = [
         'Antrean sync dan mapping akun terikat pada akun Cloud yang sedang login. Berganti akun tidak melanjutkan upload milik akun lain.',
         'Kuota Cloud, retensi artefak, Trash, dan allowance Free hosted terpisah dari ruang disk lokal. Billing dan perubahan paket tersedia di website hosted; pembelian tidak otomatis menjalankan job.',
         'MD Cloud belum tersedia sampai service yang didukung muncul di katalog aktif. Jangan menyimpulkan ketersediaannya dari runtime MD lokal.',
-      ], links: [{ label: 'Pengaturan akun Cloud', href: '/id/account/account' }, { label: 'Pemakaian dan kuota', href: '/id/account/usage' }, { label: 'Billing hosted', href: '/billing' }] },
+      ], links: [{ label: 'Pengaturan akun Cloud', href: '/account/account' }, { label: 'Pemakaian dan kuota', href: '/account/usage' }, { label: 'Billing hosted', href: '/billing' }] },
     ],
   },
   {
-    id: 'storage-backup', group: 'Data & reproduksibilitas', title: 'Storage, ekspor, backup, dan state QE besar',
+    id: 'storage-backup', group: 'Storage & backup', title: 'Storage, ekspor, backup, dan state QE besar',
     intro: 'Storage lokal adalah disk yang tersedia untuk workspace terpilih. Storage Cloud adalah layanan akun dengan kuota dan retensi sendiri.',
     blocks: [
       { title: 'Yang diukur Storage lokal', table: { headings: ['Dihitung', 'Di luar inventaris project'], rows: [
@@ -104,7 +107,7 @@ export const productGuideSectionsId: GuideSection[] = [
         'Simpan backup kedua di luar ~/.phynite-lab, termasuk input eksak, identitas/checksum potential, provenance, dan state intermediate yang diperlukan workflow lanjutan.',
         'Impor ke data directory baru terlebih dahulu dan periksa struktur, konfigurasi, hasil, serta checksum sebelum mengganti salinan kerja.',
         'Gunakan Source package untuk figur; itu tidak menggantikan arsip project atau backup runtime solver.',
-      ], links: [{ label: 'Pengaturan penyimpanan', href: '/id/account/storage' }] },
+      ], links: [{ label: 'Pengaturan penyimpanan', href: '/account/storage' }] },
     ],
   },
   {

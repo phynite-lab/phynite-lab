@@ -1,7 +1,7 @@
 import type { Locale } from './locale.ts';
 
 // Shared by routing and navigation without loading the complete guide datasets.
-export const GUIDE_TOPIC_IDS = ['workflow', 'quickstart-silicon', 'quickstart-md', 'project', 'structure', 'edit', 'periodicity', 'slab-workflow', 'calculation', 'configure', 'convergence', 'execution', 'results', 'figures', 'alignment', 'studies', 'reuse', 'advanced', 'export', 'publication', 'saving', 'account', 'billing', 'local-compute', 'npm-local-app', 'ai-providers', 'cloud-sync', 'storage-backup', 'settings-reference', 'language', 'shortcuts', 'field-reference', 'troubleshooting', 'diagnostics', 'roadmap', 'reference'] as const;
+export const GUIDE_TOPIC_IDS = ['getting-started', 'workflow', 'npm-local-app', 'local-compute', 'project', 'structure', 'edit', 'periodicity', 'slab-workflow', 'quickstart-silicon', 'calculation', 'configure', 'convergence', 'execution', 'quickstart-md', 'md-workflows', 'ai-providers', 'cloud-sync', 'account', 'saving', 'billing', 'storage-backup', 'settings-reference', 'language', 'results', 'research-history', 'figures', 'alignment', 'studies', 'reuse', 'advanced', 'export', 'publication', 'troubleshooting', 'local-troubleshooting', 'diagnostics', 'tools-reference', 'shortcuts', 'field-reference', 'roadmap', 'reference'] as const;
 export type GuideTopicId = typeof GUIDE_TOPIC_IDS[number];
 
 export function isGuideTopic(topic: string): topic is GuideTopicId {

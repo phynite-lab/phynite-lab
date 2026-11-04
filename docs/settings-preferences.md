@@ -1,5 +1,10 @@
 # Settings and preferences
 
+The user-facing bilingual guide at https://phynitelab.com/guide/settings-reference
+contains annotated screenshots for Appearance, Keyboard, Notifications, Compute,
+AI provider accounts, Cloud Account, Usage, Storage, and Privacy. This reference
+documents the storage and ownership boundaries behind those pages.
+
 Settings separates device choices, scientific resources, AI accounts, and the
 optional Phynite Cloud account. Use the category sidebar or search for a setting. The workspace Home/Cloud icon rail is hidden here; Back to workspace returns to the app.
 On smaller screens open the Settings navigation drawer; Escape or its close

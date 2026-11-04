@@ -3,7 +3,7 @@ import type { GuideSection } from './guide-content';
 
 export const guideSectionsId: GuideSection[] = [
   {
-    id: 'workflow', group: 'Mulai menggunakan', title: 'Dari struktur hingga figur paper',
+    id: 'workflow', group: 'Mulai di sini', title: 'Dari struktur hingga figur paper',
     intro: 'Project menampung satu studi material: struktur, pengaturan kalkulasi, riwayat eksekusi, dataset numerik, dan figur yang dapat digunakan kembali. Mulai dari pertanyaan fisik, lalu pilih kalkulasi dan perbandingan yang diperlukan untuk menjawabnya.',
     blocks: [
       { title: 'Alur kerja lengkap', steps: ['Buka aplikasi lokal tanpa login, atau masuk saat memakai website hosted. Workspace menampilkan project dan alat riset; identitas lokal terpisah dari login Phynite Cloud opsional.', 'Pilih Project baru, beri nama yang menjelaskan studi, lalu buka project tersebut. Project juga dapat dibuat dari panel Project di DFT Lab.', 'Impor struktur, bangun sel, atau ambil dari Materials Project. Periksa satuan, vektor kisi, spesies, dan jumlah atom.', 'Periksa geometri ruang nyata. Tentukan arah periodik untuk tampilan dan tambahkan vakum secara eksplisit bila model slab, kawat, atau molekul membutuhkannya.', 'Buka Calculate dan tambahkan Total energy atau Structural relaxation. Periksa input, okupansi, pseudopotensial, cutoff, dan mesh k.', 'Pilih tujuan komputasi. Aplikasi npm memakai runtime pada Pengaturan → Komputasi untuk Komputer Anda; website hosted memakai worker pribadi terhubung. Phynite Cloud opsional memakai Quanta atau grant pilot serta profil CPU/RAM yang tersedia.', 'Jalankan dan ikuti Log. Status Completed tidak otomatis berarti hasil konvergen secara fisik; periksa energi, gaya, konvergensi, dan pesan solver.', 'Tambahkan kalkulasi band, DOS, fonon, atau transport sesuai kebutuhan. Pilih hasil relaksasi yang kompatibel sebagai sumber struktur bila diperlukan.', 'Pada hasil yang memiliki data plot, pilih Open in Figure Lab. Figur aktif yang sudah memakai hasil tersebut dibuka kembali, atau data numeriknya diimpor untuk membuat figur.', 'Atur perbandingan, referensi energi, dimensi fisik, dan tipografi. Tunggu status penyimpanan di editor Figure Lab, lalu ekspor figur dan Source package.'] },
@@ -12,7 +12,7 @@ export const guideSectionsId: GuideSection[] = [
     ],
   },
   {
-    id: 'project', group: 'Mulai menggunakan', title: 'Project, struktur, dan riwayat kalkulasi',
+    id: 'project', group: 'Mulai di sini', title: 'Project, struktur, dan riwayat kalkulasi',
     intro: 'Gunakan satu project untuk satu studi yang berkaitan. Simpan variasi material sebagai struktur terpisah dengan nama jelas. Pengaturan kalkulasi dapat diedit; setiap eksekusi menyimpan riwayat input yang dikirim.',
     blocks: [
       { title: 'Membuat project dari Workspace', steps: ['Tunggu Workspace akun selesai dimuat, lalu pilih Project baru.', 'Isi nama, misalnya Respons strain MoS2. Nama wajib diisi, maksimal 100 karakter; deskripsi opsional maksimal 500 karakter.', 'Pilih Buat project. Project tampil di daftar dan dapat langsung dibuka melalui konfirmasi.', 'Buka project untuk menambahkan struktur. Project kosong tidak menjalankan kalkulasi atau memakai kapasitas worker.', 'Gunakan pencarian untuk nama project, deskripsi, atau rumus kimia struktur utama. Urutkan berdasarkan edit terakhir atau nama.'] },
@@ -21,7 +21,7 @@ export const guideSectionsId: GuideSection[] = [
     ],
   },
   {
-    id: 'structure', group: 'Struktur & fisika', title: 'Mengimpor dan memeriksa struktur',
+    id: 'structure', group: 'Project & struktur', title: 'Mengimpor dan memeriksa struktur',
     intro: 'Periksa struktur sebagai model fisik sebelum menyiapkan input solver. Visualisasi yang tampak benar belum membuktikan satuan, okupansi, atau sel komputasinya sesuai.',
     blocks: [
       { title: 'Memilih sumber', table: { headings: ['Sumber', 'Pemeriksaan'], rows: [['CIF', 'Satuan sel, koordinat fraksional, simetri, dan okupansi situs. Struktur dengan okupansi parsial memerlukan model atomistik yang sesuai.'], ['POSCAR / CONTCAR', 'Faktor skala, urutan unsur, jumlah atom, serta koordinat Direct atau Cartesian.'], ['XYZ', 'Satuan dan informasi sel. XYZ biasa tidak selalu mendefinisikan kisi periodik.'], ['Input Quantum ESPRESSO', 'CELL_PARAMETERS, ATOMIC_POSITIONS, spesies, dan satuan setiap card.'], ['Materials Project', 'Identitas sumber, komposisi, sel standar, dan konvensi basis.'], ['DFT Lab', 'Geometri, jarak antaratom, dan kesesuaian model yang Anda bangun.']] } },
@@ -31,7 +31,7 @@ export const guideSectionsId: GuideSection[] = [
     ],
   },
   {
-    id: 'edit', group: 'Struktur & fisika', title: 'Mengedit atom dan geometri sel',
+    id: 'edit', group: 'Project & struktur', title: 'Mengedit atom dan geometri sel',
     intro: 'DFT Lab bekerja di ruang nyata. Pilih alat berdasarkan operasi yang diperlukan dan gunakan koordinat numerik untuk perubahan yang harus presisi.',
     blocks: [
       { title: 'Alat viewport', table: { headings: ['Alat', 'Fungsi'], rows: [['Select (V)', 'Memilih atom untuk inspeksi dan operasi berikutnya.'], ['Move (G)', 'Memindahkan atom terpilih.'], ['Add atom (A)', 'Menambahkan atom dengan spesies dan posisi yang dipilih.'], ['Measure (M)', 'Mengukur jarak atau sudut sesuai mode dan urutan pilihan.'], ['Focus (F)', 'Memusatkan tampilan pada atom terpilih.'], ['Delete / Backspace', 'Menghapus pilihan saat konteks viewport aktif, bukan saat mengetik.']] } },
@@ -40,7 +40,7 @@ export const guideSectionsId: GuideSection[] = [
     ],
   },
   {
-    id: 'periodicity', group: 'Struktur & fisika', title: 'Arah periodik, vakum, dan dimensionalitas',
+    id: 'periodicity', group: 'Project & struktur', title: 'Arah periodik, vakum, dan dimensionalitas',
     intro: 'Checkbox a, b, dan c menyatakan arah periodik yang dimaksud pada tampilan ruang nyata. Quantum ESPRESSO tetap menggunakan sel simulasi tiga dimensi yang berulang periodik.',
     blocks: [
       { title: 'Ketika satu arah dinonaktifkan', paragraphs: ['Menonaktifkan c menghentikan pengulangan visual dan koneksi tetangga periodik pada arah itu; jumlah pengulangannya menjadi satu. Aksi ini tidak memperpendek sel, menghapus vektor c, menambah vakum, atau mengaktifkan koreksi elektrostatik.', 'Ukuran sel tidak boleh ditebak dari checkbox: ketebalan slab, vakum yang konvergen, dan kondisi elektrostatik berbeda pada setiap studi. Mengubah sel otomatis tanpa konteks dapat mengubah jarak atom atau kerapatan fisik.'], note: 'Untuk slab, pertahankan tinggi sel yang finite, tambahkan dan konvergensikan vakum, gunakan satu titik k pada arah nonperiodik, lalu tentukan perlakuan elektrostatik dalam input QE yang dijalankan.' },
@@ -49,7 +49,7 @@ export const guideSectionsId: GuideSection[] = [
     ],
   },
   {
-    id: 'calculation', group: 'Kalkulasi', title: 'Memilih dan menghubungkan kalkulasi',
+    id: 'calculation', group: 'QE & DFT', title: 'Memilih dan menghubungkan kalkulasi',
     intro: 'Panel Calculate memisahkan pengaturan DFT, Log eksekusi, dan konfigurasi yang dapat dipakai ulang. Pilih tugas ilmiahnya; alur yang dihasilkan menyiapkan tahap solver yang diperlukan.',
     blocks: [
       { title: 'Alur tersedia', table: { headings: ['Kalkulasi', 'Tujuan', 'Alat utama'], rows: [['Total energy', 'Keadaan dasar elektronik SCF dan energi.', 'pw.x'], ['Structural relaxation', 'Optimasi ion; opsi derajat kebebasan sel yang diizinkan.', 'pw.x relax / vc-relax'], ['Band structure', 'Eigenvalue sepanjang lintasan resiprok.', 'pw.x + bands.x'], ['Density of states', 'DOS dari mesh seragam dan opsi proyeksi.', 'pw.x + dos.x / input proyeksi'], ['Phonon dispersion', 'DFPT, konstanta gaya, dan lintasan fonon.', 'ph.x + q2r.x + matdyn.x'], ['Thermoelectric properties', 'Interpolasi band dan transport semiklasik.', 'QE + BoltzTraP2']] } },
@@ -58,7 +58,7 @@ export const guideSectionsId: GuideSection[] = [
     ],
   },
   {
-    id: 'configure', group: 'Kalkulasi', title: 'Mengatur dan memvalidasi Quantum ESPRESSO',
+    id: 'configure', group: 'QE & DFT', title: 'Mengatur dan memvalidasi Quantum ESPRESSO',
     intro: 'Default adaptif adalah titik awal. Pengaturan tersebut tidak menggantikan uji konvergensi atau pengetahuan tentang material. Input yang dihasilkan dan expert raw input memiliki tanggung jawab berbeda.',
     blocks: [
       { title: 'Pilihan utama', table: { headings: ['Pengaturan', 'Makna', 'Pemeriksaan'], rows: [['Functional', 'Pendekatan exchange-correlation.', 'Gunakan pseudopotensial dan alur solver yang kompatibel.'], ['ecutwfc / ecutrho', 'Cutoff gelombang bidang dan kerapatan muatan.', 'Konvergensikan energi, gaya, tegangan, atau respons yang dilaporkan.'], ['Mesh k', 'Sampling integrasi zona Brillouin.', 'Gunakan mesh seragam untuk SCF/DOS; lintasan band bukan penggantinya.'], ['Occupations / smearing', 'Pengisian dan integrasi keadaan elektronik.', 'Sesuaikan dengan sifat logam, isolator, spin, dan asumsi temperatur.'], ['nbnd', 'Jumlah band yang dihitung.', 'Cukupkan keadaan kosong untuk rentang energi atau transport.'], ['Threshold / mixing', 'Penghentian dan perilaku iterasi SCF.', 'Periksa konvergensi; menaikkan batas iterasi tidak selalu menyelesaikan masalah.'], ['Charge / magnetization / spin', 'Asumsi keadaan elektronik.', 'Gunakan referensi fisik dan pseudopotensial yang sesuai.']] } },
@@ -67,7 +67,7 @@ export const guideSectionsId: GuideSection[] = [
     ],
   },
   {
-    id: 'execution', group: 'Kalkulasi', title: 'Eksekusi, sumber daya, dan pembatalan',
+    id: 'execution', group: 'QE & DFT', title: 'Eksekusi, sumber daya, dan pembatalan',
     intro: 'Run melewati persiapan, antrean, eksekusi, penyimpanan hasil, dan penyelesaian. Hasil native tersimpan lokal; job hosted juga mengunggah artefak wajib. Log menunjukkan tahap yang memerlukan pemeriksaan.',
     blocks: [
       { title: 'Membaca status', table: { headings: ['Status', 'Makna', 'Tindakan'], rows: [['Draft / Ready', 'Konfigurasi ada; solver belum tentu berjalan.', 'Periksa input lalu jalankan.'], ['Queued', 'Menunggu worker atau dependensi.', 'Periksa tujuan, koneksi, dan prasyarat.'], ['Running', 'Worker sudah mengambil job.', 'Periksa tahap, log, dan alokasi.'], ['Completed', 'Hasil wajib tersimpan dan diterima secara lokal atau oleh layanan hosted.', 'Periksa konvergensi dan validitas ilmiah.'], ['Failed', 'Persiapan, solver, penyimpanan lokal, atau unggah hosted gagal.', 'Baca penyebab dan log sebelum mengulang.'], ['Cancellation requested', 'Permintaan berhenti dikirim ke worker.', 'Tunggu heartbeat dan status akhir.'], ['Cancelled', 'Run dihentikan atau dikeluarkan dari antrean.', 'Simpan log yang berguna; buat run baru bila perlu.']] } },
@@ -143,7 +143,7 @@ export const guideSectionsId: GuideSection[] = [
     ],
   },
   {
-    id: 'saving', group: 'Akun & komputasi', title: 'Penyimpanan otomatis dan banyak perangkat',
+    id: 'saving', group: 'Phynite Cloud', title: 'Penyimpanan otomatis dan banyak perangkat',
     intro: 'DFT Lab dan Figure Lab menampilkan status penyimpanan dokumen aktif. Aplikasi npm menyimpan project pada SQLite/filesystem; storage browser memuat draft pemulihan. Project lokal tidak diunggah otomatis dan tidak memiliki kuota tetap 10 GiB. Status cloud berikut berlaku untuk website hosted atau project dengan Cloud Sync aktif secara eksplisit.',
     blocks: [
       { title: 'Arti status editor', table: { headings: ['Label', 'Makna', 'Tindakan'], rows: [['Saving...', 'Draft atau sinkronisasi berlangsung.', 'Tunggu sebentar sebelum mengandalkan perangkat lain.'], ['Saved to cloud', 'Dokumen aktif dan sumber yang diperlukan dikonfirmasi tersimpan.', 'Dapat dibuka dengan akun yang sama.'], ['Saved on device / Offline', 'Salinan browser ada, unggah belum selesai.', 'Jangan hapus data browser; sambungkan kembali.'], ['Sync pending', 'Salinan lokal disimpan selama unggah dicoba lagi.', 'Periksa jaringan dan batas penyimpanan.'], ['Sync conflict', 'Revisi cloud berbeda dari revisi yang diedit.', 'Periksa History sebelum memilih versi.']] } },
@@ -313,7 +313,7 @@ export const guideSectionsId: GuideSection[] = [
     ],
   },
   {
-    id: 'troubleshooting', group: 'Referensi', title: 'Pemecahan masalah dan pemulihan',
+    id: 'troubleshooting', group: 'Pemecahan masalah & pemulihan', title: 'Pemecahan masalah dan pemulihan',
     intro: 'Mulai dari pesan yang terlihat dan tahap pertama yang gagal. Simpan data lokal yang belum tersinkron sebelum mencoba pemulihan yang menghapus data browser.',
     blocks: [
       { title: 'Diagnosis run npm lokal', table: { headings: ['Tahap', 'Makna', 'Tempat memeriksa'], rows: [

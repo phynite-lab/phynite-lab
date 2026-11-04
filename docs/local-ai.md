@@ -1,5 +1,10 @@
 # Local AI provider accounts
 
+The bilingual guide at https://phynitelab.com/guide/ai-providers includes the
+provider icons, settings screenshots, and a step-by-step login and capability
+check walkthrough. Use it alongside this maintainer reference when the CLI
+reports a different model or usage state.
+
 ## Local application: your provider accounts
 
 The npm application uses the user's own supported Codex or Antigravity CLI.

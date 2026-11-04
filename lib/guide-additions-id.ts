@@ -2,7 +2,7 @@ import type { GuideSection } from './guide-content';
 
 export const guideAdditionsId: GuideSection[] = [
   {
-    id: 'quickstart-silicon', group: 'Mulai menggunakan', title: 'Tutorial: kalkulasi silikon pertama',
+    id: 'quickstart-silicon', group: 'Mulai di sini', title: 'Tutorial: kalkulasi silikon pertama',
     intro: 'Selesaikan kalkulasi keadaan dasar kecil sebelum menjalankan studi besar. Tutorial ini memeriksa alur struktur, worker, dan hasil. Parameter latihan bukan metode produksi yang sudah konvergen.',
     blocks: [
       { title: 'Sebelum mulai', bullets: ['Buka aplikasi lokal tanpa login, atau masuk ke website hosted dengan akun pemilik project.', 'Pada aplikasi npm, pasang DFT di Pengaturan → Komputasi dan pertahankan CLI berjalan. Pada website hosted, hubungkan Komputer Anda melalui worker berpasangan dan pertahankan Docker aktif.', 'Siapkan struktur silikon diamond-cubic dalam CIF, POSCAR, atau format lain yang didukung. Simpan sumber serta parameter kisinya.', 'Gunakan sel primitif dua atom untuk latihan. Sel konvensional delapan atom juga valid secara fisik, tetapi energi total, vektor resiprok, dan biayanya berbeda.'] },
@@ -14,7 +14,7 @@ export const guideAdditionsId: GuideSection[] = [
     ],
   },
   {
-    id: 'quickstart-md', group: 'Mulai menggunakan', title: 'Tutorial: simulasi MD lokal pertama',
+    id: 'quickstart-md', group: 'MD & analisis', title: 'Tutorial: simulasi MD lokal pertama',
     intro: 'Gunakan sistem argon kecil untuk mempelajari alur struktur, pengaturan, eksekusi, dan hasil di MD Lab. Ini latihan alur kerja, bukan studi fisika yang sudah tervalidasi.',
     blocks: [
       { title: 'Siapkan komputer dan struktur', steps: ['Pada aplikasi npm, pasang MD/analisis di Pengaturan → Komputasi dan pertahankan CLI berjalan; login Phynite tidak diperlukan. Website hosted memakai akun yang masuk serta worker pribadi terhubung.', 'Buka MD Lab dan buat project bernama Ekuilibrasi argon.', 'Impor atau bangun struktur argon kecil dengan kotak periodik yang sesuai secara fisik. Periksa jumlah atom, identitas unsur, koordinat, ukuran kotak, satuan, dan massa atom. XYZ dengan spesies Ar atau berkas data LAMMPS yang memuat Masses dapat dipakai; dump yang hanya berisi nomor tipe tidak punya massa untuk dinamika.', 'Simpan berkas struktur asli serta sumbernya. Pengulangan tampilan tidak menambah atom dalam simulasi.'] },
@@ -24,7 +24,7 @@ export const guideAdditionsId: GuideSection[] = [
     ],
   },
   {
-    id: 'convergence', group: 'Kalkulasi', title: 'Prosedur: merancang uji konvergensi',
+    id: 'convergence', group: 'QE & DFT', title: 'Prosedur: merancang uji konvergensi',
     intro: 'Uji konvergensi mengukur pengaruh pilihan numerik terhadap besaran fisik yang dilaporkan. Tentukan besaran dan toleransi terlebih dahulu, lalu ubah satu parameter terkendali dengan input lain tetap.',
     blocks: [
       { title: 'Menentukan perbandingan', paragraphs: ['Untuk perbandingan energi fase, konvergensikan selisih energi dengan sel dan normalisasi yang sebanding. Untuk relaksasi, periksa kestabilan gaya serta tegangan. Untuk tepi band, koefisien transport, atau mode fonon, konvergensikan besaran itu secara langsung.', 'Energi total yang stabil tidak menjamin semua respons telah konvergen. Catat toleransi target pada deskripsi project atau catatan metode.'] },
@@ -34,7 +34,7 @@ export const guideAdditionsId: GuideSection[] = [
     ],
   },
   {
-    id: 'slab-workflow', group: 'Struktur & fisika', title: 'Prosedur: menyiapkan slab dua dimensi',
+    id: 'slab-workflow', group: 'Project & struktur', title: 'Prosedur: menyiapkan slab dua dimensi',
     intro: 'Gunakan prosedur ini untuk lembaran atau slab dengan permukaan pada bidang a-b. Quantum ESPRESSO memerlukan sel tiga dimensi dengan vakum yang terkonvergensi.',
     blocks: [
       { title: 'Prasyarat geometri', bullets: ['Mulai dari terminasi, komposisi, dan orientasi permukaan yang bermakna secara fisik.', 'Periksa koordinat fraksional dan Cartesian. Pada sel miring, ukur vakum normal terhadap permukaan, bukan hanya panjang c.', 'Pastikan ketebalan slab dan ikatan lintas batas sesuai model.', 'Duplikasikan struktur sebelum mengubah sel agar sumber bulk atau slab awal tetap tersedia.'] },
@@ -53,7 +53,7 @@ export const guideAdditionsId: GuideSection[] = [
     ],
   },
   {
-    id: 'publication', group: 'Hasil & Figure Lab', title: 'Prosedur: menyiapkan figur publikasi',
+    id: 'publication', group: 'Hasil & figur', title: 'Prosedur: menyiapkan figur publikasi',
     intro: 'Siapkan perbandingan fisik terlebih dahulu, kemudian geometri halaman, tipografi, dan ekspor. Sertakan sumber yang dapat diedit untuk setiap figur yang dikirim.',
     blocks: [
       { title: 'Kompatibilitas sumber', steps: ['Buka hasil selesai di Figure Lab atau pilih dataset tersimpan dari pustaka hasil.', 'Periksa besaran, satuan, identitas geometri, referensi energi, dan metadata lintasan k.', 'Pilih grid untuk lintasan berbeda; overlay hanya untuk koordinat dan referensi yang sebanding.', 'Untuk Band + DOS, periksa geometri dan asumsi elektronik pasangan serta rentang energi terhubung.', 'Jelaskan konvensi alignment. Each Fermi = 0 membandingkan struktur elektronik relatif, bukan offset band absolut.'] },
@@ -63,7 +63,7 @@ export const guideAdditionsId: GuideSection[] = [
     ],
   },
   {
-    id: 'billing', group: 'Akun & komputasi', title: 'Mengelola paket, tagihan, dan pemakaian',
+    id: 'billing', group: 'Phynite Cloud', title: 'Mengelola paket, tagihan, dan pemakaian',
     intro: 'Tagihan mengelola pembelian serta faktur Phynite Cloud pada website hosted. Aplikasi lokal membuka https://phynitelab.com/billing; compute lokal, akun AI, dan preferensi perangkat dikelola terpisah pada Pengaturan.',
     blocks: [
       { title: 'Memeriksa akun', steps: ['Buka Tagihan pada website Phynite. Dari aplikasi lokal, tautan membuka https://phynitelab.com/billing.', 'Periksa paket aktif, status langganan, dan alokasi per run yang berasal dari akun.', 'Pada Pemakaian tercatat, pilih Perbarui setelah kalkulasi selesai atau file cloud berubah.', 'Baca penggunaan Figure Lab dan file cloud saat ini. Storage berbayar berbagi satu kuota total untuk file cloud dan reservasi upload.', 'Pilih Ekspor pemakaian untuk mengunduh JSON bertanggal. Ekspor berisi pengukuran sumber daya, bukan tanda terima pembayaran.'] },
@@ -123,7 +123,7 @@ export const guideAdditionsId: GuideSection[] = [
     ]
   },
   {
-    id: 'diagnostics', group: 'Referensi', title: 'Diagnosis: menemukan tahap yang gagal',
+    id: 'diagnostics', group: 'Pemecahan masalah & pemulihan', title: 'Diagnosis: menemukan tahap yang gagal',
     intro: 'Identifikasi tahap pertama yang tidak selesai. Mengulang aksi hilir tidak memperbaiki struktur yang hilang, worker terputus, atau sumber numerik yang tidak kompatibel.',
     blocks: [
       { title: 'Tabel diagnosis', table: { headings: ['Gejala', 'Tahap', 'Pemeriksaan berikutnya'], rows: [['Project baru belum aktif', 'Pemuatan Workspace akun.', 'Tunggu atau muat ulang pada error cloud; jangan hapus edit yang belum tersinkron.'], ['Impor struktur gagal', 'Parser atau geometri.', 'Format, encoding, kisi, koordinat, dan okupansi.'], ['Run langsung ditolak', 'Validasi submit.', 'Pesan field, status runtime/isolasi lokal, batas resource, serta metode; autentikasi cloud hanya untuk aksi cloud.'], ['Run tetap Queued', 'Worker atau dependensi.', 'Tujuan, heartbeat personal, kapasitas shared, dan pendahulu.'], ['Worker mulai tetapi QE keluar', 'Runtime atau input ilmiah.', 'Error solver pertama, pseudopotensial, spesies, sintaks, memori, dan disk.'], ['SCF tidak stabil', 'Self-consistency.', 'Geometri, okupansi, magnetisme, mixing, toleransi, dan keadaan hampir degenerat.'], ['Solver selesai, hasil belum tersedia', 'Penyimpanan atau unggah.', 'Disk/runtime lokal dan status akhir; jaringan/kredensial juga berlaku untuk unggah hosted. Pertahankan worker aktif.'], ['Open in Figure Lab gagal', 'Pengambilan sumber.', 'Retry; hasil lama mungkin membutuhkan file numerik asli.'], ['Overlay atau pasangan memberi peringatan', 'Perbandingan ilmiah.', 'Geometri, referensi energi, dan identitas path; gunakan panel mandiri bila perlu.'], ['Ekspor gagal', 'Renderer atau font.', 'Sambungkan internet, periksa ukuran raster, lalu coba lagi.']] } },

@@ -1,0 +1,719 @@
+{
+  "format": "phynite-guide-screenshots",
+  "schemaVersion": 2,
+  "capturedAt": "2026-11-04T12:47:04.956Z",
+  "sourceCommit": "c75c75acaca652146545250d1afbb13948e2e5d7",
+  "appVersion": "0.1.10",
+  "dataPolicy": "Documentation demo only. Neutral teaching inputs; no private research data.",
+  "variants": [
+    {
+      "id": "desktop-dark",
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "colorScheme": "dark"
+    },
+    {
+      "id": "desktop-light",
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "colorScheme": "light"
+    },
+    {
+      "id": "mobile-dark",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "colorScheme": "dark"
+    }
+  ],
+  "captures": [
+    {
+      "id": "onboarding-workspace",
+      "route": "/workspace",
+      "file": "onboarding-workspace-desktop-dark.png",
+      "variant": "desktop-dark",
+      "caption": "The local workspace works without Cloud or AI login.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "154a9e855d659c56aafbc194b7e8d8513a0d17bf29efd236a1e61c527f4c8e70",
+      "bytes": 20196
+    },
+    {
+      "id": "new-project",
+      "route": "/workspace",
+      "file": "new-project-desktop-dark.png",
+      "variant": "desktop-dark",
+      "caption": "Name a project for a material, comparison, or research question. This dialog is not submitted.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "5b53b571805bb1bce312208fdfce2e78f4348a6dee436213e78c099b94a0d3a5",
+      "bytes": 39565
+    },
+    {
+      "id": "compute-runtime-setup",
+      "route": "/account/compute",
+      "file": "compute-runtime-setup-desktop-dark.png",
+      "variant": "desktop-dark",
+      "caption": "Install verified scientific runtimes, inspect isolation, and set local CPU/RAM budgets.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "cf6da5ba6b4499c0d0015aed8554c3c07f045985952cf9a7c3fd4e2d03416bbd",
+      "bytes": 98467
+    },
+    {
+      "id": "ai-provider-accounts",
+      "route": "/account/ai-providers",
+      "file": "ai-provider-accounts-desktop-dark.png",
+      "variant": "desktop-dark",
+      "caption": "Anonymous provider connection screen. Provider login is not simulated.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "d972419e38dad69c270bf23c33d20db42a13a6d440e7fef181b129b2bed463fe",
+      "bytes": 104827
+    },
+    {
+      "id": "cloud-account",
+      "route": "/account/account",
+      "file": "cloud-account-desktop-dark.png",
+      "variant": "desktop-dark",
+      "caption": "Cloud sign-in is optional and separate from local work.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "51f4ed5c370723bb1743c92718120f18dd961517c1cdd9da89401a59d411247c",
+      "bytes": 106741
+    },
+    {
+      "id": "storage-archives",
+      "route": "/account/storage",
+      "file": "storage-archives-desktop-dark.png",
+      "variant": "desktop-dark",
+      "caption": "Local artifact accounting and project archive controls.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "fd34656f6413734cf98486201fd54a9a2c73cd7f5a108f8f082c047deabeb4f5",
+      "bytes": 96952
+    },
+    {
+      "id": "appearance-settings",
+      "route": "/account/appearance",
+      "file": "appearance-settings-desktop-dark.png",
+      "variant": "desktop-dark",
+      "caption": "Appearance and language preferences on this device.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "e9cf8fc6853e6255d88d6ce217400d615c355d3d8fd4643cad44adc4cebbedf9",
+      "bytes": 92676
+    },
+    {
+      "id": "notifications-settings",
+      "route": "/account/notifications",
+      "file": "notifications-settings-desktop-dark.png",
+      "variant": "desktop-dark",
+      "caption": "Local notification preferences.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "5b21b37bfaa60af69e0a23ead6df65208653ed5e4f537614bad2cfd07ef2df28",
+      "bytes": 86601
+    },
+    {
+      "id": "keyboard-settings",
+      "route": "/account/keyboard",
+      "file": "keyboard-settings-desktop-dark.png",
+      "variant": "desktop-dark",
+      "caption": "Keyboard shortcut configuration.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "d13e0f45b7cb438105932fbdd140a9d6e0cb953828c628e28c234be74cd3af4d",
+      "bytes": 94856
+    },
+    {
+      "id": "usage-settings",
+      "route": "/account/usage",
+      "file": "usage-settings-desktop-dark.png",
+      "variant": "desktop-dark",
+      "caption": "Recorded compute usage; no account quota is invented.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "d2bff26b2dfccda288675ae163ce50ebd9b862922c0adf85c37fa1bfe70dd942",
+      "bytes": 101132
+    },
+    {
+      "id": "privacy-settings",
+      "route": "/account/privacy",
+      "file": "privacy-settings-desktop-dark.png",
+      "variant": "desktop-dark",
+      "caption": "Local privacy and session information.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "16bcb9dbe06ccbd1b05431737b38378fc5309ade7012a728130d4ce25b52f3bb",
+      "bytes": 79489
+    },
+    {
+      "id": "workflow-canvas",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=canvas",
+      "file": "workflow-canvas-desktop-dark.png",
+      "variant": "desktop-dark",
+      "caption": "Connected silicon SCF and argon MD teaching setups; drafts are not scientific results.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "591918c4b59b8077166524c267bcb360cfc96903956593db8ec88be4dc222469",
+      "bytes": 71500
+    },
+    {
+      "id": "structure-editor",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=silicon",
+      "file": "structure-editor-desktop-dark.png",
+      "variant": "desktop-dark",
+      "caption": "Silicon cell geometry and the actual structure editing toolbar.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "f133d3ab156bab0a8161af5bd00f8ae09a3883ecbc0243155d2eb31ff3da624a",
+      "bytes": 134290
+    },
+    {
+      "id": "dft-configuration",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=scf",
+      "file": "dft-configuration-desktop-dark.png",
+      "variant": "desktop-dark",
+      "caption": "Review the SCF method, numerical basis, and pseudopotential family before running.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "48a33f3e7a1c7b48655125cd256f78b8e8ebcf90438942627859ea4caae77679",
+      "bytes": 93513
+    },
+    {
+      "id": "dft-pseudopotentials",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=scf",
+      "file": "dft-pseudopotentials-desktop-dark.png",
+      "variant": "desktop-dark",
+      "caption": "QE method and pseudopotential selection in the detailed parameter editor.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "47df9673ae297a81678b093d0f3b916ca48d4bfb22c499b0dc279baeaba992a7",
+      "bytes": 102473
+    },
+    {
+      "id": "md-guided",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=md-guided",
+      "file": "md-guided-desktop-dark.png",
+      "variant": "desktop-dark",
+      "caption": "Guided MD setup with explicit interatomic potential, timestep, steps, and output cadence.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "3ae8d90a7597965defb03459f2a89b9131f04c7ed5d9dd639bfabe219cae2072",
+      "bytes": 100990
+    },
+    {
+      "id": "md-manual",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=md-manual",
+      "file": "md-manual-desktop-dark.png",
+      "variant": "desktop-dark",
+      "caption": "Manual LAMMPS stage body. The runtime manages input, potential, output paths, and isolation.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "59959cbac1d6ae6efa33491cc8725f1118f0b0cadbe88f73e184a5ffc6eab233",
+      "bytes": 69005
+    },
+    {
+      "id": "md-analysis",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=analysis",
+      "file": "md-analysis-desktop-dark.png",
+      "variant": "desktop-dark",
+      "caption": "RDF analysis setup with explicit frame selection and physical cutoff.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "a3d7479beb5da302a72b0ea6eae110bbc63cc134949d0a3e594ff774730f9468",
+      "bytes": 51291
+    },
+    {
+      "id": "run-history",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=canvas",
+      "file": "run-history-desktop-dark.png",
+      "variant": "desktop-dark",
+      "caption": "Actual run history for the neutral demo workspace.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "2fe4f5977239f31cd31b383b3a5600b330e03c8c2157aa61086a64e3dc99a002",
+      "bytes": 74963
+    },
+    {
+      "id": "run-preflight",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=scf",
+      "file": "run-preflight-desktop-dark.png",
+      "variant": "desktop-dark",
+      "caption": "Compute plan checks saved input, runtime, solver, isolation, potential identity, and resources before execution.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "c27d0c14cf0990ef1503dd5b53196251f5eeb713a37d22c1905147b557818c64",
+      "bytes": 116845
+    },
+    {
+      "id": "onboarding-workspace",
+      "route": "/workspace",
+      "file": "onboarding-workspace-desktop-light.png",
+      "variant": "desktop-light",
+      "caption": "The local workspace works without Cloud or AI login.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "c55251d005360c06d276130a688eae75dc559f3b3ead3073cfcf73dc095feaa9",
+      "bytes": 20056
+    },
+    {
+      "id": "new-project",
+      "route": "/workspace",
+      "file": "new-project-desktop-light.png",
+      "variant": "desktop-light",
+      "caption": "Name a project for a material, comparison, or research question. This dialog is not submitted.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "e467809c2612229b1b763e91dfc448aa535742d3c6762eadcaff5fefe7b976a9",
+      "bytes": 45455
+    },
+    {
+      "id": "compute-runtime-setup",
+      "route": "/account/compute",
+      "file": "compute-runtime-setup-desktop-light.png",
+      "variant": "desktop-light",
+      "caption": "Install verified scientific runtimes, inspect isolation, and set local CPU/RAM budgets.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "fb4492758aa176126021f22756d631801cdff3a6d962d64c121d0271f47081c1",
+      "bytes": 98890
+    },
+    {
+      "id": "ai-provider-accounts",
+      "route": "/account/ai-providers",
+      "file": "ai-provider-accounts-desktop-light.png",
+      "variant": "desktop-light",
+      "caption": "Anonymous provider connection screen. Provider login is not simulated.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "3d1bec17a915d01cee215f05d1e4045dd709a7ba696590f1ed005c18776c0ebd",
+      "bytes": 105220
+    },
+    {
+      "id": "cloud-account",
+      "route": "/account/account",
+      "file": "cloud-account-desktop-light.png",
+      "variant": "desktop-light",
+      "caption": "Cloud sign-in is optional and separate from local work.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "0ec4ed35fcf7dddb3fe069ef65a5a4b4fc897633bf1b3dc2014e69acb6d88a9e",
+      "bytes": 107512
+    },
+    {
+      "id": "storage-archives",
+      "route": "/account/storage",
+      "file": "storage-archives-desktop-light.png",
+      "variant": "desktop-light",
+      "caption": "Local artifact accounting and project archive controls.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "450d90ef912164fed7f7795652689f4fa6bf50229bd759d28557f27ca011b43b",
+      "bytes": 96836
+    },
+    {
+      "id": "appearance-settings",
+      "route": "/account/appearance",
+      "file": "appearance-settings-desktop-light.png",
+      "variant": "desktop-light",
+      "caption": "Appearance and language preferences on this device.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "f00f5adc6550e377831614020a033fc8b9dc21f8adf60ed8795711d4af332951",
+      "bytes": 92752
+    },
+    {
+      "id": "notifications-settings",
+      "route": "/account/notifications",
+      "file": "notifications-settings-desktop-light.png",
+      "variant": "desktop-light",
+      "caption": "Local notification preferences.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "2f2a3b25a7ad326e2364a4a91f1316e8e27441f72ad173ade16bfd99338ea00a",
+      "bytes": 86911
+    },
+    {
+      "id": "keyboard-settings",
+      "route": "/account/keyboard",
+      "file": "keyboard-settings-desktop-light.png",
+      "variant": "desktop-light",
+      "caption": "Keyboard shortcut configuration.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "737b6ba2e9ae2151842e3267166d9aa637369a4f4740119e3a8698ea51d727ec",
+      "bytes": 94929
+    },
+    {
+      "id": "usage-settings",
+      "route": "/account/usage",
+      "file": "usage-settings-desktop-light.png",
+      "variant": "desktop-light",
+      "caption": "Recorded compute usage; no account quota is invented.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "75098e5395e76847dfaf6d436ee0739c59606da0841255b8d4e23dec5567bac3",
+      "bytes": 101558
+    },
+    {
+      "id": "privacy-settings",
+      "route": "/account/privacy",
+      "file": "privacy-settings-desktop-light.png",
+      "variant": "desktop-light",
+      "caption": "Local privacy and session information.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "d9a142a5c46d051d7b72d7efb72bf9d97a43f86cff23b034066b07b23e7d6029",
+      "bytes": 79355
+    },
+    {
+      "id": "workflow-canvas",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=canvas",
+      "file": "workflow-canvas-desktop-light.png",
+      "variant": "desktop-light",
+      "caption": "Connected silicon SCF and argon MD teaching setups; drafts are not scientific results.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "9e45ad96075558e305c303e3db1fa7f4f4542572f05bc0a88bbc81ac139abbc2",
+      "bytes": 72001
+    },
+    {
+      "id": "structure-editor",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=silicon",
+      "file": "structure-editor-desktop-light.png",
+      "variant": "desktop-light",
+      "caption": "Silicon cell geometry and the actual structure editing toolbar.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "f208a5da193a9a8a45ab4d46141e5829febaf2db107a1d4cf8b24e76fbd00d12",
+      "bytes": 135036
+    },
+    {
+      "id": "dft-configuration",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=scf",
+      "file": "dft-configuration-desktop-light.png",
+      "variant": "desktop-light",
+      "caption": "Review the SCF method, numerical basis, and pseudopotential family before running.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "563aaab839f290b61c3b34ddcd61feb82ecfbb7f1c29a841bfd23d9b069cd03d",
+      "bytes": 93953
+    },
+    {
+      "id": "dft-pseudopotentials",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=scf",
+      "file": "dft-pseudopotentials-desktop-light.png",
+      "variant": "desktop-light",
+      "caption": "QE method and pseudopotential selection in the detailed parameter editor.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "2074e3a84d94ad147e2f9945bf7c71e77f62a5258d14be7582955a96eac41cfb",
+      "bytes": 102345
+    },
+    {
+      "id": "md-guided",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=md-guided",
+      "file": "md-guided-desktop-light.png",
+      "variant": "desktop-light",
+      "caption": "Guided MD setup with explicit interatomic potential, timestep, steps, and output cadence.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "5dac8ea6529660a3bb1f8429c7a8a8b39a23264fec62744b6c62c958db40c753",
+      "bytes": 101745
+    },
+    {
+      "id": "md-manual",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=md-manual",
+      "file": "md-manual-desktop-light.png",
+      "variant": "desktop-light",
+      "caption": "Manual LAMMPS stage body. The runtime manages input, potential, output paths, and isolation.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "15a88a9d197723bf7cf61fd864cd1385e822de85922903f2ee8a050f240745ef",
+      "bytes": 70021
+    },
+    {
+      "id": "md-analysis",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=analysis",
+      "file": "md-analysis-desktop-light.png",
+      "variant": "desktop-light",
+      "caption": "RDF analysis setup with explicit frame selection and physical cutoff.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "133ec7d588fc0ad0a73dd30fd442254854b8e3df1c26b59e8595b1bd9bf89e9a",
+      "bytes": 51291
+    },
+    {
+      "id": "run-history",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=canvas",
+      "file": "run-history-desktop-light.png",
+      "variant": "desktop-light",
+      "caption": "Actual run history for the neutral demo workspace.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "3f6ff4d1d88c770497ec55fcc9f646bd2329c4cb80a512c06c913cf19513be4a",
+      "bytes": 77130
+    },
+    {
+      "id": "run-preflight",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=scf",
+      "file": "run-preflight-desktop-light.png",
+      "variant": "desktop-light",
+      "caption": "Compute plan checks saved input, runtime, solver, isolation, potential identity, and resources before execution.",
+      "width": 1440,
+      "height": 960,
+      "sha256": "6a3b60465817c224a49ab4c455ac295eba66d826114a1f59d4b1daa0ae996fd2",
+      "bytes": 118173
+    },
+    {
+      "id": "onboarding-workspace",
+      "route": "/workspace",
+      "file": "onboarding-workspace-mobile-dark.png",
+      "variant": "mobile-dark",
+      "caption": "The local workspace works without Cloud or AI login.",
+      "width": 390,
+      "height": 844,
+      "sha256": "688dc2f4553111b4b574d582c8e44483a9c53cbc11d6df36212f3137682bc206",
+      "bytes": 14968
+    },
+    {
+      "id": "new-project",
+      "route": "/workspace",
+      "file": "new-project-mobile-dark.png",
+      "variant": "mobile-dark",
+      "caption": "Name a project for a material, comparison, or research question. This dialog is not submitted.",
+      "width": 390,
+      "height": 844,
+      "sha256": "3d533cf243c9be0349ec696b7d476fc529e4c0904de3a224c52749374a63e919",
+      "bytes": 30366
+    },
+    {
+      "id": "compute-runtime-setup",
+      "route": "/account/compute",
+      "file": "compute-runtime-setup-mobile-dark.png",
+      "variant": "mobile-dark",
+      "caption": "Install verified scientific runtimes, inspect isolation, and set local CPU/RAM budgets.",
+      "width": 390,
+      "height": 844,
+      "sha256": "202b99e4e8af93f655f0466bf715aed58b5c08a3c60eb7b6ee42eadb51c86914",
+      "bytes": 40557
+    },
+    {
+      "id": "ai-provider-accounts",
+      "route": "/account/ai-providers",
+      "file": "ai-provider-accounts-mobile-dark.png",
+      "variant": "mobile-dark",
+      "caption": "Anonymous provider connection screen. Provider login is not simulated.",
+      "width": 390,
+      "height": 844,
+      "sha256": "5a5de90940d882d659726ca0d4db36e7b3045b10f556938418ebc05b7bede7a3",
+      "bytes": 45233
+    },
+    {
+      "id": "cloud-account",
+      "route": "/account/account",
+      "file": "cloud-account-mobile-dark.png",
+      "variant": "mobile-dark",
+      "caption": "Cloud sign-in is optional and separate from local work.",
+      "width": 390,
+      "height": 844,
+      "sha256": "ec18b7430187edb6c98176d8b2f812d1879b376d56e5ea88dcfd37e12e6b2bef",
+      "bytes": 38945
+    },
+    {
+      "id": "storage-archives",
+      "route": "/account/storage",
+      "file": "storage-archives-mobile-dark.png",
+      "variant": "mobile-dark",
+      "caption": "Local artifact accounting and project archive controls.",
+      "width": 390,
+      "height": 844,
+      "sha256": "096e0ac17152fa783e7cf59e46fe004aa63ff49df36ea783eddea1a893090b4a",
+      "bytes": 45731
+    },
+    {
+      "id": "appearance-settings",
+      "route": "/account/appearance",
+      "file": "appearance-settings-mobile-dark.png",
+      "variant": "mobile-dark",
+      "caption": "Appearance and language preferences on this device.",
+      "width": 390,
+      "height": 844,
+      "sha256": "8b6f6811bafeaaedc7fac4268b7b4a84218dc15958139153f0f531885e79c498",
+      "bytes": 40436
+    },
+    {
+      "id": "notifications-settings",
+      "route": "/account/notifications",
+      "file": "notifications-settings-mobile-dark.png",
+      "variant": "mobile-dark",
+      "caption": "Local notification preferences.",
+      "width": 390,
+      "height": 844,
+      "sha256": "1542b77ba04d3925e2a13eb87d34aedaf5f48f0ce35fb190d5fb20587bdb2630",
+      "bytes": 42454
+    },
+    {
+      "id": "keyboard-settings",
+      "route": "/account/keyboard",
+      "file": "keyboard-settings-mobile-dark.png",
+      "variant": "mobile-dark",
+      "caption": "Keyboard shortcut configuration.",
+      "width": 390,
+      "height": 844,
+      "sha256": "dc13da89a7a23936811fe3534a2b729246e47c7ec2bfffa71116ab212266e9f4",
+      "bytes": 48649
+    },
+    {
+      "id": "usage-settings",
+      "route": "/account/usage",
+      "file": "usage-settings-mobile-dark.png",
+      "variant": "mobile-dark",
+      "caption": "Recorded compute usage; no account quota is invented.",
+      "width": 390,
+      "height": 844,
+      "sha256": "2913eb2dc5720957e31d329f7cf4511c66f8b2896f37c98bb58d4cc7d2a811d9",
+      "bytes": 41531
+    },
+    {
+      "id": "privacy-settings",
+      "route": "/account/privacy",
+      "file": "privacy-settings-mobile-dark.png",
+      "variant": "mobile-dark",
+      "caption": "Local privacy and session information.",
+      "width": 390,
+      "height": 844,
+      "sha256": "fcfdf2bda297e7200e5557071e1768a0bec8d7ba222ad7a9121aa7eb1c1865e1",
+      "bytes": 41647
+    },
+    {
+      "id": "workflow-canvas",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=canvas",
+      "file": "workflow-canvas-mobile-dark.png",
+      "variant": "mobile-dark",
+      "caption": "Connected silicon SCF and argon MD teaching setups; drafts are not scientific results.",
+      "width": 390,
+      "height": 844,
+      "sha256": "d072c26db063a474b9727c62f406091720f1425e71ba44746002858aaeff3af4",
+      "bytes": 23784
+    },
+    {
+      "id": "structure-editor",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=silicon",
+      "file": "structure-editor-mobile-dark.png",
+      "variant": "mobile-dark",
+      "caption": "Silicon cell geometry and the actual structure editing toolbar.",
+      "width": 390,
+      "height": 844,
+      "sha256": "a71e0b22929d3df9fe767350b5d2b048fa84a5287160aa19cced0284fa03a5be",
+      "bytes": 47103
+    },
+    {
+      "id": "dft-configuration",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=scf",
+      "file": "dft-configuration-mobile-dark.png",
+      "variant": "mobile-dark",
+      "caption": "Review the SCF method, numerical basis, and pseudopotential family before running.",
+      "width": 390,
+      "height": 844,
+      "sha256": "1c538e26001d44492353b66c8f4f34627c9015c85c3d51256811671b0e186885",
+      "bytes": 35611
+    },
+    {
+      "id": "dft-pseudopotentials",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=scf",
+      "file": "dft-pseudopotentials-mobile-dark.png",
+      "variant": "mobile-dark",
+      "caption": "QE method and pseudopotential selection in the detailed parameter editor.",
+      "width": 390,
+      "height": 844,
+      "sha256": "3216c8df41dbe6c8691dc3582465474675d029163b7bd2b5bc75bbd443d3d410",
+      "bytes": 41432
+    },
+    {
+      "id": "md-guided",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=md-guided",
+      "file": "md-guided-mobile-dark.png",
+      "variant": "mobile-dark",
+      "caption": "Guided MD setup with explicit interatomic potential, timestep, steps, and output cadence.",
+      "width": 390,
+      "height": 844,
+      "sha256": "3e7cce6c661419829bf9dece74c40c334110a6c7c766ae985d8f32f950a2ca4a",
+      "bytes": 38459
+    },
+    {
+      "id": "md-manual",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=md-manual",
+      "file": "md-manual-mobile-dark.png",
+      "variant": "mobile-dark",
+      "caption": "Manual LAMMPS stage body. The runtime manages input, potential, output paths, and isolation.",
+      "width": 390,
+      "height": 844,
+      "sha256": "cf391edc5d45254ad03bb334bf5d632db74674439dd8ae8ca815336e5fd2dc06",
+      "bytes": 43376
+    },
+    {
+      "id": "md-analysis",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=analysis",
+      "file": "md-analysis-mobile-dark.png",
+      "variant": "mobile-dark",
+      "caption": "RDF analysis setup with explicit frame selection and physical cutoff.",
+      "width": 390,
+      "height": 844,
+      "sha256": "3a0a8b747af2f3e30468504c02e74c3b73d8319ea428ebe9d219b4758dbc5adb",
+      "bytes": 19634
+    },
+    {
+      "id": "run-history",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=canvas",
+      "file": "run-history-mobile-dark.png",
+      "variant": "mobile-dark",
+      "caption": "Actual run history for the neutral demo workspace.",
+      "width": 390,
+      "height": 844,
+      "sha256": "84c434d502a4c3f40729aa6cc7747f20fd56d3ec516ef881ec139ff4f3b6c6a4",
+      "bytes": 15848
+    },
+    {
+      "id": "run-preflight",
+      "route": "/projects/<DEMO_PROJECT>?layout=full&tab=scf",
+      "file": "run-preflight-mobile-dark.png",
+      "variant": "mobile-dark",
+      "caption": "Compute plan checks saved input, runtime, solver, isolation, potential identity, and resources before execution.",
+      "width": 390,
+      "height": 844,
+      "sha256": "f7ad95cbf3d2b537eb9d3f201ea3db54dbeb320ea8c4b506213dae69c0208f61",
+      "bytes": 47064
+    }
+  ],
+  "unavailable": [
+    {
+      "id": "cloud-authenticated-sync",
+      "reason": "Cloud authentication and project upload are not performed in the anonymous demo."
+    },
+    {
+      "id": "cloud-transfer-review",
+      "reason": "Online compute requires a connected Cloud account. The disconnected state is shown in Compute."
+    },
+    {
+      "id": "ai-login-success",
+      "reason": "Provider login, account usage, and reset values are not simulated in documentation captures."
+    },
+    {
+      "id": "profile",
+      "reason": "The anonymous local app has no Cloud profile; its profile route redirects to appearance."
+    },
+    {
+      "id": "npm-terminal",
+      "reason": "Install/update/doctor commands are documented as copyable text, not a fabricated terminal image."
+    }
+  ],
+  "blockedOrigins": []
+}

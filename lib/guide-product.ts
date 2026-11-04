@@ -2,10 +2,10 @@ import type { GuideSection } from './guide-content.ts';
 
 export const productGuideSections: GuideSection[] = [
   {
-    id: 'npm-local-app', group: 'Local app', title: 'Install, update, and diagnose the npm app',
+    id: 'npm-local-app', group: 'Install & update', title: 'Install, update, and diagnose the npm app',
     intro: 'The published npm app is the local-first path for running the workspace, native DFT, MD, and analysis on your computer. It does not require a Phynite login, Docker, a source checkout, or global Python.',
     blocks: [
-      { title: 'Install and start', code: 'npm install -g phynite-lab@latest\nphynite-lab', paragraphs: [
+      { title: 'Install and start', visuals: [{ kind: 'screenshot', src: '/docs/guide/onboarding-workspace-desktop-dark.png', alt: 'Phynite Lab local workspace on first launch', caption: 'The local workspace opens without a Cloud login.' }, { kind: 'icon', src: '/brand/phynite-mark-dark.png', alt: 'Phynite Lab mark', caption: 'The local launcher opens the workspace on your computer.' }], code: 'npm install -g phynite-lab@latest\nphynite-lab', paragraphs: [
         'The current published package is phynite-lab@{{LOCAL_NPM_VERSION}}. Node.js version {{NODE_REQUIREMENT}} is required. npm installs the launcher and the matching optional native application package for the host OS and CPU.',
         'Keep npm optional dependencies enabled. If a package manager was configured with --omit=optional or the selected platform package was removed, the launcher reports a missing runtime instead of silently using a development fixture.',
         'The launcher binds services to loopback, opens a browser, and stores the local workspace under ~/.phynite-lab. User projects and runtimes remain outside the npm installation directory.',
@@ -39,10 +39,13 @@ export const productGuideSections: GuideSection[] = [
     ],
   },
   {
-    id: 'ai-providers', group: 'AI connections', title: 'AI provider connections on your computer',
+    id: 'ai-providers', group: 'AI providers', title: 'AI provider connections on your computer',
     intro: 'Local AI uses the provider CLI you choose. It is independent from Phynite Cloud login and does not use a hosted Phynite AI service.',
     blocks: [
-      { title: 'Connect an account', steps: [
+      { title: 'Connect an account', visuals: [{ kind: 'screenshot', src: '/docs/guide/ai-provider-accounts-desktop-dark.png', alt: 'AI provider accounts settings page', caption: 'Provider status and login actions appear in Settings.' },
+        { kind: 'icon', src: '/brand/ai/codex.png', alt: 'Codex provider icon', caption: 'Connect through the provider CLI you already use.' },
+        { kind: 'icon', src: '/brand/ai/antigravity.png', alt: 'Antigravity provider icon', caption: 'Provider authentication stays with the official local CLI.' },
+      ], steps: [
         'Install and authenticate the official provider CLI on this computer.',
         'Open Settings → AI provider accounts and choose Codex or Antigravity.',
         'Complete authentication through the provider’s own flow. An existing supported CLI login can be reused without importing its cookie or session files.',
@@ -62,10 +65,10 @@ export const productGuideSections: GuideSection[] = [
     ],
   },
   {
-    id: 'cloud-sync', group: 'Accounts & connections', title: 'Phynite Cloud, Cloud Sync, and online compute',
+    id: 'cloud-sync', group: 'Phynite Cloud', title: 'Phynite Cloud, Cloud Sync, and online compute',
     intro: 'Cloud services are optional connections layered on top of a complete local workspace. Signing in does not upload a local project or replace its local identity.',
     blocks: [
-      { title: 'Local, Cloud Sync, and cloud compute', table: { headings: ['Choice', 'What happens'], rows: [
+      { title: 'Local, Cloud Sync, and cloud compute', visuals: [{ kind: 'screenshot', src: '/docs/guide/cloud-account-desktop-dark.png', alt: 'Phynite Cloud account settings page', caption: 'Cloud login remains separate from local compute and AI.' }, { kind: 'diagram', src: '/brand/phynite-mark-light.png', alt: 'Phynite Cloud connection mark', caption: 'Cloud services are optional connections layered over local work.' }], table: { headings: ['Choice', 'What happens'], rows: [
         ['Local only', 'Project, inputs, results, and runtime data remain on the selected computer. No Cloud login is required.'],
         ['Cloud login', 'Enables account features; local projects remain local until a project action enables sync.'],
         ['Cloud Sync', 'Enabled per project after reviewing scope, size, and quota. Syncs approved project revisions and artifacts.'],
@@ -86,10 +89,10 @@ export const productGuideSections: GuideSection[] = [
     ],
   },
   {
-    id: 'storage-backup', group: 'Data & reproducibility', title: 'Storage, export, backup, and large QE state',
+    id: 'storage-backup', group: 'Storage & backups', title: 'Storage, export, backup, and large QE state',
     intro: 'Local storage is the disk available to the selected workspace. Cloud storage is an account service with its own quota and retention policy.',
     blocks: [
-      { title: 'What local Storage measures', table: { headings: ['Counted', 'Outside the project inventory'], rows: [
+      { title: 'What local Storage measures', visuals: [{ kind: 'screenshot', src: '/docs/guide/storage-archives-desktop-dark.png', alt: 'Storage and project archive settings page', caption: 'Storage inventory and archive actions are shown separately from disk capacity.' }], table: { headings: ['Counted', 'Outside the project inventory'], rows: [
         ['Inventoried structures, inputs, configurations, completed results, trajectories, and project archives.', 'SQLite metadata, installed solver/runtime files, worker logs, browser cache, and unrelated files on the disk.'],
         ['Intermediate state retained as a project artifact.', 'Operating-system free space and other applications’ data.'],
       ] }, paragraphs: ['The default data directory is ~/.phynite-lab. Use --data-dir when a larger or separate disk is appropriate. Local mode has no fixed 10 GiB quota and does not automatically delete artifacts after seven days; free disk space is the practical limit.'] },
@@ -111,7 +114,7 @@ export const productGuideSections: GuideSection[] = [
     id: 'settings-reference', group: 'Settings & preferences', title: 'Settings, preferences, profile, and usage',
     intro: 'Settings separates device preferences, scientific compute, AI provider accounts, Cloud account state, usage, storage, and privacy.',
     blocks: [
-      { title: 'Choose the right page', table: { headings: ['Page', 'Purpose', 'Where it is stored'], rows: [
+      { title: 'Choose the right page', visuals: [{ kind: 'screenshot', src: '/docs/guide/appearance-settings-desktop-dark.png', alt: 'Appearance settings page', caption: 'Settings are separated into focused pages for device and account controls.' }], table: { headings: ['Page', 'Purpose', 'Where it is stored'], rows: [
         ['Appearance & language', 'Theme, accent, density, text size, reduced motion, and language.', 'This browser/device.'],
         ['Keyboard shortcuts', 'Supported application bindings.', 'This browser/device.'],
         ['Notifications', 'Job/runtime alerts and desktop permission.', 'This browser/device; hosted delivery follows account state.'],

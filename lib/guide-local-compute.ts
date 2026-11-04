@@ -7,7 +7,7 @@ export function localComputeGuide(locale: Locale): GuideSection {
   const t = (en: string, id: string) => locale === 'id' ? id : en;
   return {
     id: 'local-compute',
-    group: t('Account & compute', 'Akun & komputasi'),
+    group: t('Compute paths', 'Jalur compute'),
     title: t('Local npm compute and hosted workers', 'Compute npm lokal dan worker hosted'),
     intro: t(
       'The local npm app runs DFT, MD, and analysis through installed native runtimes without Phynite login or Docker. Its setup lives in Settings → Compute. The hosted website uses a separate paired-worker flow, described later in this chapter; it is not a fallback runtime for the npm app.',
@@ -16,6 +16,7 @@ export function localComputeGuide(locale: Locale): GuideSection {
     blocks: [
       {
         title: t('Choose the execution path', 'Pilih jalur eksekusi'),
+        visuals: [{ kind: 'screenshot', src: '/docs/guide/compute-runtime-setup-desktop-dark.png', alt: t('Compute runtime setup page', 'Halaman setup runtime compute'), caption: t('Install and verify DFT or MD runtimes before choosing Your computer.', 'Instal dan verifikasi runtime DFT atau MD sebelum memilih Komputer Anda.') }, { kind: 'diagram', src: '/brand/phynite-mark-light.png', alt: t('Phynite compute path mark', 'Logo jalur compute Phynite'), caption: t('Choose local, hosted worker, or Cloud compute explicitly for each run.', 'Pilih compute lokal, worker hosted, atau Cloud secara eksplisit untuk setiap run.') }],
         table: {
           headings: [t('Path', 'Jalur'), t('Needs', 'Kebutuhan'), t('Data behavior', 'Perilaku data')],
           rows: [
