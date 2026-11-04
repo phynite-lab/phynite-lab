@@ -24,7 +24,7 @@ const MAX_BYTES = 12 * 1024 * 1024;
 const MAX_LINE = 2 * 1024 * 1024;
 const MAX_INPUT = 4 * 1024 * 1024;
 const MAX_TOOLS = 128;
-const DEFAULT_TIMEOUT = 120_000;
+const DEFAULT_TIMEOUT = 300_000;
 const MODEL_ID = /^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,200}$/;
 const TOOL_NAME = /^[A-Za-z0-9_-]{1,64}$/;
 const DISABLED_FEATURES = ['shell_tool', 'apps', 'hooks', 'multi_agent', 'remote_plugin', 'memories', 'shell_snapshot', 'goals', 'apply_patch_freeform', 'request_permissions', 'js_repl', 'browser_use', 'computer_use'];
@@ -117,11 +117,13 @@ class ChildSession {
     this.bytes = 0;
     this.closed = false;
     this.json = json;
+    this.timeoutMs = timeoutMs;
     this.child = spawn(command, args, { cwd, env: cleanEnvironment(env), stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, detached: process.platform !== 'win32' });
     this.done = new Promise((resolveDone) => { this.resolveDone = resolveDone; });
     this.child.stdout.setEncoding('utf8');
     this.child.stderr.setEncoding('utf8');
     this.child.stdout.on('data', (chunk) => {
+      this.resetTimeout();
       this.bytes += Buffer.byteLength(chunk);
       if (this.bytes > MAX_BYTES) return this.fail(error('OUTPUT_LIMIT', 'AI response exceeded the output limit.'));
       if (!json) { this.output += chunk; return; }
@@ -167,6 +169,11 @@ class ChildSession {
     });
     this.onAbort = () => this.fail(abortError());
     signal?.addEventListener('abort', this.onAbort, { once: true });
+    this.resetTimeout();
+  }
+  resetTimeout(timeoutMs = this.timeoutMs) {
+    if (this.closed || this.failure) return;
+    clearTimeout(this.timeout);
     this.timeout = setTimeout(() => this.fail(error('TIMEOUT', 'AI CLI exceeded its time limit.')), timeoutMs);
     this.timeout.unref?.();
   }
@@ -254,16 +261,72 @@ function preparePayload(payload) {
   return { provider: match[1] === 'codex' ? 'codex' : 'antigravity', rawModel: match[2], modelId, tools, names, schema, prompt, effort: payload.effort ?? 'auto' };
 }
 
+function sanitizeJson(raw) {
+  let inString = false;
+  let result = '';
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    if (inString) {
+      if (ch === '\\') {
+        const next = raw[i + 1];
+        if (next === undefined) {
+          result += '\\\\';
+        } else if ('"\\/bfnrt'.includes(next)) {
+          result += ch + next;
+          i++;
+        } else if (next === 'u' && /^[0-9a-fA-F]{4}$/.test(raw.slice(i + 2, i + 6))) {
+          result += raw.slice(i, i + 6);
+          i += 5;
+        } else {
+          result += '\\\\';
+        }
+      } else if (ch === '"') {
+        inString = false;
+        result += ch;
+      } else if (ch === '\n') {
+        result += '\\n';
+      } else if (ch === '\r') {
+        result += '\\r';
+      } else if (ch === '\t') {
+        result += '\\t';
+      } else {
+        result += ch;
+      }
+    } else {
+      if (ch === '"') inString = true;
+      result += ch;
+    }
+  }
+  return result;
+}
+
 function proposal(raw, prepared) {
   let value;
   // Accept one whole JSON fence; never extract JSON from arbitrary prose.
   const enclosed = typeof raw === 'string' ? /^\s*```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n```\s*$/.exec(raw) : null;
-  try { value = typeof raw === 'string' ? JSON.parse(enclosed ? enclosed[1] : raw) : raw; } catch { throw error('INVALID_RESPONSE', 'CLI returned incomplete structured output.'); }
+  const target = enclosed ? enclosed[1] : raw;
+  try {
+    value = typeof target === 'string' ? JSON.parse(target) : target;
+  } catch {
+    try {
+      value = typeof target === 'string' ? JSON.parse(sanitizeJson(target)) : target;
+    } catch {
+      throw error('INVALID_RESPONSE', 'CLI returned incomplete structured output.');
+    }
+  }
   if (!object(value) || typeof value.text !== 'string' || !Array.isArray(value.toolCalls) || value.toolCalls.length > 16 || Object.keys(value).some((key) => !['text', 'toolCalls'].includes(key))) throw error('INVALID_RESPONSE', 'CLI response did not match the proposal schema.');
   const calls = value.toolCalls.map((call) => {
     if (!object(call) || !prepared.names.has(call.name) || typeof call.argumentsJson !== 'string' || Object.keys(call).some((key) => !['name', 'argumentsJson'].includes(key))) throw error('INVALID_TOOL', 'CLI proposed a tool outside the allowed Canvas catalog.');
     let input;
-    try { input = JSON.parse(call.argumentsJson); } catch { throw error('INVALID_TOOL_ARGUMENTS', 'CLI proposed incomplete tool arguments.'); }
+    try {
+      input = JSON.parse(call.argumentsJson);
+    } catch {
+      try {
+        input = JSON.parse(sanitizeJson(call.argumentsJson));
+      } catch {
+        throw error('INVALID_TOOL_ARGUMENTS', 'CLI proposed incomplete tool arguments.');
+      }
+    }
     if (!object(input)) throw error('INVALID_TOOL_ARGUMENTS', 'Canvas tool arguments must be a JSON object.');
     safeJson(input);
     // The existing runAiAgent performs the authoritative tool/domain validation.
@@ -288,10 +351,29 @@ class TextExtractor {
       if (character === '"') break;
       if (character === '\\') {
         if (index + 1 >= content.length) break;
-        if (content[index + 1] === 'u') {
-          if (index + 5 >= content.length) break;
-          encoded += content.slice(index, index + 6); index += 5;
-        } else { encoded += content.slice(index, index + 2); index++; }
+        const next = content[index + 1];
+        if (next === 'u') {
+          if (index + 5 >= content.length) {
+            if (/^[0-9a-fA-F]*$/.test(content.slice(index + 2))) break;
+            encoded += '\\\\';
+          } else if (/^[0-9a-fA-F]{4}$/.test(content.slice(index + 2, index + 6))) {
+            encoded += content.slice(index, index + 6);
+            index += 5;
+          } else {
+            encoded += '\\\\';
+          }
+        } else if ('"\\/bfnrt'.includes(next)) {
+          encoded += content.slice(index, index + 2);
+          index++;
+        } else {
+          encoded += '\\\\';
+        }
+      } else if (character === '\n') {
+        encoded += '\\n';
+      } else if (character === '\r') {
+        encoded += '\\r';
+      } else if (character === '\t') {
+        encoded += '\\t';
       } else encoded += character;
     }
     let decoded;
@@ -954,6 +1036,7 @@ export class NativeAiRegistry {
             await policy.verify(conversationId, prepared.rawModel);
             if (this.closed || signal?.aborted) throw abortError();
             verified = true; raw = ''; sawDelta = false;
+            session.resetTimeout();
             const prompt = prepared.probe?.natural
               ? `Please check the Phynite connection using ${prepared.probe.toolName} with this public echo value as nonce: ${prepared.probe.nonce}. Reply using the response JSON format described above.`
               : prepared.prompt;
