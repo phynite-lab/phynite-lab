@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import { distributionPlatform, parseArguments, startupFailure, verifyDistribution } from '../packages/phynite-lab/lib/launcher.mjs';
+import { distributionPlatform, parseArguments, requestJson, startupFailure, verifyDistribution } from '../packages/phynite-lab/lib/launcher.mjs';
 import { checkDistribution, prohibitedDistributionPath } from '../packages/phynite-lab/lib/check-distribution.mjs';
 import { validateCloudConfig } from '../packages/phynite-lab/lib/cloud-config.mjs';
 import { DISTRIBUTION_TARGETS, platformPackageName, releaseSource, verifyRuntimePackage } from '../packages/phynite-lab/lib/distribution.mjs';
@@ -100,6 +100,21 @@ test('startup diagnostics identify the failed service and preserve actionable lo
   assert.match(error.message, /secret=\[redacted\]/);
   assert.doesNotMatch(error.message, /do-not-print/);
   assert.match(error.message, /Local files were retained/);
+});
+
+test('launcher loopback control uses the native HTTP client and rejects non-loopback URLs', async t => {
+  const server = createHttpServer((request, response) => {
+    response.setHeader('Content-Type', 'application/json');
+    response.end(JSON.stringify({ method: request.method, path: request.url }));
+  });
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise<void>(resolve => server.close(() => resolve())));
+  const address = server.address();
+  assert.ok(address && typeof address !== 'string');
+  const response = await requestJson(`http://127.0.0.1:${address.port}/status`, { timeout: 500 });
+  assert.equal(response.ok, true);
+  assert.deepEqual(await response.json(), { method: 'GET', path: '/status' });
+  await assert.rejects(requestJson('https://example.invalid/status'), /loopback HTTP origin/);
 });
 
 test('CLI adopts a healthy source local workspace without starting a duplicate core', async t => {
@@ -377,6 +392,40 @@ test('stop never signals an unverified PID from an old instance file', async t =
   assert.equal(result.code, 0); assert.match(result.output, /stopped/);
   assert.doesNotThrow(() => process.kill(process.pid, 0));
 });
+
+test('stop recovers a verified orphan core holding the workspace lock', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'phynite-orphan-core-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const dataDir = join(directory, 'data'); await mkdir(dataDir, { recursive: true });
+  const executable = join(directory, 'phynite-core');
+  await writeFile(executable, `import { createServer } from 'node:http';
+import { writeFileSync } from 'node:fs';
+const args = Object.fromEntries(Array.from({ length: (process.argv.length - 2) / 2 }, (_, i) => [process.argv[2 + i * 2], process.argv[3 + i * 2]]));
+const dir = args['--data-dir'];
+writeFileSync(dir + '/.scheduler.lock', JSON.stringify({ pid: process.pid, created: Date.now() / 1000 }));
+const server = createServer((_request, response) => { response.end('{}'); });
+server.listen(Number(args['--port']), '127.0.0.1');
+process.on('SIGTERM', () => server.close(() => process.exit(0)));
+`);
+  await chmod(executable, 0o755);
+  const port = await new Promise<number>(accept => {
+    const server = createServer(); server.listen(0, '127.0.0.1', () => { const value = (server.address() as { port: number }).port; server.close(() => accept(value)); });
+  });
+  const orphan = spawn(process.execPath, [executable, '--data-dir', dataDir, '--port', String(port), '--ui-origin', 'http://127.0.0.1:3000'], { detached: true, stdio: 'ignore' });
+  orphan.unref();
+  for (let count = 0; count < 50; count++) {
+    try { JSON.parse(await readFile(join(dataDir, '.scheduler.lock'), 'utf8')); break; } catch { await delay(20); }
+  }
+  const result = await launch(['stop', '--data-dir', dataDir], root).finished;
+  assert.equal(result.code, 0); assert.match(result.output, /stopped an orphaned local core/);
+  for (let count = 0; count < 50; count++) { if (!processExistsForTest(orphan.pid)) break; await delay(20); }
+  assert.equal(processExistsForTest(orphan.pid), false);
+});
+
+function processExistsForTest(pid: number | undefined) {
+  if (!pid) return false;
+  try { process.kill(pid, 0); return true; } catch (error) { return (error as NodeJS.ErrnoException).code !== 'ESRCH'; }
+}
 
 test('local public-request limiter expires windows without cloud bindings', async () => {
   let now = 0;

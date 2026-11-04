@@ -1,12 +1,13 @@
-import { spawn } from 'node:child_process';
+import { execFile as execFileCallback, spawn } from 'node:child_process';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
-import { chmod, mkdir, open, readFile, realpath, stat, unlink, writeFile } from 'node:fs/promises';
-import { createServer } from 'node:http';
+import { chmod, mkdir, open, readFile, realpath, stat, unlink, utimes, writeFile } from 'node:fs/promises';
+import { createServer, request as httpRequest } from 'node:http';
 import { createServer as createNetServer } from 'node:net';
 import { arch, homedir, platform } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
+import { promisify } from 'node:util';
 import { createLocalAiServer } from './ai-server.mjs';
 import { resolveDistribution } from './distribution.mjs';
 import { openBrowser } from './browser-opener.mjs';
@@ -18,6 +19,9 @@ const INSTANCE_NAME = 'instance.json';
 const LOCK_NAME = 'launcher.lock';
 const STARTUP_LOG_LIMIT = 6000;
 const STARTUP_LOG_LINES = 40;
+const execFile = promisify(execFileCallback);
+const PARENT_HEARTBEAT_INTERVAL = 2000;
+const PARENT_HEARTBEAT_TIMEOUT = 15000;
 
 export function parseArguments(args, home = homedir()) {
   const options = { command: 'start', port: 3000, dataDir: join(home, '.phynite-lab'), open: true };
@@ -84,13 +88,111 @@ function processExists(pid) {
   catch (error) { return error.code !== 'ESRCH'; }
 }
 
+async function processCommand(pid) {
+  if (!Number.isInteger(pid) || pid < 1) return null;
+  try {
+    const psOptions = { timeout: 1500, maxBuffer: 32 * 1024, env: { ...process.env, LC_ALL: 'C' } };
+    const [{ stdout: identity }, { stdout: commandOutput }] = await Promise.all([
+      execFile('ps', ['-p', String(pid), '-o', 'pid=,ppid=,lstart='], psOptions),
+      execFile('ps', ['-p', String(pid), '-o', 'command='], psOptions),
+    ]);
+    const line = identity.trim().split(/\r?\n/).find(Boolean), command = commandOutput.trim().split(/\r?\n/).find(Boolean);
+    const match = line?.match(/^\s*(\d+)\s+(\d+)\s+(.+)$/);
+    const created = match ? Date.parse(match[3]) / 1000 : NaN;
+    return match && command ? { pid: Number(match[1]), ppid: Number(match[2]), created, command } : null;
+  } catch { return null; }
+}
+
+function isPhyniteCoreProcess(info, dataDir) {
+  if (!info || !dataDir) return false;
+  // The command line is checked before any signal is sent. This protects a
+  // reused scheduler PID from being treated as a stale Phynite process.
+  return /(?:^|[\\/])phynite-core(?:\s|$)/.test(info.command) && info.command.includes(`--data-dir ${dataDir}`);
+}
+
+async function waitForProcessExit(pid, timeout = 4000) {
+  const deadline = Date.now() + timeout;
+  while (processExists(pid) && Date.now() < deadline) await delay(100);
+  return !processExists(pid);
+}
+
+/**
+ * Recover only a verified, unhealthy native core for this exact workspace.
+ * The scheduler flock remains authoritative; the lock file is never removed.
+ */
+async function stopOrphanCore(dataDir) {
+  const owner = await readJson(join(dataDir, '.scheduler.lock'));
+  if (!owner || !Number.isInteger(owner.pid) || owner.pid < 1) return false;
+  const core = await processCommand(owner.pid);
+  if (!isPhyniteCoreProcess(core, dataDir) || !Number.isFinite(core.created) || typeof owner.created !== 'number' || Math.abs(core.created - owner.created) > 5) return false;
+  const parent = core.ppid > 1 ? await processCommand(core.ppid) : null;
+  const root = isPhyniteCoreProcess(parent, dataDir) ? parent.pid : core.pid;
+  try {
+    // Detached launcher children share a process group. Signal that group so
+    // the wrapper and Python core both get a chance to close the scheduler.
+    process.kill(-root, 'SIGTERM');
+  } catch (error) {
+    if (error.code !== 'ESRCH') {
+      try { process.kill(root, 'SIGTERM'); } catch (fallback) { if (fallback.code !== 'ESRCH') return false; }
+    }
+  }
+  await waitForProcessExit(core.pid);
+  if (processExists(core.pid)) {
+    try { process.kill(-root, 'SIGKILL'); } catch (error) {
+      if (error.code !== 'ESRCH') { try { process.kill(root, 'SIGKILL'); } catch { /* already gone */ } }
+    }
+    await waitForProcessExit(core.pid, 1500);
+  }
+  return !processExists(core.pid);
+}
+
+// Use Node's small HTTP client for loopback control traffic.  The global
+// fetch implementation in newer Node releases can attempt to apply socket
+// options that are rejected on some macOS/Linux combinations (`EINVAL` from
+// setTypeOfService).  A launcher command such as `status` or `stop` must still
+// work when the installed runtime is newer than the version used to build it.
+// Keep this helper restricted to our authenticated loopback endpoints; it
+// deliberately does not follow redirects or make arbitrary network requests.
+export function requestJson(url, { method = 'GET', headers = {}, timeout = 1500 } = {}) {
+  return new Promise((resolve, reject) => {
+    let parsed;
+    try { parsed = new URL(url); }
+    catch { reject(new Error('Invalid local service URL.')); return; }
+    if (parsed.protocol !== 'http:' || parsed.hostname !== HOST) {
+      reject(new Error('Local service URL must use the loopback HTTP origin.'));
+      return;
+    }
+    const request = httpRequest({
+      protocol: parsed.protocol,
+      hostname: parsed.hostname,
+      port: parsed.port,
+      path: `${parsed.pathname}${parsed.search}`,
+      method,
+      headers: { Accept: 'application/json', ...headers },
+    }, response => {
+      let body = '';
+      response.setEncoding('utf8');
+      response.on('data', chunk => { body += chunk; });
+      response.once('end', () => {
+        let value;
+        try { value = body ? JSON.parse(body) : null; }
+        catch (error) { reject(error); return; }
+        const status = response.statusCode ?? 0;
+        resolve({ ok: status >= 200 && status < 300, status, json: async () => value });
+      });
+    });
+    request.setTimeout(timeout, () => request.destroy(new Error('Local service request timed out.')));
+    request.once('error', reject);
+    request.end();
+  });
+}
+
 async function control(instance, action) {
   if (!instance || !Number.isInteger(instance.controlPort) || instance.controlPort < 1 || instance.controlPort > 65535 || !/^[a-f0-9]{64}$/.test(instance.token ?? '')) return null;
   try {
-    const response = await fetch(`http://${HOST}:${instance.controlPort}/${action}`, {
+    const response = await requestJson(`http://${HOST}:${instance.controlPort}/${action}`, {
       method: action === 'stop' ? 'POST' : 'GET',
       headers: { Authorization: `Bearer ${instance.token}`, 'Content-Type': 'application/json' },
-      redirect: 'error', signal: AbortSignal.timeout(1500),
     });
     const result = await response.json();
     return response.ok && result.instanceId === instance.instanceId ? result : null;
@@ -114,14 +216,14 @@ async function healthyExistingWorkspace(dataDir) {
   if (!apiOrigin || !uiOrigin || typeof service?.token !== 'string' || service.token.length < 32) return null;
   try {
     const headers = { Authorization: `Bearer ${service.token}` };
-    const healthReply = await fetch(`${apiOrigin}/__local/health`, { headers, redirect: 'error', signal: AbortSignal.timeout(1200) });
+    const healthReply = await requestJson(`${apiOrigin}/__local/health`, { headers, timeout: 1200 });
     if (!healthReply.ok) return null;
     const health = await healthReply.json();
     if (health.ready !== true || (health.environment !== 'local' && health.mode !== 'local')) return null;
-    const sessionReply = await fetch(`${apiOrigin}/__local/session`, { headers, redirect: 'error', signal: AbortSignal.timeout(1200) });
+    const sessionReply = await requestJson(`${apiOrigin}/__local/session`, { headers, timeout: 1200 });
     const session = await sessionReply.json();
     if (!sessionReply.ok || session.mode !== 'local' || typeof session.user?.id !== 'string' || !session.user.id) return null;
-    const uiReply = await fetch(`${uiOrigin}/api/auth/session`, { redirect: 'error', signal: AbortSignal.timeout(1200) });
+    const uiReply = await requestJson(`${uiOrigin}/api/auth/session`, { timeout: 1200 });
     const uiSession = await uiReply.json();
     if (!uiReply.ok || uiSession.mode !== 'local' || uiSession.user?.id !== session.user.id) return null;
     return { url: uiOrigin };
@@ -174,7 +276,7 @@ async function waitReady(url, child, validate, timeout = 30000, name = 'local se
   while (Date.now() < end) {
     if (child.exitCode !== null || child.signalCode !== null || child.spawnError) throw await startupFailure(name, child, logPath);
     try {
-      const reply = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(1000) });
+      const reply = await requestJson(url, { timeout: 1000 });
       if ((reply.ok || [301, 302, 303, 307, 308].includes(reply.status)) && await validate(reply)) return;
     } catch { /* A starting service is not ready yet. */ }
     await delay(100);
@@ -187,7 +289,7 @@ export async function verifyDistribution(root = PACKAGE_ROOT, target = distribut
   return resolveDistribution(root, target);
 }
 
-function safeChildEnvironment(dataDir, apiOrigin, uiOrigin, cloud) {
+function safeChildEnvironment(dataDir, apiOrigin, uiOrigin, cloud, heartbeatPath, parentInstanceId) {
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('AWS_') && !key.startsWith('PHYNITE_') && !key.startsWith('NEXT_PUBLIC_PHYNITE_')));
   return { ...env, NODE_ENV: 'production', HOST,
     PHYNITE_APP_MODE: 'local', PHYNITE_DATA_DIR: dataDir,
@@ -196,6 +298,9 @@ function safeChildEnvironment(dataDir, apiOrigin, uiOrigin, cloud) {
     PHYNITE_LOCAL_API: 'false', PHYNITE_DEV_SANDBOX: 'false',
     PHYNITE_ANALYTICS_ENABLED: 'false', PHYNITE_AI_BACKGROUND_ENABLED: 'false',
     PHYNITE_PARENT_PID: String(process.pid),
+    PHYNITE_PARENT_HEARTBEAT: heartbeatPath,
+    PHYNITE_PARENT_HEARTBEAT_TIMEOUT: String(PARENT_HEARTBEAT_TIMEOUT),
+    PHYNITE_PARENT_INSTANCE_ID: parentInstanceId,
     ...(cloud ? {
       PHYNITE_CLOUD_API_URL: cloud.apiOrigin,
       PHYNITE_CLOUD_AWS_REGION: cloud.region,
@@ -244,17 +349,22 @@ export async function runCli(args = process.argv.slice(2), { packageRoot = PACKA
     return;
   }
   if (options.command === 'status' || options.command === 'stop') {
-    const instance = await readJson(join(options.dataDir, 'runtime', INSTANCE_NAME));
+    const dataDir = resolve(options.dataDir);
+    const instance = await readJson(join(dataDir, 'runtime', INSTANCE_NAME));
     const current = await control(instance, options.command);
     if (current) {
       console.log(options.command === 'stop' ? 'Phynite Lab is stopping.' : `Phynite Lab is running at ${current.url}`);
       return;
     }
-    const adopted = await healthyExistingWorkspace(resolve(options.dataDir));
+    const adopted = await healthyExistingWorkspace(dataDir);
     if (adopted) {
       console.log(options.command === 'stop'
         ? `Phynite Lab is running at ${adopted.url}, but it is managed by another process. Stop it from that process; no service was stopped.`
         : `Phynite Lab is running at ${adopted.url} (managed by another process).`);
+      return;
+    }
+    if (options.command === 'stop' && await stopOrphanCore(dataDir)) {
+      console.log('Phynite Lab stopped an orphaned local core and released the workspace lock.');
       return;
     }
     console.log('Phynite Lab is stopped.');
@@ -278,6 +388,10 @@ export async function runCli(args = process.argv.slice(2), { packageRoot = PACKA
     if (options.open) await openBrowser(adopted.url);
     return;
   }
+  // A previous launcher can die while its detached native core remains alive.
+  // Recover only when the scheduler owner is an identified Phynite core for
+  // this exact data directory; never unlink the lock as a shortcut.
+  await stopOrphanCore(dataDir);
   const distribution = await verifyDistribution(packageRoot, target);
   const instanceId = randomBytes(16).toString('hex');
   let lock;
@@ -297,13 +411,29 @@ export async function runCli(args = process.argv.slice(2), { packageRoot = PACKA
   await lock.close();
   const children = new Set();
   let controlServer, aiServer, closing, ready = false;
+  // Give every launcher instance its own heartbeat path.  A previous core
+  // therefore cannot mistake a new launcher heartbeat for its owner after a
+  // crash and restart.
+  const heartbeatFile = join(runtimeDir, `launcher-heartbeat-${instanceId}.json`);
+  let heartbeatTimer;
+  const writeHeartbeat = async () => {
+    try { await utimes(heartbeatFile, new Date(), new Date()); }
+    catch { /* startup/shutdown races must not mask the service error */ }
+  };
+  await writeFile(heartbeatFile, JSON.stringify({ pid: process.pid, instanceId, startedAt: Date.now() }) + '\n', { mode: 0o600 });
+  await writeHeartbeat();
+  heartbeatTimer = setInterval(() => { void writeHeartbeat(); }, PARENT_HEARTBEAT_INTERVAL);
+  heartbeatTimer.unref?.();
   const shutdown = () => closing ??= (async () => {
     ready = false;
+    if (heartbeatTimer) clearInterval(heartbeatTimer);
     await aiServer?.close();
     await Promise.allSettled([...children].reverse().map(stopChild));
     if (controlServer) await new Promise(accept => controlServer.close(accept));
     if ((await readJson(instanceFile))?.instanceId === instanceId) await unlink(instanceFile);
     if ((await readJson(lockFile))?.instanceId === instanceId) await unlink(lockFile);
+    const heartbeat = await readJson(heartbeatFile);
+    if (heartbeat?.instanceId === instanceId) await unlink(heartbeatFile);
   })();
   const onSignal = () => { void shutdown(); };
   process.once('SIGINT', onSignal); process.once('SIGTERM', onSignal);
@@ -319,7 +449,7 @@ export async function runCli(args = process.argv.slice(2), { packageRoot = PACKA
         while (corePort === webPort) corePort = await freePort();
         url = `http://${HOST}:${webPort}`;
         const apiOrigin = `http://${HOST}:${corePort}`;
-        const env = safeChildEnvironment(dataDir, apiOrigin, url, distribution.cloud);
+        const env = safeChildEnvironment(dataDir, apiOrigin, url, distribution.cloud, heartbeatFile, instanceId);
         if (distribution.source) Object.assign(env, {
           PHYNITE_RELEASE_SOURCE_COMMIT: distribution.source.commit,
           PHYNITE_RELEASE_VERSION: distribution.manifest.version,
@@ -345,7 +475,7 @@ export async function runCli(args = process.argv.slice(2), { packageRoot = PACKA
         }
         const sessionMode = (await stat(join(dataDir, 'core-service.json'))).mode & 0o777;
         if (sessionMode & 0o077) throw new Error('The private core service file has unsafe permissions.');
-        const coreSessionReply = await fetch(`${apiOrigin}/__local/session`, { headers: { Authorization: `Bearer ${service.token}` }, redirect: 'error', signal: AbortSignal.timeout(5000) });
+        const coreSessionReply = await requestJson(`${apiOrigin}/__local/session`, { headers: { Authorization: `Bearer ${service.token}` }, timeout: 5000 });
         const coreSession = await coreSessionReply.json();
         if (!coreSessionReply.ok || coreSession.mode !== 'local' || typeof coreSession.user?.id !== 'string' || !coreSession.user.id) throw new Error('The native core session did not identify this local workspace.');
         const web = await launch('web', process.execPath, [join(packageRoot, 'lib', 'web-server.mjs')], dirname(distribution.server), {

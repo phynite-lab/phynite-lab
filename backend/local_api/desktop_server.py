@@ -568,11 +568,39 @@ def main():
     signal.signal(signal.SIGTERM, shutdown); signal.signal(signal.SIGINT, shutdown)
     parent = int(os.environ.get("PHYNITE_PARENT_PID", "0"))
     if parent:
+        # The launcher is a detached parent, so checking only that its numeric
+        # PID exists is not sufficient: operating systems may reuse a PID
+        # after the launcher exits.  New launchers also publish a small
+        # heartbeat file in the workspace.  A stale heartbeat means the
+        # detached core is orphaned and should release the scheduler lock.
+        heartbeat_path = os.environ.get("PHYNITE_PARENT_HEARTBEAT", "")
+        expected_instance = os.environ.get("PHYNITE_PARENT_INSTANCE_ID", "")
+        heartbeat_timeout = max(10.0, float(os.environ.get("PHYNITE_PARENT_HEARTBEAT_TIMEOUT", "15")))
+
+        def parent_is_alive() -> bool:
+            try:
+                os.kill(parent, 0)
+            except (ProcessLookupError, PermissionError):
+                return False
+            if not heartbeat_path:
+                return True
+            try:
+                heartbeat = Path(heartbeat_path)
+                # The launcher updates this file while it owns the detached
+                # services.  Do not trust contents supplied by a child; the
+                # file's age is the liveness signal and remains local-only.
+                if time.time() - heartbeat.stat().st_mtime > heartbeat_timeout:
+                    return False
+                if expected_instance:
+                    value = json.loads(heartbeat.read_text())
+                    return value.get("pid") == parent and value.get("instanceId") == expected_instance
+                return True
+            except (OSError, ValueError, TypeError):
+                return False
+
         def monitor_parent():
             while not application.closed.wait(1):
-                try:
-                    os.kill(parent, 0)
-                except ProcessLookupError:
+                if not parent_is_alive():
                     shutdown(); return
         threading.Thread(target=monitor_parent, daemon=True).start()
     try:
