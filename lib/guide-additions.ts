@@ -2,7 +2,7 @@ import type { GuideSection } from './guide-content';
 
 export const guideAdditions: GuideSection[] = [
   {
-    id: 'quickstart-silicon', group: 'Getting started', title: 'Tutorial: a first silicon calculation',
+    id: 'quickstart-silicon', group: 'Start here', title: 'Tutorial: a first silicon calculation',
     intro: 'Complete a small ground-state calculation before attempting a large material study. This tutorial checks the structure-to-worker-to-result workflow; its numerical settings are starting values for an exercise, not a converged production method.',
     blocks: [
       { title: 'Before you begin', bullets: ['Open the local app without login, or sign in to the hosted website with the account that owns the project.', 'In the npm app, install DFT in Settings → Compute and keep the CLI running. On the hosted website, connect Your computer through the paired worker and keep its Docker runtime active.', 'Have a diamond-cubic silicon structure in CIF, POSCAR, or another supported format. Keep its source and lattice parameter with your notes.', 'Use a primitive two-atom cell for this exercise. A conventional eight-atom cell is physically valid but has different total energy, reciprocal vectors, and computational cost.'] },
@@ -22,7 +22,7 @@ export const guideAdditions: GuideSection[] = [
     ],
   },
   {
-    id: 'quickstart-md', group: 'Getting started', title: 'Tutorial: a first local MD simulation',
+    id: 'quickstart-md', group: 'MD & analysis', title: 'Tutorial: a first local MD simulation',
     intro: 'Use a small argon system to learn the structure-to-settings-to-execution-to-result path in MD Lab. This is a workflow exercise, not a validated physical study.',
     blocks: [
       { title: 'Prepare your computer and structure', steps: ['In the npm app, install MD/analysis in Settings → Compute and keep the CLI running; no Phynite login is required. The hosted website instead needs a signed-in account and a connected personal worker.', 'Open MD Lab and create a project named Argon equilibration.', 'Import or build a small argon structure with a physically suitable periodic box. Check atom count, element identity, coordinates, box lengths, units, and atomic masses. An XYZ with Ar species or a LAMMPS data file with Masses works; a type-only dump has no mass for dynamics.', 'Retain the original structure file and record its source. A visual repeat does not add atoms to the simulation.'] },
@@ -32,7 +32,7 @@ export const guideAdditions: GuideSection[] = [
     ],
   },
   {
-    id: 'convergence', group: 'Calculations', title: 'Procedure: design a convergence study',
+    id: 'convergence', group: 'QE & DFT', title: 'Procedure: design a convergence study',
     intro: 'A convergence study establishes how numerical choices affect a reported physical quantity. Define the quantity and tolerance first, then vary a controlled parameter while preserving all other inputs.',
     blocks: [
       { title: 'Define a comparison that answers the paper', paragraphs: ['For a phase-energy comparison, converge the energy difference using comparable cells and normalization. For relaxation, inspect force and stress stability. For a band edge, transport coefficient, or phonon mode, converge that observable directly.', 'A stable total energy does not imply every response property has converged. Keep the target tolerance in your project description or method notes.'] },
@@ -48,7 +48,7 @@ export const guideAdditions: GuideSection[] = [
     ],
   },
   {
-    id: 'slab-workflow', group: 'Structure & physics', title: 'Procedure: prepare a two-dimensional slab',
+    id: 'slab-workflow', group: 'Projects & structures', title: 'Procedure: prepare a two-dimensional slab',
     intro: 'Use this procedure for a sheet or slab whose surface spans the a-b plane. Quantum ESPRESSO requires a finite three-dimensional cell with converged vacuum.',
     blocks: [
       { title: 'Geometry prerequisites', bullets: ['Start from a physically meaningful termination, composition, and surface orientation.', 'Inspect fractional and Cartesian coordinates. A tilted cell needs vacuum measured normal to the surface, not merely the length of c.', 'Check that the slab has the intended thickness and no unintended cross-boundary bonds.', 'Duplicate the structure before changing the cell so the original bulk or slab remains available.'] },
@@ -91,7 +91,7 @@ export const guideAdditions: GuideSection[] = [
     ],
   },
   {
-    id: 'publication', group: 'Results & Figure Lab', title: 'Procedure: prepare a publication figure',
+    id: 'publication', group: 'Results & figures', title: 'Procedure: prepare a publication figure',
     intro: 'Prepare the scientific comparison first, then the page geometry, typography, and export. Keep the editable source with every figure you deliver.',
     blocks: [
       { title: 'Check source compatibility', steps: ['Open a completed result in Figure Lab or select retained datasets from the results library.', 'Read quantity, units, geometry identity, energy reference, and k-path metadata for each source.', 'Choose a grid for distinct k paths; use overlay only when coordinates and references are scientifically comparable.', 'For Band + DOS, confirm the pair describes compatible geometry and electronic assumptions. Review the linked energy range.', 'State the alignment convention. Each Fermi = 0 compares relative electronic structure and does not establish absolute band offsets.'] },
@@ -108,7 +108,7 @@ export const guideAdditions: GuideSection[] = [
     ],
   },
   {
-    id: 'billing', group: 'Account & compute', title: 'Manage plans, billing, and resource usage',
+    id: 'billing', group: 'Phynite Cloud', title: 'Manage plans, billing, and resource usage',
     intro: 'Billing manages Phynite Cloud purchases and invoices on the hosted website. The local app opens https://phynitelab.com/billing; local compute, AI accounts, and device preferences are managed separately in Settings.',
     blocks: [
       { title: 'Review your account', steps: ['Open Billing on the Phynite website. From the local application, the link opens https://phynitelab.com/billing.', 'Read the active plan, subscription status, and per-run allocation. These values come from your account.', 'Open Recorded usage and choose Refresh after a calculation finishes or cloud files change.', 'Review Figure Lab retained bytes and current cloud files. Paid storage shares one total allowance across cloud files and pending uploads.', 'Choose Export usage to download a dated JSON record. The export contains resource measurements, not a payment receipt.'] },
@@ -172,7 +172,7 @@ export const guideAdditions: GuideSection[] = [
     ]
   },
   {
-    id: 'diagnostics', group: 'Reference', title: 'Troubleshooting: locate a failed workflow stage',
+    id: 'diagnostics', group: 'Troubleshooting & recovery', title: 'Troubleshooting: locate a failed workflow stage',
     intro: 'Identify the first stage that did not complete. Retrying a downstream action cannot repair an earlier missing structure, disconnected worker, or incompatible numerical source.',
     blocks: [
       { title: 'Decision table', table: { headings: ['What you see', 'Likely stage', 'Next check'], rows: [
