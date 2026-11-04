@@ -2,6 +2,7 @@
 import { WorkspaceLoading } from '@/components/WorkspaceLoading';
 import { WorkflowDraftTransfer } from './WorkflowDraftTransfer';
 import { WorkflowModulePicker, type WorkflowPickerPlacement } from './WorkflowModulePicker';
+import type { CrystalDatabaseInput } from '@/lib/crystal-database-input';
 
 import { memo, useCallback, useLayoutEffect, useEffect, useEffectEvent, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ClipboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { useRouter } from 'next/navigation';
@@ -41,7 +42,7 @@ import { phyniteApi, phyniteProjects, phyniteStructures, type PhyniteProject } f
 import { localRequest } from '@/lib/local-api';
 import { buildComputePlan, type ComputePlan } from '@/lib/compute-plan';
 import { getCalculationWorkspaceSnapshot, parseCalculationWorkspaceSnapshot } from '@/lib/workspace-storage';
-import { openProjectWorkflow } from '@/lib/project-workflow-opening';
+import { openProjectWorkflow, preservedProjectEditorHref } from '@/lib/project-workflow-opening';
 import { compileWorkflowDft, workflowQeDraft, workflowCalculationTypes } from '@/lib/project-workflow-compiler';
 import { createMdSimulationWorkflowV2, type MdSimulationComponentInstance } from '@/lib/md-simulation-types';
 import { copyWorkflowNodes, pasteWorkflowSelection, parseWorkflowClipboard, removeWorkflowNodes, stableWorkflowJson, workflowConnectionError, workflowModules, workflowOrder, type ProjectWorkflow, type WorkflowNode, type WorkflowClipboardV2, type ProjectRun, type WorkflowPlan } from '@/lib/project-workflow';
@@ -93,6 +94,7 @@ export function ProjectWorkflowWorkspace(props: { owner: string; projectId: stri
   const cloud = useWorkspaceCloudSync(props.owner);
   const [resolved, setResolved] = useState('');
   const [error, setError] = useState('');
+  const [preservedHref, setPreservedHref] = useState<string>();
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (resolved) return;
@@ -101,6 +103,7 @@ export function ProjectWorkflowWorkspace(props: { owner: string; projectId: stri
     // Canonical graphs load independently when the legacy snapshot is unavailable.
     // Never inspect device data until cloud sync has verified its owner.
     const snapshot = cloud.ready ? parseCalculationWorkspaceSnapshot(getCalculationWorkspaceSnapshot()) : null;
+    const preservedEditorHref = preservedProjectEditorHref(props.projectId, snapshot);
     void openProjectWorkflow(props.projectId, snapshot, { ...projectWorkflowApi, project: id => phyniteApi<{ project: PhyniteProject }>(`/v1/projects/${encodeURIComponent(id)}`) }).then(result => {
       if (!live) return;
       if (result.legacyHref) { router.replace(result.legacyHref); return; }
@@ -109,11 +112,11 @@ export function ProjectWorkflowWorkspace(props: { owner: string; projectId: stri
         router.replace(`/projects/${encodeURIComponent(result.projectId)}${window.location.search}${window.location.hash}`);
         window.dispatchEvent(new Event('phynite:project-inventory-change'));
       }
-    }).catch(failure => { if (live) setError(failure instanceof Error ? failure.message : t('Project could not be opened.', 'Project belum dapat dibuka.')); });
+    }).catch(failure => { if (live) { setPreservedHref(preservedEditorHref); setError(failure instanceof Error ? failure.message : t('Project could not be opened.', 'Project belum dapat dibuka.')); } });
     return () => { live = false; };
   }, [cloud.ready, cloud.status, props.projectId, router, t, attempt, resolved]);
   const snapshotFailed = !cloud.ready && cloud.status === 'error' && props.projectId.startsWith('legacy-');
-  if (error || snapshotFailed) return <main className="workspace-loading" role="alert"><p>{error || t('Your saved workspace could not be loaded. Keep your browser data and retry.', 'Workspace tersimpan belum dapat dimuat. Pertahankan data browser dan coba lagi.')}</p><button type="button" className="lab-button" onClick={() => { if (snapshotFailed) window.location.reload(); else { setError(''); setAttempt(value => value + 1); } }}>{t('Retry', 'Coba lagi')}</button><a href="/workspace">Home</a>{cloud.ready && props.projectId.startsWith('legacy-') && <a href={`/calculation?legacy=1&project=${encodeURIComponent(props.projectId.slice(7))}`}>{t('Open original editor', 'Buka editor awal')}</a>}</main>;
+  if (error || snapshotFailed) return <main className="workspace-loading" role="alert"><p>{error || t('Your saved workspace could not be loaded. Keep your browser data and retry.', 'Workspace tersimpan belum dapat dimuat. Pertahankan data browser dan coba lagi.')}</p><button type="button" className="lab-button" onClick={() => { if (snapshotFailed) window.location.reload(); else { setError(''); setAttempt(value => value + 1); } }}>{t('Retry', 'Coba lagi')}</button><a href="/workspace">Home</a>{cloud.ready && preservedHref && <a href={preservedHref}>{t('Open original editor', 'Buka editor awal')}</a>}</main>;
   if (!resolved) return <WorkspaceLoading layout="panel" label={t('Opening your project…', 'Membuka project Anda…')} />;
   return <ReactFlowProvider><WorkflowCanvas key={`${props.owner}:${resolved}`} {...props} projectId={resolved} /></ReactFlowProvider>;
 }
@@ -821,13 +824,13 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
   };
   const saveStructure = async (node: WorkflowNode) => {
     if (client.getSnapshot().status === 'unavailable') throw new Error(unavailableMessage);
-    const raw = node.configuration.structure as ParsedStructure | undefined;
+    const raw = node.configuration.structure as (ParsedStructure & Partial<CrystalDatabaseInput>) | undefined;
     if (!raw?.atoms.length) throw new Error(t('Add atoms or import a structure first.', 'Tambahkan atom atau impor struktur terlebih dahulu.'));
     const signature = stableWorkflowJson(raw);
     if (node.configuration.savedStructureSignature === signature && node.resources.some(ref => ref.kind === 'structure' && !ref.deviceOnly)) return node;
     const formula = structureFormula(raw.atoms);
     if (!formula) throw new Error(t('Complete element mappings and occupancies before saving.', 'Lengkapi pemetaan elemen dan okupansi sebelum menyimpan.'));
-    const { structure } = await phyniteStructures.create(projectId, { name: node.name, formula, source: 'workflow-crystal-builder', lattice: raw.lattice, atoms: raw.atoms, periodic: (raw as ParsedStructure & { periodic?: [boolean, boolean, boolean] }).periodic ?? raw.lattice.periodic ?? [true, true, true] });
+    const { structure } = await phyniteStructures.create(projectId, { ...raw, name: node.name, formula, source: raw.source ?? 'workflow-crystal-builder', lattice: raw.lattice, atoms: raw.atoms, periodic: (raw as ParsedStructure & { periodic?: [boolean, boolean, boolean] }).periodic ?? raw.lattice.periodic ?? [true, true, true] });
     const next = { ...node, resources: [{ kind: 'structure' as const, id: structure.id, ...('sha256' in structure ? { sha256: String(structure.sha256) } : {}) }], configuration: { ...node.configuration, savedStructureSignature: signature, formula, missingInputs:Array.isArray(node.configuration.missingInputs)?node.configuration.missingInputs.filter((value:unknown)=>!value||typeof value!=='object'||!('kind' in value)||value.kind!=='structure'):[] } };
     if (!updateNode(next)) throw new Error(t('Input could not be added to this workflow. Resolve the save error first.', 'Input belum dapat ditambahkan ke workflow. Selesaikan masalah penyimpanan dahulu.'));
     return next;

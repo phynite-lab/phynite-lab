@@ -233,6 +233,7 @@
     "backend/tests/test_local_scientific_qualification.py",
     "backend/tests/test_local_connections.py",
     "backend/tests/test_local_pseudopotentials.py",
-    "backend/tests/test_local_result_recovery.py"
+    "backend/tests/test_local_result_recovery.py",
+    "backend/tests/test_local_ai_structure_import.py"
   ]
 }

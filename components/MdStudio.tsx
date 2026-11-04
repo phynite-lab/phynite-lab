@@ -445,7 +445,7 @@ export function MdStudio({ ownerId, session }: { ownerId: string; session?: Phyn
       if (activeImportAnalysis.current === analysisId) activeImportAnalysis.current = null;
     }
   }, [cloudClient, cloudProjectId, computeStatus]);
-  const activate = useCallback(async (file: Blob | null, sourceFilename: string, id: string, projectName: string, initial: MdSettings, persist: boolean, sequence?: number, cloud?: MdTrajectoryRecord['cloud'], displayName = sourceFilename, initialWorkflow?: MdSimulationWorkflowV2, suppliedController?: AbortController, projectCloudId?: string) => {
+  const activate = useCallback(async (file: Blob | null, sourceFilename: string, id: string, projectName: string, initial: MdSettings, persist: boolean, sequence?: number, cloud?: MdTrajectoryRecord['cloud'], displayName = sourceFilename, initialWorkflow?: MdSimulationWorkflowV2, suppliedController?: AbortController, projectCloudId?: string, databaseSource?: MdTrajectoryRecord['databaseSource']) => {
     const requestSequence = sequence ?? ++loadSequence.current;
     const controller = suppliedController ?? new AbortController();
     if (!suppliedController) {
@@ -499,6 +499,7 @@ export function MdStudio({ ownerId, session }: { ownerId: string; session?: Phyn
           projectName,
           name: displayName,
           sourceFilename,
+          ...(databaseSource ? { databaseSource } : {}),
           file,
           createdAt: new Date().toISOString(),
           settings: initial,
@@ -1769,13 +1770,15 @@ export function MdStudio({ ownerId, session }: { ownerId: string; session?: Phyn
     for (let i = 0; i < incoming.length; i++) {
       const material = incoming[i];
       const name = `${material.formula}-${material.materialId}`;
-      const cifContent = createCIF(name, material.atoms, material.lattice);
+      const cifContent = material.sourceData.format === 'cif' ? material.sourceData.content : createCIF(name, material.atoms, material.lattice);
       const blob = new Blob([cifContent], { type: 'text/plain' });
       const fileName = `${name}.cif`;
       const file = new File([blob], fileName, { type: 'text/plain' });
       const id = `${ownerId}:${Date.now()}_${i}:${fileName}`;
+      const databaseSource = { sourceData: material.sourceData, provenance: material.provenance };
       if (i === incoming.length - 1) {
-        void activate(file, fileName, id, project, defaultPipeline(), true);
+        const opened = await activate(file, fileName, id, project, defaultPipeline(), true, undefined, undefined, fileName, undefined, undefined, undefined, databaseSource);
+        if (!opened) throw new Error(`Could not open ${material.materialId} in MD Lab. The database source was not substituted.`);
       } else {
         const record: MdTrajectoryRecord = {
           id,
@@ -1784,6 +1787,7 @@ export function MdStudio({ ownerId, session }: { ownerId: string; session?: Phyn
           projectName: project,
           name: fileName,
           sourceFilename: fileName,
+          databaseSource,
           file,
           createdAt: new Date().toISOString(),
           settings: defaultPipeline(),
@@ -1793,7 +1797,7 @@ export function MdStudio({ ownerId, session }: { ownerId: string; session?: Phyn
         setRecords(items => items.filter(item => item.id !== id).concat(record));
       }
     }
-    setMessage(`Imported ${incoming.length} structure${incoming.length > 1 ? 's' : ''} from Materials Project`);
+    setMessage(`Imported ${incoming.length} structure${incoming.length > 1 ? 's' : ''} from ${incoming[0]?.source ?? 'crystal database'}`);
   };
   const currentSimulationWorkflow = useMemo(() => createMdSimulationWorkflowV2(simulationComponents), [simulationComponents]);
   const currentWorkspaceSignature = useMemo(() => workspaceSignature(settings, currentSimulationWorkflow), [currentSimulationWorkflow, settings]);

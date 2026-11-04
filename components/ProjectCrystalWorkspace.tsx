@@ -165,8 +165,11 @@ type MaterialRecord = {
   kind: string;
   atoms: CustomAtom[];
   lattice: LatticeParameters;
-  source?: 'Local' | 'Materials Project';
+  source?: 'Local' | 'Materials Project' | 'Crystallography Open Database';
   externalId?: string;
+  sourceUrl?: string;
+  sourceData?: MaterialsProjectMaterial['sourceData'];
+  provenance?: MaterialsProjectMaterial['provenance'];
   sourceUpdatedAt?: string | null;
   geometryUpdatedAt?: string;
   sourceGeometryUpdatedAt?: string;
@@ -2062,17 +2065,21 @@ export function ProjectCrystalWorkspace({ cloudSync, ownerId, session: headerSes
           projectId: activeProject.id,
           name: `${material.formula} · ${material.materialId}`,
           formula: material.formula,
-          spaceGroup: `${material.spaceGroupSymbol} · ${material.spaceGroupNumber}`,
-          kind: 'Materials Project',
+          spaceGroup: material.spaceGroupNumber === undefined ? material.spaceGroupSymbol : `${material.spaceGroupSymbol} · ${material.spaceGroupNumber}`,
+          kind: material.source,
           atoms: cloneAtoms(material.atoms),
           lattice: { ...material.lattice },
-          source: 'Materials Project' as const,
+          source: material.source,
           externalId: material.materialId,
+          sourceUrl: material.sourceUrl,
+          sourceData: material.sourceData,
+          provenance: material.provenance,
+          geometryProvenance: [{ operation: 'database-import', ...material.provenance }],
           sourceUpdatedAt: material.lastUpdated,
           geometryUpdatedAt: timestamp,
           sourceGeometryUpdatedAt: timestamp,
-          bandGap: material.bandGap,
-          energyAboveHull: material.energyAboveHull,
+          ...(material.bandGap === undefined ? {} : { bandGap: material.bandGap }),
+          ...(material.energyAboveHull === undefined ? {} : { energyAboveHull: material.energyAboveHull }),
           createdAt: timestamp,
           updatedAt: timestamp,
           lastOpenedAt: timestamp,
@@ -2084,14 +2091,14 @@ export function ProjectCrystalWorkspace({ cloudSync, ownerId, session: headerSes
         (record) => record.projectId === activeProject.id && record.externalId === incoming[0]?.materialId,
       );
       if (existing) selectMaterial(existing);
-      setStatus('Selected Materials Project structures already exist in this project');
+      setStatus('Selected database structures already exist in this project');
       return;
     }
 
     setMaterials((current) => [...current, ...records]);
     markProjectEdited(activeProject.id, timestamp);
     selectMaterial(records[0]);
-    setStatus(`${records.length} Materials Project structure${records.length > 1 ? 's' : ''} imported to ${activeProject.name}`);
+    setStatus(`${records.length} database structure${records.length > 1 ? 's' : ''} imported to ${activeProject.name}`);
   };
 
   const exportStructure = (format: 'cif' | 'xyz' | 'xsf' | 'poscar') => {
@@ -2497,6 +2504,8 @@ export function ProjectCrystalWorkspace({ cloudSync, ownerId, session: headerSes
       formula: material.formula,
       spaceGroup: material.spaceGroup,
       source: material.source ?? 'Phynite',
+      ...(material.sourceData ? { sourceData: material.sourceData } : {}),
+      ...(material.provenance ? { provenance: material.provenance, externalId: material.externalId, sourceUrl: material.sourceUrl } : {}),
       lattice: { ...material.lattice },
       atoms: material.atoms.map((atom) => ({ ...atom })),
     }).then(({ structure }) => {
@@ -2910,7 +2919,7 @@ export function ProjectCrystalWorkspace({ cloudSync, ownerId, session: headerSes
     { label: 'Wrap atoms into unit cell', icon: Box, action: wrapAtomsIntoCell },
     { label: `Add ${vacuumSize} Å vacuum normal to a-b`, icon: Boxes, action: addVacuumLayer },
     { label: 'Import structure into project', icon: Upload, action: () => fileInput.current?.click() },
-    { label: 'Search Materials Project', icon: DatabaseSearch, action: () => { setConfiguringComponentId(null); setMaterialsProjectOpen(true); } },
+    { label: 'Crystal database', icon: DatabaseSearch, action: () => { setConfiguringComponentId(null); setMaterialsProjectOpen(true); } },
     ...viewAngles.map((view) => ({ label: `${view.label} camera view`, icon: Axis3D, action: () => snapCameraView(view.id) })),
     { label: 'Export CIF', icon: FileDown, action: () => exportStructure('cif') },
     { label: 'Export XSF', icon: FileDown, action: () => exportStructure('xsf') },

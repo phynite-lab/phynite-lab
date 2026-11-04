@@ -210,7 +210,7 @@ Workspace demo lokal nyata. Mulai dengan New project; login Cloud opsional.
 
 Launcher lokal membuka workspace di komputer Anda.
 
-Paket publik saat ini adalah phynite-lab@0.1.10. Gunakan Node.js dengan versi yang memenuhi >=22.13.0. npm memasang launcher dan paket aplikasi native opsional yang sesuai dengan OS serta CPU.
+Paket publik saat ini adalah phynite-lab@0.1.11. Gunakan Node.js dengan versi yang memenuhi >=22.13.0. npm memasang launcher dan paket aplikasi native opsional yang sesuai dengan OS serta CPU.
 
 Pastikan optional dependencies npm tidak dinonaktifkan. Jika paket dipasang dengan --omit=optional atau paket platform dihapus, launcher menampilkan error runtime yang hilang dan tidak diam-diam memakai fixture development.
 
@@ -584,6 +584,14 @@ URL project dan tampilan Figure Lab dipertahankan saat halaman dibuka kembali. T
 
 <a id="docs-project-4"></a>
 
+### Membuka project lama
+
+Tautan project lokal lama dikenali dan dimigrasikan ke Canvas saat tujuan belum memiliki revisi tersimpan. Konfigurasi lama yang persis serta riwayat run dipertahankan; revisi Canvas yang sudah ada tidak ditimpa.
+
+Jika layanan workflow atau project terkait tidak tersedia, salinan lokal yang terverifikasi dapat dibuka di editor awal. Kegagalan lain tetap menampilkan error dan dapat menawarkan Buka editor awal saat tersedia salinan lokal yang cocok. Jangan menghapus data browser untuk pemecahan masalah; ekspor backup riset penting sebelum melanjutkan pemulihan.
+
+<a id="docs-project-5"></a>
+
 ### Topik terkait
 
 - [Mengimpor dan memeriksa struktur](<#structure>)
@@ -625,6 +633,25 @@ Periksa spesies, koordinat, dan sel simulasi sebelum run.
 
 <a id="docs-structure-3"></a>
 
+### Mencari database kristal
+
+Buka atau tambahkan modul Crystal structure, lalu pilih Crystal database di dalam editornya untuk mencari record struktur publik. Crystallography Open Database (COD) dapat digunakan tanpa API key; Materials Project membutuhkan MP_API_KEY pada environment server. Pencarian memakai provider yang ditampilkan pada browser, dan kegagalan provider tetap terlihat.
+
+Pilih dan impor record yang dimaksud, lalu periksa rumus kimia, kisi, jumlah atom, okupansi, dan identitas sumber. Struktur database merupakan model awal, bukan bukti bahwa fase, keadaan magnetik, atau pengaturan kalkulasinya sesuai. Properti numerik yang tidak dilaporkan tetap tidak tersedia.
+
+1. Buka modul Crystal structure tujuan lalu pilih Crystal database dari toolbar editornya.
+2. Pilih database lalu masukkan rumus kimia, daftar unsur, nama material, atau ID sumber yang didukung.
+3. Periksa hasil dan impor satu struktur pilihan ke modul tersebut. Koneksi Kanvas dan identitas modul tetap dipertahankan.
+4. Untuk impor dibantu AI, minta Phynite AI mencari database lalu memakai record tertentu. Pencarian hanya membaca; penerapan impor mengikuti mode izin percakapan serta review aksinya.
+5. Baca identitas sumber dan checksum hasil impor. Periksa geometri dan pseudopotensial sebelum menghubungkan struktur ke kalkulasi.
+
+> Akses database membutuhkan internet. Kredensial Materials Project tetap di environment server; jangan menempelkan API key ke chat atau menyertakannya dalam ekspor project.
+
+- [Crystallography Open Database](<https://www.crystallography.net/cod/>)
+- [Dokumentasi Materials Project](<https://docs.materialsproject.org/>)
+
+<a id="docs-structure-4"></a>
+
 ### Koordinat fraksional dan Cartesian
 
 Koordinat fraksional menyatakan r = f1 a + f2 b + f3 c, dengan a, b, c sebagai vektor kisi. Koordinat Cartesian menyatakan posisi pada sumbu ruang nyata dalam satuan panjang.
@@ -633,7 +660,7 @@ Mempertahankan koordinat fraksional sambil mengubah kisi dapat meregangkan posis
 
 Sel primitif dan konvensional dapat merepresentasikan kristal yang sama dengan jumlah atom serta basis resiprok berbeda. Perbedaan ini memengaruhi energi total per sel, lintasan k, dan normalisasi DOS.
 
-<a id="docs-structure-4"></a>
+<a id="docs-structure-5"></a>
 
 ### Informasi yang perlu dipertahankan
 
@@ -642,7 +669,7 @@ Sel primitif dan konvensional dapat merepresentasikan kristal yang sama dengan j
 - Komposisi, okupansi, serta perlakuan cacat atau disorder.
 - Perubahan yang dilakukan sebelum kalkulasi, termasuk strain, vakum, dan relaksasi.
 
-<a id="docs-structure-5"></a>
+<a id="docs-structure-6"></a>
 
 ### Topik terkait
 
@@ -2463,7 +2490,7 @@ phynite-lab --no-open --port 3000 --data-dir ~/.phynite-lab
 
 ### Identitas rilis, lisensi, dan verifikasi update
 
-Metadata rilis dokumentasi saat ini menunjukkan phynite-lab@0.1.10. Perintah pertama melaporkan launcher terpasang; perintah kedua membaca metadata registry npm. Versi registry yang lebih baru tidak memperbarui proses yang masih berjalan.
+Metadata rilis dokumentasi saat ini menunjukkan phynite-lab@0.1.11. Perintah pertama melaporkan launcher terpasang; perintah kedua membaca metadata registry npm. Versi registry yang lebih baru tidak memperbarui proses yang masih berjalan.
 
 Buka Source code and license pada aplikasi untuk corresponding source. Distribusi publik mencatat commit source publik dan arsip source eksaknya; aset rilis menyediakan checksum paket serta bukti kualifikasi. Kode lokal milik Phynite berlisensi AGPL-3.0-only; solver pihak ketiga dan file potential mempertahankan lisensinya sendiri.
 

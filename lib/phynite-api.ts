@@ -59,6 +59,7 @@ export type PhyniteStructure = {
   status: string;
   createdAt: string;
   updatedAt: string;
+  sha256?: string;
 };
 
 export type PhyniteResultArtifact = {
@@ -539,6 +540,12 @@ export const phyniteStructures = {
       formula: string;
       spaceGroup?: string;
       source?: string;
+      externalId?: string;
+      sourceUrl?: string;
+      sourceUpdatedAt?: string | null;
+      sourceData?: import('./crystal-database').CrystalDatabaseMaterial['sourceData'];
+      provenance?: import('./crystal-database').CrystalDatabaseMaterial['provenance'];
+      geometryProvenance?: unknown[];
       lattice: import('./crystal-cell').LatticeParameters;
       periodic?: [boolean, boolean, boolean];
       atoms: Array<Record<string, unknown>>;

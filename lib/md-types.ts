@@ -60,6 +60,7 @@ export type MdTrajectoryRecord = {
   projectName?: string;
   name: string;
   sourceFilename?: string;
+  databaseSource?: Pick<import('./crystal-database.ts').CrystalDatabaseMaterial, 'sourceData' | 'provenance'>;
   file: Blob;
   createdAt: string;
   settings: MdSettings;

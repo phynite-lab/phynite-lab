@@ -53,6 +53,14 @@ test('linked cloud records enrich local DFT projects without becoming duplicate 
   assert.deepEqual(projects[0]?.tags, ['QE', 'MD']);
 });
 
+test('a preserved local project remains listed when its linked remote inventory row is absent', () => {
+  const projects = mergeStudioProjects([localProject({ remoteId: 'stale-id', structureCount: 1 })], []);
+  assert.equal(projects.length, 1);
+  assert.equal(projects[0].id, 'local-one');
+  assert.equal(projects[0].structureCount, 1);
+  assert.equal(projects[0].href, '/projects/stale-id');
+});
+
 test('canonical cloud calculation projects remain accessible without a device snapshot', () => {
   const projects = mergeStudioProjects([], [
     remoteProject({ id: 'cloud-qe', description: 'Crystal project', tags: ['QE'] }),

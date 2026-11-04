@@ -1,13 +1,15 @@
 'use client';
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react';
-import { Axis3D, Crosshair, FileUp, MousePointer2, Move, Plus, Redo2, Rotate3D, Scan, Settings2, Ruler, Save, Trash2, Undo2 } from 'lucide-react';
+import { Axis3D, Crosshair, DatabaseSearch, FileUp, MousePointer2, Move, Plus, Redo2, Rotate3D, Scan, Settings2, Ruler, Save, Trash2, Undo2 } from 'lucide-react';
 import { useLocale } from '@/app/locale-provider';
 import { CrystalStructureInspector, type CrystalSourceMetadata } from './CrystalStructureInspector';
 import { LabInspectorSection } from './LabControls';
 import { CrystalBuilderTools } from './CrystalBuilderTools';
 import { CrystalDisplayPanel, type CrystalDisplaySettings } from './CrystalDisplayPanel';
 import { UiSelect } from './UiSelect';
+import { MaterialsProjectBrowser } from './MaterialsProjectBrowser';
+import { crystalDatabaseInput } from '@/lib/crystal-database-input';
 import { CommittedNumberInput } from './CommittedNumberInput';
 import { LAB_VIEW_PRESETS, getLabViewPreset } from '@/lib/lab-camera';
 import { crystalScalarColors, previewCrystalModifiers, type CrystalModifier, type CrystalColorMap, type CrystalColorProperty } from '@/lib/crystal-builder';
@@ -24,18 +26,19 @@ const defaults: CrystalDisplaySettings = { displayStyle:'ball-stick',atomScale:1
 type Tool = 'select'|'move'|'rotate'|'measure'|'add'|'delete';
 type ViewState = { display:CrystalDisplaySettings; rotation:[number,number,number]; color:CrystalColorProperty; palette:CrystalColorMap; modifiers:CrystalModifier[]; cellMode:'simple'|'manual'; sections:{structure:boolean;prepare:boolean;display:boolean;export:boolean}; moveSpace:'world'|'local'; constraint:'free'|'x'|'y'|'z'|'xy'|'xz'|'yz'; snap:number };
 const initialView:ViewState={display:defaults,rotation:[0,0,0],color:'element',palette:'viridis',modifiers:[],cellMode:'simple',sections:{structure:true,prepare:false,display:true,export:true},moveSpace:'world',constraint:'free',snap:0};
-export function CrystalBuilderEditor({ structure, onChange, onSave, saveStatus, viewKey, theme, actions, inspectorVisible=true, metadata }: { actions?:ReactNode;inspectorVisible?:boolean;metadata?:CrystalSourceMetadata;structure:ParsedStructure; onChange:(structure:ParsedStructure)=>void; onSave:()=>Promise<void>; saveStatus:string; viewKey:string; theme:'light'|'dark' }) {
+export function CrystalBuilderEditor({ structure, onChange, onSave, saveStatus, viewKey, theme, actions, inspectorVisible=true, metadata, database=false }: { actions?:ReactNode;inspectorVisible?:boolean;metadata?:CrystalSourceMetadata;structure:ParsedStructure; onChange:(structure:ParsedStructure)=>void | boolean; onSave:()=>Promise<void>; saveStatus:string; viewKey:string; theme:'light'|'dark'; database?:boolean }) {
   const [repairError, setRepairError] = useState('');
   try { cellVectorsFromLattice(structure.lattice); if(!Array.isArray(structure.atoms)||!structure.atoms.every(atom=>[atom.x,atom.y,atom.z].every(Number.isFinite))) throw new Error('Invalid atom coordinates.'); }
   catch(error) { return <div className="crystal-builder-editor"><p role="alert">{repairError || (error as Error).message} Import a valid structure to repair this input.</p><input aria-label="Repair structure input" type="file" accept={STRUCTURE_FILE_ACCEPT} onChange={event=>{const file=event.target.files?.[0];if(file)void parseStructureFile(file).then(onChange).catch(failure=>setRepairError(failure.message));}}/></div>; }
-  return <CrystalBuilderSurface structure={structure} onChange={onChange} onSave={onSave} saveStatus={saveStatus} viewKey={viewKey} theme={theme} actions={actions} inspectorVisible={inspectorVisible} metadata={metadata}/>;
+  return <CrystalBuilderSurface structure={structure} onChange={onChange} onSave={onSave} saveStatus={saveStatus} viewKey={viewKey} theme={theme} actions={actions} inspectorVisible={inspectorVisible} metadata={metadata} database={database}/>;
 }
-function CrystalBuilderSurface({ structure, onChange, onSave, saveStatus, viewKey, theme, actions, inspectorVisible=true, metadata }: { actions?:ReactNode;inspectorVisible?:boolean;metadata?:CrystalSourceMetadata;structure:ParsedStructure; onChange:(structure:ParsedStructure)=>void; onSave:()=>Promise<void>; saveStatus:string; viewKey:string; theme:'light'|'dark' }) {
+function CrystalBuilderSurface({ structure, onChange, onSave, saveStatus, viewKey, theme, actions, inspectorVisible=true, metadata, database=false }: { actions?:ReactNode;inspectorVisible?:boolean;metadata?:CrystalSourceMetadata;structure:ParsedStructure; onChange:(structure:ParsedStructure)=>void | boolean; onSave:()=>Promise<void>; saveStatus:string; viewKey:string; theme:'light'|'dark'; database?:boolean }) {
   const { t }=useLocale();
   const [view,setView]=useState(initialView), [loaded,setLoaded]=useState(false), [tool,setTool]=useState<Tool>('select');
   const [selected,setSelected]=useState<string|null>(null), [focus,setFocus]=useState(0), [fit,setFit]=useState(0), [camera,setCamera]=useState<CameraViewRequest|null>(null);
   const [measureMode,setMeasureMode]=useState<'distance'|'angle'|'dihedral'>('distance'), [points,setPoints]=useState<Array<{atomId:string;instanceId:string}>>([]);
   const [error,setError]=useState(''), [draggingFile,setDraggingFile]=useState(false), [importing,setImporting]=useState(false), [saving,setSaving]=useState(false), [exporting,setExporting]=useState(false);
+  const [databaseOpen,setDatabaseOpen]=useState(false);
   const [history,setHistory]=useState<{past:ParsedStructure[];future:ParsedStructure[]}>({past:[],future:[]});
   const latest=useRef(structure), file=useRef<HTMLInputElement>(null), scene=useRef<CrystalSceneExporter|null>(null);
   useEffect(()=>{ latest.current=structure; },[structure]);
@@ -49,7 +52,8 @@ function CrystalBuilderSurface({ structure, onChange, onSave, saveStatus, viewKe
     cellVectorsFromLattice(next.lattice);
     if(!next.atoms.every(atom=>[atom.x,atom.y,atom.z].every(Number.isFinite))) throw new Error(t('Atom coordinates must be finite.','Koordinat atom harus terbatas.'));
     const previous = structuredClone(latest.current);
-    setHistory(current=>({past:[...current.past.slice(-49),previous],future:[]})); latest.current=next; onChange(next); setError('');
+    if (onChange(next) === false) { setError(t('The input could not be applied. Resolve the Canvas save error and try again.', 'Input belum dapat diterapkan. Selesaikan kesalahan penyimpanan Kanvas lalu coba lagi.')); return false; }
+    setHistory(current=>({past:[...current.past.slice(-49),previous],future:[]})); latest.current=next; setError(''); return true;
   };
   const importingFile = useRef(false), dragDepth = useRef(0), importRevision = useRef(0);
   useEffect(() => () => { importRevision.current++; }, []);
@@ -67,8 +71,8 @@ function CrystalBuilderSurface({ structure, onChange, onSave, saveStatus, viewKe
     finally { if (revision === importRevision.current) { importingFile.current = false; setImporting(false); } }
   };
   const fileDrag = (event: DragEvent) => Array.from(event.dataTransfer.types).includes('Files');
-  const undo=()=>{ const previous=history.past.at(-1); if(previous){setHistory({past:history.past.slice(0,-1),future:[structuredClone(structure),...history.future]});latest.current=previous;onChange(previous);setError('');} };
-  const redo=()=>{ const next=history.future[0]; if(next){setHistory({past:[...history.past,structuredClone(structure)],future:history.future.slice(1)});latest.current=next;onChange(next);setError('');} };
+  const undo=()=>{ const previous=history.past.at(-1); if(previous){if(onChange(previous)===false)return;setHistory({past:history.past.slice(0,-1),future:[structuredClone(structure),...history.future]});latest.current=previous;setError('');} };
+  const redo=()=>{ const next=history.future[0]; if(next){if(onChange(next)===false)return;setHistory({past:[...history.past,structuredClone(structure)],future:history.future.slice(1)});latest.current=next;setError('');} };
   const preview=useMemo(()=>previewCrystalModifiers(structure.atoms,structure.lattice,view.modifiers),[structure,view.modifiers]);
   const shown=view.modifiers.some(modifier=>modifier.enabled)&&!preview.error ? {...structure,atoms:preview.atoms,lattice:preview.lattice}:structure;
   const colors=useMemo(()=>crystalScalarColors(shown.atoms,shown.lattice,view.color,view.palette),[shown.atoms,shown.lattice,view.color,view.palette]);
@@ -108,7 +112,7 @@ function CrystalBuilderSurface({ structure, onChange, onSave, saveStatus, viewKe
     if (event.dataTransfer.files.length !== 1) { setError(t('Drop one structure file at a time.', 'Letakkan satu berkas struktur sekaligus.')); return; }
     void importFile(event.dataTransfer.files[0], true);
   }} onKeyDown={event=>{
-    if((event.target as Element).closest('input,textarea,select,[contenteditable=true]'))return;
+    if((event.target as Element).closest('input,textarea,select,[contenteditable=true],[role=dialog]'))return;
     if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='z'){event.preventDefault();event.stopPropagation();if(event.shiftKey)redo();else undo();}
     if(event.key==='Escape'){setTool('select');setPoints([]);}
   }}>
@@ -116,7 +120,7 @@ function CrystalBuilderSurface({ structure, onChange, onSave, saveStatus, viewKe
   <div className="crystal-builder-body"><div className="crystal-builder-viewport">
   <div className="crystal-builder-actions" role="toolbar" aria-label={t('Structure actions','Aksi struktur')}>
     <button aria-label="Undo crystal edit" title={t('Undo','Urungkan')} disabled={!history.past.length} onClick={undo}><Undo2 size={18}/></button><button aria-label="Redo crystal edit" title={t('Redo','Ulangi')} disabled={!history.future.length} onClick={redo}><Redo2 size={18}/></button>
-    {actions}<button aria-label={t('Import structure','Impor struktur')} disabled={importing} onClick={()=>file.current?.click()}><FileUp size={18}/><span>{t('Import structure','Impor struktur')}</span></button>
+    {actions}{database && <button type="button" aria-label={t('Crystal database','Database kristal')} aria-haspopup="dialog" aria-expanded={databaseOpen} onClick={()=>setDatabaseOpen(true)}><DatabaseSearch size={18}/><span>{t('Crystal database','Database kristal')}</span></button>}<button aria-label={t('Import structure','Impor struktur')} disabled={importing} onClick={()=>file.current?.click()}><FileUp size={18}/><span>{t('Import structure','Impor struktur')}</span></button>
     <input ref={file} hidden type="file" accept={STRUCTURE_FILE_ACCEPT} onChange={event=>{const source=event.target.files?.[0];if(source)void importFile(source);event.target.value='';}}/>
     <button aria-label={t('Save input','Simpan input')} disabled={saving||!structure.atoms.length} onClick={()=>{setSaving(true);void onSave().catch(failure=>setError(failure.message)).finally(()=>setSaving(false));}}><Save size={18}/><span>{t('Save input','Simpan input')}</span></button>
     <small role="status">{saving?t('Saving…','Menyimpan…'):saveStatus==='synced'?t('Saved','Tersimpan'):t('Local draft','Draft lokal')}</small>
@@ -140,5 +144,11 @@ function CrystalBuilderSurface({ structure, onChange, onSave, saveStatus, viewKe
     <LabInspectorSection title={t('Prepare','Persiapan')} icon={<Settings2 size={16}/>} open={view.sections.prepare} onOpenChange={prepare=>patch({sections:{...view.sections,prepare}})}><CrystalBuilderTools modifiers={view.modifiers} onChange={modifiers=>patch({modifiers})} preview={preview} originalCount={structure.atoms.length} onApply={()=>{if(!preview.error&&preview.atoms.length){apply({...structure,atoms:preview.atoms,lattice:preview.lattice});patch({modifiers:[]});}}}/></LabInspectorSection>
     <CrystalDisplayPanel settings={view.display} onChange={display=>patch({display:{...view.display,...display}})} hasForces={structure.atoms.some(atom=>[atom.fx,atom.fy,atom.fz].every(Number.isFinite))} onExport={exportStructure} onSceneExport={format=>{if(!scene.current){setError(t('The scene is still loading.','Scene masih dimuat.'));return;}setExporting(true);void scene.current(format).then(blob=>download(blob,`${structure.name}.${format}`)).catch(failure=>setError(failure.message)).finally(()=>setExporting(false));}} exporting={exporting} sections={view.sections} onSectionChange={(section,open)=>patch({sections:{...view.sections,[section]:open}})}/>
     <LabInspectorSection title={t('Atom colors','Warna atom')} defaultOpen={false}><UiSelect ariaLabel="Atom color property" value={view.color} options={['element','x','y','z','force'].map(value=>({value,label:value}))} onChange={color=>patch({color:color as CrystalColorProperty})}/><UiSelect ariaLabel="Color map" value={view.palette} options={[{value:'viridis',label:'Viridis'},{value:'coolwarm',label:'Cool/warm'}]} onChange={palette=>patch({palette:palette as CrystalColorMap})}/></LabInspectorSection>
-  </aside></div></div>;
+  </aside></div>
+  {database && <MaterialsProjectBrowser open={databaseOpen} target="structure" databaseName={structure.name} onClose={()=>setDatabaseOpen(false)} onImport={materials=>{
+    if(materials.length!==1)throw new Error(t('Choose one structure for this module.','Pilih satu struktur untuk modul ini.'));
+    if(!apply(crystalDatabaseInput(materials[0])))throw new Error(t('The structure could not be applied to this module. Resolve the Canvas save error first.','Struktur belum dapat diterapkan ke modul ini. Selesaikan kesalahan penyimpanan Kanvas dahulu.'));
+    setSelected(null);setPoints([]);patch({modifiers:[]});fitCrystal();
+  }}/>}
+  </div>;
 }
