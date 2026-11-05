@@ -35,7 +35,7 @@ export function aiOutputTokens(effort: AiEffort = 'auto') { return effort === 'x
 // flood of files in one message without constraining an individual research
 // archive or dataset.
 export const aiAttachmentLimits = { count: 5, pdfPages: 50 } as const;
-export type AiAttachment = { id: string; conversationId: string; filename: string; mediaType: string; sizeBytes: number; sha256: string; status: 'uploading' | 'ready' | 'failed'; error?: string; pages?: number; sheets?: string[]; warnings?: string[] };
+export type AiAttachment = { id: string; conversationId: string; filename: string; mediaType: string; sizeBytes: number; sha256: string; status: 'uploading' | 'ready' | 'failed'; error?: string; pages?: number; sheets?: string[]; warnings?: string[]; visual?: boolean };
 export type AiSkillRef = { id: string; version: number };
 export type AiSkillCatalogEntry = AiSkillRef & { command: string; label: { en: string; id: string }; description: { en: string; id: string } };
 /** Resolved by the authenticated backend and frozen for this turn. Never accept a client instruction. */
