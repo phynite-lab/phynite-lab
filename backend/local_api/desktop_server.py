@@ -209,7 +209,8 @@ class DesktopApplication:
                 import shutil
                 path = environment.get('PATH', '')
                 ready = shutil.which('pw.x', path=path) or shutil.which('lmp', path=path) or shutil.which('lammps', path=path) or environment.get('PHYNITE_RUNTIME_PYTHON')
-                self.sync_personal_defaults(self.scheduler.settings())
+                selected = self.scheduler.settings()
+                self.sync_personal_defaults(selected)
                 if not ready:
                     continue
                 active = any(item.get('status') in {'RUNNING', 'CANCEL_REQUESTED'} for kind in ('CALCULATION', 'MD_SIMULATION', 'MD_ANALYSIS') for item in self.services.list_owner_items(self.services.owner, kind))
@@ -324,6 +325,12 @@ class DesktopApplication:
         if path == "/__local/resources" and method == "PUT":
             if not self.scheduler:
                 raise ApiError(503, "The native scheduler is unavailable.", "RUNTIME_UNAVAILABLE")
+            # A budget below the 1 GiB per-job minimum would admit no job. The scheduler itself keeps
+            # accepting smaller budgets, which release qualification uses to test resource recovery.
+            minimum = min(1024, int(self.scheduler.capacity()["memoryCapacityMiB"]))
+            memory = payload.get("memoryMiB") if isinstance(payload, dict) else None
+            if type(memory) is int and memory < minimum:
+                raise ApiError(400, f"Set RAM to at least {minimum} MiB so a job can start.", "INVALID_RESOURCES")
             return response(200, {"resources": self.scheduler.configure(payload)})
         if path.startswith(("/__local/cloud", "/__local/sync")):
             return self.connections.handle(method, path, payload, query, internal=False)
