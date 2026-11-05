@@ -13,6 +13,11 @@ export class RequestSecurityError extends Error {
 export const MD_UPLOAD_PART_BYTES = 16 * 1024 ** 2;
 export const SANDBOX_UPLOAD_BYTES = 64 * 1024 ** 2;
 export const SANDBOX_MULTIPART_OVERHEAD_BYTES = 64 * 1024;
+// AI source uploads are forwarded as a stream to the authenticated object
+// store.  Their exact declared size is checked by the attachment ticket and
+// checksum on completion, so the generic JSON body guard must not reintroduce
+// a small proxy limit here.
+export const AI_ATTACHMENT_BODY_BYTES = Number.MAX_SAFE_INTEGER;
 
 function uploadBodyType(request: Request, contentType: string): boolean {
   if (request.method === 'PUT' && /^\/api\/local\/projects\/imports\/[a-f0-9]{32}\/parts\/[0-9]+$/.test(new URL(request.url).pathname)) return contentType === 'application/octet-stream';
@@ -49,6 +54,7 @@ export function mutationFailure(request: Request): RequestSecurityError | null {
 }
 
 export function requestBodyLimit(path: string): number {
+  if (/^\/api\/ai\/conversations\/aic_[a-z0-9]+\/attachments\/aif_[a-z0-9]+\/content$/.test(path)) return AI_ATTACHMENT_BODY_BYTES;
   if (/^\/api\/local\/projects\/imports\/[a-f0-9]{32}\/parts\/[0-9]+$/.test(path)) return 4 * 1024 ** 2;
   if (/^\/api\/md-upload\/[A-Za-z0-9_-]{1,96}$/.test(path)) return MD_UPLOAD_PART_BYTES;
   if (/^\/api\/dev-sandbox\/blob\/[A-Za-z0-9_-]{1,96}$/.test(path)) return SANDBOX_UPLOAD_BYTES + SANDBOX_MULTIPART_OVERHEAD_BYTES;

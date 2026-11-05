@@ -633,9 +633,9 @@ Inspect species, coordinates, and the simulation cell before running.
 
 ### Search a crystal database
 
-Open or add a Crystal structure module, then choose Crystal database inside its editor to search public structure records. Crystallography Open Database (COD) works without an API key; Materials Project requires MP_API_KEY in the server environment. Search uses the provider shown in the browser, and a provider failure stays visible.
+Open or add a Crystal structure module, then choose Crystal database inside its editor to search public structure records. Crystallography Open Database (COD) works without an API key. In the local app, Materials Project uses your API key from Settings → Compute → Materials Project. Search uses the provider shown in the browser, and a provider failure stays visible.
 
-Select and import the intended record, then inspect its formula, lattice, atom count, occupancies, and source identity. Database structures are starting models, not proof that a phase, magnetic state, or calculation setup is appropriate. Unreported numerical properties remain unavailable.
+Save the key in Settings → Compute → Materials Project and test the connection. Manual searches and AI crystal tools use it immediately. The native service uses the OS credential store when available; a Session only label means the key must be entered again after restarting. Keep the key out of browser storage, project exports, logs, and chat. Select and import the intended record, then inspect its formula, lattice, atom count, occupancies, and source identity. Database structures are starting models, not proof that a phase, magnetic state, or calculation setup is appropriate. Unreported numerical properties remain unavailable.
 
 1. Open the destination Crystal structure module and choose Crystal database from its editor toolbar.
 2. Choose the database and enter a chemical formula, element list, material name, or supported source ID.
@@ -643,7 +643,7 @@ Select and import the intended record, then inspect its formula, lattice, atom c
 4. For an AI-assisted import, ask Phynite AI to search the database and use a specific record. Search is read-only; applying an import follows the conversation permission mode and its action review.
 5. Read the imported source identity and checksum. Check the geometry and pseudopotentials before connecting the structure to a calculation.
 
-> Database access needs an internet connection. Credentials for Materials Project stay in the server environment; never paste an API key into chat or include it in a project export.
+> Database access needs an internet connection. Materials Project credentials stay server-side and outside project exports and Cloud Sync. An optional MP_API_KEY environment value is used only when no Settings key is saved. Never paste an API key into chat or include it in a project export. If a real key was exposed, revoke it and create a replacement.
 
 - [Crystallography Open Database](<https://www.crystallography.net/cod/>)
 - [Materials Project documentation](<https://docs.materialsproject.org/>)
@@ -1441,7 +1441,7 @@ An unsigned local workspace shows settings and connection actions, without a fab
 
 ### Configure compute where it runs
 
-In the local npm app, Compute includes platform/capability detection, scientific-runtime installation, isolation status, and CPU/RAM/parallel-job defaults. Install the runtime before running. New defaults affect future jobs; workspace overrides apply only to the selected run. Native local compute needs neither Docker nor a cloud-paired worker.
+In the local npm app, Compute includes platform/capability detection, scientific-runtime installation, isolation status, CPU/RAM/parallel-job defaults, and the Materials Project API key connection. Save, test, replace, or remove the database key here; searches use it immediately without a restart. Install the runtime before running. New defaults affect future jobs; workspace overrides apply only to the selected run. Native local compute needs neither Docker nor a cloud-paired worker.
 
 On the hosted website, Compute retains account defaults for each workload, supported Cloud profiles and estimates, and personal-worker pairing. Save defaults is explicit; Cancel restores saved values. MD stays on personal compute until its Cloud service is available. More cores are not necessarily faster; compare short controlled runs.
 
@@ -1449,7 +1449,7 @@ On the hosted website, Compute retains account defaults for each workload, suppo
 
 ### Connect AI and read limits
 
-AI provider connections use the official Codex or Antigravity CLI with your own account. They are independent from Phynite Cloud login. After authentication, model discovery and capability checks run automatically. Tools and attachments require verified support, and Canvas changes retain approval/validation rules. The local app keeps one CLI-managed connection per provider; it has no account switcher or local gateway setup.
+AI provider connections use the official Codex or Antigravity CLI with your own account. They are independent from Phynite Cloud login. After authentication, model discovery and capability checks run automatically. Tools and attachments require verified support, and Canvas changes retain approval/validation rules. The local app keeps one CLI-managed connection per provider; it has no account switcher or local gateway setup. AI source attachments are streamed without the former 10 MB browser quota; the original bytes and checksum are retained. Format readers and the selected model can still report their own safe reading limits, and a large source is retained with an extraction warning instead of being silently truncated.
 
 The local app uses the profile managed by the selected official CLI. Usage and reset information comes from the provider: percentages, windows, and dates are shown only when reported. No remaining token balance is inferred. A disconnected, rate-limited, or unsupported provider shows its actual state without silent provider switching.
 

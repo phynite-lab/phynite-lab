@@ -703,18 +703,25 @@ def fetch_materials_project(services: MetadataServices, query: str, limit: int) 
     cached = services.read_materials_cache(query, normalized_limit)
     if cached is not None:
         return cached
-    fields = ','.join(['material_id', 'formula_pretty', 'structure', 'symmetry', 'nsites', 'band_gap', 'energy_above_hull', 'is_stable', 'density', 'ordering', 'theoretical', 'last_updated'])
-    params = urllib.parse.urlencode({filter_key: filter_value, '_fields': fields, '_limit': str(normalized_limit), '_sort_fields': 'energy_above_hull'})
-    request = urllib.request.Request(f'https://api.materialsproject.org/materials/summary/?{params}', headers={'X-API-KEY': materials_project_api_key(), 'Accept': 'application/json', 'User-Agent': 'phynite-lab/1.0'})
-    try:
-        from backend.local_api.tls import verified_ssl_context
-        with urllib.request.urlopen(request, timeout=15, context=verified_ssl_context()) as upstream:
-            payload = json.loads(upstream.read().decode('utf-8'))
-            remaining_header = upstream.headers.get('X-RateLimit-Remaining')
-    except urllib.error.HTTPError as exc:
-        raise ApiError(exc.code, 'Materials Project rejected the request.', 'MP_API_ERROR') from exc
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
-        raise ApiError(502, 'Materials Project is temporarily unavailable.', 'MP_NETWORK_ERROR') from exc
+    local_search = getattr(services, 'materials_project_search', None)
+    if callable(local_search):
+        # The local service resolves Settings credentials in its OS vault. Keep
+        # the legacy import path on that transport as well as the new browser.
+        payload = local_search(query, normalized_limit)
+        remaining_header = None
+    else:
+        fields = ','.join(['material_id', 'formula_pretty', 'structure', 'symmetry', 'nsites', 'band_gap', 'energy_above_hull', 'is_stable', 'density', 'ordering', 'theoretical', 'last_updated'])
+        params = urllib.parse.urlencode({filter_key: filter_value, '_fields': fields, '_limit': str(normalized_limit), '_sort_fields': 'energy_above_hull'})
+        request = urllib.request.Request(f'https://api.materialsproject.org/materials/summary/?{params}', headers={'X-API-KEY': materials_project_api_key(), 'Accept': 'application/json', 'User-Agent': 'phynite-lab/1.0'})
+        try:
+            from backend.local_api.tls import verified_ssl_context
+            with urllib.request.urlopen(request, timeout=15, context=verified_ssl_context()) as upstream:
+                payload = json.loads(upstream.read().decode('utf-8'))
+                remaining_header = upstream.headers.get('X-RateLimit-Remaining')
+        except urllib.error.HTTPError as exc:
+            raise ApiError(exc.code, 'Materials Project rejected the request.', 'MP_API_ERROR') from exc
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+            raise ApiError(502, 'Materials Project is temporarily unavailable.', 'MP_NETWORK_ERROR') from exc
     normalized = [normalize_mp_document(item) for item in payload.get('data', [])]
     materials = [item for item in normalized if item is not None]
     try:

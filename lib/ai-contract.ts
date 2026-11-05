@@ -28,7 +28,13 @@ export function aiCapabilities(model: AiModelId) {
 }
 export function isAiEffort(model: AiModelId, effort: unknown): effort is AiEffort { return aiCapabilities(model).efforts.includes(effort as AiEffort); }
 export function aiOutputTokens(effort: AiEffort = 'auto') { return effort === 'xhigh' || effort === 'max' ? 65536 : effort === 'high' ? 32768 : 16384; }
-export const aiAttachmentLimits = { count: 5, fileBytes: 10 * 1024 ** 2, totalBytes: 20 * 1024 ** 2, pdfPages: 50 } as const;
+// Attachments are stored as user-owned source files.  Do not impose a small
+// browser-side size quota here: the upload is streamed to the configured
+// object store and the reader applies format-specific safety limits after the
+// original bytes have been retained.  The count limit prevents an accidental
+// flood of files in one message without constraining an individual research
+// archive or dataset.
+export const aiAttachmentLimits = { count: 5, pdfPages: 50 } as const;
 export type AiAttachment = { id: string; conversationId: string; filename: string; mediaType: string; sizeBytes: number; sha256: string; status: 'uploading' | 'ready' | 'failed'; error?: string; pages?: number; sheets?: string[]; warnings?: string[] };
 export type AiSkillRef = { id: string; version: number };
 export type AiSkillCatalogEntry = AiSkillRef & { command: string; label: { en: string; id: string }; description: { en: string; id: string } };

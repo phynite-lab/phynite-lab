@@ -17,7 +17,7 @@ control dismisses it. Returning to a project preserves the workspace layout.
 | Appearance & language | System/light/dark mode, theme presets, accent, custom colors, per-mode fonts/colors, contrast, diff markers, density, motion, language | This browser |
 | Keyboard shortcuts | Customize supported application shortcuts; restore defaults | This browser |
 | Notifications | Job/runtime alerts and optional desktop notifications in local mode; hosted notification choices on the website | Browser in local mode; account for hosted delivery settings |
-| Compute | Native runtime installation, isolation availability, local CPU/RAM/concurrency; hosted worker/default controls on the website | Local workspace or signed-in hosted account |
+| Compute | Materials Project API key, native runtime installation, isolation availability, local CPU/RAM/concurrency; hosted worker/default controls on the website | Local workspace or signed-in hosted account |
 | AI provider accounts | Own provider login, model readiness, reported limits/reset | Provider CLI or server-side local credential store |
 | Account | Optional Phynite Cloud connection and project sync | Local connection associated with the signed-in cloud account |
 | Usage | Recorded job time/resources and available provider-reported AI limits | Actual execution/provider records |
@@ -113,6 +113,23 @@ The hosted website uses a different personal-worker connection. Its download,
 Connection code, and Docker pairing instructions are preserved in the
 [personal-compute guide](https://phynitelab.com/guide/local-compute). Native npm jobs do not require that
 pairing, Docker, a global Python installation, or a Phynite Cloud account.
+
+## Materials Project API key
+
+In the local app, open **Settings → Compute → Materials Project**. Save your own
+API key, then test the connection. The key field is write-only and clears after
+saving. Both the Crystal database browser and AI crystal tools use this connection
+immediately. COD does not need a key.
+
+The native service keeps the key in the OS credential store, separate from
+project data. Settings reports **Session only** if secure persistent storage is
+unavailable; that credential is forgotten when the service restarts. Neither the
+status API nor exports, Cloud Sync, browser storage, or logs contain the key.
+
+A saved key overrides `MP_API_KEY` from the launcher's environment. Removing the
+saved key exposes that environment fallback if present. To clear the fallback,
+unset the environment variable and restart. Hosted server configuration remains
+separate; the local key is never uploaded to Phynite Cloud.
 
 ## AI provider accounts
 

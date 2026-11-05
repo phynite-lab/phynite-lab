@@ -25,6 +25,14 @@ test('local settings search targets local controls and Account follows AI provid
   assert.equal(settingsSections[ai + 1].id, 'account');
 });
 
+test('Materials Project key is discoverable in local settings in either language', () => {
+  for (const query of ['Materials Project', 'API key', 'kunci database']) {
+    const results = searchSettingsControls(query, 'local');
+    assert.ok(results.some(item => item.href === '/account/compute#materials-project'), query);
+  }
+  assert.equal(searchSettingsControls('Materials Project', 'hosted').length, 0);
+});
+
 test('run and solver time remain distinct and incomplete history is unavailable', () => {
   const run = { startedAt: '2026-10-28T00:00:00Z', completedAt: '2026-10-28T02:00:00Z', computeSeconds: 3600 };
   assert.equal(recordedRunSeconds(run), 7200);

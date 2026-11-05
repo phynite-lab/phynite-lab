@@ -26,6 +26,7 @@ export const settingsControls = [
   { section: 'compute', anchor: 'compute-defaults', query: '?workload=md-simulation', en: 'MD simulation resources', idn: 'Resource simulasi MD', keywords: 'lammps cpu ram local simulasi lokal' },
   { section: 'compute', anchor: 'compute-defaults', query: '?workload=md-analysis', en: 'MD analysis resources', idn: 'Resource analisis MD', keywords: 'ovito analysis cpu ram local analisis lokal' },
   { section: 'compute', anchor: 'your-computer', en: 'Worker connection', idn: 'Koneksi worker', keywords: 'computer connect pair install komputer hubungkan pemasangan' },
+  { section: 'compute', anchor: 'materials-project', localOnly: true, en: 'Materials Project API key', idn: 'API key Materials Project', keywords: 'api key kunci materials project crystal database kristal struktur' },
   { section: 'ai-providers', anchor: 'provider-accounts', en: 'AI usage & reset', idn: 'Pemakaian & reset AI', keywords: 'codex antigravity remaining weekly session limit kuota sisa batas mingguan sesi' },
   { section: 'account', anchor: 'account-identity', en: 'Phynite Cloud account', idn: 'Akun Phynite Cloud', keywords: 'account cloud login logout sync connect akun masuk keluar sinkronisasi koneksi' },
   { section: 'usage', anchor: 'recorded-compute', en: 'Run time & CPU-hours', idn: 'Waktu run & jam CPU', keywords: 'solver wall time hours elapsed waktu jam durasi' },
@@ -39,7 +40,7 @@ export const settingsControls = [
 export function searchSettingsControls(query: string, mode: 'local' | 'hosted' = 'hosted') {
   const terms = query.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
   if (!terms.length) return [];
-  return settingsControls.filter(control => terms.every(term => `${control.en} ${control.idn} ${control.keywords}`.toLocaleLowerCase().includes(term))).map(control => {
+  return settingsControls.filter(control => (mode === 'local' || !('localOnly' in control && control.localOnly)) && terms.every(term => `${control.en} ${control.idn} ${control.keywords}`.toLocaleLowerCase().includes(term))).map(control => {
     const anchor = mode === 'local' && control.anchor === 'cloud-storage' ? 'local-storage' : mode === 'local' && control.anchor === 'sign-in-details' ? 'account-identity' : control.anchor;
     const en = mode === 'local' && control.anchor === 'cloud-storage' ? 'Local storage & archives' : mode === 'local' && control.section === 'notifications' ? 'Device notifications' : control.en;
     const idn = mode === 'local' && control.anchor === 'cloud-storage' ? 'Penyimpanan lokal & arsip' : mode === 'local' && control.section === 'notifications' ? 'Notifikasi perangkat' : control.idn;

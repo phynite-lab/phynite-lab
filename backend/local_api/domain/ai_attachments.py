@@ -4,21 +4,30 @@ import csv
 import hashlib
 import io
 import json
+import os
 import re
 import secrets
+import tempfile
 import zipfile
 from pathlib import PurePosixPath
 from backend.local_api.domain.ai_workspace import clean, fail
 from backend.local_api.domain.phynite_core import response, storage_owner
 
-FILE_LIMIT = 10 * 1024 ** 2
 TYPES = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp", "pdf": "application/pdf", "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
 TEXT_EXTENSIONS = {"csv", "tsv", "txt", "md", "markdown", "log", "out", "in", "inp", "cif", "xyz", "poscar", "contcar", "xsf", "json", "yaml", "yml", "dat", "upf", "lmp", "lammps"}
+MAX_DECLARED_SIZE = (1 << 63) - 1
+try:
+    # This is a reader/parser guard, not an upload quota.  The original source
+    # remains streamable and retained above this size; parsers receive a clear
+    # warning instead of forcing the whole object into process memory.
+    MAX_PARSE_BYTES = max(1, int(os.environ.get("PHYNITE_AI_PARSE_BYTES", str(256 * 1024 ** 2))))
+except ValueError:
+    MAX_PARSE_BYTES = 256 * 1024 ** 2
 
 
 def extract(raw: bytes, filename: str, media: str) -> dict:
-    if not raw or len(raw) > FILE_LIMIT:
-        fail(413, "Use a nonempty file up to 10 MB.", "AI_ATTACHMENT_LIMIT")
+    if not raw:
+        fail(413, "The file must contain data.", "AI_ATTACHMENT_INVALID")
     ext = filename.rsplit(".", 1)[-1].lower()
     warnings, sections, metadata = [], [], {}
     if media.startswith("image/"):
@@ -138,14 +147,18 @@ class AiAttachments:
     def url(self, item, upload=False):
         params = {"Bucket": self.services.bucket, "Key": item["objectKey"]}
         if upload:
-            params.update({"ContentType": item["mediaType"], "ServerSideEncryption": "AES256"})
+            # Carry the exact declared length into local tickets as well as
+            # S3 signatures.  The loopback artifact handler can then stream a
+            # large upload and verify the final byte count without falling
+            # back to its unknown-length safety ceiling.
+            params.update({"ContentLength": item["sizeBytes"], "ContentType": item["mediaType"], "ServerSideEncryption": "AES256"})
         return self.services.s3.generate_presigned_url("put_object" if upload else "get_object", Params=params, ExpiresIn=300)
 
     def handle(self, owner, conversation, method, item_id, operation, payload):
         if method == "POST" and not item_id:
             filename, size, checksum = payload.get("filename"), payload.get("sizeBytes"), payload.get("sha256")
-            if not isinstance(filename, str) or not filename.strip() or len(filename) > 200 or any(c in filename for c in "/\\\r\n\x00") or type(size) is not int or not 0 < size <= FILE_LIMIT or not isinstance(checksum, str) or not re.fullmatch(r"[a-f0-9]{64}", checksum):
-                fail(400, "Provide a valid filename, SHA-256 and size up to 10 MB.", "AI_ATTACHMENT_INVALID")
+            if not isinstance(filename, str) or not filename.strip() or len(filename) > 200 or any(c in filename for c in "/\\\r\n\x00") or type(size) is not int or not 0 < size <= MAX_DECLARED_SIZE or not isinstance(checksum, str) or not re.fullmatch(r"[a-f0-9]{64}", checksum):
+                fail(400, "Provide a valid filename, SHA-256 and positive size.", "AI_ATTACHMENT_INVALID")
             ext = filename.rsplit(".", 1)[-1].lower()
             media = TYPES.get(ext)
             if not media and (ext in TEXT_EXTENSIONS or filename.lower() in {"poscar", "contcar"}):
@@ -165,11 +178,28 @@ class AiAttachments:
         if method == "POST" and operation == "complete":
             if item["status"] == "ready":
                 return response(200, {"attachment": clean(item)})
-            raw = self.services.s3.get_object(Bucket=self.services.bucket, Key=item["objectKey"])["Body"].read(FILE_LIMIT + 1)
-            if len(raw) != item["sizeBytes"] or hashlib.sha256(raw).hexdigest() != item["sha256"]:
-                fail(422, "The uploaded bytes do not match the original file. Upload it again.", "AI_ATTACHMENT_CHECKSUM")
+            source = self.services.s3.get_object(Bucket=self.services.bucket, Key=item["objectKey"])["Body"]
+            original_key = item["objectKey"] + "/" + item["sha256"]
             try:
-                document = extract(raw, item["filename"], item["mediaType"])
+                # Hash and retain the source in bounded chunks.  A large upload
+                # must not be duplicated in RAM merely to finalize metadata.
+                with tempfile.TemporaryFile() as staged:
+                    digest = hashlib.sha256(); size = 0
+                    for chunk in source.iter_chunks() if hasattr(source, "iter_chunks") else iter(lambda: source.read(1024 * 1024), b""):
+                        size += len(chunk); digest.update(chunk); staged.write(chunk)
+                    if size != item["sizeBytes"] or digest.hexdigest() != item["sha256"]:
+                        fail(422, "The uploaded bytes do not match the original file. Upload it again.", "AI_ATTACHMENT_CHECKSUM")
+                    staged.flush(); staged.seek(0)
+                    self.services.s3.put_object(Bucket=self.services.bucket, Key=original_key, Body=staged, ContentLength=size, ContentType=item["mediaType"], ServerSideEncryption="AES256")
+                    staged.seek(0)
+                    raw = staged.read() if size <= MAX_PARSE_BYTES else None
+            finally:
+                source.close()
+            try:
+                if raw is None:
+                    document = {"sections": [], "warnings": [f"The original source is retained ({size:,} bytes), but local extraction is deferred above the {MAX_PARSE_BYTES:,}-byte reader budget. Use a smaller derivative or read the source externally."], "visual": False}
+                else:
+                    document = extract(raw, item["filename"], item["mediaType"])
                 extracted = json.dumps(document, ensure_ascii=False).encode()
                 if len(extracted) > 16 * 1024 ** 2:
                     fail(413, "Split this document into smaller files before uploading; extracted evidence exceeds the reading limit.", "AI_ATTACHMENT_LIMIT")
@@ -180,12 +210,10 @@ class AiAttachments:
                 if isinstance(error, ApiError):
                     raise
                 fail(422, message, "AI_ATTACHMENT_INVALID")
-            original_key = item["objectKey"] + "/" + item["sha256"]
-            self.services.s3.put_object(Bucket=self.services.bucket, Key=original_key, Body=raw, ContentType=item["mediaType"], ServerSideEncryption="AES256")
             key = original_key + ".json"
             self.services.s3.put_object(Bucket=self.services.bucket, Key=key, Body=extracted, ContentType="application/json", ServerSideEncryption="AES256")
             vision = {}
-            if item["mediaType"].startswith("image/"):
+            if raw is not None and item["mediaType"].startswith("image/"):
                 from PIL import Image, ImageOps
                 with Image.open(io.BytesIO(raw)) as source:
                     image = ImageOps.exif_transpose(source)
