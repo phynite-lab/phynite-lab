@@ -8,6 +8,7 @@
     "backend/local_api/cloud_compute.py",
     "backend/local_api/conda_runtime.py",
     "backend/local_api/connections.py",
+    "backend/local_api/crystal_cells.py",
     "backend/local_api/desktop_server.py",
     "backend/local_api/filesystem_store.py",
     "backend/local_api/gateway.py",
@@ -110,6 +111,7 @@
     "backend/local_api/cloud_compute.py",
     "backend/local_api/conda_runtime.py",
     "backend/local_api/connections.py",
+    "backend/local_api/crystal_cells.py",
     "backend/local_api/desktop_server.py",
     "backend/local_api/filesystem_store.py",
     "backend/local_api/gateway.py",
@@ -222,6 +224,7 @@
     "backend.md_compute"
   ],
   "portableTests": [
+    "backend/tests/test_local_crystal_cells.py",
     "backend/tests/test_local_desktop.py",
     "backend/tests/test_local_integrity.py",
     "backend/tests/test_local_persistence.py",

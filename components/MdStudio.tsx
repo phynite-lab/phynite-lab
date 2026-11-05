@@ -46,6 +46,7 @@ import { mdCloudFrameFromPacket, mdCloudPacketFromArtifact, mdCloudTimelineFrame
 import { downloadMdCloudFile } from '@/lib/md-cloud-download';
 import { downloadMdFile, frameStructure, frameXyz, frameLammpsDump, isMdElement, listMdTrajectories, mdLastActiveKey, dftTransferKey, removeMdTrajectory, saveMdTrajectories, saveMdTrajectory, type MdPipelineHistory } from '@/lib/md-workspace';
 import { createCIF, createPOSCAR, createXSF } from '@/lib/structure-parsers';
+import { crystalDatabaseFile } from '@/lib/crystal-database-input';
 import MdWorker from '../lib/md-worker.ts?worker';
 import { createMdWorkerClient, type MdWorkerClient } from '@/lib/md-worker-client';
 import { MdParseResultCache } from '@/lib/md-parse-cache';
@@ -1766,16 +1767,14 @@ export function MdStudio({ ownerId, session }: { ownerId: string; session?: Phyn
   };
   const importFromMaterialsProject = async (incoming: MaterialsProjectMaterial[]) => {
     if (!incoming.length || !hasActiveProject) return;
-    setMaterialsProjectOpen(false);
+    const files = incoming.map(crystalDatabaseFile);
     for (let i = 0; i < incoming.length; i++) {
       const material = incoming[i];
-      const name = `${material.formula}-${material.materialId}`;
-      const cifContent = material.sourceData.format === 'cif' ? material.sourceData.content : createCIF(name, material.atoms, material.lattice);
-      const blob = new Blob([cifContent], { type: 'text/plain' });
-      const fileName = `${name}.cif`;
+      const blob = new Blob([files[i].content], { type: 'text/plain' });
+      const fileName = files[i].filename;
       const file = new File([blob], fileName, { type: 'text/plain' });
       const id = `${ownerId}:${Date.now()}_${i}:${fileName}`;
-      const databaseSource = { sourceData: material.sourceData, provenance: material.provenance };
+      const databaseSource = { sourceData: material.sourceData, provenance: material.provenance, ...(material.geometryTransforms ? { geometryTransforms: material.geometryTransforms } : {}) };
       if (i === incoming.length - 1) {
         const opened = await activate(file, fileName, id, project, defaultPipeline(), true, undefined, undefined, fileName, undefined, undefined, undefined, databaseSource);
         if (!opened) throw new Error(`Could not open ${material.materialId} in MD Lab. The database source was not substituted.`);

@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 from urllib.error import HTTPError
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 import zipfile
 
 from backend.local_api.desktop_server import DesktopApplication
@@ -65,6 +65,28 @@ class MaterialsProjectConnectionTests(unittest.TestCase):
         encoded = json.dumps(value)
         self.assertNotIn(SETTINGS_KEY, encoded)
         self.assertNotIn(ENVIRONMENT_KEY, encoded)
+
+    def test_paging_filters_sorting_and_total_count_use_the_same_private_connection(self):
+        self.environment["MP_API_KEY"] = ENVIRONMENT_KEY
+        def opener(request, timeout):
+            self.requests.append(request)
+            return io.BytesIO(b'{"data":[],"meta":{"total_doc":123,"private":"not forwarded"}}')
+        self.connection.opener = opener
+        result = self.connection.search("Si", 12, {"offset": "24", "sort": "-band-gap", "spaceGroup": "227", "maxSites": "8", "minBandGap": "0", "maxEnergyAboveHull": "0.05"})
+        query = parse_qs(urlsplit(self.requests[0].full_url).query)
+        self.assertEqual(query["_skip"], ["24"])
+        self.assertEqual(query["_sort_fields"], ["-band_gap"])
+        self.assertEqual(query["spacegroup_number"], ["227"])
+        self.assertEqual(query["energy_above_hull_max"], ["0.05"])
+        self.assertEqual(result, {"data": [], "meta": {"total_doc": 123}})
+        self.assert_no_key(result)
+
+    def test_invalid_filters_do_not_fetch_or_accept_arbitrary_upstream_parameters(self):
+        self.environment["MP_API_KEY"] = ENVIRONMENT_KEY
+        for options in [{"offset": "-1"}, {"offset": "2.5"}, {"sort": "secret"}, {"spaceGroup": "231"}, {"minBandGap": "nan"}, {"minSites": "10", "maxSites": "2"}, {"url": "https://untrusted.invalid"}]:
+            with self.subTest(options=options), self.assertRaises(ApiError):
+                self.connection.search("Si", 12, options)
+        self.assertEqual(self.requests, [])
 
     def test_save_status_remove_and_restart_never_return_the_credential(self):
         self.assertFalse(self.connection.status()["configured"])

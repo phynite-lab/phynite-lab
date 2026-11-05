@@ -1,0 +1,426 @@
+{
+  "description": "Public record captures. OQMD capture did not request dimension_types and must fail closed; all other record fields are retained from app-path responses.",
+  "records": {
+    "aflow": {
+      "record": {
+        "attributes": {
+          "species": [
+            {
+              "name": "Si",
+              "chemical_symbols": [
+                "Si"
+              ],
+              "concentration": [
+                1
+              ]
+            }
+          ],
+          "cartesian_site_positions": [
+            [
+              0,
+              0,
+              0
+            ]
+          ],
+          "dimension_types": [
+            1,
+            1,
+            1
+          ],
+          "_aflow_density": 3.22713,
+          "chemical_formula_reduced": "Si",
+          "nsites": 1,
+          "_aflow_egap": null,
+          "last_modified": "2020-04-26T21:08:28Z",
+          "chemical_formula_descriptive": "Si1",
+          "space_group_it_number": 225,
+          "elements": [
+            "Si"
+          ],
+          "species_at_sites": [
+            "Si"
+          ],
+          "structure_features": [],
+          "nelements": 1,
+          "lattice_vectors": [
+            [
+              2.73407,
+              0,
+              0
+            ],
+            [
+              1.3670350000000002,
+              2.36777407572492,
+              0
+            ],
+            [
+              1.3670350000000002,
+              0.7892580252416401,
+              2.232358807017068
+            ]
+          ]
+        },
+        "id": "aflow:000fd734f5f66e15",
+        "type": "structures",
+        "relationships": {
+          "references": {
+            "data": [
+              {
+                "id": "aflow++",
+                "type": "references"
+              },
+              {
+                "id": "aflow_web",
+                "type": "references"
+              }
+            ]
+          }
+        }
+      },
+      "retrievedAt": "2026-11-05T17:03:39.737Z",
+      "sourceUrl": "https://aflow.org/API/optimade/v1/structures/aflow%3A000fd734f5f66e15"
+    },
+    "alexandria": {
+      "record": {
+        "id": "agm002024878",
+        "type": "structures",
+        "attributes": {
+          "last_modified": "2023-11-16T07:57:59Z",
+          "elements": [
+            "Si"
+          ],
+          "chemical_formula_descriptive": "Si4",
+          "chemical_formula_reduced": "Si",
+          "dimension_types": [
+            1,
+            1,
+            1
+          ],
+          "lattice_vectors": [
+            [
+              3.52484085,
+              0,
+              0
+            ],
+            [
+              0,
+              3.62884662,
+              0
+            ],
+            [
+              0,
+              0,
+              4.97117074
+            ]
+          ],
+          "cartesian_site_positions": [
+            [
+              0,
+              3.366154776062862,
+              1.242792685
+            ],
+            [
+              0,
+              0.26269184393713796,
+              3.728378055
+            ],
+            [
+              1.762420425,
+              1.551731466062862,
+              1.242792685
+            ],
+            [
+              1.762420425,
+              2.077115153937138,
+              3.728378055
+            ]
+          ],
+          "nsites": 4,
+          "species": [
+            {
+              "name": "Si",
+              "chemical_symbols": [
+                "Si"
+              ],
+              "concentration": [
+                1
+              ],
+              "mass": null,
+              "original_name": null,
+              "attached": null,
+              "nattached": null
+            }
+          ],
+          "species_at_sites": [
+            "Si",
+            "Si",
+            "Si",
+            "Si"
+          ],
+          "structure_features": [],
+          "_alexandria_space_group": 63,
+          "_alexandria_hull_distance": 0.3348128,
+          "_alexandria_band_gap": 0
+        }
+      },
+      "retrievedAt": "2026-11-05T17:03:39.738Z",
+      "sourceUrl": "https://alexandria.icams.rub.de/pbe/v1/structures/agm002024878"
+    },
+    "jarvis": {
+      "record": {
+        "id": "dft_2d_JVASP-77684",
+        "type": "structures",
+        "attributes": {
+          "nsites": 8,
+          "search": "Si",
+          "species": [
+            {
+              "mass": null,
+              "name": "Si",
+              "attached": null,
+              "nattached": null,
+              "concentration": [
+                1
+              ],
+              "original_name": null,
+              "chemical_symbols": [
+                "Si"
+              ]
+            }
+          ],
+          "elements": [
+            "Si",
+            "Si",
+            "Si",
+            "Si",
+            "Si",
+            "Si",
+            "Si",
+            "Si"
+          ],
+          "nelements": 8,
+          "_jarvis_efg": [],
+          "_jarvis_jid": "JVASP-77684",
+          "_jarvis_nat": 8,
+          "_jarvis_spg": "65",
+          "_jarvis_typ": "SingleLayer",
+          "_jarvis_crys": "orthorhombic",
+          "_jarvis_epsx": -99999,
+          "_jarvis_epsy": -99999,
+          "_jarvis_epsz": -99999,
+          "_jarvis_func": "OptB88vdW",
+          "_jarvis_icsd": "",
+          "_jarvis_slme": -99999,
+          "_jarvis_ehull": 0,
+          "_jarvis_encut": 500,
+          "_jarvis_mepsx": -99999,
+          "_jarvis_mepsy": -99999,
+          "_jarvis_mepsz": -99999,
+          "_jarvis_modes": -99999,
+          "_jarvis_ncond": -99999,
+          "_jarvis_pcond": -99999,
+          "last_modified": "2024-12-08T04:27:35.204822+00:00",
+          "_jarvis_nkappa": -99999,
+          "_jarvis_pkappa": -99999,
+          "_jarvis_search": "-Si",
+          "_jarvis_source": "dft_2d",
+          "_jarvis_density": 0.492,
+          "_jarvis_formula": "Si",
+          "_jarvis_hse_gap": -99999,
+          "_jarvis_max_efg": -99999,
+          "_jarvis_poisson": -99999,
+          "dimension_types": [
+            1,
+            1,
+            1
+          ],
+          "elements_ratios": [
+            1
+          ],
+          "lattice_vectors": [
+            [
+              6.601122448892395,
+              -2.4696668392668824,
+              0
+            ],
+            [
+              -3.162917450043915,
+              6.298414733831779,
+              0
+            ],
+            [
+              0,
+              0,
+              22.476621
+            ]
+          ],
+          "_jarvis_spillage": -99999,
+          "species_at_sites": [
+            "Si",
+            "Si",
+            "Si",
+            "Si",
+            "Si",
+            "Si",
+            "Si",
+            "Si"
+          ],
+          "_jarvis_n-Seebeck": -99999,
+          "_jarvis_p-Seebeck": -99999,
+          "_jarvis_raw_files": [
+            "DFT-SCF,JVASP-77684.zip,https://ndownloader.figshare.com/files/23505605"
+          ],
+          "_jarvis_reference": "https://www.ctcms.nist.gov/~knc6/static/JARVIS-DFT/JVASP-77684",
+          "_jarvis_maxdiff_bz": -99999,
+          "_jarvis_spg_number": "65",
+          "_jarvis_spg_symbol": "Cmmm",
+          "structure_features": [],
+          "_jarvis_Tc_supercon": -99999,
+          "_jarvis_max_ir_mode": -99999,
+          "_jarvis_mbj_bandgap": -99999,
+          "_jarvis_min_ir_mode": -99999,
+          "_jarvis_n-powerfact": -99999,
+          "_jarvis_p-powerfact": -99999,
+          "_jarvis_maxdiff_mesh": -99999,
+          "nperiodic_dimensions": 3,
+          "_jarvis_avg_elec_mass": -99999,
+          "_jarvis_avg_hole_mass": -99999,
+          "_jarvis_magmom_outcar": 0,
+          "_jarvis_dimensionality": -99999,
+          "_jarvis_elastic_tensor": -99999,
+          "_jarvis_magmom_oszicar": 0,
+          "_jarvis_bulk_modulus_kv": -99999,
+          "_jarvis_shear_modulus_gv": -99999,
+          "cartesian_site_positions": [
+            [
+              -1.58146,
+              3.149205,
+              10.042912088066592
+            ],
+            [
+              0.8419497118765558,
+              2.702048450141999,
+              12.454800593979932
+            ],
+            [
+              0.8419497118765558,
+              2.702048450141999,
+              10.021819406020063
+            ],
+            [
+              3.30056,
+              -1.234835,
+              12.433707911933402
+            ],
+            [
+              3.30056,
+              -1.234835,
+              10.042912088066592
+            ],
+            [
+              -1.58146,
+              3.149205,
+              12.433707911933402
+            ],
+            [
+              2.5962502881234455,
+              1.1266915498579992,
+              12.454800593979932
+            ],
+            [
+              2.5962502881234455,
+              1.1266915498579992,
+              10.021819406020063
+            ]
+          ],
+          "chemical_formula_reduced": "Si",
+          "_jarvis_optb88vdw_bandgap": 0,
+          "_jarvis_dfpt_piezo_max_dij": -99999,
+          "_jarvis_dfpt_piezo_max_eij": -99999,
+          "_jarvis_exfoliation_energy": -99999,
+          "_jarvis_kpoint_length_unit": 125,
+          "chemical_formula_anonymous": "A",
+          "chemical_formula_descriptive": "Si",
+          "_jarvis_optb88vdw_total_energy": -3.19697,
+          "_jarvis_formation_energy_peratom": 0.97209,
+          "_jarvis_dfpt_piezo_max_dielectric": -99999,
+          "_jarvis_dfpt_piezo_max_dielectric_ionic": -99999,
+          "_jarvis_dfpt_piezo_max_dielectric_electronic": -99999
+        }
+      },
+      "retrievedAt": "2026-11-05T17:03:39.738Z",
+      "sourceUrl": "https://jarvis.nist.gov/optimade/jarvisdft/v1/structures/dft_2d_JVASP-77684"
+    },
+    "oqmd": {
+      "record": {
+        "id": "4486446",
+        "type": "structures",
+        "attributes": {
+          "chemical_formula_reduced": "OSi",
+          "nsites": 2,
+          "lattice_vectors": [
+            [
+              2.782215,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              2.782215,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              2.782215
+            ]
+          ],
+          "species_at_sites": [
+            "O",
+            "Si"
+          ],
+          "structure_features": [],
+          "species": [
+            {
+              "name": "O",
+              "chemical_symbols": [
+                "O"
+              ],
+              "concentration": [
+                1.0
+              ]
+            },
+            {
+              "name": "Si",
+              "chemical_symbols": [
+                "Si"
+              ],
+              "concentration": [
+                1.0
+              ]
+            }
+          ],
+          "cartesian_site_positions": [
+            [
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              1.39111,
+              1.39111,
+              1.39111
+            ]
+          ],
+          "space_group_it_number": 221,
+          "_oqmd_entry_id": 307572,
+          "_oqmd_band_gap": 0.0,
+          "_oqmd_stability": 2.09,
+          "_oqmd_spacegroup": "Pm-3m"
+        }
+      },
+      "expectedError": "periodicity",
+      "sourceUrl": "https://oqmd.org/optimade/v1/structures"
+    }
+  }
+}

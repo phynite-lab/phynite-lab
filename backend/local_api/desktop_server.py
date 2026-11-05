@@ -273,6 +273,9 @@ class DesktopApplication:
             return self.job_request(headers, match[1], match[2], payload)
         if path == "/__local/session" and method == "GET":
             return response(200, {**self.services.local_session(), 'cloud': self.connections.cloud_status()})
+        if path == '/__local/crystals/standardize' and method == 'POST':
+            from backend.local_api.crystal_cells import standardize_crystal
+            return response(200, standardize_crystal(payload, self.runtime))
         if path == '/__local/materials-project':
             if method == 'GET':
                 return response(200, self.materials_project.status())
@@ -292,7 +295,8 @@ class DesktopApplication:
                 limit = int(query.get('limit', '12'))
             except (TypeError, ValueError):
                 raise ApiError(400, 'Choose between one and thirty material records.', 'INVALID_MATERIAL_LIMIT') from None
-            return response(200, self.materials_project.search(query.get('q'), limit))
+            options = {key: query[key] for key in ('offset', 'sort', 'spaceGroup', 'minSites', 'maxSites', 'minBandGap', 'maxBandGap', 'maxEnergyAboveHull') if key in query}
+            return response(200, self.materials_project.search(query.get('q'), limit, options))
         if path.startswith('/__local/materials-project/'):
             raise ApiError(404, 'Unknown Materials Project operation.', 'NOT_FOUND')
         if path == "/__local/runtime" and method == "GET":

@@ -88,6 +88,10 @@ for the local package are [Install, update, and diagnose the npm app](https://ph
 [Settings](https://phynitelab.com/guide/settings-reference). Downloadable English
 and Indonesian Markdown guides are available from the documentation page.
 
+See [crystal database imports](docs/crystal-database.md) for supported sources,
+property filters, preview, primitive/conventional cells, supercells and retained
+source evidence.
+
 The guide follows task paths: **Start here**, **Install & update**, **Projects
 & structures**, **QE & DFT**, **MD & analysis**, **AI providers**, **Phynite
 Cloud**, **Storage & backups**, **Settings & preferences**, **Results &

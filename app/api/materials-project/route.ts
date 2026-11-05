@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { CrystalDatabaseError, type CrystalDatabaseSource } from '@/lib/crystal-database';
+import { CrystalDatabaseError } from '@/lib/crystal-database';
+import { crystalOptionsFromParameters } from '@/lib/crystal-database-options';
 import { searchServerCrystalDatabase } from '@/lib/crystal-database-server';
 
 export const runtime = 'edge';
@@ -7,8 +8,7 @@ export const runtime = 'edge';
 export async function GET(request: NextRequest) {
   try {
     const result = await searchServerCrystalDatabase(request.nextUrl.searchParams.get('q'), {
-      source: (request.nextUrl.searchParams.get('source') ?? 'auto') as CrystalDatabaseSource,
-      limit: Number(request.nextUrl.searchParams.get('limit')) || 12,
+      ...crystalOptionsFromParameters(request.nextUrl.searchParams),
       signal: request.signal,
     });
     return NextResponse.json(result, { headers: { 'Cache-Control': 'private, no-store' } });

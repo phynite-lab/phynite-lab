@@ -2,6 +2,22 @@ import type { CrystalDatabaseMaterial } from './crystal-database.ts';
 import type { WorkflowNode } from './project-workflow.ts';
 import type { ParsedStructure } from './structure-parsers.ts';
 import { structureFormula } from './structure-formula.ts';
+import { cellVectorsFromLattice, fractionalVectorToCartesian } from './crystal-cell.ts';
+import { orderedStructureIssue } from './structure-occupancy.ts';
+
+/** Choose a research format that can retain the selected geometry and periodic axes. */
+export function crystalDatabaseFile(material: CrystalDatabaseMaterial) {
+  const name = `${material.formula}-${material.materialId}`.replace(/[^A-Za-z0-9_.-]/g, '-').slice(0, 160);
+  if (material.sourceData.format === 'cif' && !material.geometryTransforms?.length && !material.lattice.periodic?.some(value => !value)) return { filename: `${name}.cif`, content: material.sourceData.content };
+  const issue = orderedStructureIssue(material.atoms);
+  if (issue) throw new Error(issue);
+  const vectors = cellVectorsFromLattice(material.lattice);
+  const rows = material.atoms.map(atom => `${atom.species} ${fractionalVectorToCartesian([atom.x, atom.y, atom.z], vectors).join(' ')}`);
+  // Number serialization round-trips source doubles; do not round vectors or
+  // rotate a tilted source into the conventional orientation of a CIF cell.
+  const header = `Lattice="${vectors.flat().join(' ')}" Properties=species:S:1:pos:R:3 pbc="${(material.lattice.periodic ?? [true, true, true]).map(value => value ? 'T' : 'F').join(' ')}" Name="${name}"`;
+  return { filename: `${name}.xyz`, content: `${material.atoms.length}\n${header}\n${rows.join('\n')}\n` };
+}
 
 export type CrystalDatabaseInput = ParsedStructure & {
   formula: string;
@@ -11,7 +27,7 @@ export type CrystalDatabaseInput = ParsedStructure & {
   sourceUpdatedAt: string | null;
   sourceData: CrystalDatabaseMaterial['sourceData'];
   provenance: CrystalDatabaseMaterial['provenance'];
-  geometryProvenance: Array<{ kind: 'database-import' } & CrystalDatabaseMaterial['provenance']>;
+  geometryProvenance: Array<Record<string, unknown>>;
   bandGap?: number;
 };
 
@@ -28,7 +44,7 @@ export function crystalDatabaseInput(material: CrystalDatabaseMaterial): Crystal
     sourceUpdatedAt: material.lastUpdated,
     sourceData: material.sourceData,
     provenance: material.provenance,
-    geometryProvenance: [{ kind: 'database-import', ...material.provenance }],
+    geometryProvenance: [{ kind: 'database-import', ...material.provenance }, ...(material.geometryTransforms ?? [])],
     ...(material.bandGap === undefined ? {} : { bandGap: material.bandGap }),
   };
 }

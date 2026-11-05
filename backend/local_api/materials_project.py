@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import re
 import threading
@@ -93,17 +94,37 @@ class MaterialsProjectConnection:
             self.verified_key = self.checked_at = None
             return self.status()
 
-    def _request(self, query: str, limit: int) -> dict[str, Any]:
+    def _request(self, query: str, limit: int, options: dict[str, Any] | None = None) -> dict[str, Any]:
         if (not isinstance(query, str) or not 1 <= len(query.strip()) <= 80
                 or not re.fullmatch(r"[A-Za-z0-9*+\-., ()]+", query.strip())
                 or re.search(r"api[_ -]?key|password|bearer|token|sk-[\w-]{12,}", query, re.I)):
             raise ApiError(400, "Use a public formula, element list, chemical system, or MP-ID without credentials.", "INVALID_MATERIAL_QUERY")
         if type(limit) is not int or not 1 <= limit <= 30:
             raise ApiError(400, "Choose between one and thirty material records.", "INVALID_MATERIAL_LIMIT")
+        options = options or {}
+        property_names = {"spaceGroup": "spacegroup_number", "minSites": "nsites_min", "maxSites": "nsites_max", "minBandGap": "band_gap_min", "maxBandGap": "band_gap_max", "maxEnergyAboveHull": "energy_above_hull_max"}
+        sorts = {"default": "energy_above_hull", "energy-above-hull": "energy_above_hull", "sites": "nsites", "-sites": "-nsites", "band-gap": "band_gap", "-band-gap": "-band_gap"}
+        if set(options) - {*property_names, "offset", "sort"} or options.get("sort", "default") not in sorts:
+            raise ApiError(400, "Choose supported Materials Project filters and sorting.", "CRYSTAL_FILTER_INVALID")
+        try:
+            offset = int(options.get("offset", 0))
+            if str(offset) != str(options.get("offset", 0)) or not 0 <= offset <= 10_000:
+                raise ValueError()
+            filters = {name: float(value) for name, value in options.items() if name in property_names}
+            for name, value in filters.items():
+                if not math.isfinite(value) or abs(value) > 100_000 or name in {"spaceGroup", "minSites", "maxSites"} and (value < 1 or not value.is_integer()) or name == "spaceGroup" and value > 230:
+                    raise ValueError()
+            if filters.get("minSites", 0) > filters.get("maxSites", math.inf) or filters.get("minBandGap", 0) > filters.get("maxBandGap", math.inf):
+                raise ValueError()
+        except (ValueError, TypeError):
+            raise ApiError(400, "Use valid property ranges, site counts and page offsets.", "CRYSTAL_FILTER_INVALID") from None
         key = self.api_key()
         filter_key, filter_value = query_filter(query.strip())
-        params = urllib.parse.urlencode({filter_key: filter_value, "_fields": SUMMARY_FIELDS,
-                                        "_limit": str(limit), "_sort_fields": "energy_above_hull"})
+        parameters = {filter_key: filter_value, "_fields": SUMMARY_FIELDS, "_limit": str(limit), "_sort_fields": sorts[options.get("sort", "default")]}
+        if offset:
+            parameters["_skip"] = str(offset)
+        parameters.update({property_names[name]: str(int(value)) if value.is_integer() else str(value) for name, value in filters.items()})
+        params = urllib.parse.urlencode(parameters)
         request = urllib.request.Request("https://api.materialsproject.org/materials/summary/?" + params,
                                          headers={"X-API-KEY": key, "Accept": "application/json", "User-Agent": "phynite-lab/1.0"})
         try:
@@ -136,10 +157,14 @@ class MaterialsProjectConnection:
                 self.verified_key, self.checked_at = self._fingerprint(key), utc_now()
         # Only catalogue documents are returned. HTTP headers, error bodies and
         # credential-vault metadata never become browser/AI context.
-        return {"data": payload["data"][:limit]}
+        result = {"data": payload["data"][:limit]}
+        total = payload.get("meta", {}).get("total_doc") if isinstance(payload.get("meta"), dict) else None
+        if type(total) is int and total >= 0:
+            result["meta"] = {"total_doc": total}
+        return result
 
-    def search(self, query: str, limit: int = 12) -> dict[str, Any]:
-        return self._request(query, limit)
+    def search(self, query: str, limit: int = 12, options: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self._request(query, limit, options)
 
     def test(self) -> dict[str, Any]:
         # An explicit recheck supersedes an earlier success. Failed/offline

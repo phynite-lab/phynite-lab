@@ -1,6 +1,7 @@
 /** Server-only adapter. The local native service keeps the Materials Project key in its vault. */
-import { CrystalDatabaseError, crystalDatabaseQuery, searchCrystalDatabase, type CrystalDatabaseSource } from './crystal-database.ts';
+import { CrystalDatabaseError, crystalDatabaseQuery, searchCrystalDatabase } from './crystal-database.ts';
 import { localAppMode } from './local-runtime.ts';
+import { crystalSearchParameters, type CrystalSearchOptions } from './crystal-database-options.ts';
 
 async function localMaterialsProject(path: string, signal?: AbortSignal): Promise<Record<string, unknown>> {
   try {
@@ -23,17 +24,19 @@ async function localMaterialsProject(path: string, signal?: AbortSignal): Promis
   }
 }
 
-export async function searchServerCrystalDatabase(rawQuery: unknown, options: { source?: CrystalDatabaseSource; signal?: AbortSignal; limit?: number } = {}) {
+export async function searchServerCrystalDatabase(rawQuery: unknown, options: CrystalSearchOptions & { signal?: AbortSignal } = {}) {
   const query = crystalDatabaseQuery(rawQuery), source = options.source ?? 'auto';
   // COD never requires local credentials or a native-service request.
-  if (!localAppMode() || source === 'cod' || /^(?:cod-)?\d{7}$/i.test(query)) {
+  if (!localAppMode() || !['auto', 'materials-project'].includes(source) || /^(?:cod-)?\d{7}$/i.test(query) || /^(oqmd|aflow|jarvis|alexandria|nomad)\//.test(query)) {
     return searchCrystalDatabase(query, { ...options, apiKey: process.env.MP_API_KEY });
   }
   const useMaterialsProject = source === 'materials-project' || /^mp-[a-z0-9]+$/i.test(query)
     || (source === 'auto' && (await localMaterialsProject('', options.signal)).configured === true);
   return searchCrystalDatabase(query, {
     ...options,
-    ...(useMaterialsProject ? { materialsProjectSearch: (value: string, limit: number, signal: AbortSignal) =>
-      localMaterialsProject(`/search?${new URLSearchParams({ q: value, limit: String(limit) })}`, signal) } : {}),
+    ...(useMaterialsProject ? { materialsProjectSearch: (value: string, limit: number, signal: AbortSignal, search: CrystalSearchOptions) => {
+      const parameters = crystalSearchParameters(search); parameters.set('q', value); parameters.set('limit', String(limit));
+      return localMaterialsProject(`/search?${parameters}`, signal);
+    } } : {}),
   });
 }
