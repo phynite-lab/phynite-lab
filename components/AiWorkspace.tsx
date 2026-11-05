@@ -461,7 +461,7 @@ function AiWorkspaceOwner({ owner, projectId, legacyProjectId, conversationId, v
     }
     if ((!text.trim() && !files.length) || enqueueLock.current || loading || settingsBusy || !configured || files.some(file => !file.attachment || file.error)) return;
     const capability = gatewayModels[modelId];
-    if (files.some(file => file.attachment?.mediaType === 'application/pdf') && capability?.pdf === false) { setError(t('This gateway model has not passed PDF reading checks. Keep the file, choose a PDF-compatible model, or attach extracted text.', 'Model gateway ini belum lolos uji baca PDF. File tetap tersimpan; pilih model yang mendukung PDF atau lampirkan teks hasil ekstraksi.')); return; }
+    // PDFs are not gated here: without verified native PDF input, the turn reads their extracted text and states that limit.
     if (files.some(file => file.attachment?.mediaType.startsWith('image/')) && capability?.images === false) { setError(t('Image reading is not verified for this model. Choose another verified model.', 'Pembacaan gambar belum terverifikasi untuk model ini. Pilih model lain yang sudah terverifikasi.')); return; }
     const message = text.trim(), selected = files;
     const workbench = { taskMode, contextRefs: contexts.map(item => item.ref), sourceArtifactId: sourcePlan, skillRef };
