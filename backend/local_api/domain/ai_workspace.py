@@ -10,8 +10,8 @@ import secrets
 import time
 from datetime import datetime
 from typing import Any
-from urllib.parse import urlsplit
-from backend.local_api.domain.phynite_core import ApiError, json_safe, owner_partition, public_item, response, storage_owner, utc_now
+from urllib.parse import quote, urlsplit
+from backend.local_api.domain.phynite_core import ApiError, json_safe, owner_partition, response, storage_owner, utc_now
 MODES = {'chat', 'approval', 'full'}
 RESOURCE_KINDS = {'structure': 'STRUCTURE', 'calculation': 'CALCULATION', 'trajectory': 'MD_TRAJECTORY', 'simulation': 'MD_SIMULATION', 'analysis': 'MD_ANALYSIS', 'md_configuration': 'MD_CONFIGURATION', 'potential': 'MD_POTENTIAL', 'dataset': 'DATASET', 'figure': 'FIGURE'}
 ACTIONS = {'derive_structure', 'import_structure', 'save_dft', 'run_dft', 'save_md', 'run_md', 'run_analysis', 'cancel_job', 'save_figure', 'export_figure', 'save_workflow', 'run_workflow', 'cancel_workflow'}
@@ -159,9 +159,14 @@ def database_structure(document: Any) -> None:
         fail(409, 'The imported source checksum does not match its provenance.', 'AI_STRUCTURE_PROVENANCE_INVALID')
     database, external_id = provenance.get('database'), provenance.get('id')
     definitions = {'cod': (r'cod-[0-9]{7}', 'www.crystallography.net', lambda value: f'/cod/{value[4:]}.html', 'cif', '.cif'), 'materials-project': (r'mp-[0-9]+', 'materialsproject.org', lambda value: f'/materials/{value}', 'materials-project-json', '.json')}
+    optimade = {'oqmd': ('oqmd.org', '/optimade/v1/structures/'), 'aflow': ('aflow.org', '/API/optimade/v1/structures/'), 'jarvis': ('jarvis.nist.gov', '/optimade/jarvisdft/v1/structures/'), 'alexandria': ('alexandria.icams.rub.de', '/pbe/v1/structures/'), 'nomad': ('nomad-lab.eu', '/prod/v1/optimade/v1/structures/')}
+    for name, (host, prefix) in optimade.items():
+        definitions[name] = (rf'{name}/[A-Za-z0-9_:.-]{{1,120}}', host, lambda value, base=prefix: base + quote(value.split('/', 1)[1], safe=''), 'optimade-json', '.json')
     if not isinstance(database, str) or database not in definitions or not isinstance(external_id, str):
         fail(400, 'Choose a supported crystal database and source ID.', 'AI_STRUCTURE_PROVENANCE_INVALID')
     pattern, hostname, source_path, source_format, extension = definitions[database]
+    if source_format == 'optimade-json' and external_id.split('/', 1)[-1] in {'.', '..'}:
+        fail(400, 'The database source ID must name a structure record.', 'AI_STRUCTURE_PROVENANCE_INVALID')
     if not re.fullmatch(pattern, external_id) or document.get('externalId') != external_id or source['format'] != source_format or provenance.get('sourceFormat') != source_format or not source['filename'].endswith(extension):
         fail(400, 'The database ID or retained source format is inconsistent.', 'AI_STRUCTURE_PROVENANCE_INVALID')
     if document.get('sourceUrl') != provenance.get('url'):

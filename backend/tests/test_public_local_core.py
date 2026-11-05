@@ -1,7 +1,6 @@
 """The public local core must work with the hosted source physically absent."""
 from __future__ import annotations
 
-import ast
 import importlib.util
 import json
 import os
@@ -11,7 +10,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import time
 import unittest
 
 from backend.local_api.domain.api import PhyniteApi, normalize_md_manual_body
@@ -49,7 +47,7 @@ class PublicLocalCoreTests(unittest.TestCase):
             # Shared SSE parser and the release producer are public source, not
             # frozen runtime dependencies. Their portable contract tests need
             # these explicit inputs even in this Python-only stripped tree.
-            test_inputs = ["lib/ai-provider.ts", "lib/ai-contract.ts", "scripts/qualify-local-science.py", "distribution/qualification/qe/fixture.json", "tests/fixtures/crystal-database-imports.json"]
+            test_inputs = ["lib/ai-provider.ts", "lib/ai-contract.ts", "scripts/qualify-local-science.py", "distribution/qualification/qe/fixture.json", "tests/fixtures/crystal-database-imports.json", "tests/fixtures/crystal-optimade-imports.json"]
             for module in sorted((ROOT / "packages/phynite-lab/lib").glob("*.mjs")):
                 test_inputs.append(module.relative_to(ROOT).as_posix())
             for name in manifest["pythonModules"] + manifest["dataFiles"] + tests + test_inputs:

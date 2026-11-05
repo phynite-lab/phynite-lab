@@ -165,7 +165,7 @@ type MaterialRecord = {
   kind: string;
   atoms: CustomAtom[];
   lattice: LatticeParameters;
-  source?: 'Local' | 'Materials Project' | 'Crystallography Open Database';
+  source?: 'Local' | MaterialsProjectMaterial['source'];
   externalId?: string;
   sourceUrl?: string;
   sourceData?: MaterialsProjectMaterial['sourceData'];
@@ -2074,7 +2074,7 @@ export function ProjectCrystalWorkspace({ cloudSync, ownerId, session: headerSes
           sourceUrl: material.sourceUrl,
           sourceData: material.sourceData,
           provenance: material.provenance,
-          geometryProvenance: [{ operation: 'database-import', ...material.provenance }],
+          geometryProvenance: [{ operation: 'database-import', ...material.provenance }, ...(material.geometryTransforms ?? [])],
           sourceUpdatedAt: material.lastUpdated,
           geometryUpdatedAt: timestamp,
           sourceGeometryUpdatedAt: timestamp,

@@ -10,7 +10,7 @@ import time
 import unittest
 from unittest.mock import patch
 
-from backend.local_api.domain.ai_workspace import AiWorkspace, digest
+from backend.local_api.domain.ai_workspace import AiWorkspace, database_structure, digest
 from backend.local_api.domain.api import PhyniteApi
 from backend.local_api.domain.phynite_core import ApiError
 from backend.local_api.domain.project_workflow import ProjectWorkflowApi
@@ -84,6 +84,26 @@ class LocalAiStructureImportTests(unittest.TestCase):
         result = self.ai.execute(self.owner, self.conversation, action, action['payloadHash'])
         self.assertEqual(result['status'], 'succeeded', result)
         self.assertEqual(result['result']['provenance']['database'], 'materials-project')
+
+    def test_all_optimade_sources_match_the_shared_normalizer_contract(self):
+        fixtures = json.loads((Path(__file__).resolve().parents[2] / 'tests/fixtures/crystal-optimade-imports.json').read_text())['materials']
+        for source, material in fixtures.items():
+            with self.subTest(source=source):
+                structure = imported_node()['configuration']['structure']
+                structure.update({'formula': material['formula'], 'atoms': material['atoms'], 'lattice': material['lattice'], 'periodic': material['lattice']['periodic'], 'source': material['source'], 'externalId': material['materialId'], 'sourceUrl': material['sourceUrl'], 'sourceData': material['sourceData'], 'provenance': material['provenance']})
+                database_structure(structure)
+                forged = copy.deepcopy(structure)
+                forged['sourceUrl'] = forged['provenance']['url'] = 'https://untrusted.invalid/structure'
+                with self.assertRaises(ApiError):
+                    database_structure(forged)
+        material = fixtures['alexandria']
+        node = imported_node()
+        node['configuration']['structure'].update({'formula': material['formula'], 'atoms': material['atoms'], 'lattice': material['lattice'], 'periodic': material['lattice']['periodic'], 'source': material['source'], 'externalId': material['materialId'], 'sourceUrl': material['sourceUrl'], 'sourceData': material['sourceData'], 'provenance': material['provenance']})
+        with patch('urllib.request.urlopen', side_effect=AssertionError('Approval must not fetch an untrusted URL')):
+            action = self.prepare(self.payload(node))
+            result = self.ai.execute(self.owner, self.conversation, action, action['payloadHash'])
+        self.assertEqual(result['status'], 'succeeded', result)
+        self.assertEqual(result['result']['provenance']['database'], 'alexandria')
 
     def test_import_appends_without_replacing_existing_input_and_retains_original_source_date(self):
         graph = self.workflow.load(self.owner, self.project)['workflow']

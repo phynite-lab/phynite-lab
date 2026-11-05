@@ -1,0 +1,380 @@
+{
+  "description": "Synthetic protocol fixtures for cross-language provenance validation; not scientific reference results.",
+  "materials": {
+    "oqmd": {
+      "source": "OQMD",
+      "materialId": "oqmd/synthetic-fixture",
+      "formula": "Si",
+      "lattice": {
+        "a": 4,
+        "b": 5.099019513592785,
+        "c": 6,
+        "alpha": 90,
+        "beta": 90,
+        "gamma": 78.69006752597979,
+        "vectors": [
+          [
+            4,
+            0,
+            0
+          ],
+          [
+            1,
+            5,
+            0
+          ],
+          [
+            0,
+            0,
+            6
+          ]
+        ],
+        "periodic": [
+          true,
+          true,
+          true
+        ]
+      },
+      "atoms": [
+        {
+          "id": "oqmd/synthetic-fixture-site-1",
+          "species": "Si",
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "occupancy": 1,
+          "siteSpecies": [
+            {
+              "element": "Si",
+              "species": "Si",
+              "occupancy": 1
+            }
+          ]
+        }
+      ],
+      "numSites": 1,
+      "spaceGroupSymbol": "unknown",
+      "crystalSystem": "unknown",
+      "lastUpdated": "2026-01-01T00:00:00Z",
+      "sourceUrl": "https://oqmd.org/optimade/v1/structures/synthetic-fixture",
+      "sourceData": {
+        "filename": "oqmd-synthetic-fixture.json",
+        "format": "optimade-json",
+        "content": "{\"type\":\"structures\",\"id\":\"synthetic-fixture\",\"attributes\":{\"chemical_formula_reduced\":\"Si\",\"nsites\":1,\"lattice_vectors\":[[4,0,0],[1,5,0],[0,0,6]],\"cartesian_site_positions\":[[0,0,0]],\"species_at_sites\":[\"Si\"],\"species\":[{\"name\":\"Si\",\"chemical_symbols\":[\"Si\"],\"concentration\":[1]}],\"dimension_types\":[1,1,1],\"structure_features\":[],\"last_modified\":\"2026-01-01T00:00:00Z\"}}",
+        "sha256": "2d0643fc6f1b4b09830e7c62b1249cad77e67ffba0ad03444c89b4cf7327f32c"
+      },
+      "provenance": {
+        "database": "oqmd",
+        "id": "oqmd/synthetic-fixture",
+        "url": "https://oqmd.org/optimade/v1/structures/synthetic-fixture",
+        "retrievedAt": "2026-01-02T00:00:00Z",
+        "sourceUpdatedAt": "2026-01-01T00:00:00Z",
+        "sourceFormat": "optimade-json",
+        "sourceSha256": "2d0643fc6f1b4b09830e7c62b1249cad77e67ffba0ad03444c89b4cf7327f32c",
+        "structureSha256": "10b8432e6b23eb102e85160ee3134684ebe948c73d376ab33dfcab45def515e1",
+        "termsUrl": "https://oqmd.org/"
+      },
+      "warnings": []
+    },
+    "aflow": {
+      "source": "AFLOW",
+      "materialId": "aflow/aflow:synthetic",
+      "formula": "Si",
+      "lattice": {
+        "a": 4,
+        "b": 5.099019513592785,
+        "c": 6,
+        "alpha": 90,
+        "beta": 90,
+        "gamma": 78.69006752597979,
+        "vectors": [
+          [
+            4,
+            0,
+            0
+          ],
+          [
+            1,
+            5,
+            0
+          ],
+          [
+            0,
+            0,
+            6
+          ]
+        ],
+        "periodic": [
+          true,
+          true,
+          true
+        ]
+      },
+      "atoms": [
+        {
+          "id": "aflow/aflow:synthetic-site-1",
+          "species": "Si",
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "occupancy": 1,
+          "siteSpecies": [
+            {
+              "element": "Si",
+              "species": "Si",
+              "occupancy": 1
+            }
+          ]
+        }
+      ],
+      "numSites": 1,
+      "spaceGroupSymbol": "unknown",
+      "crystalSystem": "unknown",
+      "lastUpdated": "2026-01-01T00:00:00Z",
+      "sourceUrl": "https://aflow.org/API/optimade/v1/structures/aflow%3Asynthetic",
+      "sourceData": {
+        "filename": "aflow-aflow-synthetic.json",
+        "format": "optimade-json",
+        "content": "{\"type\":\"structures\",\"id\":\"aflow:synthetic\",\"attributes\":{\"chemical_formula_reduced\":\"Si\",\"nsites\":1,\"lattice_vectors\":[[4,0,0],[1,5,0],[0,0,6]],\"cartesian_site_positions\":[[0,0,0]],\"species_at_sites\":[\"Si\"],\"species\":[{\"name\":\"Si\",\"chemical_symbols\":[\"Si\"],\"concentration\":[1]}],\"dimension_types\":[1,1,1],\"structure_features\":[],\"last_modified\":\"2026-01-01T00:00:00Z\"}}",
+        "sha256": "71566ffb6b0bbc5b8adbedc7810dc34cc6d17645b5442802aa87115a6c2ccbc3"
+      },
+      "provenance": {
+        "database": "aflow",
+        "id": "aflow/aflow:synthetic",
+        "url": "https://aflow.org/API/optimade/v1/structures/aflow%3Asynthetic",
+        "retrievedAt": "2026-01-02T00:00:00Z",
+        "sourceUpdatedAt": "2026-01-01T00:00:00Z",
+        "sourceFormat": "optimade-json",
+        "sourceSha256": "71566ffb6b0bbc5b8adbedc7810dc34cc6d17645b5442802aa87115a6c2ccbc3",
+        "structureSha256": "03c2f812e9d5cacdb0ed3cd6df5fc636f66862f5daa1c24bd5c8676fe8ce0e33",
+        "termsUrl": "https://aflow.org/"
+      },
+      "warnings": []
+    },
+    "jarvis": {
+      "source": "JARVIS-DFT",
+      "materialId": "jarvis/synthetic-fixture",
+      "formula": "Si",
+      "lattice": {
+        "a": 4,
+        "b": 5.099019513592785,
+        "c": 6,
+        "alpha": 90,
+        "beta": 90,
+        "gamma": 78.69006752597979,
+        "vectors": [
+          [
+            4,
+            0,
+            0
+          ],
+          [
+            1,
+            5,
+            0
+          ],
+          [
+            0,
+            0,
+            6
+          ]
+        ],
+        "periodic": [
+          true,
+          true,
+          true
+        ]
+      },
+      "atoms": [
+        {
+          "id": "jarvis/synthetic-fixture-site-1",
+          "species": "Si",
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "occupancy": 1,
+          "siteSpecies": [
+            {
+              "element": "Si",
+              "species": "Si",
+              "occupancy": 1
+            }
+          ]
+        }
+      ],
+      "numSites": 1,
+      "spaceGroupSymbol": "unknown",
+      "crystalSystem": "unknown",
+      "lastUpdated": "2026-01-01T00:00:00Z",
+      "sourceUrl": "https://jarvis.nist.gov/optimade/jarvisdft/v1/structures/synthetic-fixture",
+      "sourceData": {
+        "filename": "jarvis-synthetic-fixture.json",
+        "format": "optimade-json",
+        "content": "{\"type\":\"structures\",\"id\":\"synthetic-fixture\",\"attributes\":{\"chemical_formula_reduced\":\"Si\",\"nsites\":1,\"lattice_vectors\":[[4,0,0],[1,5,0],[0,0,6]],\"cartesian_site_positions\":[[0,0,0]],\"species_at_sites\":[\"Si\"],\"species\":[{\"name\":\"Si\",\"chemical_symbols\":[\"Si\"],\"concentration\":[1]}],\"dimension_types\":[1,1,1],\"structure_features\":[],\"last_modified\":\"2026-01-01T00:00:00Z\"}}",
+        "sha256": "2d0643fc6f1b4b09830e7c62b1249cad77e67ffba0ad03444c89b4cf7327f32c"
+      },
+      "provenance": {
+        "database": "jarvis",
+        "id": "jarvis/synthetic-fixture",
+        "url": "https://jarvis.nist.gov/optimade/jarvisdft/v1/structures/synthetic-fixture",
+        "retrievedAt": "2026-01-02T00:00:00Z",
+        "sourceUpdatedAt": "2026-01-01T00:00:00Z",
+        "sourceFormat": "optimade-json",
+        "sourceSha256": "2d0643fc6f1b4b09830e7c62b1249cad77e67ffba0ad03444c89b4cf7327f32c",
+        "structureSha256": "c9faf8ddecbe62feebd93265e2a5465d0be6c0dcbba929a96b9e7eaad37fd3d5",
+        "termsUrl": "https://jarvis.nist.gov/"
+      },
+      "warnings": []
+    },
+    "alexandria": {
+      "source": "Alexandria PBE",
+      "materialId": "alexandria/synthetic-fixture",
+      "formula": "Si",
+      "lattice": {
+        "a": 4,
+        "b": 5.099019513592785,
+        "c": 6,
+        "alpha": 90,
+        "beta": 90,
+        "gamma": 78.69006752597979,
+        "vectors": [
+          [
+            4,
+            0,
+            0
+          ],
+          [
+            1,
+            5,
+            0
+          ],
+          [
+            0,
+            0,
+            6
+          ]
+        ],
+        "periodic": [
+          true,
+          true,
+          true
+        ]
+      },
+      "atoms": [
+        {
+          "id": "alexandria/synthetic-fixture-site-1",
+          "species": "Si",
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "occupancy": 1,
+          "siteSpecies": [
+            {
+              "element": "Si",
+              "species": "Si",
+              "occupancy": 1
+            }
+          ]
+        }
+      ],
+      "numSites": 1,
+      "spaceGroupSymbol": "unknown",
+      "crystalSystem": "unknown",
+      "lastUpdated": "2026-01-01T00:00:00Z",
+      "sourceUrl": "https://alexandria.icams.rub.de/pbe/v1/structures/synthetic-fixture",
+      "sourceData": {
+        "filename": "alexandria-synthetic-fixture.json",
+        "format": "optimade-json",
+        "content": "{\"type\":\"structures\",\"id\":\"synthetic-fixture\",\"attributes\":{\"chemical_formula_reduced\":\"Si\",\"nsites\":1,\"lattice_vectors\":[[4,0,0],[1,5,0],[0,0,6]],\"cartesian_site_positions\":[[0,0,0]],\"species_at_sites\":[\"Si\"],\"species\":[{\"name\":\"Si\",\"chemical_symbols\":[\"Si\"],\"concentration\":[1]}],\"dimension_types\":[1,1,1],\"structure_features\":[],\"last_modified\":\"2026-01-01T00:00:00Z\"}}",
+        "sha256": "2d0643fc6f1b4b09830e7c62b1249cad77e67ffba0ad03444c89b4cf7327f32c"
+      },
+      "provenance": {
+        "database": "alexandria",
+        "id": "alexandria/synthetic-fixture",
+        "url": "https://alexandria.icams.rub.de/pbe/v1/structures/synthetic-fixture",
+        "retrievedAt": "2026-01-02T00:00:00Z",
+        "sourceUpdatedAt": "2026-01-01T00:00:00Z",
+        "sourceFormat": "optimade-json",
+        "sourceSha256": "2d0643fc6f1b4b09830e7c62b1249cad77e67ffba0ad03444c89b4cf7327f32c",
+        "structureSha256": "7286e1360743950ddd71e88523c85b66239c99661fa6ed2bd1c3222a4afd85cf",
+        "termsUrl": "https://alexandria.icams.rub.de/"
+      },
+      "warnings": []
+    },
+    "nomad": {
+      "source": "NOMAD",
+      "materialId": "nomad/synthetic-fixture",
+      "formula": "Si",
+      "lattice": {
+        "a": 4,
+        "b": 5.099019513592785,
+        "c": 6,
+        "alpha": 90,
+        "beta": 90,
+        "gamma": 78.69006752597979,
+        "vectors": [
+          [
+            4,
+            0,
+            0
+          ],
+          [
+            1,
+            5,
+            0
+          ],
+          [
+            0,
+            0,
+            6
+          ]
+        ],
+        "periodic": [
+          true,
+          true,
+          true
+        ]
+      },
+      "atoms": [
+        {
+          "id": "nomad/synthetic-fixture-site-1",
+          "species": "Si",
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "occupancy": 1,
+          "siteSpecies": [
+            {
+              "element": "Si",
+              "species": "Si",
+              "occupancy": 1
+            }
+          ]
+        }
+      ],
+      "numSites": 1,
+      "spaceGroupSymbol": "unknown",
+      "crystalSystem": "unknown",
+      "lastUpdated": "2026-01-01T00:00:00Z",
+      "sourceUrl": "https://nomad-lab.eu/prod/v1/optimade/v1/structures/synthetic-fixture",
+      "sourceData": {
+        "filename": "nomad-synthetic-fixture.json",
+        "format": "optimade-json",
+        "content": "{\"type\":\"structures\",\"id\":\"synthetic-fixture\",\"attributes\":{\"chemical_formula_reduced\":\"Si\",\"nsites\":1,\"lattice_vectors\":[[4,0,0],[1,5,0],[0,0,6]],\"cartesian_site_positions\":[[0,0,0]],\"species_at_sites\":[\"Si\"],\"species\":[{\"name\":\"Si\",\"chemical_symbols\":[\"Si\"],\"concentration\":[1]}],\"dimension_types\":[1,1,1],\"structure_features\":[],\"last_modified\":\"2026-01-01T00:00:00Z\"}}",
+        "sha256": "2d0643fc6f1b4b09830e7c62b1249cad77e67ffba0ad03444c89b4cf7327f32c"
+      },
+      "provenance": {
+        "database": "nomad",
+        "id": "nomad/synthetic-fixture",
+        "url": "https://nomad-lab.eu/prod/v1/optimade/v1/structures/synthetic-fixture",
+        "retrievedAt": "2026-01-02T00:00:00Z",
+        "sourceUpdatedAt": "2026-01-01T00:00:00Z",
+        "sourceFormat": "optimade-json",
+        "sourceSha256": "2d0643fc6f1b4b09830e7c62b1249cad77e67ffba0ad03444c89b4cf7327f32c",
+        "structureSha256": "2bd91f78b4c75a6d092419cc5be1925bf48327693309d6fcf79c93f1f5d73d71",
+        "termsUrl": "https://nomad-lab.eu/"
+      },
+      "warnings": []
+    }
+  }
+}
