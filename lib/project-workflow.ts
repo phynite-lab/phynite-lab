@@ -20,8 +20,8 @@ export type WorkflowPlan = { compilerSha256?: string | null; revision: number; t
 export const workflowModules: Record<WorkflowKind, { en: string; id: string; input?: WorkflowPort; output: WorkflowPort; multiple?: boolean }> = {
   structure: { en: 'Crystal structure', id: 'Struktur kristal', output: 'structure' },
   trajectory: { en: 'Imported trajectory', id: 'Impor trajectory', output: 'trajectory' },
-  scf: { en: 'SCF / Total energy', id: 'SCF / Energi total', input: 'structure', output: 'electronic' },
   relax: { en: 'Relaxation', id: 'Relaksasi', input: 'structure', output: 'structure' },
+  scf: { en: 'SCF / Total energy', id: 'SCF / Energi total', input: 'structure', output: 'electronic' },
   bands: { en: 'Band structure', id: 'Struktur pita', input: 'electronic', output: 'dataset' },
   dos: { en: 'DOS / PDOS', id: 'DOS / PDOS', input: 'electronic', output: 'dataset' },
   phonon: { en: 'Phonon', id: 'Fonon', input: 'electronic', output: 'dataset' },

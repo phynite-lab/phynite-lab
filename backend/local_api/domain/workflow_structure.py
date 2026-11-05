@@ -3,11 +3,25 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 import xml.etree.ElementTree as ET
 from typing import Any
 from backend.local_api.domain.phynite_core import ApiError, owner_partition, require_owner_item, storage_owner, utc_now
 from backend.local_api.domain.dft_validation import dependency_dft_error, read_dft_manifest
 from backend.local_api.domain.elements import ELEMENT_SYMBOLS
+
+
+def resolve_qe_element(label: str, species_map: dict[str, str] | None = None) -> str:
+    """Resolve a Quantum ESPRESSO atomic label/species to its standard periodic element symbol."""
+    if species_map and label in species_map and species_map[label] in ELEMENT_SYMBOLS:
+        return species_map[label]
+    if label in ELEMENT_SYMBOLS:
+        return label
+    if len(label) >= 2 and label[0].isupper() and label[1].islower() and label[:2] in ELEMENT_SYMBOLS:
+        return label[:2]
+    if len(label) >= 1 and label[0].isupper() and label[:1] in ELEMENT_SYMBOLS:
+        return label[:1]
+    return label
 
 
 def source_structure(api: Any, owner: str, project: str, attempt: dict[str, Any]) -> dict[str, Any]:
@@ -32,8 +46,64 @@ def source_structure(api: Any, owner: str, project: str, attempt: dict[str, Any]
         factor = 0.529177210903  # QE schema atomic_structure is in bohr.
         vectors = [[float(number) * factor for number in row.text.split()] for row in geometry.find('cell')]
         particles = list(geometry.find('atomic_positions'))
+
+        species_map: dict[str, str] = {}
+        parent_periodic: list[bool] | None = None
+        parent_labels: list[str | None] = []
+        if job.get('structureId'):
+            try:
+                parent_item = api.services.get_item(owner, 'STRUCTURE', job['structureId'])
+                if parent_item and parent_item.get('objectKey'):
+                    raw_parent = api.services.s3.get_object(Bucket=api.services.bucket, Key=parent_item['objectKey'])['Body'].read(5_000_001)
+                    parent_data = json.loads(raw_parent)
+                    for a in parent_data.get('atoms', []):
+                        sp = a.get('species')
+                        lb = a.get('label') or sp
+                        parent_labels.append(a.get('label'))
+                        if lb and sp and sp in ELEMENT_SYMBOLS:
+                            species_map[str(lb)] = str(sp)
+                    if isinstance(parent_data.get('periodic'), list) and len(parent_data['periodic']) == 3:
+                        parent_periodic = [bool(p) for p in parent_data['periodic']]
+            except Exception:
+                pass
+
+        for species_node in root.findall('.//species'):
+            s_name = str(species_node.attrib.get('name') or '').strip()
+            pseudo = species_node.findtext('pseudo_file') or species_node.findtext('./pseudo_file') or ''
+            if s_name and pseudo and s_name not in species_map:
+                m = re.match(r'^([A-Za-z]{1,2})[._]', pseudo.strip())
+                if m and m.group(1).capitalize() in ELEMENT_SYMBOLS:
+                    species_map[s_name] = m.group(1).capitalize()
+
+        raw_species = [str(atom.attrib.get('name') or '').strip() for atom in particles]
+        element_map: dict[str, str] = {}
+        for name in raw_species:
+            element_map[name] = resolve_qe_element(name, species_map)
+
+        periodic = parent_periodic if parent_periodic is not None else [True, True, True]
         from backend.local_api.domain.workflow_md_results import frame_structure
-        return frame_structure({'vectors': vectors, 'positions': [float(number) * factor for atom in particles for number in atom.text.split()], 'species': [atom.attrib['name'] for atom in particles], 'origin': [0, 0, 0], 'periodic': [True, True, True], 'hasCell': True}, {'coordinateUnit': 'angstrom'})
+        result = frame_structure(
+            {
+                'vectors': vectors,
+                'positions': [float(number) * factor for atom in particles for number in atom.text.split()],
+                'species': raw_species,
+                'origin': [0, 0, 0],
+                'periodic': periodic,
+                'hasCell': True,
+            },
+            {
+                'coordinateUnit': 'angstrom',
+                'elementMap': element_map,
+                'periodic': periodic,
+                'name': f"{job.get('name', 'Structure')} (relaxed)" if stage == 'relax' else f"{job.get('name', 'Structure')} (converged)",
+            },
+        )
+        for index, atom in enumerate(result['atoms']):
+            orig_label = parent_labels[index] if index < len(parent_labels) and parent_labels[index] else raw_species[index]
+            if orig_label and orig_label != atom['species']:
+                atom['label'] = orig_label
+        result['source'] = 'workflow-relaxation' if stage == 'relax' else 'workflow-scf'
+        return result
     refs = attempt.get('result', {}).get('resources', [])
     ref = next((ref for ref in refs if ref['kind'] == 'structure'), None)
     if not ref:
