@@ -1303,7 +1303,7 @@ Hubungkan melalui CLI provider resmi yang Anda gunakan.
 Autentikasi provider tetap berada pada CLI lokal resminya.
 
 1. Instal dan autentikasi CLI provider resmi di komputer ini.
-2. Buka Pengaturan → Akun provider AI dan pilih Codex atau Antigravity.
+2. Buka Pengaturan → Akun provider AI dan pilih Codex, Claude Code, atau Antigravity.
 3. Selesaikan autentikasi melalui alur milik provider. Login CLI yang didukung dapat dipakai ulang tanpa mengimpor cookie atau file session.
 4. Biarkan aplikasi terbuka saat discovery model dan capability probe berjalan. Halaman hanya memilih model yang lulus pemeriksaan teks, streaming, dan tool.
 
@@ -1458,7 +1458,7 @@ Pada website hosted, Komputasi mempertahankan default akun per workload, profil 
 
 ### Menghubungkan AI dan membaca batasnya
 
-Koneksi provider AI memakai CLI resmi Codex atau Antigravity dengan akun sendiri. Login ini terpisah dari Phynite Cloud. Setelah autentikasi, penemuan model serta pemeriksaan kemampuan berjalan otomatis. Tools dan attachment memerlukan dukungan terverifikasi; perubahan Canvas tetap memakai approval serta validasi. Aplikasi lokal menyimpan satu koneksi yang dikelola CLI untuk setiap provider; tidak ada pengganti akun atau setup gateway lokal. Lampiran sumber AI dialirkan tanpa kuota browser lama 10 MB; byte asli dan checksum tetap disimpan. Pembaca format dan model terpilih tetap dapat memiliki batas aman sendiri, dan sumber besar dipertahankan dengan peringatan ekstraksi, bukan dipotong diam-diam.
+Koneksi provider AI memakai CLI resmi Codex, Claude Code, atau Antigravity dengan akun sendiri. Login ini terpisah dari Phynite Cloud. Setelah autentikasi, penemuan model serta pemeriksaan kemampuan berjalan otomatis. Tools dan attachment memerlukan dukungan terverifikasi; perubahan Canvas tetap memakai approval serta validasi. Aplikasi lokal menyimpan satu koneksi yang dikelola CLI untuk setiap provider; tidak ada pengganti akun atau setup gateway lokal. Lampiran sumber AI dialirkan tanpa kuota browser lama 10 MB; byte asli dan checksum tetap disimpan. Pembaca format dan model terpilih tetap dapat memiliki batas aman sendiri, dan sumber besar dipertahankan dengan peringatan ekstraksi, bukan dipotong diam-diam.
 
 Pemakaian serta reset berasal dari provider: persentase, jendela waktu, dan tanggal ditampilkan hanya jika dilaporkan. Sisa token tidak disimpulkan. Provider terputus, rate-limit, atau tidak didukung menampilkan status nyata tanpa berpindah provider diam-diam.
 

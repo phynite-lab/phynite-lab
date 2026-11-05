@@ -7,7 +7,7 @@ reports a different model or usage state.
 
 ## Local application: your provider accounts
 
-The npm application uses the user's own supported Codex or Antigravity CLI.
+The npm application uses the user's own supported Codex, Claude Code or Antigravity CLI.
 Open **Settings → AI provider accounts** to connect one supported CLI account,
 inspect connection status, and read available model and usage information. Complete authentication through the provider's official
 flow. Phynite Cloud login is separate and is not required for local AI. Phynite

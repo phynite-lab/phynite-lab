@@ -185,7 +185,7 @@ try {
   }
   await page.goto(initial.origin + '/account/ai-providers', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'AI provider connections', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Login with Codex|Open Antigravity login|Check CLI and sign in/, exact: false })).toHaveCount(2);
+  await expect(page.getByRole('button', { name: /Login with Codex|Open Claude Code login|Open Antigravity login|Check CLI and sign in/, exact: false })).toHaveCount(3);
   await expect(page.getByLabel('Gateway URL', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Save gateway|Switch|Create account slot/, exact: true })).toHaveCount(0);
   await page.goto(initial.origin + '/account/compute', { waitUntil: 'domcontentloaded' });

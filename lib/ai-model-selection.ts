@@ -6,6 +6,8 @@ export type AiModelChoice = { value: string; providerId: AiProviderId; label: st
 export function aiModelLabel(id: AiModelId, fallback = id as string): string {
   if (!id.includes('/')) return fallback;
   const raw = id.slice(id.indexOf('/') + 1);
+  // Claude Code aliases (sonnet, opus, ...) need the product name to be recognizable in the picker.
+  if (id.startsWith('claude/')) return `Claude ${raw.charAt(0).toUpperCase()}${raw.slice(1)}`;
   const label = id.startsWith('agy/') ? raw : raw.replace(/-(low|medium|high)$/, '');
   return label.split('-').map(word => ({ gpt: 'GPT', oss: 'OSS', gemini: 'Gemini', flash: 'Flash', pro: 'Pro', sol: 'Sol', luna: 'Luna', astra: 'Astra' })[word] ?? word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 }

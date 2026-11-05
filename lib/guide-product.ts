@@ -47,7 +47,7 @@ export const productGuideSections: GuideSection[] = [
         { kind: 'icon', src: '/brand/ai/antigravity.png', alt: 'Antigravity provider icon', caption: 'Provider authentication stays with the official local CLI.' },
       ], steps: [
         'Install and authenticate the official provider CLI on this computer.',
-        'Open Settings → AI provider accounts and choose Codex or Antigravity.',
+        'Open Settings → AI provider accounts and choose Codex, Claude Code or Antigravity.',
         'Complete authentication through the provider’s own flow. An existing supported CLI login can be reused without importing its cookie or session files.',
         'Keep the application open while model discovery and the capability probe run. The page selects only models that pass the supported text, streaming, and tool checks.',
       ], links: [{ label: 'AI provider settings', href: '/account/ai-providers' }] },

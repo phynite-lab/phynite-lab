@@ -119,6 +119,16 @@ raise SystemExit(not result.wasSuccessful())
             call("POST", path + "/stop", {"runId": started["run"]["id"]})
             self.assertEqual(call("GET", path, {})["run"]["status"], "stopped")
 
+    def test_local_selection_accepts_claude_code_models_with_verified_efforts(self):
+        from backend.local_api.domain.ai_workspace import valid_selection
+        env = {"PHYNITE_LOCAL_AI_MODELS": '["claude/sonnet","other/model"]', "PHYNITE_LOCAL_AI_CAPABILITIES": json.dumps({"models": {"claude/sonnet": {"efforts": ["auto", "high"]}}})}
+        with patch.dict(os.environ, env):
+            self.assertTrue(valid_selection("local", "claude/sonnet", "auto"))
+            self.assertTrue(valid_selection("local", "claude/sonnet", "high"))
+            self.assertFalse(valid_selection("local", "claude/sonnet", "max"))
+            # Only provider-owned bridge namespaces are accepted, even when listed in the catalogue.
+            self.assertFalse(valid_selection("local", "other/model", "auto"))
+
     def test_no_manual_capability_without_verified_runtime_and_preflight_rejects_shell(self):
         with tempfile.TemporaryDirectory() as directory:
             services = LocalServices(Path(directory), "http://127.0.0.1:8792", "http://127.0.0.1:3000")

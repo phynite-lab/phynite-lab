@@ -53,6 +53,12 @@ test('the local subscription bridge exposes detected Codex and Antigravity model
   assert.equal(choices[0].models.high, 'codex/gpt-6.1-sol');
 });
 
+test('Claude Code aliases are labelled with the product name in the picker', () => {
+  const choices = aiModelChoices([{ id: 'local', local: true, configured: true, models: ['sonnet', 'opus'].map(alias => ({ id: `claude/${alias}` as AiModelId, label: alias, capabilities: { available: true, efforts: ['auto', 'high'] as const } })) }]);
+  assert.deepEqual(choices.map(choice => choice.label), ['Claude Sonnet', 'Claude Opus']);
+  assert.equal(choices[0].models.high, 'claude/sonnet');
+});
+
 test('Antigravity variants retain their distinct model identities in the picker', () => {
   const choices = aiModelChoices([{ id: 'local', local: true, configured: true, models: ['high', 'medium', 'low'].map(effort => ({ id: `agy/gemini-3.8-flash-${effort}` as AiModelId, label: 'Gemini 3.8 Flash', capabilities: { available: true, efforts: ['auto'] } })) }]);
   assert.deepEqual(choices.map(choice => choice.label), ['Gemini 3.8 Flash High', 'Gemini 3.8 Flash Medium', 'Gemini 3.8 Flash Low']);
