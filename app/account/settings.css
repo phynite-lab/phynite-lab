@@ -215,8 +215,7 @@
 .local-ai-accounts-provider .local-ai-provider-icon { display: grid; width: 36px; height: 36px; flex: none; place-items: center; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-subtle); color: var(--accent); }
 .local-ai-accounts-provider .local-ai-provider-icon img { display: block; width: 21px; height: 21px; object-fit: contain; }
 .local-ai-accounts-provider .local-ai-provider-icon[data-provider="codex"] { color: var(--ink); background: color-mix(in srgb, #4b9bea 10%, var(--surface-subtle)); }
-.local-ai-accounts-provider .local-ai-provider-icon[data-provider="claude"] { color: #c2410c; background: color-mix(in srgb, #d97757 12%, var(--surface-subtle)); }
-.local-ai-accounts-provider .local-ai-provider-icon svg { display: block; width: 21px; height: 21px; }
+.local-ai-accounts-provider .local-ai-provider-icon[data-provider="claude"] { color: var(--ink); background: color-mix(in srgb, #d97757 12%, var(--surface-subtle)); }
 .local-ai-accounts-provider .local-ai-provider-icon[data-provider="antigravity"] { color: #6f64f6; background: color-mix(in srgb, #8264ff 12%, var(--surface-subtle)); }
 .local-ai-accounts-provider h3 { margin: 0; font-size: 14px; font-weight: 600; }
 .local-ai-accounts-provider-header p { margin-top: 4px; color: var(--muted-ink); font-size: 11px; line-height: 1.5; }
