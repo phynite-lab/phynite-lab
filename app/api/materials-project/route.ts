@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { CrystalDatabaseError, searchCrystalDatabase, type CrystalDatabaseSource } from '@/lib/crystal-database';
+import { CrystalDatabaseError, type CrystalDatabaseSource } from '@/lib/crystal-database';
+import { searchServerCrystalDatabase } from '@/lib/crystal-database-server';
 
 export const runtime = 'edge';
 
 export async function GET(request: NextRequest) {
   try {
-    const result = await searchCrystalDatabase(request.nextUrl.searchParams.get('q'), {
-      apiKey: process.env.MP_API_KEY,
+    const result = await searchServerCrystalDatabase(request.nextUrl.searchParams.get('q'), {
       source: (request.nextUrl.searchParams.get('source') ?? 'auto') as CrystalDatabaseSource,
       limit: Number(request.nextUrl.searchParams.get('limit')) || 12,
       signal: request.signal,

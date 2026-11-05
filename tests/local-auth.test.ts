@@ -120,3 +120,48 @@ test('local logout and session use the local cloud connection without replacing 
   assert.deepEqual(await current.json(), localSession);
   assert.deepEqual(paths, ['http://127.0.0.1:49125/__local/cloud/logout', 'http://127.0.0.1:49125/__local/session']);
 });
+
+test('Materials Project settings use the authenticated local backend and return uncached status only', async t => {
+  fixture(t);
+  const key = '0123456789abcdef0123456789abcdef';
+  const status = { configured: true, source: 'settings', credentialStorage: 'os-keychain', persistent: true, verified: false, checkedAt: null };
+  const requests: Array<{ method: string; path: string; payload?: unknown }> = [];
+  t.mock.method(globalThis, 'fetch', async (input: string, init: RequestInit) => {
+    assert.equal(new Headers(init.headers).get('authorization'), 'Bearer fixture-local-service');
+    const payload = init.body ? JSON.parse(new TextDecoder().decode(init.body as Uint8Array)) : undefined;
+    requests.push({ method: init.method!, path: input, payload });
+    return Response.json(status);
+  });
+  for (const method of ['GET', 'PUT', 'DELETE'] as const) {
+    const response = await localRoute[method](new NextRequest('http://127.0.0.1:3000/api/local/materials-project', {
+      method,
+      ...(method === 'GET' ? {} : { headers: { Origin: 'http://127.0.0.1:3000', 'Content-Type': 'application/json' }, body: JSON.stringify(method === 'PUT' ? { apiKey: key } : {}) }),
+    }), { params: Promise.resolve({ path: ['materials-project'] }) });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.deepEqual(await response.json(), status);
+  }
+  assert.deepEqual(requests, [
+    { method: 'GET', path: 'http://127.0.0.1:49125/__local/materials-project', payload: undefined },
+    { method: 'PUT', path: 'http://127.0.0.1:49125/__local/materials-project', payload: { apiKey: key } },
+    { method: 'DELETE', path: 'http://127.0.0.1:49125/__local/materials-project', payload: {} },
+  ]);
+});
+
+test('Materials Project settings reject foreign origins, hidden endpoints and hosted requests', async t => {
+  fixture(t);
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', async () => { calls++; throw new Error('Rejected settings request reached backend'); });
+  const context = (path: string[]) => ({ params: Promise.resolve({ path }) });
+  const foreign = new NextRequest('http://127.0.0.1:3000/api/local/materials-project', {
+    method: 'PUT', headers: { Origin: 'https://foreign.example', 'Content-Type': 'application/json' }, body: JSON.stringify({ apiKey: 'fixture-only-key' }),
+  });
+  assert.equal((await localRoute.PUT(foreign, context(['materials-project']))).status, 403);
+  for (const path of [['materials-project', 'environment'], ['materials-project', 'key'], ['materials-project', 'search', 'extra']]) {
+    assert.equal((await localRoute.GET(new NextRequest('http://127.0.0.1:3000/api/local/' + path.join('/')), context(path))).status, 404);
+  }
+  assert.equal((await localRoute.POST(request('/api/local/materials-project/search'), context(['materials-project', 'search']))).status, 404);
+  process.env.PHYNITE_BUILD_TARGET = 'hosted';
+  assert.equal((await localRoute.GET(new NextRequest('http://127.0.0.1:3000/api/local/materials-project'), context(['materials-project']))).status, 404);
+  assert.equal(calls, 0);
+});

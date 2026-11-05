@@ -44,6 +44,14 @@ class DesktopApplication:
         self.archives = ProjectArchives(self.services)
         from backend.local_api.connections import DesktopConnections
         self.connections = DesktopConnections(self.data_dir, self.services)
+        from backend.local_api.materials_project import MaterialsProjectConnection
+        from backend.local_api.vault import CredentialVault
+        # Isolate connection fallback state: a Cloud/gateway credential-store
+        # failure must not hide a previously saved Materials Project key.
+        self.materials_project = MaterialsProjectConnection(CredentialVault(self.data_dir))
+        # Domain material import uses the same credential and fixed-origin
+        # transport as the Crystal browser. No secret enters project metadata.
+        self.services.materials_project_search = self.materials_project.search
         from backend.local_api.pseudopotentials import PseudopotentialManager
         self.pseudopotentials = PseudopotentialManager(self.data_dir)
         self.token = secrets.token_urlsafe(48)
@@ -261,6 +269,28 @@ class DesktopApplication:
             return self.job_request(headers, match[1], match[2], payload)
         if path == "/__local/session" and method == "GET":
             return response(200, {**self.services.local_session(), 'cloud': self.connections.cloud_status()})
+        if path == '/__local/materials-project':
+            if method == 'GET':
+                return response(200, self.materials_project.status())
+            if method == 'PUT':
+                return response(200, self.materials_project.save(payload))
+            if method == 'DELETE':
+                if payload != {}:
+                    raise ApiError(400, 'API key removal accepts no extra fields.', 'MP_SETTINGS_INVALID')
+                return response(200, self.materials_project.remove())
+            raise ApiError(404, 'Unknown Materials Project operation.', 'NOT_FOUND')
+        if path == '/__local/materials-project/test' and method == 'POST':
+            if payload != {}:
+                raise ApiError(400, 'Test the saved Materials Project API key without extra fields.', 'MP_SETTINGS_INVALID')
+            return response(200, self.materials_project.test())
+        if path == '/__local/materials-project/search' and method == 'GET':
+            try:
+                limit = int(query.get('limit', '12'))
+            except (TypeError, ValueError):
+                raise ApiError(400, 'Choose between one and thirty material records.', 'INVALID_MATERIAL_LIMIT') from None
+            return response(200, self.materials_project.search(query.get('q'), limit))
+        if path.startswith('/__local/materials-project/'):
+            raise ApiError(404, 'Unknown Materials Project operation.', 'NOT_FOUND')
         if path == "/__local/runtime" and method == "GET":
             worker = self.services.get_item(self.services.owner, 'PERSONAL_WORKER', 'primary') or {}
             online = int(worker.get('lastSeenAtEpoch') or 0) > time.time() - 90

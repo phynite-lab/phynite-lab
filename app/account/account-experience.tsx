@@ -27,6 +27,7 @@ import { LocalAiProviderAccounts } from '@/components/LocalAiProviderAccounts';
 import { LocalSettings } from '../local/settings';
 import { LocalNotificationPreferences } from '@/components/LocalNotificationPreferences';
 import { KeyboardPreferencesPanel } from '@/components/KeyboardPreferencesPanel';
+import { MaterialsProjectSettings } from '@/components/MaterialsProjectSettings';
 
 export function AccountExperience({ section = 'profile' }: { section?: AccountSection }) {
   const { session, ready } = useSession();
@@ -102,7 +103,7 @@ export function AccountExperience({ section = 'profile' }: { section?: AccountSe
       <SettingsSection id="recorded-compute" title={t('Recorded compute', 'Compute tercatat')} description={t('Measured history across your research account.', 'Riwayat terukur pada seluruh akun riset Anda.')} actions={<Link className="lab-button" href="/account/compute">{t('Compute settings', 'Pengaturan compute')}</Link>}><div className="settings-group-content"><ComputeMetrics usage={compute.usage} /></div></SettingsSection>
       <SettingsSection id="job-receipts" title={t('Jobs & receipts', 'Job & rincian biaya')} description={t('Recorded resources stay with each job, even after defaults change.', 'Resource tercatat tetap melekat pada setiap job, meskipun default berubah.')} actions={session.mode !== 'local' ? <Link className="lab-button" href="/billing">{t('Quanta & payments', 'Quanta & pembayaran')}</Link> : undefined}><RecentCalculations measuredAt={compute.usage.measuredAt} /></SettingsSection>
     </>}
-    {section === 'compute' && session.mode === 'local' && <LocalSettings section="compute" />}
+    {section === 'compute' && session.mode === 'local' && <><LocalSettings section="compute" /><MaterialsProjectSettings /></>}
     {section === 'compute' && session.mode !== 'local' && <>
       {account ? <ComputeDefaults key={session.user.id} account={account} onSaved={setAccount} onNotice={setNotice} /> : !error && <WorkspaceLoading label={t('Loading compute…', 'Memuat compute…')} />}
       <SettingsSection id="your-computer" title={t('Your computer', 'Komputer Anda')} description={t('Connect your worker to run simulations on your own hardware.', 'Hubungkan worker untuk menjalankan simulasi pada perangkat Anda.')} actions={<span className="lab-tag" data-status={account?.computer.status}>{!account ? t('Loading', 'Memuat') : account.computer.status === 'connected' ? t('Connected', 'Terhubung') : account.computer.status === 'offline' ? 'Offline' : t('Not connected', 'Belum terhubung')}</span>}><div className="settings-group-content">

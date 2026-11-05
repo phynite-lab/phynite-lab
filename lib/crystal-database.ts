@@ -59,7 +59,7 @@ async function retrieve(url: URL, options: RequestInit, fetcher: typeof fetch, m
   if (!response.ok || !response.body) {
     await response.body?.cancel();
     if (response.status === 429) throw new CrystalDatabaseError(429, 'CRYSTAL_DATABASE_RATE_LIMIT', 'The crystal database is rate limited. Wait before searching again.');
-    if ([401, 403].includes(response.status)) throw new CrystalDatabaseError(503, 'MP_API_ERROR', 'Materials Project rejected its server-side API key. Check MP_API_KEY; no key was sent to the browser.');
+    if ([401, 403].includes(response.status)) throw new CrystalDatabaseError(503, 'MP_API_ERROR', 'Materials Project rejected its API key. Update it in Settings → Compute.');
     throw new CrystalDatabaseError(502, 'CRYSTAL_DATABASE_UNAVAILABLE', `The crystal database returned HTTP ${response.status}. No structure was imported.`);
   }
   if (Number(response.headers.get('content-length')) > maximum) { await response.body.cancel(); throw new CrystalDatabaseError(502, 'CRYSTAL_RESPONSE_LIMIT', 'The crystal database response exceeds the import size limit. Use an exact ID.'); }
@@ -100,19 +100,21 @@ async function normalizeMp(raw: unknown, retrievedAt: string): Promise<CrystalDa
     ...(finite(document.band_gap) ? { bandGap: document.band_gap } : {}), ...(finite(document.energy_above_hull) ? { energyAboveHull: document.energy_above_hull } : {}), ...(finite(document.density) ? { density: document.density } : {}), ...(typeof document.is_stable === 'boolean' ? { isStable: document.is_stable } : {}), ...(typeof document.theoretical === 'boolean' ? { theoretical: document.theoretical } : {}), ...(plain(document.ordering) ? { magneticOrdering: plain(document.ordering) } : {}),
     lastUpdated, sourceUrl, lattice, atoms, sourceData: { filename: `${id}.json`, format: 'materials-project-json', content, sha256: evidence.sourceSha256 }, provenance: evidence, warnings: warning ? [warning] : [] };
 }
-export async function searchCrystalDatabase(rawQuery: unknown, options: { apiKey?: string; signal?: AbortSignal; limit?: number; source?: CrystalDatabaseSource; fetcher?: typeof fetch } = {}): Promise<CrystalDatabaseResult> {
+export async function searchCrystalDatabase(rawQuery: unknown, options: { apiKey?: string; signal?: AbortSignal; limit?: number; source?: CrystalDatabaseSource; fetcher?: typeof fetch; materialsProjectSearch?: (query: string, limit: number, signal: AbortSignal) => Promise<unknown> } = {}): Promise<CrystalDatabaseResult> {
   const query = crystalDatabaseQuery(rawQuery), apiKey = options.apiKey?.trim(), requestedSource = options.source ?? 'auto';
   if (!['auto', 'cod', 'materials-project'].includes(requestedSource)) throw new CrystalDatabaseError(400, 'CRYSTAL_SOURCE_INVALID', 'Choose COD or Materials Project.');
-  const codId = query.match(/^(?:cod-)?(\d{7})$/i)?.[1], mpId = /^mp-[a-z0-9]+$/i.test(query), database = codId ? 'cod' : mpId ? 'materials-project' : requestedSource === 'auto' ? apiKey ? 'materials-project' : 'cod' : requestedSource;
+  const codId = query.match(/^(?:cod-)?(\d{7})$/i)?.[1], mpId = /^mp-[a-z0-9]+$/i.test(query), database = codId ? 'cod' : mpId ? 'materials-project' : requestedSource === 'auto' ? apiKey || options.materialsProjectSearch ? 'materials-project' : 'cod' : requestedSource;
   if (requestedSource !== 'auto' && (codId && requestedSource !== 'cod' || mpId && requestedSource !== 'materials-project')) throw new CrystalDatabaseError(400, 'CRYSTAL_SOURCE_INVALID', 'The database ID does not belong to the selected source.');
-  if (database === 'materials-project' && !apiKey) throw new CrystalDatabaseError(503, 'MP_API_KEY_MISSING', 'Materials Project requires MP_API_KEY in the local launcher/server environment. Choose COD for public searches without an account.');
+  if (database === 'materials-project' && !apiKey && !options.materialsProjectSearch) throw new CrystalDatabaseError(503, 'MP_API_KEY_MISSING', 'Add your Materials Project API key in Settings → Compute. Choose COD for public searches without an account.');
   const limit = Math.max(1, Math.min(20, Math.floor(options.limit ?? 12) || 12)), fetcher = options.fetcher ?? fetch, signal = options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(25000)]) : AbortSignal.timeout(25000), retrievedAt = new Date().toISOString(), warnings: string[] = [], materials: CrystalDatabaseMaterial[] = [];
   const request = { headers: { Accept: 'application/json', 'User-Agent': 'PhyniteLab (crystal structure lookup)' }, signal };
   try {
     if (database === 'materials-project') {
       const endpoint = new URL('https://api.materialsproject.org/materials/summary/'), key = mpId ? 'material_ids' : /^[A-Z][a-z]?(?:-[A-Z][a-z]?)+$/.test(query) ? 'chemsys' : /^[A-Z][a-z]?(?:[ ,]+[A-Z][a-z]?)+$/.test(query) ? 'elements' : 'formula';
       endpoint.search = new URLSearchParams({ [key]: key === 'elements' ? query.split(/[ ,]+/).join(',') : query, _fields: fields, _limit: String(limit), _sort_fields: 'energy_above_hull' }).toString();
-      const payload = object(JSON.parse(await retrieve(endpoint, { ...request, headers: { ...request.headers, 'X-API-KEY': apiKey! } }, fetcher, 5_000_000)));
+      const payload = object(options.materialsProjectSearch
+        ? await options.materialsProjectSearch(query, limit, signal)
+        : JSON.parse(await retrieve(endpoint, { ...request, headers: { ...request.headers, 'X-API-KEY': apiKey! } }, fetcher, 5_000_000)));
       if (!Array.isArray(payload.data)) throw new CrystalDatabaseError(502, 'CRYSTAL_RESPONSE_INVALID', 'Materials Project returned an unsupported response. No structure was imported.');
       for (const raw of payload.data.slice(0, limit)) { try { materials.push(await normalizeMp(raw, retrievedAt)); } catch { warnings.push('A Materials Project record was omitted because its geometry, elements, or occupancies could not be validated.'); } }
     } else {

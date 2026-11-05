@@ -54,21 +54,27 @@ module while retaining its Canvas connections.
 In a project Canvas, the AI can search public structure records with
 `search_crystal_structures` and import a selected record with
 `import_crystal_structure`. COD searches need no API key. Materials Project
-searches require `MP_API_KEY` in the server environment; keys must never be sent
-through chat or stored in a project.
+searches use your key from **Settings → Compute → Materials Project**.
 
-For the local npm app, set the key only in the launcher environment, then restart
-the app so it stays server-side:
+Paste the key into the password field and choose **Save API key**, then **Test
+connection**. Changes apply immediately to manual crystal searches and AI tools;
+no restart is needed. The saved key is write-only: Settings shows its status, not
+its value. **Remove saved key** removes this connection's saved credential.
 
-```bash
-export MP_API_KEY='your-materials-project-key'
-phynite-lab
-```
+The native service stores the key in the operating-system credential store when
+available. If that store is unavailable, Settings labels the key **Session only**;
+enter it again after restarting Phynite Lab. The key stays outside projects,
+exports, Cloud Sync, browser storage, and logs. Search requests send it only to
+the fixed official Materials Project API endpoint.
 
-Open **Crystal structure → Crystal database → Materials Project**. Do not put the
-key in `.env` committed to a repository, browser storage, project exports, or
-logs. If a real key was pasted into a chat or terminal transcript, revoke it in
-Materials Project and create a replacement.
+`MP_API_KEY` in the launcher/server environment remains an optional fallback.
+A saved Settings key takes priority; removing it reveals an existing environment
+key. To remove the environment fallback, unset it and restart the launcher.
+
+Open **Crystal structure → Crystal database → Materials Project** to search.
+Never paste keys into AI chat or commit them in a repository. If a real key was
+exposed in chat or a terminal transcript, revoke it in Materials Project and
+create a replacement.
 
 Search is read-only and accepts public material queries. An import refetches the
 selected source record and verifies its checksum before preparing the normal

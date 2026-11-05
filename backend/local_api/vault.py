@@ -33,7 +33,7 @@ class CredentialVault:
     def persistent(self) -> bool:
         return self.backend is not None
 
-    def read(self, name: str) -> dict[str, Any] | None:
+    def read(self, name: str, *, strict: bool = False) -> dict[str, Any] | None:
         with self.lock:
             if name in self.memory:
                 return json.loads(json.dumps(self.memory[name]))
@@ -43,10 +43,12 @@ class CredentialVault:
                     result = json.loads(value) if value else None
                     return result if isinstance(result, dict) else None
                 except Exception:
+                    if strict:
+                        raise RuntimeError("The credential store could not read this credential.") from None
                     return None
             return None
 
-    def write(self, name: str, value: dict[str, Any]) -> None:
+    def write(self, name: str, value: dict[str, Any], *, allow_session_fallback: bool = True) -> None:
         encoded = json.dumps(value, allow_nan=False)
         with self.lock:
             if self.backend is not None:
@@ -55,6 +57,10 @@ class CredentialVault:
                     self.memory.pop(name, None)
                     return
                 except Exception:
+                    if not allow_session_fallback:
+                        # A failed overwrite must not conceal an older saved
+                        # credential that would otherwise return after restart.
+                        raise RuntimeError("The credential store could not save this credential.") from None
                     # An unavailable/locked keychain must not turn into a local
                     # plaintext credential file. The UI reports session-only mode.
                     self.backend = None
