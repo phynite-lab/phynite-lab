@@ -31,6 +31,12 @@ class ResolveQeElementTests(unittest.TestCase):
         self.assertEqual(resolve_qe_element("Si_a"), "Si")
         self.assertEqual(resolve_qe_element("Al12"), "Al")
 
+    def test_single_letter_symbol_needs_a_non_lowercase_suffix(self):
+        # Sa is not a sulfur label under the Phynite QE label rule, so it is not guessed.
+        self.assertEqual(resolve_qe_element("Sa"), "Sa")
+        self.assertEqual(resolve_qe_element("Sa", {"Sa": "Sb"}), "Sb")
+        self.assertEqual(resolve_qe_element("CX"), "C")
+
     def test_species_map_override(self):
         species_map = {"C_siteA": "C", "CustomFe": "Fe"}
         self.assertEqual(resolve_qe_element("C_siteA", species_map), "C")
@@ -378,3 +384,45 @@ class WorkflowStructureSourceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WorkflowStructureReviewFindingsTests(unittest.TestCase):
+    """Review findings: labels follow the QE output, and conflicting element evidence is rejected."""
+    LATTICE = {"a": 2.8, "b": 2.8, "c": 2.8, "alpha": 90.0, "beta": 90.0, "gamma": 90.0, "periodic": [True, True, True]}
+
+    @staticmethod
+    def xml(species, atoms):
+        species_xml = "".join(f'<species name="{name}"><pseudo_file>{pseudo}</pseudo_file></species>' for name, pseudo in species)
+        atoms_xml = "".join(f'<atom name="{name}">{index} 0 0</atom>' for index, name in enumerate(atoms))
+        return ('<?xml version="1.0"?><qes:espresso xmlns:qes="http://www.quantum-espresso.org/ns/qes/qes-1.0"><output>'
+                f'<atomic_species>{species_xml}</atomic_species><atomic_structure><cell><a1>5.4 0 0</a1><a2>0 5.4 0</a2><a3>0 0 5.4</a3></cell>'
+                f'<atomic_positions>{atoms_xml}</atomic_positions></atomic_structure></output></qes:espresso>')
+
+    def source(self, xml_content, parent=None):
+        api = WorkflowStructureSourceTests()._create_mock_api(xml_content, parent)
+        return source_structure(api, "user1", "prj_1", {"jobKind": "CALCULATION", "jobId": "calc_relax_1"})
+
+    def test_labels_come_from_the_qe_output_even_when_parent_atoms_are_ordered_differently(self):
+        parent = {"name": "Fe", "periodic": [True, True, True], "lattice": self.LATTICE, "atoms": [
+            {"id": "a", "species": "Fe", "label": "Fe2", "x": 0, "y": 0, "z": 0},
+            {"id": "b", "species": "Fe", "label": "Fe1", "x": 0.5, "y": 0.5, "z": 0.5},
+            {"id": "c", "species": "Fe", "label": "Fe3", "x": 0.5, "y": 0, "z": 0}]}
+        result = self.source(self.xml([("Fe1", "Fe.pbe.UPF"), ("Fe2", "Fe.pbe.UPF")], ["Fe1", "Fe2"]), parent)
+        self.assertEqual([atom.get("label") for atom in result["atoms"]], ["Fe1", "Fe2"])
+        self.assertEqual([atom["species"] for atom in result["atoms"]], ["Fe", "Fe"])
+
+    def test_parent_and_pseudopotential_disagreement_is_rejected(self):
+        parent = {"name": "Fe", "periodic": [True, True, True], "lattice": self.LATTICE, "atoms": [{"id": "a", "species": "Fe", "label": "Fe1", "x": 0, "y": 0, "z": 0}]}
+        with self.assertRaises(ApiError) as caught:
+            self.source(self.xml([("Fe1", "Co.pbe-spn.UPF")], ["Fe1"]), parent)
+        self.assertEqual(caught.exception.code, "WORKFLOW_SPECIES_CONFLICT")
+
+    def test_label_and_pseudopotential_disagreement_is_rejected_without_a_parent(self):
+        with self.assertRaises(ApiError) as caught:
+            self.source(self.xml([("Fe1", "Co.pbe-spn.UPF")], ["Fe1"]))
+        self.assertEqual(caught.exception.code, "WORKFLOW_SPECIES_CONFLICT")
+
+    def test_an_unruled_label_uses_the_pseudopotential_without_guessing(self):
+        result = self.source(self.xml([("Sa", "Sb.pbe.UPF")], ["Sa"]))
+        self.assertEqual(result["atoms"][0]["species"], "Sb")
+        self.assertEqual(result["atoms"][0]["label"], "Sa")
