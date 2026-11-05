@@ -76,7 +76,8 @@ ${JSON.stringify(responseSchema)}
         const raw = await readFile(proofPath, 'utf8');
         if (raw.length > 16384) throw unsafe();
         const proof = JSON.parse(raw);
-        if (proof.nonce !== nonce || proof.conversationId !== conversationId || proof.model !== model || !proof.hashes || Object.keys(proof.hashes).length !== paths.length) throw unsafe();
+        // ACP sessions do not expose the conversation ID; the per-request nonce still binds the receipt.
+        if (proof.nonce !== nonce || (conversationId !== null && proof.conversationId !== conversationId) || proof.model !== model || !proof.hashes || Object.keys(proof.hashes).length !== paths.length) throw unsafe();
         for (const path of paths) if (proof.hashes[path] !== hashes[path] || digest(await readFile(path)) !== hashes[path]) throw unsafe();
       } catch { throw unsafe(); }
     },

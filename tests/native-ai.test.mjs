@@ -672,3 +672,176 @@ test('disconnect cancels an active native chat stream', async () => {
   assert.equal(events.some(event => event.type === 'message_stop'), false);
   await registry.close();
 });
+
+// ---------------------------------------------------------------------------
+// Image input: Codex image items, Antigravity ACP, and the synthetic vision probe.
+// The registry's probe digits are injected so a stub can answer like a model that read the image.
+
+const PROBE_DIGITS = '4821';
+function visionCodexStub(transcript, { modalities = ['text', 'image'], reply = 'read' } = {}) {
+  return codexStub
+    .replace("supportedReasoningEfforts:[{reasoningEffort:'medium',description:'medium'}]}]", `supportedReasoningEfforts:[{reasoningEffort:'medium',description:'medium'}],inputModalities:${JSON.stringify(modalities)}}]`)
+    .replace(
+      "else if(m.method==='turn/start') send({id:m.id,result:{turn:{id:'turn_synthetic'}}});",
+      `else if(m.method==='turn/start') { const input=m.params?.input??[]; require('node:fs').appendFileSync(${JSON.stringify(transcript)}, JSON.stringify(input.map(item=>item.type==='image'?{type:'image',url:item.url.slice(0,40),length:item.url.length}:{type:item.type,text:item.text}))+'\\n'); const image=input.some(item=>item.type==='image'); const nonce=input[0]?.text?.match(/exactly ([a-f0-9-]{36})/)?.[1]; const body=image?JSON.stringify({text:${JSON.stringify(reply)}==='read'?'${PROBE_DIGITS}':'0000',toolCalls:[]}):JSON.stringify({text:nonce??'Plain answer',toolCalls:nonce?[{name:'phynite_connection_probe',argumentsJson:JSON.stringify({nonce})}]:[]}); send({id:m.id,result:{turn:{id:'turn_synthetic'}}}); setTimeout(()=>{ send({method:'item/agentMessage/delta',params:{threadId:'thr_synthetic',turnId:'turn_synthetic',delta:body}}); send({method:'turn/completed',params:{threadId:'thr_synthetic',turn:{id:'turn_synthetic',status:'completed'}}}); }, 2); }`,
+    )
+    .replace('#!/usr/bin/env node\n', '#!/usr/bin/env node\nconst require = (await import("node:module")).createRequire(import.meta.url);\n');
+}
+async function visionCodexFixture(options, run) {
+  const dir = await mkdtemp('/tmp/phynite-vision-codex-'), transcript = join(dir, 'turns.ndjson');
+  await writeFile(transcript, '');
+  const codex = await executable(dir, 'codex.mjs', visionCodexStub(transcript, options));
+  const registry = new NativeAiRegistry({ dataDir: join(dir, 'data'), executables: { codex }, timeoutMs: 5000, randomDigits: () => PROBE_DIGITS });
+  const turns = async () => (await readFile(transcript, 'utf8')).trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
+  try { await run({ registry, turns }); } finally { await registry.close(); await rm(dir, { recursive: true, force: true }); }
+}
+const pixel = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGP4DwABAQEANl9ngAAAAABJRU5ErkJggg==';
+
+test('Codex image turns send the picture as image input and the vision probe verifies it', async () => {
+  await visionCodexFixture({}, async ({ registry, turns }) => {
+    await registry.connect('codex');
+    await registry.models();
+    const capability = (await registry.status()).capabilities.models['codex/gpt-6.1-sol'];
+    assert.equal(capability.available, true);
+    assert.equal(capability.images, true);
+    assert.equal(capability.visionVersion, 1);
+    const visionTurn = (await turns()).find(turn => turn.some(item => item.type === 'image'));
+    assert.deepEqual(visionTurn.map(item => item.type), ['text', 'image']);
+    assert.match(visionTurn[1].url, /^data:image\/png;base64,/);
+    // The probe digits exist only in the picture, never in the prompt text.
+    assert.equal(visionTurn[0].text.includes(PROBE_DIGITS), false);
+    assert.match(visionTurn[0].text, /\[Image 1 is attached to this request as image input\.\]/);
+    const events = [];
+    for await (const event of registry.stream({ modelId: 'codex/gpt-6.1-sol', messages: [{ role: 'user', content: [{ type: 'text', text: 'What is shown?' }, { type: 'image', source: { type: 'base64', media_type: 'image/png', data: pixel } }] }] })) events.push(event);
+    assert.equal(events.at(-1).type, 'message_stop');
+    const last = (await turns()).at(-1);
+    assert.equal(last[0].text.includes(pixel), false);
+    assert.equal(last[1].length, `data:image/png;base64,${pixel}`.length);
+  });
+});
+
+test('a model that misreads the probe image stays available for text, with images unverified', async () => {
+  await visionCodexFixture({ reply: 'misread' }, async ({ registry }) => {
+    await registry.connect('codex');
+    await registry.models();
+    const capability = (await registry.status()).capabilities.models['codex/gpt-6.1-sol'];
+    assert.equal(capability.available, true);
+    assert.equal(capability.images, false);
+    assert.equal(capability.imageFailureCode, 'PROBE_FAILED');
+    await assert.rejects((async () => { for await (const event of registry.stream({ modelId: 'codex/gpt-6.1-sol', messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: pixel } }] }] })) { void event; } })(), { code: 'UNSUPPORTED_ATTACHMENT' });
+  });
+});
+
+test('a model that does not advertise image input is never sent the probe image', async () => {
+  await visionCodexFixture({ modalities: ['text'] }, async ({ registry, turns }) => {
+    await registry.connect('codex');
+    await registry.models();
+    const capability = (await registry.status()).capabilities.models['codex/gpt-6.1-sol'];
+    assert.equal(capability.images, false);
+    assert.equal(capability.imageFailureCode, 'IMAGE_INPUT_NOT_ADVERTISED');
+    assert.equal((await turns()).some(turn => turn.some(item => item.type === 'image')), false);
+  });
+});
+
+test('models verified by an earlier release get only the image check, not a new text probe', async () => {
+  await visionCodexFixture({}, async ({ registry, turns }) => {
+    await registry.connect('codex');
+    await registry.models();
+    const before = (await turns()).length;
+    const capability = registry.catalog.capabilities.models['codex/gpt-6.1-sol'];
+    delete capability.visionVersion; capability.images = false;
+    await registry.models();
+    const added = (await turns()).slice(before);
+    assert.equal(added.length, 1);
+    assert.equal(added[0].some(item => item.type === 'image'), true);
+    assert.equal(registry.catalog.capabilities.models['codex/gpt-6.1-sol'].images, true);
+  });
+});
+
+test('image blocks are validated and bounded before reaching any CLI', async () => {
+  await visionCodexFixture({}, async ({ registry }) => {
+    await registry.connect('codex');
+    await registry.models();
+    const send = (content) => (async () => { for await (const event of registry.stream({ modelId: 'codex/gpt-6.1-sol', messages: [{ role: 'user', content }] })) { void event; } })();
+    await assert.rejects(send([{ type: 'image', source: { type: 'base64', media_type: 'image/svg+xml', data: pixel } }]), { code: 'UNSUPPORTED_ATTACHMENT' });
+    await assert.rejects(send([{ type: 'image', source: { type: 'url', url: 'https://example.test/x.png' } }]), { code: 'UNSUPPORTED_ATTACHMENT' });
+    await assert.rejects(send(Array.from({ length: 9 }, () => ({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: pixel } }))), { code: 'INPUT_LIMIT' });
+  });
+});
+
+function acpAgyStub(transcript, mode = 'safe') {
+  return `#!/usr/bin/env node
+import { readFileSync, appendFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
+import { createInterface } from 'node:readline';
+if (process.argv.includes('--version')) { console.log('1.5.1'); process.exit(0); }
+const mode = ${JSON.stringify(mode)}, transcript = ${JSON.stringify(transcript)};
+if (!process.argv.includes('acp') || process.argv[process.argv.indexOf('--agent') + 1] !== 'phynite-bridge') process.exit(5);
+const send = value => console.log(JSON.stringify({ jsonrpc: '2.0', ...value }));
+let model = 'gemini-default', prompts = 0;
+const update = (sessionUpdate, extra) => send({ method: 'session/update', params: { sessionId: 'acp-session', update: { sessionUpdate, ...extra } } });
+for await (const line of createInterface({ input: process.stdin })) {
+  const m = JSON.parse(line);
+  if (m.jsonrpc !== '2.0') process.exit(6);
+  if (m.method === 'initialize') send({ id: m.id, result: { protocolVersion: 1, agentCapabilities: { promptCapabilities: { image: mode !== 'no-image', audio: false, embeddedContext: true } } } });
+  else if (m.method === 'session/new') send({ id: m.id, result: { sessionId: 'acp-session', models: { availableModels: (mode === 'missing-model' ? ['other'] : ['gemini-synthetic', 'other']).map(modelId => ({ modelId, name: modelId })), currentModelId: 'other' } } });
+  else if (m.method === 'session/set_model') { model = m.params.modelId; send({ id: m.id, result: {} }); }
+  else if (m.method === 'session/prompt') {
+    prompts++;
+    appendFileSync(transcript, JSON.stringify(m.params.prompt.map(block => block.type === 'image' ? { type: 'image', mimeType: block.mimeType, length: block.data.length } : { type: block.type, text: block.text })) + '\\n');
+    if (prompts === 1 && mode !== 'missing-proof') {
+      const hooks = JSON.parse(readFileSync('native-guard-hooks.json', 'utf8'))['phynite-native-guard'];
+      execSync(hooks.SessionStart[0].command, { input: JSON.stringify({ conversationId: 'acp-conversation', modelName: model }) });
+    }
+    update('user_message_chunk', { content: { type: 'text', text: 'echo' } });
+    if (prompts === 2 && mode === 'permission') { send({ id: 99, method: 'session/request_permission', params: { sessionId: 'acp-session', toolCall: { title: 'read_file' } } }); continue; }
+    if (prompts === 2 && mode === 'tool-call') update('tool_call', { toolCallId: 't1', title: 'read_file', kind: 'read' });
+    update('agent_thought_chunk', { content: { type: 'text', text: 'PRIVATE_THOUGHT' } });
+    const hasImage = m.params.prompt.some(block => block.type === 'image' && block.mimeType === 'image/png');
+    const body = JSON.stringify({ text: prompts === 1 ? '4' : hasImage ? '${PROBE_DIGITS}' : 'no image', toolCalls: [] });
+    update('agent_message_chunk', { content: { type: 'text', text: body.slice(0, 9) } });
+    update('agent_message_chunk', { content: { type: 'text', text: body.slice(9) } });
+    send({ id: m.id, result: { stopReason: prompts === 2 && mode === 'refusal' ? 'refusal' : 'end_turn' } });
+  }
+}
+`;
+}
+async function acpFixture(mode, run) {
+  const dir = await mkdtemp('/tmp/phynite-acp-test-'), transcript = join(dir, 'prompts.ndjson');
+  await writeFile(transcript, '');
+  const agy = await executable(dir, 'agy.mjs', acpAgyStub(transcript, mode));
+  const registry = new NativeAiRegistry({ dataDir: join(dir, 'data'), executables: { antigravity: agy }, timeoutMs: 5000, randomDigits: () => PROBE_DIGITS });
+  await registry.ready;
+  registry.state.providers.antigravity = { optedIn: true, status: 'connected' };
+  registry.mergeModels('antigravity', [{ id: 'agy/gemini-synthetic', provider: 'antigravity', name: 'Synthetic', rawModel: 'gemini-synthetic', available: false, efforts: ['auto'] }]);
+  Object.assign(registry.catalog.models[0], { available: true });
+  registry.catalog.capabilities.models['agy/gemini-synthetic'] = { available: true, text: true, streaming: true, tools: true, images: false, pdf: false, efforts: ['auto'] };
+  const prompts = async () => (await readFile(transcript, 'utf8')).trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
+  try { await run({ registry, prompts }); } finally { await registry.close(); await rm(dir, { recursive: true, force: true }); }
+}
+
+test('Antigravity image turns use ACP: the guard verifies first, then the image is read', async () => {
+  await acpFixture('safe', async ({ registry, prompts }) => {
+    assert.deepEqual(await registry.probeVision('agy/gemini-synthetic'), { modelId: 'agy/gemini-synthetic', images: true });
+    const [startup, probe] = await prompts();
+    // The startup turn carries no image and no project context.
+    assert.deepEqual(startup.map(block => block.type), ['text']);
+    assert.match(startup[0].text, /2 \+ 2/);
+    assert.deepEqual(probe.map(block => block.type), ['text', 'image']);
+    assert.equal(probe[1].mimeType, 'image/png');
+    const events = [];
+    for await (const event of registry.execute({ provider: 'antigravity', rawModel: 'gemini-synthetic', prompt: 'SYNTHETIC_CONTEXT', schema: { type: 'object' }, names: new Set(), images: [{ mediaType: 'image/png', data: pixel }] })) events.push(event);
+    assert.equal(JSON.stringify(events).includes('PRIVATE_THOUGHT'), false);
+    assert.equal(events.at(-1).proposal.text, PROBE_DIGITS);
+  });
+});
+
+for (const [mode, code] of [['permission', 'UNSAFE_TOOLS'], ['tool-call', 'UNSAFE_TOOLS'], ['missing-proof', 'UNSAFE_CONFIGURATION'], ['missing-model', 'UNSAFE_CONFIGURATION'], ['no-image', 'UNSUPPORTED_ATTACHMENT'], ['refusal', 'INFERENCE_FAILED']]) {
+  test(`Antigravity ACP image turn fails closed on ${mode}`, async () => {
+    await acpFixture(mode, async ({ registry, prompts }) => {
+      await assert.rejects((async () => { for await (const event of registry.execute({ provider: 'antigravity', rawModel: 'gemini-synthetic', prompt: 'SYNTHETIC_CONTEXT', schema: { type: 'object' }, names: new Set(), images: [{ mediaType: 'image/png', data: pixel }] })) { void event; } })(), { code });
+      // Without a verified guard, neither the project context nor the image is sent.
+      if (mode === 'missing-proof' || mode === 'missing-model' || mode === 'no-image') assert.equal((await prompts()).some(prompt => prompt.some(block => block.type === 'image' || block.text?.includes('SYNTHETIC_CONTEXT'))), false);
+    });
+  });
+}

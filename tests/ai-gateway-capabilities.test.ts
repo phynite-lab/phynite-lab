@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { gatewayCapabilities, requireGatewayCapability } from '../lib/ai-gateway-capabilities.ts';
+import { gatewayCapabilities, nativeInputMediaTypes, requireGatewayCapability } from '../lib/ai-gateway-capabilities.ts';
 const model = 'claude-sonnet-5' as const;
 test('unverified gateway capabilities cannot enable text, effort or multimodal features', () => {
   assert.equal(gatewayCapabilities({})[model].available, false);
@@ -22,4 +22,12 @@ test('local gateways require tested tools even when the provider listens on loop
   assert.throws(() => requireGatewayCapability(environment, 'my-model', 'auto', [], '9router'), { code: 'AI_MODEL_UNVERIFIED' });
   checked.models['my-model'].tools = true; checked.models['my-model'].available = true;
   assert.doesNotThrow(() => requireGatewayCapability({ ...base, PHYNITE_AI_9ROUTER_CAPABILITIES: JSON.stringify(checked) }, 'my-model', 'auto', [], '9router'));
+});
+
+test('PDFs do not need native model input before a turn starts; images still do', () => {
+  // A PDF is read from its extracted text when the model has no verified native PDF input.
+  assert.deepEqual(nativeInputMediaTypes(['application/pdf', 'image/png', 'text/plain']), ['image/png', 'text/plain']);
+  const env = { PHYNITE_APP_MODE: 'local', PHYNITE_LOCAL_AI_MODELS: '["codex/gpt-fixture"]', PHYNITE_LOCAL_AI_CAPABILITIES: JSON.stringify({ checkedAt: new Date().toISOString(), models: { 'codex/gpt-fixture': { available: true, text: true, streaming: true, tools: true, images: false, pdf: false, efforts: ['auto'] } } }) };
+  assert.doesNotThrow(() => requireGatewayCapability(env, 'codex/gpt-fixture', 'auto', nativeInputMediaTypes(['application/pdf']), 'local'));
+  assert.throws(() => requireGatewayCapability(env, 'codex/gpt-fixture', 'auto', nativeInputMediaTypes(['image/png']), 'local'), { code: 'AI_IMAGE_UNSUPPORTED' });
 });

@@ -29,3 +29,9 @@ export function requireGatewayCapability(env: Record<string, string | undefined>
   if (mediaTypes.some(type => type.startsWith('image/')) && !model.images) throw new AiError(422, 'AI_IMAGE_UNSUPPORTED', 'Image reading has not passed this model’s gateway check. Choose another verified model.');
   return model;
 }
+
+/** Attachment types that need verified native model input before a turn starts. A PDF is not one:
+ * without verified native PDF input the turn reads its extracted text and states that limit. */
+export function nativeInputMediaTypes(mediaTypes: string[]): string[] {
+  return mediaTypes.filter(type => type !== 'application/pdf');
+}

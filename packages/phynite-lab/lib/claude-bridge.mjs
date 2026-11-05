@@ -22,8 +22,9 @@ export const CLAUDE_SYSTEM_PROMPT = 'You are the materials-science assistant in 
 /** Print-mode arguments. `--tools ""` removes every built-in tool, an empty strict MCP
  * config removes servers, and an empty setting-source list stops the user's own
  * settings, plugins and hooks from loading. The prompt itself is sent on stdin. */
-export function claudeArguments(rawModel, effort = 'auto') {
-  return ['-p', '--output-format', 'stream-json', '--verbose', '--include-partial-messages',
+export function claudeArguments(rawModel, effort = 'auto', { streamInput = false } = {}) {
+  // Image turns use stream-json input so image blocks can travel beside the text prompt.
+  return ['-p', ...(streamInput ? ['--input-format', 'stream-json'] : []), '--output-format', 'stream-json', '--verbose', '--include-partial-messages',
     '--tools', '', '--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}', '--disable-slash-commands',
     '--setting-sources', '', '--no-session-persistence', '--permission-mode', 'dontAsk',
     '--model', rawModel, ...(effort === 'auto' ? [] : ['--effort', effort]), '--system-prompt', CLAUDE_SYSTEM_PROMPT];
