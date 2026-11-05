@@ -17,7 +17,7 @@
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern work",
     "typecheck": "tsc --noEmit --incremental false",
     "test:structures": "node --experimental-strip-types --test tests/*.test.ts",
-    "test:native-ai": "node --test tests/native-ai.test.mjs",
+    "test:native-ai": "node --test tests/native-ai.test.mjs tests/native-ai-claude.test.mjs",
     "build:core": "python3 scripts/build-local-core.py",
     "package:local": "node scripts/package-local.mjs"
   },

@@ -104,7 +104,7 @@ projects, and Cloud Sync is enabled per project. Cloud compute uses a separate
 input-transfer review.
 
 Cloud and AI connections are optional and configured inside the application.
-Local AI uses the official Codex or Antigravity CLI already installed on this
+Local AI uses the official Codex, Claude Code or Antigravity CLI already installed on this
 computer. Open **Settings → AI provider accounts** and sign in; models connect and
 verify automatically. An existing CLI sign-in can be reused. Phynite never reads or copies CLI session files or
 provider tokens. The bridge runs on loopback with shell, MCP, plugin, browser,
@@ -113,6 +113,13 @@ and host-validated tool-proposal probe succeeds. A loopback OpenAI-compatible
 Antigravity uses a restricted profile, explicit permission denials and a native
 tool denial hook. A synthetic startup turn verifies the loaded guard before any
 project context is sent. Unsupported guard or protocol versions fail closed.
+Claude Code runs in print mode with every built-in tool, MCP server, slash command,
+user setting and user plugin disabled, with CLAUDE.md files and auto-memory turned off.
+Each turn re-verifies the restricted session from the CLI's own `init` event before any
+output is used, and a model other than the selected one is refused. Sign in with your
+Claude account (`claude auth login`); API-key sign-in is not used. The Claude Code
+bridge reports no usage percentages because the CLI exposes none, and reads
+attachments through extracted text (native image and PDF input are not verified).
 Hosted Phynite AI is not used by the local application. Cloud sign-in requires a
 release assembled with public cloud connection metadata; an unconfigured release
 remains available for local work. Signing in does not enable Cloud Sync for a

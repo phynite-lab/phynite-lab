@@ -1,6 +1,6 @@
 import type { ImgHTMLAttributes } from 'react';
 
-export type AiProviderLogoId = 'codex' | 'antigravity';
+export type AiProviderLogoId = 'codex' | 'antigravity' | 'claude';
 
 type LogoProps = Omit<ImgHTMLAttributes<HTMLImageElement>, 'src' | 'alt'> & { provider: AiProviderLogoId };
 

@@ -363,7 +363,7 @@ phynite-lab stop
 
 SQLite and filesystem data are the primary local copy. Use Settings → Storage to export/import project archives, and keep independent backups. Browser storage holds recoverable drafts and device preferences, not the full native workspace.
 
-Appearance, language, keyboard shortcuts, and local notification choices stay in this browser. AI provider connections use the official Codex or Antigravity CLI; each provider has one CLI-managed connection and the local app has no gateway setup. Account manages Phynite Cloud separately; login does not upload projects. Cloud Sync is enabled per project, and cloud compute reviews its own input transfer without enabling sync.
+Appearance, language, keyboard shortcuts, and local notification choices stay in this browser. AI provider connections use the official Codex, Claude Code or Antigravity CLI; each provider has one CLI-managed connection and the local app has no gateway setup. Account manages Phynite Cloud separately; login does not upload projects. Cloud Sync is enabled per project, and cloud compute reviews its own input transfer without enabling sync.
 
 Billing opens the Phynite website. Finish or cancel jobs, stop the app, update with npm install -g phynite-lab@latest, then reopen. Updating the package preserves data outside its installation directory.
 
@@ -1294,7 +1294,7 @@ Connect through the provider CLI you already use.
 Provider authentication stays with the official local CLI.
 
 1. Install and authenticate the official provider CLI on this computer.
-2. Open Settings → AI provider accounts and choose Codex or Antigravity.
+2. Open Settings → AI provider accounts and choose Codex, Claude Code or Antigravity.
 3. Complete authentication through the provider’s own flow. An existing supported CLI login can be reused without importing its cookie or session files.
 4. Keep the application open while model discovery and the capability probe run. The page selects only models that pass the supported text, streaming, and tool checks.
 
@@ -1449,7 +1449,7 @@ On the hosted website, Compute retains account defaults for each workload, suppo
 
 ### Connect AI and read limits
 
-AI provider connections use the official Codex or Antigravity CLI with your own account. They are independent from Phynite Cloud login. After authentication, model discovery and capability checks run automatically. Tools and attachments require verified support, and Canvas changes retain approval/validation rules. The local app keeps one CLI-managed connection per provider; it has no account switcher or local gateway setup. AI source attachments are streamed without the former 10 MB browser quota; the original bytes and checksum are retained. Format readers and the selected model can still report their own safe reading limits, and a large source is retained with an extraction warning instead of being silently truncated.
+AI provider connections use the official Codex, Claude Code or Antigravity CLI with your own account. They are independent from Phynite Cloud login. After authentication, model discovery and capability checks run automatically. Tools and attachments require verified support, and Canvas changes retain approval/validation rules. The local app keeps one CLI-managed connection per provider; it has no account switcher or local gateway setup. AI source attachments are streamed without the former 10 MB browser quota; the original bytes and checksum are retained. Format readers and the selected model can still report their own safe reading limits, and a large source is retained with an extraction warning instead of being silently truncated.
 
 The local app uses the profile managed by the selected official CLI. Usage and reset information comes from the provider: percentages, windows, and dates are shown only when reported. No remaining token balance is inferred. A disconnected, rate-limited, or unsupported provider shows its actual state without silent provider switching.
 

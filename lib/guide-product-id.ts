@@ -47,7 +47,7 @@ export const productGuideSectionsId: GuideSection[] = [
         { kind: 'icon', src: '/brand/ai/antigravity.png', alt: 'Ikon provider Antigravity', caption: 'Autentikasi provider tetap berada pada CLI lokal resminya.' },
       ], steps: [
         'Instal dan autentikasi CLI provider resmi di komputer ini.',
-        'Buka Pengaturan → Akun provider AI dan pilih Codex atau Antigravity.',
+        'Buka Pengaturan → Akun provider AI dan pilih Codex, Claude Code, atau Antigravity.',
         'Selesaikan autentikasi melalui alur milik provider. Login CLI yang didukung dapat dipakai ulang tanpa mengimpor cookie atau file session.',
         'Biarkan aplikasi terbuka saat discovery model dan capability probe berjalan. Halaman hanya memilih model yang lulus pemeriksaan teks, streaming, dan tool.',
       ], links: [{ label: 'Pengaturan provider AI', href: '/account/ai-providers' }] },

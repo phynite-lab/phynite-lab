@@ -8,6 +8,7 @@ image request.
 | --- | --- | --- | --- |
 | `codex.png` | Codex / OpenAI | User-supplied Codex reference image, 768 × 768 pixels, supplied 2 November 2026 | 128 × 128 pixels |
 | `antigravity.png` | Antigravity / Google | User-supplied Antigravity reference image, 540 × 540 pixels, supplied 2 November 2026 | 128 × 118 pixels |
+| `claude.png` | Claude Code / Anthropic | Application icon of the user's installed Claude desktop app, 1024 × 1024 pixels, supplied 5 November 2026 | 128 × 128 pixels |
 
 The reference images were resized for use as small provider identifiers. An
 official asset-download URL or redistribution license was not supplied with the

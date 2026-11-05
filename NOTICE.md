@@ -3,9 +3,9 @@
 Phynite's local application is distributed under GNU AGPL v3 only. Third-party
 licenses apply to their respective components and are not replaced by AGPL.
 
-- The Codex and Antigravity PNG marks in `public/brand/ai/` identify the optional
-  provider integrations. Codex is an OpenAI product; Antigravity is a Google
-  product. Their names and brand artwork remain the property of their respective
+- The Codex, Claude and Antigravity PNG marks in `public/brand/ai/` identify the optional
+  provider integrations. Codex is an OpenAI product; Claude is an Anthropic
+  product; Antigravity is a Google product. Their names and brand artwork remain the property of their respective
   owners and are not relicensed under Phynite's AGPL license. The bundled raster
   images were resized from user-supplied visual references, not obtained as an
   officially licensed asset pack. See `public/brand/ai/README.md` for provenance.

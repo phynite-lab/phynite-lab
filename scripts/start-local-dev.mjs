@@ -153,7 +153,7 @@ try {
   await waitFor(`${uiOrigin}/api/auth/session`, web, 'The local UI', 60_000);
   console.log(`\nPhynite local development workspace: ${uiOrigin}`);
   console.log(`Data: ${options.dataDir}`);
-  console.log('Local AI bridge is active. Install and sign in with the official Codex or Antigravity CLI, then open Local settings → Your local AI.');
+  console.log('Local AI bridge is active. Install and sign in with the official Codex, Claude Code or Antigravity CLI, then open Local settings → Your local AI.');
   console.log('Press Ctrl+C to stop the core, AI bridge and UI.');
 
   await new Promise(resolve => {

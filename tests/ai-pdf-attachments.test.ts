@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
-import { runAiAgent } from '../lib/ai-agent.ts';
+import { aiPdfReadingLimit, runAiAgent } from '../lib/ai-agent.ts';
 import type { AiAttachment, AiDetail } from '../lib/ai-contract.ts';
 import { AiError, type AiProviderConfig } from '../lib/ai-provider.ts';
 import type { AiBackend } from '../lib/ai-tools.ts';
@@ -140,4 +140,13 @@ test('a later read_attachment request uses the same PDF text fallback', async t 
     } });
   assert.equal(requests, 2);
   assert.ok(mock.calls.some(call => call.operation === 'finish' && call.payload?.status === 'completed'));
+});
+
+test('a PDF whose extraction was deferred is not described as having no text layer', () => {
+  const deferred = { attachment: attachment(300 * 1024 ** 2), sections: [], totalSections: 0, nextOffset: null, warnings: ['Local extraction is deferred above the reader budget.'], untrusted: true };
+  const note = aiPdfReadingLimit('size', deferred);
+  assert.doesNotMatch(note, /has no extractable text/);
+  assert.match(note, /No readable text was extracted/);
+  assert.match(note, /warnings state why/);
+  assert.match(note, /split it into PDFs under 10 MiB/);
 });

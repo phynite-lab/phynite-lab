@@ -37,7 +37,7 @@ def valid_selection(provider, model, effort) -> bool:
         variant = re.fullmatch('ag/gemini-.*-(low|medium|high)', model)
         return model in router_models() and (effort == 'auto' or (variant is not None and effort == variant[1]))
     if provider == 'local':
-        if model not in router_models('local') or not re.fullmatch('(?:codex|agy)/[A-Za-z0-9_.:/+\\-]{1,200}', model):
+        if model not in router_models('local') or not re.fullmatch('(?:codex|agy|claude)/[A-Za-z0-9_.:/+\\-]{1,200}', model):
             return False
         try:
             report = json.loads(os.environ.get('PHYNITE_LOCAL_AI_CAPABILITIES', '{}'))
