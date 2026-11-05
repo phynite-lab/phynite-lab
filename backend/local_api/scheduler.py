@@ -136,9 +136,10 @@ class ResourceScheduler:
         selected = {key: value for key, value in self.settings().items() if key in {"vcpus", "memoryMiB", "maxParallelJobs"}}
         selected.update(values)
         capacity = self.capacity()
-        for key, maximum in (("vcpus", int(capacity["cpuCapacity"])), ("memoryMiB", int(capacity["memoryCapacityMiB"])), ("maxParallelJobs", int(capacity["cpuCapacity"]))):
-            if type(selected[key]) is not int or not 1 <= selected[key] <= maximum:
-                raise ResourceError(f"{key} must be a whole number from 1 to {maximum}.")
+        memory_minimum = min(1024, int(capacity["memoryCapacityMiB"]))
+        for key, minimum, maximum in (("vcpus", 1, int(capacity["cpuCapacity"])), ("memoryMiB", memory_minimum, int(capacity["memoryCapacityMiB"])), ("maxParallelJobs", 1, int(capacity["cpuCapacity"]))):
+            if type(selected[key]) is not int or not minimum <= selected[key] <= maximum:
+                raise ResourceError(f"{key} must be a whole number from {minimum} to {maximum}.")
         # Already admitted jobs retain their exact grants. A lower setting changes
         # only admission of subsequent jobs; it never rewrites an active record.
         with self._db() as db:

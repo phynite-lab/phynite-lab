@@ -185,6 +185,15 @@ class DesktopApplication:
             self.worker_slots[process] = slot
             self.worker_started[process] = now
 
+    def sync_personal_defaults(self, budget):
+        """Browser run forms read account defaults. Keep a saved user choice while it
+        fits the local admission budget; otherwise follow the budget."""
+        from backend.local_api.domain.compute_preferences import budget_defaults
+        account = self.services.get_item(self.services.owner, 'ACCOUNT', 'primary') or {}
+        defaults = budget_defaults(self.services, account, budget)
+        if account.get('personalDefaults') != defaults:
+            self.services.update_item(self.services.owner, 'ACCOUNT', 'primary', {'personalDefaults': defaults})
+
     def maintain(self):
         while not self.closed.wait(1):
             try:
@@ -200,13 +209,7 @@ class DesktopApplication:
                 import shutil
                 path = environment.get('PATH', '')
                 ready = shutil.which('pw.x', path=path) or shutil.which('lmp', path=path) or shutil.which('lammps', path=path) or environment.get('PHYNITE_RUNTIME_PYTHON')
-                selected = self.scheduler.settings()
-                # Existing browser run forms read account defaults. Keep these
-                # aligned with the actual local admission budget.
-                account = self.services.get_item(self.services.owner, 'ACCOUNT', 'primary') or {}
-                defaults = {kind: {'vcpus': selected['vcpus'], 'memoryMiB': selected['memoryMiB']} for kind in ('qe', 'md-simulation', 'md-analysis')}
-                if account.get('personalDefaults') != defaults:
-                    self.services.update_item(self.services.owner, 'ACCOUNT', 'primary', {'personalDefaults': defaults})
+                self.sync_personal_defaults(self.scheduler.settings())
                 if not ready:
                     continue
                 active = any(item.get('status') in {'RUNNING', 'CANCEL_REQUESTED'} for kind in ('CALCULATION', 'MD_SIMULATION', 'MD_ANALYSIS') for item in self.services.list_owner_items(self.services.owner, kind))

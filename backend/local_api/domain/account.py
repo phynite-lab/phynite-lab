@@ -340,6 +340,7 @@ class AccountApi:
             changes = {"computeTarget": "personal"}
             if "personalDefaults" in payload:
                 changes["personalDefaults"] = validate_personal_defaults(self.services, payload["personalDefaults"])
+                changes["personalDefaultsSource"] = "user"
             self.save(owner, "ACCOUNT", changes)
             return response(200, {"account": self.overview(owner)})
         raise ApiError(404, "Use the optional Cloud connection for cloud account settings. Local workers are managed by the launcher.", "NOT_FOUND")
