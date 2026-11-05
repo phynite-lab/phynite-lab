@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mutationFailure, readBodyBytes, readJsonBody, requestBodyLimit, securityHeaders } from '../lib/request-security.ts';
+import { AI_ATTACHMENT_BODY_BYTES, mutationFailure, readBodyBytes, readJsonBody, requestBodyLimit, securityHeaders } from '../lib/request-security.ts';
 import { publicSiteOrigin, privatePage } from '../lib/site-metadata.ts';
 import { controlPlaneFetch, controlPlaneJson, ControlPlaneTimeoutError } from '../lib/control-plane-fetch.ts';
 const request = (headers: HeadersInit, body = '{}') => new Request('https://phynite.example/api/waitlist', { method: 'POST', headers, body });
@@ -58,6 +58,7 @@ test('AI attachment binary uploads retain same-origin and exact-path restriction
   const target = 'https://phynite.example/api/ai/conversations/aic_abc123/attachments/aif_abc123/content';
   const make = (url: string, origin = 'https://phynite.example') => new Request(url, { method: 'PUT', headers: { origin, 'content-type': 'application/octet-stream' }, body: new Uint8Array([1, 2]) });
   assert.equal(mutationFailure(make(target)), null);
+  assert.equal(requestBodyLimit(new URL(target).pathname), AI_ATTACHMENT_BODY_BYTES);
   assert.match(securityHeaders(true, new URL(target).pathname)['Content-Security-Policy'], /sandbox; default-src 'none'/);
   assert.equal(mutationFailure(make(target, 'https://foreign.example'))?.code, 'INVALID_ORIGIN');
   assert.equal(mutationFailure(make(target.replace('/content', '/settings')))?.code, 'JSON_REQUIRED');

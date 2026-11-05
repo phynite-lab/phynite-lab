@@ -64,14 +64,10 @@ class AiRuntime:
         ids = payload.get('attachmentIds', [])
         if not isinstance(ids, list) or len(ids) > 5 or any((not isinstance(value, str) for value in ids)) or (len(set(ids)) != len(ids)):
             fail(400, 'Attach up to five distinct files.', 'AI_ATTACHMENT_INVALID')
-        total = 0
         for item_id in ids:
             item = AiAttachments(self.api).get(owner, conversation, item_id)
             if item['status'] != 'ready':
                 fail(409, 'Wait for each attachment to finish processing.', 'AI_ATTACHMENT_NOT_READY')
-            total += item['sizeBytes']
-        if total > 20 * 1024 ** 2:
-            fail(413, 'Attachments must total at most 20 MB.', 'AI_ATTACHMENT_LIMIT')
         return ids
 
     def handle(self, owner, conversation, method, operation, item_id, payload, params, *, retry_source=None):

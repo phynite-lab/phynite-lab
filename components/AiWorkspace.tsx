@@ -27,6 +27,7 @@ import { aiRunElapsedSeconds } from '@/lib/ai-run-time';
 import { observeAiEvent } from '@/lib/ai-event-cursor';
 import { acceptAiDetail, saveAiSettings } from '@/lib/ai-settings';
 import { stopAiTurn } from '@/lib/ai-turn-control';
+import { sha256 } from '@noble/hashes/sha2.js';
 import '@/app/ai.css';
 
 async function request<T>(path: string, body?: unknown, method = body === undefined ? 'GET' : 'POST'): Promise<T> {
@@ -377,9 +378,9 @@ function AiWorkspaceOwner({ owner, projectId, legacyProjectId, conversationId, v
   };
   const addFiles = async (incoming: File[]) => {
     if (!incoming.length) return;
-    if (files.length + incoming.length > aiAttachmentLimits.count || files.reduce((sum, item) => sum + item.size, 0) + incoming.reduce((sum, item) => sum + item.size, 0) > aiAttachmentLimits.totalBytes) { setError(t('Attach up to five files totaling 20 MB.', 'Lampirkan maksimal lima file dengan total 20 MB.')); return; }
-    const valid = incoming.filter(file => file.size > 0 && file.size <= aiAttachmentLimits.fileBytes);
-    if (valid.length !== incoming.length) { setError(t('Each file must be nonempty and at most 10 MB.', 'Setiap file harus berisi data dan berukuran maksimal 10 MB.')); return; }
+    if (files.length + incoming.length > aiAttachmentLimits.count) { setError(t('Attach up to five files per message.', 'Lampirkan maksimal lima file per pesan.')); return; }
+    const valid = incoming.filter(file => file.size > 0);
+    if (valid.length !== incoming.length) { setError(t('Each file must contain data.', 'Setiap file harus berisi data.')); return; }
     const items = valid.map(file => { const preview = file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined; if (preview) previews.current.push(preview); return { key: crypto.randomUUID(), filename: file.name, size: file.size, preview, progress: 0 }; });
     setFiles(value => [...value, ...items]); setError('');
     const update = (key: string, patch: Partial<LocalAttachment>) => {
@@ -392,15 +393,21 @@ function AiWorkspaceOwner({ owner, projectId, legacyProjectId, conversationId, v
       const key = items[index].key;
       try {
         const conversation = await ensureConversation();
-        const bytes = await file.arrayBuffer();
-        const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), byte => byte.toString(16).padStart(2, '0')).join('');
-        const created = await request<{ attachment: AiAttachment }>(`conversations/${conversation.id}/attachments`, { filename: file.name, sizeBytes: file.size, sha256 });
+        const hash = sha256.create();
+        for (let offset = 0; offset < file.size; offset += 4 * 1024 ** 2) {
+          hash.update(new Uint8Array(await file.slice(offset, Math.min(file.size, offset + 4 * 1024 ** 2)).arrayBuffer()));
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
+        const checksum = Array.from(hash.digest(), byte => byte.toString(16).padStart(2, '0')).join('');
+        const created = await request<{ attachment: AiAttachment }>(`conversations/${conversation.id}/attachments`, { filename: file.name, sizeBytes: file.size, sha256: checksum });
         const data = await new Promise<{ attachment: AiAttachment }>((resolve, reject) => {
           const upload = new XMLHttpRequest(); upload.open('PUT', `/api/ai/conversations/${conversation.id}/attachments/${created.attachment.id}/content`); upload.setRequestHeader('Content-Type', 'application/octet-stream');
           upload.upload.onprogress = event => { if (event.lengthComputable) update(key, { progress: Math.min(95, Math.round(event.loaded / event.total * 95)) }); };
           upload.onerror = () => reject(new Error(t('File upload failed. Remove it and try again.', 'Upload gagal. Hapus file ini dan coba lagi.')));
           upload.onload = () => { try { const value = JSON.parse(upload.responseText); if (upload.status < 200 || upload.status >= 300) reject(new Error(`${value.error ?? 'File upload failed.'} [${value.code ?? upload.status}]`)); else resolve(value); } catch { reject(new Error('The upload response could not be read.')); } };
-          upload.send(bytes);
+          // Send the File directly so the browser and route do not duplicate
+          // the entire source in an ArrayBuffer before streaming it upstream.
+          upload.send(file);
         });
         update(key, { attachment: data.attachment, progress: 100 });
       } catch (failure) { update(key, { error: (failure as Error).message }); }

@@ -114,14 +114,16 @@ async function handle(request: NextRequest, context: Context): Promise<Response>
     if (attachment && ['GET', 'PUT'].includes(method)) {
       const source = await call<{ attachment: AiAttachment; url: string }>(`${attachment[1]}/${method === 'PUT' ? 'upload' : 'content'}`, undefined, 'GET');
       if (method === 'PUT') {
-        const reader = request.body?.getReader();
-        if (!reader) throw new AiError(400, 'AI_ATTACHMENT_INVALID', 'Choose a file to upload.');
-        const chunks: Uint8Array[] = []; let size = 0;
-        try { while (true) { const chunk = await reader.read(); if (chunk.done) break; size += chunk.value.length; if (size > source.attachment.sizeBytes || size > 10 * 1024 ** 2) throw new AiError(413, 'AI_ATTACHMENT_LIMIT', 'The file exceeds its declared size.'); chunks.push(chunk.value); } }
-        finally { await reader.cancel(); }
-        if (size !== source.attachment.sizeBytes) throw new AiError(422, 'AI_ATTACHMENT_CHECKSUM', 'The uploaded size differs from the selected file.');
-        const bytes = new Uint8Array(size); let offset = 0; for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
-        const uploaded = await fetch(source.url, { method: 'PUT', body: bytes, headers: { 'Content-Type': source.attachment.mediaType, 'x-amz-server-side-encryption': 'AES256' }, redirect: 'manual' });
+        if (!request.body) throw new AiError(400, 'AI_ATTACHMENT_INVALID', 'Choose a file to upload.');
+        const uploadInit: RequestInit & { duplex?: 'half' } = {
+          method: 'PUT', body: request.body, redirect: 'manual',
+          // Supplying the declared length lets the local artifact store stream
+          // arbitrary-size files without falling back to its legacy 64 MiB
+          // unknown-length guard.
+          headers: { 'Content-Type': source.attachment.mediaType, 'Content-Length': String(source.attachment.sizeBytes), 'x-amz-server-side-encryption': 'AES256' },
+          duplex: 'half',
+        };
+        const uploaded = await fetch(source.url, uploadInit);
         await uploaded.body?.cancel();
         if (!uploaded.ok) throw new AiError(502, 'AI_ATTACHMENT_UPLOAD_FAILED', 'The file upload failed. Retry the upload.');
         return cookies(NextResponse.json(await call(`${attachment[1]}/complete`, {})));

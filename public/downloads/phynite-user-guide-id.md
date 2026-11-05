@@ -637,7 +637,7 @@ Periksa spesies, koordinat, dan sel simulasi sebelum run.
 
 Buka atau tambahkan modul Crystal structure, lalu pilih Crystal database di dalam editornya untuk mencari record struktur publik. Crystallography Open Database (COD) dapat digunakan tanpa API key; Materials Project membutuhkan MP_API_KEY pada environment server. Pencarian memakai provider yang ditampilkan pada browser, dan kegagalan provider tetap terlihat.
 
-Pilih dan impor record yang dimaksud, lalu periksa rumus kimia, kisi, jumlah atom, okupansi, dan identitas sumber. Struktur database merupakan model awal, bukan bukti bahwa fase, keadaan magnetik, atau pengaturan kalkulasinya sesuai. Properti numerik yang tidak dilaporkan tetap tidak tersedia.
+Pada aplikasi npm lokal, export MP_API_KEY di shell sebelum menjalankan phynite-lab, lalu mulai ulang aplikasi. Simpan key di luar browser, ekspor project, log, dan chat. Pilih dan impor record yang dimaksud, lalu periksa rumus kimia, kisi, jumlah atom, okupansi, dan identitas sumber. Struktur database merupakan model awal, bukan bukti bahwa fase, keadaan magnetik, atau pengaturan kalkulasinya sesuai. Properti numerik yang tidak dilaporkan tetap tidak tersedia.
 
 1. Buka modul Crystal structure tujuan lalu pilih Crystal database dari toolbar editornya.
 2. Pilih database lalu masukkan rumus kimia, daftar unsur, nama material, atau ID sumber yang didukung.
@@ -645,7 +645,7 @@ Pilih dan impor record yang dimaksud, lalu periksa rumus kimia, kisi, jumlah ato
 4. Untuk impor dibantu AI, minta Phynite AI mencari database lalu memakai record tertentu. Pencarian hanya membaca; penerapan impor mengikuti mode izin percakapan serta review aksinya.
 5. Baca identitas sumber dan checksum hasil impor. Periksa geometri dan pseudopotensial sebelum menghubungkan struktur ke kalkulasi.
 
-> Akses database membutuhkan internet. Kredensial Materials Project tetap di environment server; jangan menempelkan API key ke chat atau menyertakannya dalam ekspor project.
+> Akses database membutuhkan internet. Kredensial Materials Project tetap di environment server; jangan menempelkan API key ke chat atau menyertakannya dalam ekspor project. Jika key nyata terlanjur terbuka, cabut dan buat pengganti.
 
 - [Crystallography Open Database](<https://www.crystallography.net/cod/>)
 - [Dokumentasi Materials Project](<https://docs.materialsproject.org/>)
@@ -1458,7 +1458,7 @@ Pada website hosted, Komputasi mempertahankan default akun per workload, profil 
 
 ### Menghubungkan AI dan membaca batasnya
 
-Koneksi provider AI memakai CLI resmi Codex atau Antigravity dengan akun sendiri. Login ini terpisah dari Phynite Cloud. Setelah autentikasi, penemuan model serta pemeriksaan kemampuan berjalan otomatis. Tools dan attachment memerlukan dukungan terverifikasi; perubahan Canvas tetap memakai approval serta validasi. Aplikasi lokal menyimpan satu koneksi yang dikelola CLI untuk setiap provider; tidak ada pengganti akun atau setup gateway lokal.
+Koneksi provider AI memakai CLI resmi Codex atau Antigravity dengan akun sendiri. Login ini terpisah dari Phynite Cloud. Setelah autentikasi, penemuan model serta pemeriksaan kemampuan berjalan otomatis. Tools dan attachment memerlukan dukungan terverifikasi; perubahan Canvas tetap memakai approval serta validasi. Aplikasi lokal menyimpan satu koneksi yang dikelola CLI untuk setiap provider; tidak ada pengganti akun atau setup gateway lokal. Lampiran sumber AI dialirkan tanpa kuota browser lama 10 MB; byte asli dan checksum tetap disimpan. Pembaca format dan model terpilih tetap dapat memiliki batas aman sendiri, dan sumber besar dipertahankan dengan peringatan ekstraksi, bukan dipotong diam-diam.
 
 Pemakaian serta reset berasal dari provider: persentase, jendela waktu, dan tanggal ditampilkan hanya jika dilaporkan. Sisa token tidak disimpulkan. Provider terputus, rate-limit, atau tidak didukung menampilkan status nyata tanpa berpindah provider diam-diam.
 
