@@ -1,0 +1,33 @@
+name: Feature request
+description: Propose a concrete improvement to Phynite Lab.
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For early ideas and open questions, start in [Ideas](https://github.com/phynite-lab/phynite-lab/discussions/categories/ideas).
+        Use this form for a proposal with a clear problem and expected behavior. Keep private research data and credentials out of examples.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or workflow
+      description: What are you trying to do, and where does the current behavior get in the way?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the change and how a user would use it. Include the expected scientific behavior, units, or provenance requirements if relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives or workarounds
+      description: Describe alternatives you have tried or considered.
+  - type: textarea
+    id: context
+    attributes:
+      label: References and context
+      description: Add public references, related issues, or examples you can redistribute.

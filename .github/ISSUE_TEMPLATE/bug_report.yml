@@ -1,0 +1,62 @@
+name: Bug report
+description: Report a reproducible problem with Phynite Lab.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For usage questions, ask in [Q&A](https://github.com/phynite-lab/phynite-lab/discussions/categories/q-a).
+        Report security vulnerabilities [privately](https://github.com/phynite-lab/phynite-lab/security/advisories/new).
+        Remove credentials, personal information, and private research data from all examples and attachments.
+  - type: textarea
+    id: environment
+    attributes:
+      label: Version and environment
+      description: Include the Phynite Lab version or commit, installation method (npm or source), OS/architecture, and browser. Add solver/runtime versions when relevant.
+      placeholder: "Phynite Lab version; npm or source; OS and CPU architecture; browser; relevant runtime versions."
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Give the smallest sequence that reproduces the problem, including the page or workflow and relevant settings.
+      placeholder: |
+        1. Open ...
+        2. Configure ...
+        3. Run ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Describe the expected result and its basis. For scientific results, include a reference or independently reproducible comparison when available.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Describe what happened and include the exact error message, if any.
+    validations:
+      required: true
+  - type: textarea
+    id: scientific-inputs
+    attributes:
+      label: Scientific inputs and provenance
+      description: For DFT/MD or analysis problems, share a minimal redistributable input. Include units, structure/periodicity, solver settings, and potential names/checksums where relevant. Do not upload restricted potentials or private results.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs or screenshots
+      description: Add relevant redacted logs or screenshots. Review attachments for secrets and private data before submitting.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues for this problem.
+          required: true
+        - label: I removed credentials and private data from this report and its attachments.
+          required: true
