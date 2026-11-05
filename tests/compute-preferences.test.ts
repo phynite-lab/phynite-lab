@@ -28,6 +28,15 @@ test('local resource resolution preserves explicit overrides and legacy omission
   assert.deepEqual(personalComputeRequest({}), {});
   assert.deepEqual(defaults, { vcpus: 4, memoryMiB: 8192 });
 });
+test('the local 1 GiB minimum accepts one vCPU with one GiB and rejects less', () => {
+  // Limits reported by the local backend for a computer larger than the allocation.
+  const local = { vcpus: 8, memoryMiB: 16384, minimumMemoryMiB: 1024, memoryMiBPerVcpu: 0 };
+  const analysis = { ...local, memoryMiBPerVcpu: 1024 };
+  assert.equal(validPersonalAllocation({ vcpus: 1, memoryMiB: 1024 }, local), true);
+  assert.equal(validPersonalAllocation({ vcpus: 1, memoryMiB: 1023 }, local), false);
+  assert.equal(validPersonalAllocation({ vcpus: 1, memoryMiB: 1024 }, analysis), true);
+  assert.equal(validPersonalAllocation({ vcpus: 2, memoryMiB: 1024 }, analysis), false);
+});
 test('workload caps are explicit and analysis memory follows allocated CPU count', () => {
   const dft = { vcpus: 4, memoryMiB: 8192, minimumMemoryMiB: 2048 };
   const analysis = { vcpus: 8, memoryMiB: 16384, minimumMemoryMiB: 2048, memoryMiBPerVcpu: 1024 };

@@ -2195,7 +2195,7 @@ class PhyniteApi:
         max_vcpus = 65536 if affinity else max(1, int(getattr(self.services, 'max_md_job_vcpus', 8)))
         max_memory_mib = 1024 ** 3 if affinity else max(2048, int(getattr(self.services, 'max_md_job_memory', 16384)))
         vcpus = md_integer(resources.get('vcpus', min(4, max_vcpus)), 'Requested MD vCPU count', 1, max_vcpus, 'INVALID_MD_RESOURCES')
-        minimum_memory_mib = 1024 if affinity else max(2048, vcpus * 1024)
+        minimum_memory_mib = 1024 if affinity else max(1024, vcpus * 1024)
         memory_mib = md_integer(resources.get('memoryMiB', min(max(4096, vcpus * 2048), max_memory_mib)), 'Requested MD memory', minimum_memory_mib, max_memory_mib, 'INVALID_MD_RESOURCES')
         name = clean_text(payload.get('name', f"Analyze {trajectory['filename']}"), 'Analysis name', minimum=1, maximum=160)
         request_fingerprint = hashlib.sha256(json.dumps({'projectId': project_id, 'trajectoryId': trajectory_id, 'pipeline': pipeline, 'pipelineFingerprint': pipeline_fingerprint, 'sourceImport': source_import, **{}, 'name': name, 'vcpus': vcpus, 'memoryMiB': memory_mib, **({'executionAffinity': affinity} if affinity else {})}, separators=(',', ':'), sort_keys=True).encode('utf-8')).hexdigest()
@@ -2650,7 +2650,7 @@ class PhyniteApi:
             raise ApiError(400, 'Requested compute resources are invalid.', 'INVALID_RESOURCES') from exc
         max_vcpus = 65536 if affinity else self.services.max_md_job_vcpus
         max_memory = 1024 ** 3 if affinity else self.services.max_md_job_memory
-        if not 1 <= vcpus <= max_vcpus or not (1024 if affinity else 2048) <= memory_mib <= max_memory:
+        if not 1 <= vcpus <= max_vcpus or not 1024 <= memory_mib <= max_memory:
             raise ApiError(400, 'Requested compute resources exceed the local limits.', 'INVALID_RESOURCES')
         active = [item for item in self.services.list_project_items(project_id, 'MD_SIMULATION') if item.get('ownerId') == user_id and item.get('status') not in FINAL_JOB_STATES]
         if len(active) >= MAX_ACTIVE_MD_SIMULATIONS_PER_PROJECT:
@@ -2805,7 +2805,7 @@ class PhyniteApi:
         max_memory = 1024 ** 3 if affinity else self.services.max_job_memory
         if vcpus < 1 or vcpus > max_vcpus:
             raise ApiError(400, 'Requested vCPU count exceeds the server limit.', 'INVALID_RESOURCES')
-        if memory_mib < (1024 if affinity else 2048) or memory_mib > max_memory:
+        if memory_mib < 1024 or memory_mib > max_memory:
             raise ApiError(400, 'Requested memory exceeds the server limit.', 'INVALID_RESOURCES')
         pseudopotentials = payload.get('pseudopotentials') or {}
         if not isinstance(pseudopotentials, dict):
