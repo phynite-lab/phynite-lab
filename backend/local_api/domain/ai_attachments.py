@@ -13,8 +13,13 @@ from pathlib import PurePosixPath
 from backend.local_api.domain.ai_workspace import clean, fail
 from backend.local_api.domain.phynite_core import response, storage_owner
 
-TYPES = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp", "pdf": "application/pdf", "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
-TEXT_EXTENSIONS = {"csv", "tsv", "txt", "md", "markdown", "log", "out", "in", "inp", "cif", "xyz", "poscar", "contcar", "xsf", "json", "yaml", "yml", "dat", "upf", "lmp", "lammps"}
+TYPES = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp", "gif": "image/gif", "pdf": "application/pdf", "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
+TEXT_EXTENSIONS = {"csv", "tsv", "txt", "md", "markdown", "log", "out", "in", "inp", "cif", "xyz", "poscar", "contcar", "xsf", "json", "yaml", "yml", "dat", "upf", "lmp", "lammps",
+                   # Code, notebooks, markup and configuration are read as plain UTF-8 text.
+                   "py", "ipynb", "tex", "bib", "xml", "html", "htm", "toml", "ini", "cfg", "conf", "sh", "f90", "f", "c", "cpp", "h", "hpp", "r", "jl", "sql", "js", "ts", "rst"}
+# Extension-less input files that are plain text. VASP POTCAR is excluded: those pseudopotentials are licensed
+# and must not be sent to a third-party model provider.
+TEXT_NAMES = {"poscar", "contcar", "incar", "kpoints", "outcar", "oszicar"}
 MAX_DECLARED_SIZE = (1 << 63) - 1
 try:
     # This is a reader/parser guard, not an upload quota.  The original source
@@ -34,8 +39,10 @@ def extract(raw: bytes, filename: str, media: str) -> dict:
         from PIL import Image
         Image.MAX_IMAGE_PIXELS = 20_000_000
         with Image.open(io.BytesIO(raw)) as image:
-            if image.format not in {"PNG", "JPEG", "WEBP"} or Image.MIME[image.format] != media or image.width * image.height > 20_000_000:
-                fail(422, "Use a valid PNG, JPEG or WebP image up to 20 megapixels.", "AI_ATTACHMENT_INVALID")
+            if image.format not in {"PNG", "JPEG", "WEBP", "GIF"} or Image.MIME[image.format] != media or image.width * image.height > 20_000_000:
+                fail(422, "Use a valid PNG, JPEG, WebP or still GIF image up to 20 megapixels.", "AI_ATTACHMENT_INVALID")
+            if image.format == "GIF" and getattr(image, "is_animated", False):
+                fail(422, "Export the relevant animation frame as a PNG, JPEG or still GIF before attaching it.", "AI_ATTACHMENT_INVALID")
             image.verify()
         return {"sections": [], "warnings": [], "visual": True}
     if media == "application/pdf":
@@ -108,8 +115,8 @@ def extract(raw: bytes, filename: str, media: str) -> dict:
         values.close(); formulas.close()
         warnings.append("Spreadsheet formulas are never executed. Values are source values or explicitly labeled cached formula results; charts are not read.")
     else:
-        if ext not in TEXT_EXTENSIONS and filename.lower() not in {"poscar", "contcar"}:
-            fail(415, "Use an image, PDF, DOCX, XLSX or supported research text file.", "AI_ATTACHMENT_TYPE")
+        if ext not in TEXT_EXTENSIONS and filename.lower() not in TEXT_NAMES:
+            fail(415, "Use an image, PDF, DOCX, XLSX, or a supported text, code or research file.", "AI_ATTACHMENT_TYPE")
         try:
             text = raw.decode("utf-8-sig")
         except UnicodeDecodeError:
@@ -161,10 +168,10 @@ class AiAttachments:
                 fail(400, "Provide a valid filename, SHA-256 and positive size.", "AI_ATTACHMENT_INVALID")
             ext = filename.rsplit(".", 1)[-1].lower()
             media = TYPES.get(ext)
-            if not media and (ext in TEXT_EXTENSIONS or filename.lower() in {"poscar", "contcar"}):
+            if not media and (ext in TEXT_EXTENSIONS or filename.lower() in TEXT_NAMES):
                 media = "text/plain"
             if not media:
-                fail(415, "Use PNG/JPEG/WebP, PDF, DOCX, XLSX or research text. Legacy DOC/XLS files must be converted first.", "AI_ATTACHMENT_TYPE")
+                fail(415, "Use PNG/JPEG/WebP/GIF, PDF, DOCX, XLSX, or a text, code or research file. Legacy DOC/XLS/PPT files must be converted first.", "AI_ATTACHMENT_TYPE")
             item_id = "aif_" + secrets.token_hex(16)
             item = self.ai.put(owner, "AI_ATTACHMENT", item_id, {"conversationId": conversation["id"], "projectKey": conversation["projectKey"], "filename": filename, "sizeBytes": size, "sha256": checksum, "mediaType": media, "status": "uploading", "objectKey": f"users/{storage_owner(owner)}/ai/{conversation['id']}/attachments/{item_id}/source"})
             return response(201, {"attachment": clean(item)})

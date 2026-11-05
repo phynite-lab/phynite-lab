@@ -278,3 +278,25 @@ test('pure helpers: arguments, init verification and sign-in parsing', () => {
   assert.throws(() => parseClaudeAuth('not json'), { code: 'INVALID_PROTOCOL' });
   assert.throws(() => parseClaudeAuth('{"loggedIn":false}'), { code: 'AUTH_REQUIRED' });
 });
+
+test('Claude image turns send image blocks over stream-json input, not inside the text prompt', async () => {
+  const pixel = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGP4DwABAQEANl9ngAAAAABJRU5ErkJggg==';
+  await fixture({}, async ({ registry, turns }) => {
+    const events = await run(registry, prepared({ images: [{ mediaType: 'image/png', data: pixel }] }));
+    assert.equal(events.at(-1).type, 'result');
+    const [turn] = await turns();
+    assert.equal(turn.argv[turn.argv.indexOf('--input-format') + 1], 'stream-json');
+    const message = JSON.parse(turn.stdin.trim());
+    assert.equal(message.type, 'user');
+    assert.deepEqual(message.message.content.map(block => block.type), ['text', 'image']);
+    assert.deepEqual(message.message.content[1].source, { type: 'base64', media_type: 'image/png', data: pixel });
+    assert.equal(message.message.content[0].text.includes(pixel), false);
+    assert.ok(message.message.content[0].text.includes('SYNTHETIC_PROJECT_CONTEXT'));
+  });
+  // Text-only turns keep plain stdin.
+  await fixture({}, async ({ registry, turns }) => {
+    await run(registry, prepared());
+    const [turn] = await turns();
+    assert.equal(turn.argv.includes('--input-format'), false);
+  });
+});

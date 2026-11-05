@@ -4,7 +4,7 @@ import { accessTokenFrom, authErrorResponse, AuthServiceError, backendFetch, ref
 import { mutationFailure, readJsonBody } from '@/lib/request-security';
 import { isAiPickerModel } from '@/lib/ai-model-selection';
 import { aiModels, aiProviders, aiCapabilities, type AiAttachment, type AiDetail, type AiEvent, type AiSendPayload } from '@/lib/ai-contract';
-import { gatewayCapabilities, requireGatewayCapability } from '@/lib/ai-gateway-capabilities';
+import { gatewayCapabilities, nativeInputMediaTypes, requireGatewayCapability } from '@/lib/ai-gateway-capabilities';
 import { aiProviderConfig, aiTurnFailure, AiError } from '@/lib/ai-provider';
 import { maintainAiTurnLease } from '@/lib/ai-turn-lease';
 import { normalizeAiFailure } from '@/lib/ai-failure';
@@ -192,7 +192,7 @@ async function handle(request: NextRequest, context: Context): Promise<Response>
       const config = aiProviderConfig(providerEnvironment, providerId);
       if (!config) throw new AiError(503, 'AI_NOT_CONFIGURED', 'The selected AI source is not connected. Choose another source.');
       const mediaTypes = (saved.attachments ?? []).filter(file => (queuedMessage?.attachmentIds ?? payload.attachmentIds)?.includes(file.id)).map(file => file.mediaType);
-      requireGatewayCapability(providerEnvironment, selection.modelId, selection.effort ?? 'auto', mediaTypes, providerId);
+      requireGatewayCapability(providerEnvironment, selection.modelId, selection.effort ?? 'auto', nativeInputMediaTypes(mediaTypes), providerId);
       const detail = await call<AiDetail & { lease: string }>(`${base}/${payload.resume ? 'resume' : 'start'}`, payload.resume ? { runId: payload.runId } : payload.queueId ? { queueId: payload.queueId, settingsRevision: saved.conversation.revision } : { text: payload.text, attachmentIds: payload.attachmentIds ?? [], taskMode: payload.taskMode ?? 'work', contextRefs: payload.contextRefs ?? [], skillRef: payload.skillRef, sourceArtifactId: payload.sourceArtifactId, settingsRevision: saved.conversation.revision });
       const abort = new AbortController();
       const signal = AbortSignal.any([abort.signal, request.signal]);
