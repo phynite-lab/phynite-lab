@@ -16,7 +16,8 @@ export function aiPdfReadingLimit(reason: AiPdfFallback, reading: AiAttachmentRe
   const cause = reason === 'unverified' ? 'the selected model has not passed native PDF reading checks' : 'the PDF exceeds the 10 MiB native model input limit';
   if (!reading.totalSections && !reading.sections?.length) {
     const alternative = reason === 'unverified' ? 'or to choose a model that has passed native PDF reading checks' : 'or to split it into PDFs under 10 MiB';
-    return `Native PDF reading was not used because ${cause}. This PDF has no extractable text, so none of its content was read. Do not describe or infer its contents. Ask the user for an OCR text version or page images of the relevant pages, ${alternative}.`;
+    // Either the PDF has no text layer or extraction was deferred; the warnings state which.
+    return `Native PDF reading was not used because ${cause}. No readable text was extracted from this PDF (the warnings state why), so none of its content was read. Do not describe or infer its contents. Ask the user for an OCR text version or page images of the relevant pages, ${alternative}.`;
   }
   const remaining = reading.nextOffset == null ? '' : ` More sections remain: call read_attachment with offset ${reading.nextOffset}.`;
   return `Native PDF reading was not used because ${cause}. Only the extracted text sections below were read; figures, images, scanned pages and page layout were not read. State this limit and do not infer unread content.${remaining}`;

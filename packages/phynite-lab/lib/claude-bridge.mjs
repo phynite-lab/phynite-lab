@@ -42,6 +42,8 @@ export function verifyClaudeInit(message, rawModel) {
   if (message.permissionMode !== 'dontAsk') throw unsafe();
   // Only the CLI's built-in plugins may be present; a user plugin could run hooks.
   if (!Array.isArray(message.plugins) || message.plugins.some(plugin => !object(plugin) || plugin.path !== 'builtin')) throw unsafe();
+  // The CLI lists memory_paths only while auto-memory is active; the user's memories must stay out of a request.
+  if (message.memory_paths != null && (!object(message.memory_paths) || Object.keys(message.memory_paths).length)) throw fail('UNSAFE_CONFIGURATION', 'Claude Code did not switch off auto-memory. No response was used.');
   // The selected alias must be the model that answers; never accept a silent substitution.
   if (typeof message.model !== 'string' || !/^claude-[A-Za-z0-9._-]{1,100}$/.test(message.model) || !message.model.includes(rawModel)) throw fail('UNSAFE_CONFIGURATION', 'Claude Code did not preserve the selected model.');
   return message.model;

@@ -478,9 +478,11 @@ export class NativeAiRegistry {
   /** Refresh provider usage without changing connection or model state. */
   async usage() {
     await this.ready;
-    const reports = await Promise.all(['codex', 'antigravity'].map(async provider => {
+    const reports = await Promise.all(PROVIDERS.map(async provider => {
       if (this.state.providers[provider]?.optedIn !== true) return null;
       const accountId = this.state.activeAccounts[provider];
+      // Claude Code exposes no machine-readable usage limits; say so instead of reporting a read failure.
+      if (provider === 'claude') return { provider, accountId, quota: null, error: 'NOT_REPORTED_BY_CLI' };
       try {
         const key = `${provider}:${accountId}`;
         let pending = this.usageRefreshes.get(key);

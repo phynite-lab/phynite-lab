@@ -27,6 +27,7 @@ if (mode === 'unsafe-mcp') init.mcp_servers = [{ name: 'files', status: 'connect
 if (mode === 'unsafe-plugin') init.plugins.push({ name: 'user-plugin', path: '/home/user/.claude/plugins/user-plugin', source: 'user-plugin@local' });
 if (mode === 'unsafe-permission') init.permissionMode = 'bypassPermissions';
 if (mode === 'unsafe-skills') init.skills = ['deploy'];
+if (mode === 'memory-on') init.memory_paths = { auto: '/home/user/.claude/projects/x/memory/' };
 if (mode === 'text-before-init') { emit({ type: 'assistant', message: { content: [{ type: 'text', text: 'early' }] } }); process.exit(0); }
 emit(init);
 const nonce = /exactly ([a-f0-9-]{36})/.exec(stdin)?.[1];
@@ -153,6 +154,22 @@ for (const [mode, label] of [['unsafe-tools', 'a native tool'], ['unsafe-mcp', '
   });
 }
 
+test('Claude fails closed when init shows auto-memory is still active', async () => {
+  await fixture({ mode: 'memory-on' }, async ({ registry }) => {
+    await assert.rejects(run(registry, prepared()), { code: 'UNSAFE_CONFIGURATION' });
+  });
+});
+
+test('Claude usage is reported as not exposed by the CLI rather than as a read failure', async () => {
+  await fixture({}, async ({ registry, turns }) => {
+    await registry.connect('claude');
+    const report = (await registry.usage()).usage.find(item => item.provider === 'claude');
+    assert.deepEqual(report, { provider: 'claude', accountId: 'claude:default', quota: null, error: 'NOT_REPORTED_BY_CLI' });
+    // Reading usage never starts a model turn.
+    assert.deepEqual(await turns(), []);
+  });
+});
+
 test('Claude rejects a silent model substitution and any response before init', async () => {
   await fixture({ mode: 'wrong-model' }, async ({ registry }) => {
     await assert.rejects(run(registry, prepared({ rawModel: 'sonnet' })), { code: 'UNSAFE_CONFIGURATION' });
@@ -251,6 +268,8 @@ test('pure helpers: arguments, init verification and sign-in parsing', () => {
   assert.deepEqual(claudeArguments('opus', 'low').slice(-4, -2), ['--effort', 'low']);
   const safe = { tools: [], mcp_servers: [], slash_commands: [], skills: [], plugins: [], permissionMode: 'dontAsk', model: 'claude-opus-4-7' };
   assert.equal(verifyClaudeInit(safe, 'opus'), 'claude-opus-4-7');
+  assert.equal(verifyClaudeInit({ ...safe, memory_paths: {} }, 'opus'), 'claude-opus-4-7');
+  assert.throws(() => verifyClaudeInit({ ...safe, memory_paths: { auto: '/m/' } }, 'opus'), { code: 'UNSAFE_CONFIGURATION' });
   assert.throws(() => verifyClaudeInit({ ...safe, tools: ['Read'] }, 'opus'), { code: 'UNSAFE_TOOLS' });
   assert.throws(() => verifyClaudeInit({ ...safe, plugins: undefined }, 'opus'), { code: 'UNSAFE_TOOLS' });
   assert.throws(() => verifyClaudeInit({ ...safe, model: 'gpt-6' }, 'opus'), { code: 'UNSAFE_CONFIGURATION' });
