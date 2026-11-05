@@ -3,11 +3,30 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 import xml.etree.ElementTree as ET
 from typing import Any
 from backend.local_api.domain.phynite_core import ApiError, owner_partition, require_owner_item, storage_owner, utc_now
 from backend.local_api.domain.dft_validation import dependency_dft_error, read_dft_manifest
 from backend.local_api.domain.elements import ELEMENT_SYMBOLS
+
+
+def label_element(label: str) -> str | None:
+    """Element named by a QE species label written as an element symbol plus a suffix that does not
+    start with a lowercase letter (Fe1, C_a, CX), the rule Phynite enforces when it writes QE input.
+    A label such as Sa is not guessed to be sulfur."""
+    if label in ELEMENT_SYMBOLS:
+        return label
+    if len(label) >= 2 and label[1].islower():
+        return label[:2] if label[:2] in ELEMENT_SYMBOLS else None
+    return label[:1] if label[:1] in ELEMENT_SYMBOLS else None
+
+
+def resolve_qe_element(label: str, species_map: dict[str, str] | None = None) -> str:
+    """Resolve a Quantum ESPRESSO atomic label/species to its standard periodic element symbol."""
+    if species_map and species_map.get(label) in ELEMENT_SYMBOLS:
+        return species_map[label]
+    return label_element(label) or label
 
 
 def source_structure(api: Any, owner: str, project: str, attempt: dict[str, Any]) -> dict[str, Any]:
@@ -32,8 +51,70 @@ def source_structure(api: Any, owner: str, project: str, attempt: dict[str, Any]
         factor = 0.529177210903  # QE schema atomic_structure is in bohr.
         vectors = [[float(number) * factor for number in row.text.split()] for row in geometry.find('cell')]
         particles = list(geometry.find('atomic_positions'))
+
+        species_map: dict[str, str] = {}
+        parent_periodic: list[bool] | None = None
+        if job.get('structureId'):
+            try:
+                parent_item = api.services.get_item(owner, 'STRUCTURE', job['structureId'])
+                if parent_item and parent_item.get('objectKey'):
+                    raw_parent = api.services.s3.get_object(Bucket=api.services.bucket, Key=parent_item['objectKey'])['Body'].read(5_000_001)
+                    parent_data = json.loads(raw_parent)
+                    for a in parent_data.get('atoms', []):
+                        sp = a.get('species')
+                        lb = a.get('label') or sp
+                        if lb and sp and sp in ELEMENT_SYMBOLS:
+                            species_map[str(lb)] = str(sp)
+                    if isinstance(parent_data.get('periodic'), list) and len(parent_data['periodic']) == 3:
+                        parent_periodic = [bool(p) for p in parent_data['periodic']]
+            except Exception:
+                pass
+
+        pseudo_map: dict[str, str] = {}
+        for species_node in root.findall('.//species'):
+            s_name = str(species_node.attrib.get('name') or '').strip()
+            pseudo = species_node.findtext('pseudo_file') or species_node.findtext('./pseudo_file') or ''
+            if s_name and pseudo:
+                m = re.match(r'^([A-Za-z]{1,2})[._]', pseudo.strip())
+                if m and m.group(1).capitalize() in ELEMENT_SYMBOLS:
+                    pseudo_map[s_name] = m.group(1).capitalize()
+
+        raw_species = [str(atom.attrib.get('name') or '').strip() for atom in particles]
+        element_map: dict[str, str] = {}
+        for name in dict.fromkeys(raw_species):
+            # Every available source must name the same element; a disagreement is never resolved silently.
+            # The label rule only counts for labels QE accepts (at most 3 characters).
+            evidence = {'source structure': species_map.get(name), 'pseudopotential': pseudo_map.get(name), 'species label': label_element(name) if len(name) <= 3 else None}
+            named = {source: value for source, value in evidence.items() if value}
+            if len(set(named.values())) > 1:
+                detail = ', '.join(f'{source} {value}' for source, value in named.items())
+                raise ApiError(422, f'QE species {name} is identified inconsistently ({detail}). Correct the structure or pseudopotential before continuing.', 'WORKFLOW_SPECIES_CONFLICT')
+            element_map[name] = resolve_qe_element(name, {**pseudo_map, **species_map})
+
+        periodic = parent_periodic if parent_periodic is not None else [True, True, True]
         from backend.local_api.domain.workflow_md_results import frame_structure
-        return frame_structure({'vectors': vectors, 'positions': [float(number) * factor for atom in particles for number in atom.text.split()], 'species': [atom.attrib['name'] for atom in particles], 'origin': [0, 0, 0], 'periodic': [True, True, True], 'hasCell': True}, {'coordinateUnit': 'angstrom'})
+        result = frame_structure(
+            {
+                'vectors': vectors,
+                'positions': [float(number) * factor for atom in particles for number in atom.text.split()],
+                'species': raw_species,
+                'origin': [0, 0, 0],
+                'periodic': periodic,
+                'hasCell': True,
+            },
+            {
+                'coordinateUnit': 'angstrom',
+                'elementMap': element_map,
+                'periodic': periodic,
+                'name': f"{job.get('name', 'Structure')} (relaxed)" if stage == 'relax' else f"{job.get('name', 'Structure')} (converged)",
+            },
+        )
+        # The QE output names are the species labels the calculation actually used.
+        for index, atom in enumerate(result['atoms']):
+            if raw_species[index] and raw_species[index] != atom['species']:
+                atom['label'] = raw_species[index]
+        result['source'] = 'workflow-relaxation' if stage == 'relax' else 'workflow-scf'
+        return result
     refs = attempt.get('result', {}).get('resources', [])
     ref = next((ref for ref in refs if ref['kind'] == 'structure'), None)
     if not ref:

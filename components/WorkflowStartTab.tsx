@@ -9,7 +9,7 @@ import type { AiConversation } from '@/lib/ai-contract';
 import type { ReactNode, MouseEvent } from 'react';
 export const workflowModuleSections: {en:string;id:string;kinds:WorkflowNode['kind'][]}[] = [
   {en:'Inputs',id:'Input',kinds:['structure','trajectory']},
-  {en:'DFT',id:'DFT',kinds:['scf','relax','bands','dos','phonon','btp2']},
+  {en:'DFT',id:'DFT',kinds:['relax','scf','bands','dos','phonon','btp2']},
   {en:'Molecular dynamics',id:'Dinamika molekuler',kinds:['md','md-analysis','extract-frame']},
   {en:'Figures',id:'Figure',kinds:['figure']},
 ];
