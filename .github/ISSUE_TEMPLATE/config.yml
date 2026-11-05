@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and troubleshooting
+    url: https://github.com/phynite-lab/phynite-lab/discussions/categories/q-a
+    about: Ask the community for help using Phynite Lab.
+  - name: Ideas and workflow discussions
+    url: https://github.com/phynite-lab/phynite-lab/discussions/categories/ideas
+    about: Explore an idea before opening a concrete feature request.
+  - name: Report a security vulnerability privately
+    url: https://github.com/phynite-lab/phynite-lab/security/advisories/new
+    about: Send a private report to maintainers instead of disclosing a vulnerability publicly.

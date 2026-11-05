@@ -1,0 +1,26 @@
+title: "[Idea] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share an idea or explore a scientific workflow with the community. Describe the need before proposing an implementation.
+        Keep credentials, personal information, and private research data out of your post and attachments.
+  - type: textarea
+    id: need
+    attributes:
+      label: What would this help you do?
+      description: Describe the user or research need and the limitations of the current workflow.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: Explain the behavior you have in mind and any questions you want to discuss.
+    validations:
+      required: true
+  - type: textarea
+    id: references
+    attributes:
+      label: Alternatives and references
+      description: Add workarounds, related discussions, or public references where useful.

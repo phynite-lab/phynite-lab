@@ -1,0 +1,27 @@
+title: "[Q&A] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ask about setup, scientific workflows, or using Phynite Lab. Maintainers or community members can help, and you can mark a helpful response as the answer.
+        For a reproducible bug, use the [bug report form](https://github.com/phynite-lab/phynite-lab/issues/new?template=bug_report.yml).
+        Report vulnerabilities [privately](https://github.com/phynite-lab/phynite-lab/security/advisories/new). Remove secrets and private research data from your post and attachments.
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: Describe what you want to accomplish and where you need help.
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you tried?
+      description: Include relevant documentation, commands, settings, and error messages.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Version and environment
+      description: If relevant, include the Phynite Lab version, installation method, OS/architecture, browser, and solver/runtime versions. Share only inputs you can redistribute.
