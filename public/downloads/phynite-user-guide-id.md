@@ -210,7 +210,7 @@ Workspace demo lokal nyata. Mulai dengan New project; login Cloud opsional.
 
 Launcher lokal membuka workspace di komputer Anda.
 
-Paket publik saat ini adalah phynite-lab@0.1.16. Gunakan Node.js dengan versi yang memenuhi >=22.13.0. npm memasang launcher dan paket aplikasi native opsional yang sesuai dengan OS serta CPU.
+Paket publik saat ini adalah phynite-lab@0.1.17. Gunakan Node.js dengan versi yang memenuhi >=22.13.0. npm memasang launcher dan paket aplikasi native opsional yang sesuai dengan OS serta CPU.
 
 Pastikan optional dependencies npm tidak dinonaktifkan. Jika paket dipasang dengan --omit=optional atau paket platform dihapus, launcher menampilkan error runtime yang hilang dan tidak diam-diam memakai fixture development.
 
@@ -2490,7 +2490,7 @@ phynite-lab --no-open --port 3000 --data-dir ~/.phynite-lab
 
 ### Identitas rilis, lisensi, dan verifikasi update
 
-Metadata rilis dokumentasi saat ini menunjukkan phynite-lab@0.1.16. Perintah pertama melaporkan launcher terpasang; perintah kedua membaca metadata registry npm. Versi registry yang lebih baru tidak memperbarui proses yang masih berjalan.
+Metadata rilis dokumentasi saat ini menunjukkan phynite-lab@0.1.17. Perintah pertama melaporkan launcher terpasang; perintah kedua membaca metadata registry npm. Versi registry yang lebih baru tidak memperbarui proses yang masih berjalan.
 
 Buka Source code and license pada aplikasi untuk corresponding source. Distribusi publik mencatat commit source publik dan arsip source eksaknya; aset rilis menyediakan checksum paket serta bukti kualifikasi. Kode lokal milik Phynite berlisensi AGPL-3.0-only; solver pihak ketiga dan file potential mempertahankan lisensinya sendiri.
 
