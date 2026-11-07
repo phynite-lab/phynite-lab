@@ -150,7 +150,7 @@ export function ParameterStudyWorkspace({ graph, attempts, disabled, onApply, on
           const members = currentNodes.filter(item => item.provenance.caseIndex === index), provenance = members[0].provenance;
           return <tr key={index}><th><small className="study-case-index">{t('Case', 'Kasus')} {index + 1}</small>{provenance.value} <span className="study-case-unit">{provenance.unit}</span></th><td><div className="study-case-modules">{members.map(({ node }) => {
             const attempt = attempts.find(attempt => attempt.nodeId === node.id);
-            return <button key={node.id} onClick={() => onOpen(node.id)}><span>{node.name}<ArrowRight size={12} aria-hidden="true" /></span><small>{attempt ? `${attempt.status}${attempt.outdated ? ` · ${t('outdated', 'kedaluwarsa')}` : ''}` : t('Not run', 'Belum dijalankan')}</small></button>;
+            return <button key={node.id} onClick={() => onOpen(node.id)}><span>{node.name}<ArrowRight size={12} aria-hidden="true" /></span><small>{attempt ? attempt.status : t('Not run', 'Belum dijalankan')}</small></button>;
           })}</div></td></tr>;
         })}</tbody></table></div>
         <div className="study-results-actions"><button className="study-secondary" onClick={() => onShowCases(targetIds)}>{t('Show cases on Canvas', 'Lihat kasus di Kanvas')}<ArrowRight size={15} aria-hidden="true" /></button><button className="study-primary" disabled={disabled} onClick={() => onRun(currentNodes.filter(item => item.node.kind !== 'structure').map(item => item.node.id))}><Play size={14} aria-hidden="true" />{t('Review study run', 'Tinjau eksekusi studi')}</button></div>

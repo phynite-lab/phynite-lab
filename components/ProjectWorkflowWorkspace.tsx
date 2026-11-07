@@ -43,9 +43,9 @@ import { localRequest } from '@/lib/local-api';
 import { buildComputePlan, type ComputePlan } from '@/lib/compute-plan';
 import { getCalculationWorkspaceSnapshot, parseCalculationWorkspaceSnapshot } from '@/lib/workspace-storage';
 import { openProjectWorkflow, preservedProjectEditorHref } from '@/lib/project-workflow-opening';
-import { compileWorkflowDft, workflowQeDraft, workflowCalculationTypes } from '@/lib/project-workflow-compiler';
+import { compileWorkflowDft, workflowBranchFields, workflowQeDraft, workflowCalculationTypes } from '@/lib/project-workflow-compiler';
 import { createMdSimulationWorkflowV2, type MdSimulationComponentInstance } from '@/lib/md-simulation-types';
-import { copyWorkflowNodes, pasteWorkflowSelection, parseWorkflowClipboard, removeWorkflowNodes, stableWorkflowJson, workflowConnectionError, workflowModules, workflowOrder, type ProjectWorkflow, type WorkflowNode, type WorkflowClipboardV2, type ProjectRun, type WorkflowPlan } from '@/lib/project-workflow';
+import { copyWorkflowNodes, pasteWorkflowSelection, parseWorkflowClipboard, removeWorkflowNodes, scientificWorkflowConfiguration, stableWorkflowJson, workflowConnectionError, workflowModules, workflowOrder, type ProjectWorkflow, type WorkflowNode, type WorkflowClipboardV2, type ProjectRun, type WorkflowPlan } from '@/lib/project-workflow';
 import { nextWorkflowModuleName } from '@/lib/workflow-navigation';
 import { workflowCanvasConnection, workflowConnectionAnchors, workflowModuleChoices, workflowNewNodeConnection, type WorkflowConnectionAnchor } from '@/lib/project-workflow-interaction';
 import { loadResearch } from '@/lib/research-storage';
@@ -54,7 +54,7 @@ import { workflowDeviceTrajectories } from '@/lib/workflow-md-migration';
 import { alignCanvasSelection, canvasSelection, snapCanvasPositions, canvasBounds, type CanvasAlignment, type CanvasGuide } from '@/lib/workflow-canvas';
 import { structureFormula } from '@/lib/structure-formula';
 import { workflowNodeSummary, workflowPathFocus } from '@/lib/workflow-canvas-presentation';
-import type { ParsedStructure } from '@/lib/structure-parsers';
+import { parseStructureFile, type ParsedStructure } from '@/lib/structure-parsers';
 import { ResearchSidebarSlot, ResearchWorkspaceHeaderSlot, useResearchNavigation, useResearchShell, useResearchSidebarSearch } from './ResearchShellContext';
 import { WorkflowNodeEditor } from './WorkflowNodeEditor';
 import { ResearchContextPanel } from './ResearchContextPanel';
@@ -635,9 +635,13 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
   };
   const statuses = useMemo(() => {
     const result: Record<string, string> = {};
-    [...runs].reverse().forEach(run => run.attempts.forEach(attempt => { result[attempt.nodeId] = attempt.outdated ? 'Outdated' : attempt.status; }));
+    const inputNodes = new Set(graph.nodes.filter(node => node.kind === 'structure' || node.kind === 'trajectory').map(node => node.id));
+    [...runs].reverse().forEach(run => run.attempts.forEach(attempt => {
+      if (inputNodes.has(attempt.nodeId)) return;
+      result[attempt.nodeId] = attempt.status;
+    }));
     return result;
-  }, [runs]);
+  }, [runs, graph.nodes]);
   const contextMenu = (event: MouseEvent | globalThis.MouseEvent, nodeId?: string) => { event.preventDefault(); setMenu({ x: Math.min(event.clientX, window.innerWidth - 230), y: Math.min(event.clientY, window.innerHeight - 350), nodeId }); };
   const pathFocus = useMemo(() => workflowPathFocus(graph, hoveredNode ? [hoveredNode] : hoveredEdge ? [] : canvasSelection(graph, selected), hoveredEdge ? [hoveredEdge] : selectedEdges), [graph, hoveredNode, hoveredEdge, selected, selectedEdges]);
   const openNodeMenu = useCallback((target: WorkflowNode, element: HTMLElement) => {
@@ -827,11 +831,22 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
     const raw = node.configuration.structure as (ParsedStructure & Partial<CrystalDatabaseInput>) | undefined;
     if (!raw?.atoms.length) throw new Error(t('Add atoms or import a structure first.', 'Tambahkan atom atau impor struktur terlebih dahulu.'));
     const signature = stableWorkflowJson(raw);
-    if (node.configuration.savedStructureSignature === signature && node.resources.some(ref => ref.kind === 'structure' && !ref.deviceOnly)) return node;
+    const existing = node.resources.find(ref => ref.kind === 'structure' && !ref.deviceOnly);
+    if (node.configuration.savedStructureSignature === signature && existing) return node;
     const formula = structureFormula(raw.atoms);
     if (!formula) throw new Error(t('Complete element mappings and occupancies before saving.', 'Lengkapi pemetaan elemen dan okupansi sebelum menyimpan.'));
+    const cleanedMissing = Array.isArray(node.configuration.missingInputs) ? node.configuration.missingInputs.filter((value: unknown) => !value || typeof value !== 'object' || !('kind' in value) || value.kind !== 'structure') : undefined;
+    if (!node.configuration.savedStructureSignature && existing) {
+      const currentInput = await projectWorkflowApi.input(projectId, existing.id).catch(() => null);
+      const doc = (currentInput?.structure ?? (currentInput?.text ? await parseStructureFile(new File([currentInput.text], currentInput.filename)).catch(() => null) : null)) as (ParsedStructure & { periodic?: [boolean, boolean, boolean] }) | null | undefined;
+      if (doc && stableWorkflowJson(scientificWorkflowConfiguration({ structure: raw }, 'structure').structure) === stableWorkflowJson(scientificWorkflowConfiguration({ structure: doc }, 'structure').structure)) {
+        const next = { ...node, resources: node.resources.map(ref => ref.kind === 'structure' && ref.id === existing.id && currentInput?.sha256 ? { ...ref, sha256: currentInput.sha256 } : ref), configuration: { ...node.configuration, savedStructureSignature: signature, formula, ...(cleanedMissing !== undefined ? { missingInputs: cleanedMissing } : {}) } };
+        if (!updateNode(next)) throw new Error(t('Input could not be added to this workflow. Resolve the save error first.', 'Input belum dapat ditambahkan ke workflow. Selesaikan masalah penyimpanan dahulu.'));
+        return next;
+      }
+    }
     const { structure } = await phyniteStructures.create(projectId, { ...raw, name: node.name, formula, source: raw.source ?? 'workflow-crystal-builder', lattice: raw.lattice, atoms: raw.atoms, periodic: (raw as ParsedStructure & { periodic?: [boolean, boolean, boolean] }).periodic ?? raw.lattice.periodic ?? [true, true, true] });
-    const next = { ...node, resources: [{ kind: 'structure' as const, id: structure.id, ...('sha256' in structure ? { sha256: String(structure.sha256) } : {}) }], configuration: { ...node.configuration, savedStructureSignature: signature, formula, missingInputs:Array.isArray(node.configuration.missingInputs)?node.configuration.missingInputs.filter((value:unknown)=>!value||typeof value!=='object'||!('kind' in value)||value.kind!=='structure'):[] } };
+    const next = { ...node, resources: [{ kind: 'structure' as const, id: structure.id, ...('sha256' in structure ? { sha256: String(structure.sha256) } : {}) }], configuration: { ...node.configuration, savedStructureSignature: signature, formula, ...(cleanedMissing !== undefined ? { missingInputs: cleanedMissing } : {}) } };
     if (!updateNode(next)) throw new Error(t('Input could not be added to this workflow. Resolve the save error first.', 'Input belum dapat ditambahkan ke workflow. Selesaikan masalah penyimpanan dahulu.'));
     return next;
   };
@@ -854,8 +869,10 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
       const current = latestGraph.current;
       const prepared = { ...current, nodes: current.nodes.map(node => {
         if (!needed.has(node.id) || !workflowCalculationTypes[node.kind]) return node;
-        try { return { ...node, configuration: { ...node.configuration, compilerVersion: 1, draft: workflowQeDraft(current, node), configurationError: undefined, execution: compileWorkflowDft(current, node, project?.name ?? '') } }; }
-        catch (failure) { return { ...node, configuration: { ...node.configuration, compilerVersion: 1, draft: workflowQeDraft(current, node), execution: undefined, configurationError: (failure as Error).message } }; }
+        const existingDraft = node.configuration.draft && typeof node.configuration.draft === 'object' && !Array.isArray(node.configuration.draft) ? node.configuration.draft as Record<string, unknown> : undefined;
+        const draft = existingDraft ? (['bands', 'dos', 'phonon', 'btp2'].includes(node.kind) && !String(existingDraft.rawInput ?? '').trim() ? Object.fromEntries(Object.entries(existingDraft).filter(([key]) => workflowBranchFields.includes(key as typeof workflowBranchFields[number]))) : existingDraft) : workflowQeDraft(current, node);
+        try { return { ...node, configuration: { ...node.configuration, compilerVersion: 1, draft, configurationError: undefined, execution: compileWorkflowDft(current, node, project?.name ?? '') } }; }
+        catch (failure) { return { ...node, configuration: { ...node.configuration, compilerVersion: 1, draft, execution: undefined, configurationError: (failure as Error).message } }; }
       }) };
       requireChange(prepared); await client.flush();
       const saved = client.getSnapshot();

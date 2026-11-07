@@ -63,7 +63,8 @@ export async function editAiCanvas(original: ProjectWorkflow, operations: AiCanv
     } else if (op.type === 'duplicate') {
       const source = node(op.nodeId), clone = createWorkflowModule(graph, source.kind, { name: op.name || `${source.name} copy`, position: op.position ?? { x: source.position.x + 280, y: source.position.y } });
       clone.configuration = cleanWorkflowClipboardValue(source.configuration) as Record<string, unknown>;
-      for (const key of ['execution', 'configurationError', 'savedStructureSignature', 'parameterStudy']) delete clone.configuration[key];
+      for (const key of ['execution', 'configurationError', 'parameterStudy']) delete clone.configuration[key];
+      if (source.kind !== 'structure' || !source.resources.some(ref => ref.kind === 'structure' && !ref.deviceOnly)) delete clone.configuration.savedStructureSignature;
       clone.resources = structuredClone(source.resources);
       graph.nodes.push(clone); touched.add(clone.id); if (op.ref) aliases.set(op.ref, clone.id);
     } else if (op.type === 'connect') {

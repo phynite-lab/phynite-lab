@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from backend.local_api.domain.api import PhyniteApi
 from backend.local_api.domain.phynite_core import ApiError, owner_partition
-from backend.local_api.domain.project_workflow import ProjectWorkflowApi
+from backend.local_api.domain.project_workflow import DEFAULT_QE_DRAFT, ProjectWorkflowApi, encoded, fingerprints
 from backend.local_api.services import LocalServices
 
 
@@ -169,6 +169,93 @@ class LocalWorkflowReadinessTests(unittest.TestCase):
         workflow['nodes'][1]['configuration']['execution']['pseudopotentials'] = {'Si.pbe.sssp-precision.upf': 'users/owned/pseudo'}
         self.call('PUT', payload={'workflow': workflow, 'baseRevision': 1})
         self.assertEqual(self.call('POST', '/plan', {'revision': 2, 'targets': ['scf']})['plan']['errors'], [])
+
+    def test_canonical_fingerprints_and_legacy_snapshot_reconciliation(self):
+        import copy
+        import hashlib
+        base = graph()
+        structure = {
+            'id': 'local-id', 'name': 'ZnNi2O4', 'formula': 'ZnNi2O4', 'source': 'cif', 'spaceGroup': 'Fd-3m',
+            'externalId': 'mp-123', 'sourceUrl': 'https://example.org/mp-123', 'sourceUpdatedAt': '2026-01-01',
+            'sourceData': {'energyAboveHull': 0}, 'geometryProvenance': 'relaxed', 'bandGap': 1.4,
+            'provenance': {'importedAt': '2026-01-01'},
+            'atoms': [{'id': 'atom-1', 'species': 'Zn', 'label': 'Zn', 'x': 0.0, 'y': 0.0, 'z': 0.0}],
+            'lattice': {'a': 8.3, 'b': 8.3, 'c': 8.3, 'alpha': 90.0, 'beta': 90.0, 'gamma': 90.0, 'periodic': [True, True, True]},
+        }
+        base['nodes'][0]['configuration'] = {'structure': structure, 'formula': 'ZnNi2O4', 'missingInputs': []}
+        base['nodes'][1]['configuration'] = {
+            'draft': {**DEFAULT_QE_DRAFT, 'cutoffPolicy': 'manual', 'cutoff': 60, 'chargeDensityCutoff': 480, 'plotYMin': -10, 'plotYMax': 10},
+            'execution': {'structureId': 'str_1', 'computeTarget': 'shared', 'vcpus': 4, 'memoryMiB': 8192},
+            'computeTarget': 'personal', 'cloudMode': 'spot', 'computeProfileId': 'std', 'vcpus': 8, 'memoryMiB': 16384,
+            'pseudopotentialChecksums': {'Zn': 'abc'}, 'parameterStudy': {'id': 'study_1'}, 'missingInputs': [],
+        }
+        base['nodes'][2]['configuration'] = {
+            'compilerVersion': 1,
+            'draft': {**DEFAULT_QE_DRAFT, 'cutoffPolicy': 'manual', 'cutoff': 60, 'chargeDensityCutoff': 480, 'projectedBands': True},
+        }
+        before = fingerprints(base)
+        minimal = graph()
+        minimal['nodes'][0]['resources'] = [{'kind': 'structure', 'id': 'str_1', 'sha256': 'a' * 64}]
+        minimal_structure = {
+            'atoms': [{'species': 'Zn', 'x': 0, 'y': 0, 'z': 0}],
+            'lattice': {'a': 8.3, 'b': 8.3, 'c': 8.3, 'alpha': 90, 'beta': 90, 'gamma': 90},
+            'periodic': [True, True, True],
+        }
+        minimal['nodes'][0]['configuration'] = {
+            'structure': minimal_structure,
+            'savedStructureSignature': encoded(minimal_structure).decode('utf-8'),
+        }
+        minimal['nodes'][1]['configuration'] = {'draft': {'cutoffPolicy': 'manual', 'cutoff': 60, 'chargeDensityCutoff': 480}}
+        minimal['nodes'][2]['configuration'] = {'draft': {'projectedBands': True}}
+        self.assertEqual(fingerprints(minimal), before)
+
+        unhydrated_snapshot_wf = copy.deepcopy(minimal)
+        unhydrated_snapshot_wf['nodes'][0]['configuration'] = {}
+        self.call('PUT', payload={'workflow': minimal, 'baseRevision': 0})
+        snapshot = {
+            'id': 'run_legacy',
+            'workflow': unhydrated_snapshot_wf,
+            'plan': {'order': ['s', 'scf', 'bands'], 'nodes': [{'nodeId': 's', 'fingerprint': 'legacy_s_hash'}, {'nodeId': 'scf', 'fingerprint': 'legacy_scf_hash'}, {'nodeId': 'bands', 'fingerprint': 'legacy_bands_hash'}]},
+        }
+        key, sha = self.workflow.write_json('user-1', 'prj_1', 'runs', snapshot)
+        self.workflow.put_new('user-1', 'PROJECT_RUN', 'run_legacy', {
+            'projectId': 'prj_1', 'workflowRevision': 1, 'status': 'completed',
+            'order': ['s', 'scf', 'bands'], 'targets': ['bands'], 'objectKey': key, 'sha256': sha,
+        })
+        self.workflow.put_new('user-1', 'WORKFLOW_ATTEMPT', 'run_legacy_s', {
+            'projectId': 'prj_1', 'runId': 'run_legacy', 'nodeId': 's', 'status': 'completed', 'fingerprint': 'legacy_s_hash',
+        })
+        scf_attempt = self.workflow.put_new('user-1', 'WORKFLOW_ATTEMPT', 'run_legacy_scf', {
+            'projectId': 'prj_1', 'runId': 'run_legacy', 'nodeId': 'scf', 'status': 'completed', 'fingerprint': 'legacy_scf_hash',
+            'jobId': 'calc_ok', 'jobKind': 'CALCULATION',
+        })
+        loaded = self.workflow.get_run('user-1', 'prj_1', 'run_legacy')['run']
+        self.assertFalse(loaded['attempts'][0]['outdated'])
+        self.assertFalse(loaded['attempts'][1]['outdated'])
+        current_hashes = fingerprints(minimal)
+        self.assertTrue(self.workflow.attempt_matches_fingerprint('user-1', 'prj_1', scf_attempt, current_hashes['scf']))
+
+        self.workflow.put_new('user-1', 'STRUCTURE', 'str_2', {'projectId': 'prj_1', 'status': 'READY'})
+        raw_s3 = encoded(structure)
+        self.services.s3.put_object(Bucket=self.services.bucket, Key='str-1-key', Body=raw_s3)
+        self.services.update_item('user-1', 'STRUCTURE', 'str_1', {'objectKey': 'str-1-key', 'sha256': hashlib.sha256(raw_s3).hexdigest()})
+        dup_wf = copy.deepcopy(minimal)
+        dup_wf['nodes'][0]['resources'] = [{'kind': 'structure', 'id': 'str_2'}]
+        self.call('PUT', payload={'workflow': dup_wf, 'baseRevision': 1})
+        loaded_dup = self.workflow.get_run('user-1', 'prj_1', 'run_legacy')['run']
+        self.assertFalse(loaded_dup['attempts'][0]['outdated'])
+        self.assertFalse(loaded_dup['attempts'][1]['outdated'])
+        dup_hashes = fingerprints(dup_wf)
+        self.assertTrue(self.workflow.attempt_matches_fingerprint('user-1', 'prj_1', scf_attempt, dup_hashes['scf']))
+
+        edited = copy.deepcopy(dup_wf)
+        edited['nodes'][1]['configuration']['draft']['cutoff'] = 80
+        self.call('PUT', payload={'workflow': edited, 'baseRevision': 2})
+        loaded_after = self.workflow.get_run('user-1', 'prj_1', 'run_legacy')['run']
+        self.assertFalse(loaded_after['attempts'][0]['outdated'])
+        self.assertFalse(loaded_after['attempts'][1]['outdated'])
+        edited_hashes = fingerprints(edited)
+        self.assertFalse(self.workflow.attempt_matches_fingerprint('user-1', 'prj_1', scf_attempt, edited_hashes['scf']))
 
 
 if __name__ == "__main__":
