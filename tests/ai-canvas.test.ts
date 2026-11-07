@@ -42,9 +42,12 @@ test('atomic edits preserve originals on invalid ports, unknown settings or forb
 });
 test('source settings propagate, branch overrides are explicit, duplicates retain no execution state', async () => {
   const graph = fixture(); graph.nodes[1].configuration.execution = { result: 'old' };
-  const added = await editAiCanvas(graph, [{ type: 'add', kind: 'dos', source: 'scf', ref: 'd' }, { type: 'configure', nodeId: 'scf', patch: { draft: { cutoff: 100 } } }, { type: 'duplicate', nodeId: 'scf', ref: 'copy' }]);
+  graph.nodes[0].resources = [{ kind: 'structure', id: 'str_saved' }];
+  graph.nodes[0].configuration.savedStructureSignature = '{"atoms":[{"species":"Si","x":0,"y":0,"z":0}]}';
+  const added = await editAiCanvas(graph, [{ type: 'add', kind: 'dos', source: 'scf', ref: 'd' }, { type: 'configure', nodeId: 'scf', patch: { draft: { cutoff: 100 } } }, { type: 'duplicate', nodeId: 'scf', ref: 'copy' }, { type: 'duplicate', nodeId: 's', ref: 's_copy' }]);
   assert.equal(workflowQeDraft(added.workflow, added.workflow.nodes[2]).cutoff, 100);
-  assert.equal(added.workflow.nodes.at(-1)!.configuration.execution, undefined);
+  assert.equal(added.workflow.nodes.at(-2)!.configuration.execution, undefined);
+  assert.equal(added.workflow.nodes.at(-1)!.configuration.savedStructureSignature, '{"atoms":[{"species":"Si","x":0,"y":0,"z":0}]}');
   await assert.rejects(editAiCanvas(added.workflow, [{ type: 'configure', nodeId: added.workflow.nodes[2].id, patch: { draft: { totalCharge: 2 } } }]), /source SCF/);
 });
 test('parameter study uses the shared generator and retains per-case SCF/analysis settings', async () => {

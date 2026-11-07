@@ -91,3 +91,49 @@ test('DFT execution compiler forwards resource allocation without changing scien
   assert.deepEqual(after.inputFiles, before.inputFiles);
   assert.deepEqual(after.settings, before.settings);
 });
+
+test('workflowFingerprints canonicalizes structure geometry, resource hashes, DFT defaults and non-scientific metadata', async () => {
+  const full = branched(), minimal = branched();
+  full.nodes[0].resources = [{ kind: 'structure', id: 'str_1', sha256: 'a'.repeat(64) }];
+  full.nodes[0].configuration = {
+    formula: 'ZnNi2O4',
+    missingInputs: [],
+    savedStructureSignature: '{"atoms":[]}',
+    structure: {
+      id: 'local-1', name: 'ZnNi2O4', formula: 'ZnNi2O4', source: 'cif', spaceGroup: 'Fd-3m',
+      externalId: 'mp-123', sourceUrl: 'https://example.org/mp-123', sourceUpdatedAt: '2026-01-01',
+      sourceData: { energyAboveHull: 0 }, geometryProvenance: 'relaxed', bandGap: 1.4,
+      provenance: { importedAt: '2026-01-01' },
+      atoms: [{ id: 'a1', species: 'Zn', label: 'Zn', x: 0, y: 0, z: 0 }],
+      lattice: { a: 8.3, b: 8.3, c: 8.3, alpha: 90, beta: 90, gamma: 90, periodic: [true, true, true] },
+    },
+  };
+  full.nodes[1].configuration = {
+    draft: { ...createDefaultQeDraft(), cutoffPolicy: 'manual', cutoff: 60, chargeDensityCutoff: 480, plotYMin: -10, plotYMax: 10 },
+    execution: { structureId: 'str_1', computeTarget: 'shared', vcpus: 4, memoryMiB: 8192 },
+    computeTarget: 'personal', cloudMode: 'spot', computeProfileId: 'std', vcpus: 8, memoryMiB: 16384,
+    pseudopotentialChecksums: { Zn: 'abc' }, parameterStudy: { id: 'study_1' }, missingInputs: [],
+  };
+  full.nodes[2].configuration = {
+    compilerVersion: 1,
+    draft: { ...createDefaultQeDraft(), cutoffPolicy: 'manual', cutoff: 60, chargeDensityCutoff: 480, projectedBands: true },
+  };
+  full.nodes[3].configuration = {
+    compilerVersion: 1,
+    draft: createDefaultQeDraft(),
+  };
+
+  minimal.nodes[0].resources = [{ kind: 'structure', id: 'str_1' }];
+  minimal.nodes[0].configuration = {
+    structure: {
+      atoms: [{ species: 'Zn', x: 0, y: 0, z: 0 }],
+      lattice: { a: 8.3, b: 8.3, c: 8.3, alpha: 90, beta: 90, gamma: 90 },
+      periodic: [true, true, true],
+    },
+  };
+  minimal.nodes[1].configuration = { draft: { cutoffPolicy: 'manual', cutoff: 60, chargeDensityCutoff: 480 } };
+  minimal.nodes[2].configuration = { draft: { projectedBands: true } };
+  minimal.nodes[3].configuration = {};
+
+  assert.deepEqual(await workflowFingerprints(full), await workflowFingerprints(minimal));
+});

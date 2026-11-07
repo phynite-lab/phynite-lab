@@ -113,26 +113,89 @@ export function stableWorkflowJson(value: unknown): string {
   if (value && typeof value === 'object') return `{${Object.entries(value).filter(([, item]) => item !== undefined).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, item]) => `${JSON.stringify(key)}:${stableWorkflowJson(item)}`).join(',')}}`;
   return JSON.stringify(value);
 }
+const DFT_WORKFLOW_KINDS = new Set<WorkflowKind>(['scf', 'relax', 'bands', 'dos', 'phonon', 'btp2']);
+const DFT_BRANCH_KINDS = new Set<WorkflowKind>(['bands', 'dos', 'phonon', 'btp2']);
+const WORKFLOW_BRANCH_FIELDS = new Set<string>(['kPoint', 'kPointY', 'kPointZ', 'kPointShift', 'kPath', 'kPathMode', 'kPathPoints', 'numberOfBands', 'bandSymmetry', 'bandOverlap', 'dosEnergyMin', 'dosEnergyMax', 'dosEnergyStep', 'projectedDos', 'projectedBands', 'dosSymmetrize', 'pawProjection', 'qPoint', 'qPointY', 'qPointZ', 'phononThreshold', 'phononIterations', 'phononMixing', 'phononMixingNdim', 'phononAsr', 'transportInterpolationMultiplier', 'transportEnergyBins', 'transportTemperatureMin', 'transportTemperatureMax', 'transportTemperatureStep', 'transportRelaxationTime', 'transportChemicalPotentialMin', 'transportChemicalPotentialMax', 'transportScatteringModel', 'transportSampling']);
+const DEFAULT_QE_DRAFT: Record<string, unknown> = {
+  calculations: [], accuracy: 'Balanced', functional: 'PBE', kPoint: 8, cutoff: 70, chargeDensityCutoff: 560,
+  occupationPolicy: 'auto', occupations: 'smearing', smearingType: 'marzari-vanderbilt', smearing: 0.02,
+  cutoffPolicy: 'auto', spin: false, startingMagnetization: 0.5, magnetizationConstraint: 'unconstrained',
+  startingMagnetizations: {}, soc: false, noncollinear: false, kPath: 'Γ — X — W — K — Γ — L',
+  kPathMode: 'automatic', kPathPoints: 24, numberOfBands: 32, relaxCell: true, ionDynamics: 'bfgs',
+  forceThreshold: 0.001, targetPressure: 0, qPoint: 4, phononThreshold: 1e-12, acousticSumRule: true,
+  scfThreshold: 0.00000001, electronMaxSteps: 100, mixingBeta: 0.7, dosEnergyMin: -12, dosEnergyMax: 8,
+  dosEnergyStep: 0.02, projectedDos: true, projectedBands: false, prefix: 'calculation',
+  restartMode: 'from_scratch', verbosity: 'low', diskIO: 'low', maxSeconds: 86400,
+  pseudoFamily: 'SSSP precision', kPointShift: '0 0 0', totalCharge: 0, useSymmetry: true, useInversion: true,
+  vdwCorrection: 'none', mixingMode: 'plain', mixingNdim: 8, diagonalization: 'david',
+  diagonalizationThreshold: 0.00001, scfMustConverge: true, exxFraction: 0.25, dftU: false, hubbardU: 4,
+  hubbardProjector: 'ortho-atomic', hubbardCorrections: [], energyThreshold: 0.0001, cellDynamics: 'bfgs',
+  cellDoFree: 'all', pressureThreshold: 0.5, trustRadius: 0.5, bandSymmetry: true, bandOverlap: false,
+  firstBand: 1, lastBand: 0, dosBroadening: 0, dosNgauss: 0, dosSymmetrize: true, pawProjection: false,
+  phononIterations: 100, phononMixing: 0.7, phononMixingNdim: 4, dielectricTensor: false,
+  effectiveCharges: false, phononAsr: 'crystal', electronPhonon: 'none', qeVersion: '7.5', rawInput: '',
+  title: 'Untitled calculation', outdir: './tmp', pseudoDir: './pseudo', nstep: 100, printForces: true,
+  printStress: true, kPointY: 8, kPointZ: 8, fftGridMode: 'automatic', nr1: 48, nr2: 48, nr3: 48,
+  totalMagnetization: 0, assumeIsolated: 'none', dipoleCorrection: false, dipolePlacement: 'automatic',
+  dipolePosition: 0.9, dipoleRegion: 0.05, electricFieldAmplitude: 0, startingPotential: 'atomic',
+  startingWavefunctions: 'atomic+random', realSpace: false, diagoFullAccuracy: false,
+  potentialExtrapolation: 'atomic', wavefunctionExtrapolation: 'none', removeRigidRotation: false,
+  refoldPositions: false, cellFactor: 2, qPointY: 4, qPointZ: 4, matdynDeltaE: 1,
+  transportInterpolationMultiplier: 3, transportTemperatureMin: 100, transportTemperatureMax: 900,
+  transportTemperatureStep: 50, transportChemicalPotentialMin: -0.5, transportChemicalPotentialMax: 0.5,
+  transportScatteringModel: 'constant-relaxation-time', transportSampling: 'chemical-potential',
+  transportRelaxationTime: 10, transportEnergyBins: 5000,
+};
 export async function workflowFingerprints(graph: ProjectWorkflow): Promise<Record<string, string>> {
   const fingerprints: Record<string, string> = {};
   for (const id of workflowOrder(graph)) {
     const node = graph.nodes.find(item => item.id === id)!;
     const inputs = graph.edges.filter(edge => edge.target === id).map(edge => ({ port: edge.port, fingerprint: fingerprints[edge.source] })).sort((a, b) => stableWorkflowJson(a).localeCompare(stableWorkflowJson(b)));
-    const bytes = new TextEncoder().encode(stableWorkflowJson({ kind: node.kind, configuration: scientificWorkflowConfiguration(node.configuration, node.kind), resources: node.resources, inputs }));
+    const resources = node.resources.map(ref => ({ kind: ref.kind, id: ref.id, ...(ref.deviceOnly ? { deviceOnly: true } : {}) }));
+    const bytes = new TextEncoder().encode(stableWorkflowJson({ kind: node.kind, configuration: scientificWorkflowConfiguration(node.configuration, node.kind), resources, inputs }));
     fingerprints[id] = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), byte => byte.toString(16).padStart(2, '0')).join('');
   }
   return fingerprints;
 }
 export function scientificWorkflowConfiguration(configuration: Record<string, unknown>, kind?: WorkflowKind): Record<string, unknown> {
   const result = structuredClone(configuration);
-  if (configuration.compilerVersion === 1 || kind === 'md' && Array.isArray(configuration.components)) delete result.execution;
-  for (const key of ['savedStructureSignature', 'configurationError', 'legacySource', 'preservedHistory', 'plotSettings', 'elementMapText', 'style', 'compilerVersion', 'estimatedComputeSeconds']) delete result[key];
+  if (configuration.compilerVersion === 1 || kind && DFT_WORKFLOW_KINDS.has(kind) && record(configuration.draft) || kind === 'md' && Array.isArray(configuration.components)) delete result.execution;
+  for (const key of ['savedStructureSignature', 'configurationError', 'legacySource', 'preservedHistory', 'plotSettings', 'elementMapText', 'style', 'compilerVersion', 'estimatedComputeSeconds', 'formula', 'missingInputs', 'parameterStudy', 'pseudopotentialChecksums', 'computeTarget', 'cloudMode', 'computeProfileId', 'vcpus', 'memoryMiB']) delete result[key];
   for (const key of ['structure', 'draft', 'execution']) {
     const value = result[key];
     if (!record(value)) continue;
     delete value.name;
-    if (key === 'draft') delete value.calculations;
-    if (key === 'execution') { delete value.idempotencyKey; if (record(value.settings)) delete value.settings.calculations; }
+    if (key === 'structure') {
+      for (const structKey of ['formula', 'source', 'spaceGroup', 'id', 'provenance', 'externalId', 'sourceUrl', 'sourceUpdatedAt', 'sourceData', 'geometryProvenance', 'bandGap']) delete value[structKey];
+      if (Array.isArray(value.atoms)) for (const atom of value.atoms) if (record(atom)) {
+        delete atom.id;
+        if (typeof atom.label === 'string' && atom.label.trim() === atom.species) delete atom.label;
+      }
+      if (record(value.lattice)) {
+        const periodic = value.periodic ?? value.lattice.periodic;
+        delete value.lattice.periodic;
+        value.periodic = Array.isArray(periodic) ? periodic : [true, true, true];
+      }
+    }
+    if (key === 'draft') {
+      for (const draftUiKey of ['calculations', 'plotYMin', 'plotYMax']) delete value[draftUiKey];
+      if (kind && DFT_WORKFLOW_KINDS.has(kind)) {
+        if (DFT_BRANCH_KINDS.has(kind) && !String(value.rawInput ?? '').trim()) {
+          for (const draftKey of Object.keys(value)) {
+            if (draftKey in DEFAULT_QE_DRAFT && !WORKFLOW_BRANCH_FIELDS.has(draftKey)) delete value[draftKey];
+          }
+        }
+        for (const [draftKey, defaultVal] of Object.entries(DEFAULT_QE_DRAFT)) {
+          if (draftKey in value && stableWorkflowJson(value[draftKey]) === stableWorkflowJson(defaultVal)) delete value[draftKey];
+        }
+        if (!Object.keys(value).length) delete result.draft;
+      }
+    }
+    if (key === 'execution') {
+      for (const execKey of ['idempotencyKey', 'computeTarget', 'cloudMode', 'computeProfileId', 'vcpus', 'memoryMiB', 'estimatedComputeSeconds', 'quoteId']) delete value[execKey];
+      if (record(value.settings)) delete value.settings.calculations;
+      if (!Object.keys(value).length) delete result.execution;
+    }
   }
   for (const stage of Array.isArray(result.components) ? result.components : []) if (record(stage)) {
     for (const key of ['id', 'name', 'materialId', 'materialName']) delete stage[key];

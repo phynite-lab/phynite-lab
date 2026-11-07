@@ -21,11 +21,74 @@ SUCCESS = {'completed', 'ready', 'reused'}
 FINAL = SUCCESS | {'failed', 'blocked', 'cancelled'}
 RESOURCE_KINDS = {'structure': 'STRUCTURE', 'trajectory': 'MD_TRAJECTORY', 'potential': 'MD_POTENTIAL'}
 
+WORKFLOW_BRANCH_FIELDS = {
+    'kPoint', 'kPointY', 'kPointZ', 'kPointShift', 'kPath', 'kPathMode', 'kPathPoints',
+    'numberOfBands', 'bandSymmetry', 'bandOverlap', 'dosEnergyMin', 'dosEnergyMax',
+    'dosEnergyStep', 'projectedDos', 'projectedBands', 'dosSymmetrize', 'pawProjection',
+    'qPoint', 'qPointY', 'qPointZ', 'phononThreshold', 'phononIterations', 'phononMixing',
+    'phononMixingNdim', 'phononAsr', 'transportInterpolationMultiplier', 'transportEnergyBins',
+    'transportTemperatureMin', 'transportTemperatureMax', 'transportTemperatureStep',
+    'transportRelaxationTime', 'transportChemicalPotentialMin', 'transportChemicalPotentialMax',
+    'transportScatteringModel', 'transportSampling',
+}
+DEFAULT_QE_DRAFT: dict[str, Any] = {
+    'calculations': [], 'accuracy': 'Balanced', 'functional': 'PBE', 'kPoint': 8,
+    'cutoff': 70, 'chargeDensityCutoff': 560, 'occupationPolicy': 'auto',
+    'occupations': 'smearing', 'smearingType': 'marzari-vanderbilt', 'smearing': 0.02,
+    'cutoffPolicy': 'auto', 'spin': False, 'startingMagnetization': 0.5,
+    'magnetizationConstraint': 'unconstrained', 'startingMagnetizations': {},
+    'soc': False, 'noncollinear': False, 'kPath': 'Γ — X — W — K — Γ — L',
+    'kPathMode': 'automatic', 'kPathPoints': 24, 'numberOfBands': 32, 'relaxCell': True,
+    'ionDynamics': 'bfgs', 'forceThreshold': 0.001, 'targetPressure': 0, 'qPoint': 4,
+    'phononThreshold': 1e-12, 'acousticSumRule': True, 'scfThreshold': 0.00000001,
+    'electronMaxSteps': 100, 'mixingBeta': 0.7, 'dosEnergyMin': -12, 'dosEnergyMax': 8,
+    'dosEnergyStep': 0.02, 'projectedDos': True, 'projectedBands': False,
+    'prefix': 'calculation', 'restartMode': 'from_scratch', 'verbosity': 'low',
+    'diskIO': 'low', 'maxSeconds': 86400, 'pseudoFamily': 'SSSP precision',
+    'kPointShift': '0 0 0', 'totalCharge': 0, 'useSymmetry': True, 'useInversion': True,
+    'vdwCorrection': 'none', 'mixingMode': 'plain', 'mixingNdim': 8,
+    'diagonalization': 'david', 'diagonalizationThreshold': 0.00001,
+    'scfMustConverge': True, 'exxFraction': 0.25, 'dftU': False, 'hubbardU': 4,
+    'hubbardProjector': 'ortho-atomic', 'hubbardCorrections': [],
+    'energyThreshold': 0.0001, 'cellDynamics': 'bfgs', 'cellDoFree': 'all',
+    'pressureThreshold': 0.5, 'trustRadius': 0.5, 'bandSymmetry': True,
+    'bandOverlap': False, 'firstBand': 1, 'lastBand': 0, 'dosBroadening': 0,
+    'dosNgauss': 0, 'dosSymmetrize': True, 'pawProjection': False,
+    'phononIterations': 100, 'phononMixing': 0.7, 'phononMixingNdim': 4,
+    'dielectricTensor': False, 'effectiveCharges': False, 'phononAsr': 'crystal',
+    'electronPhonon': 'none', 'qeVersion': '7.5', 'rawInput': '',
+    'title': 'Untitled calculation', 'outdir': './tmp', 'pseudoDir': './pseudo',
+    'nstep': 100, 'printForces': True, 'printStress': True, 'kPointY': 8, 'kPointZ': 8,
+    'fftGridMode': 'automatic', 'nr1': 48, 'nr2': 48, 'nr3': 48, 'totalMagnetization': 0,
+    'assumeIsolated': 'none', 'dipoleCorrection': False, 'dipolePlacement': 'automatic',
+    'dipolePosition': 0.9, 'dipoleRegion': 0.05, 'electricFieldAmplitude': 0,
+    'startingPotential': 'atomic', 'startingWavefunctions': 'atomic+random',
+    'realSpace': False, 'diagoFullAccuracy': False, 'potentialExtrapolation': 'atomic',
+    'wavefunctionExtrapolation': 'none', 'removeRigidRotation': False,
+    'refoldPositions': False, 'cellFactor': 2, 'qPointY': 4, 'qPointZ': 4,
+    'matdynDeltaE': 1, 'transportInterpolationMultiplier': 3,
+    'transportTemperatureMin': 100, 'transportTemperatureMax': 900,
+    'transportTemperatureStep': 50, 'transportChemicalPotentialMin': -0.5,
+    'transportChemicalPotentialMax': 0.5,
+    'transportScatteringModel': 'constant-relaxation-time',
+    'transportSampling': 'chemical-potential', 'transportRelaxationTime': 10,
+    'transportEnergyBins': 5000,
+}
+
 def fail(message: str, code: str='INVALID_WORKFLOW', status: int=400) -> None:
     raise ApiError(status, message, code)
 
+def _canonical_json_numbers(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {k: _canonical_json_numbers(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_canonical_json_numbers(v) for v in value]
+    if isinstance(value, float) and math.isfinite(value) and value.is_integer():
+        return int(value)
+    return value
+
 def encoded(value: Any) -> bytes:
-    return json.dumps(json_safe(value), sort_keys=True, separators=(',', ':'), ensure_ascii=False, allow_nan=False).encode('utf-8')
+    return json.dumps(_canonical_json_numbers(json_safe(value)), sort_keys=True, separators=(',', ':'), ensure_ascii=False, allow_nan=False).encode('utf-8')
 
 def digest(value: Any) -> str:
     return hashlib.sha256(encoded(value)).hexdigest()
@@ -125,44 +188,76 @@ def validate_graph(value: Any, project_id: str) -> dict[str, Any]:
     order(value)
     return copy.deepcopy(value)
 
+def canonical_configuration(configuration: dict[str, Any], kind: str | None=None) -> dict[str, Any]:
+    config = copy.deepcopy(configuration)
+    if configuration.get('compilerVersion') == 1 or (kind in DFT_TYPES and isinstance(config.get('draft'), dict)) or (kind == 'md' and isinstance(config.get('components'), list)):
+        config.pop('execution', None)
+    for key in ('savedStructureSignature', 'configurationError', 'legacySource', 'preservedHistory', 'plotSettings', 'elementMapText', 'style', 'compilerVersion', 'estimatedComputeSeconds', 'formula', 'missingInputs', 'parameterStudy', 'pseudopotentialChecksums', 'computeTarget', 'cloudMode', 'computeProfileId', 'vcpus', 'memoryMiB'):
+        config.pop(key, None)
+    for key in ('structure', 'draft', 'execution'):
+        value = config.get(key)
+        if not isinstance(value, dict):
+            continue
+        value.pop('name', None)
+        if key == 'structure':
+            for struct_key in ('formula', 'source', 'spaceGroup', 'id', 'provenance', 'externalId', 'sourceUrl', 'sourceUpdatedAt', 'sourceData', 'geometryProvenance', 'bandGap'):
+                value.pop(struct_key, None)
+            if isinstance(value.get('atoms'), list):
+                for atom in value['atoms']:
+                    if not isinstance(atom, dict):
+                        continue
+                    atom.pop('id', None)
+                    if isinstance(atom.get('label'), str) and atom['label'].strip() == atom.get('species'):
+                        atom.pop('label', None)
+            lattice = value.get('lattice')
+            if isinstance(lattice, dict):
+                periodic = value.get('periodic', lattice.get('periodic'))
+                lattice.pop('periodic', None)
+                value['periodic'] = periodic if isinstance(periodic, list) else [True, True, True]
+        if key == 'draft':
+            for draft_ui_key in ('calculations', 'plotYMin', 'plotYMax'):
+                value.pop(draft_ui_key, None)
+            if kind in DFT_TYPES:
+                if kind in {'bands', 'dos', 'phonon', 'btp2'} and (not str(value.get('rawInput') or '').strip()):
+                    for draft_key in list(value):
+                        if draft_key in DEFAULT_QE_DRAFT and draft_key not in WORKFLOW_BRANCH_FIELDS:
+                            value.pop(draft_key, None)
+                for draft_key, default_val in DEFAULT_QE_DRAFT.items():
+                    if draft_key in value and encoded(value[draft_key]) == encoded(default_val):
+                        value.pop(draft_key, None)
+                if not value:
+                    config.pop('draft', None)
+        if key == 'execution':
+            for exec_key in ('idempotencyKey', 'computeTarget', 'cloudMode', 'computeProfileId', 'vcpus', 'memoryMiB', 'estimatedComputeSeconds', 'quoteId'):
+                value.pop(exec_key, None)
+            if isinstance(value.get('settings'), dict):
+                value['settings'].pop('calculations', None)
+            if not value:
+                config.pop('execution', None)
+    for stage in config.get('components', []):
+        if not isinstance(stage, dict):
+            continue
+        for key in ('id', 'name', 'materialId', 'materialName'):
+            stage.pop(key, None)
+        if isinstance(stage.get('config'), dict):
+            stage['config'].pop('name', None)
+    component = config.get('component')
+    if isinstance(component, dict):
+        for key in ('id', 'name', 'materialId', 'materialName', 'selected'):
+            component.pop(key, None)
+        if isinstance(component.get('config'), dict):
+            component['config'].pop('name', None)
+    return config
+
 def fingerprints(graph: dict[str, Any]) -> dict[str, str]:
     result: dict[str, str] = {}
     nodes = {node['id']: node for node in graph['nodes']}
     for node_id in order(graph):
         node = nodes[node_id]
         inputs = sorted(({'port': edge['port'], 'fingerprint': result[edge['source']]} for edge in graph['edges'] if edge['target'] == node_id), key=encoded)
-        config = copy.deepcopy(node['configuration'])
-        if node['configuration'].get('compilerVersion') == 1 or (node['kind'] == 'md' and isinstance(config.get('components'), list)):
-            from backend.local_api.domain.workflow_compiler import compiler_source
-            config.pop('execution', None)
-            config['_compilerSha256'] = hashlib.sha256(compiler_source().encode()).hexdigest()
-        for key in ('savedStructureSignature', 'configurationError', 'legacySource', 'preservedHistory', 'plotSettings', 'elementMapText', 'style', 'compilerVersion', 'estimatedComputeSeconds'):
-            config.pop(key, None)
-        for key in ('structure', 'draft', 'execution'):
-            value = config.get(key)
-            if not isinstance(value, dict):
-                continue
-            value.pop('name', None)
-            if key == 'draft':
-                value.pop('calculations', None)
-            if key == 'execution':
-                value.pop('idempotencyKey', None)
-                if isinstance(value.get('settings'), dict):
-                    value['settings'].pop('calculations', None)
-        for stage in config.get('components', []):
-            if not isinstance(stage, dict):
-                continue
-            for key in ('id', 'name', 'materialId', 'materialName'):
-                stage.pop(key, None)
-            if isinstance(stage.get('config'), dict):
-                stage['config'].pop('name', None)
-        component = config.get('component')
-        if isinstance(component, dict):
-            for key in ('id', 'name', 'materialId', 'materialName', 'selected'):
-                component.pop(key, None)
-            if isinstance(component.get('config'), dict):
-                component['config'].pop('name', None)
-        result[node_id] = digest({'kind': node['kind'], 'configuration': config, 'resources': node['resources'], 'inputs': inputs})
+        config = canonical_configuration(node['configuration'], node['kind'])
+        resources = [{'kind': ref['kind'], 'id': ref['id'], **({'deviceOnly': True} if ref.get('deviceOnly') else {})} for ref in node['resources']]
+        result[node_id] = digest({'kind': node['kind'], 'configuration': config, 'resources': resources, 'inputs': inputs})
     return result
 
 class ProjectWorkflowApi:
@@ -171,6 +266,7 @@ class ProjectWorkflowApi:
         self.api = api
         self.services = api.services
         self._attempt_candidates: dict[str, list[dict[str, Any]]] = {}
+        self._run_snapshot_hashes: dict[tuple[str, str, int], dict[str, str]] = {}
 
     def migrate_identity(self, owner: str, payload: dict[str, Any]) -> dict[str, Any]:
         legacy_id = payload.get('legacyId')
@@ -291,7 +387,9 @@ class ProjectWorkflowApi:
                 if execution and node['kind'] == 'structure' and (ref['kind'] == 'structure') and isinstance(node['configuration'].get('structure'), dict):
                     document = self.input_document(owner, graph['projectId'], ref['id'])['structure']
                     configured = node['configuration']['structure']
-                    if not isinstance(document, dict) or any((configured.get(key) != document.get(key) for key in ('atoms', 'lattice'))) or configured.get('periodic', configured.get('lattice', {}).get('periodic', [True, True, True])) != document.get('periodic', document.get('lattice', {}).get('periodic', [True, True, True])):
+                    configured_struct = canonical_configuration({'structure': configured}, 'structure').get('structure')
+                    document_struct = canonical_configuration({'structure': document}, 'structure').get('structure') if isinstance(document, dict) else None
+                    if not isinstance(document_struct, dict) or encoded(configured_struct) != encoded(document_struct):
                         fail('Save the edited crystal input before running its workflow.', 'WORKFLOW_INPUT_NOT_SAVED', 409)
 
     def save(self, owner: str, project: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -309,7 +407,73 @@ class ProjectWorkflowApi:
         updated = self.services.update_item_if_revision(owner, 'PROJECT_WORKFLOW', project, revision, values) if current else self.put_new(owner, 'PROJECT_WORKFLOW', project, values)
         if not updated:
             fail('Workflow changed while saving. Your local draft is preserved.', 'WORKFLOW_CONFLICT', 409)
+        self._attempt_candidates.clear()
+        self._run_snapshot_hashes.clear()
         return {'workflow': graph, 'revision': revision + 1}
+
+    def snapshot_fingerprints(self, snapshot_workflow: Any, current_workflow: dict[str, Any] | None=None, owner: str | None=None, project: str | None=None) -> dict[str, str]:
+        if not isinstance(snapshot_workflow, dict) or not isinstance(snapshot_workflow.get('nodes'), list) or (not isinstance(snapshot_workflow.get('edges'), list)):
+            return {}
+        workflow = copy.deepcopy(snapshot_workflow)
+        if isinstance(current_workflow, dict) and isinstance(current_workflow.get('nodes'), list):
+            current_nodes = {node['id']: node for node in current_workflow['nodes'] if isinstance(node, dict) and 'id' in node}
+            for node in workflow['nodes']:
+                if not isinstance(node, dict) or node.get('kind') != 'structure':
+                    continue
+                current = current_nodes.get(node.get('id'))
+                if not current or current.get('kind') != 'structure':
+                    continue
+                snap_ids = [ref.get('id') for ref in node.get('resources', []) if isinstance(ref, dict) and ref.get('kind') == 'structure' and (not ref.get('deviceOnly'))]
+                curr_ids = [ref.get('id') for ref in current.get('resources', []) if isinstance(ref, dict) and ref.get('kind') == 'structure' and (not ref.get('deviceOnly'))]
+                snap_struct = node.get('configuration', {}).get('structure')
+                curr_struct = current.get('configuration', {}).get('structure')
+                if not isinstance(snap_struct, dict) and isinstance(curr_struct, dict) and snap_ids:
+                    if snap_ids == curr_ids:
+                        saved_sig = current.get('configuration', {}).get('savedStructureSignature')
+                        legacy_source = current.get('configuration', {}).get('legacySource')
+                        if (isinstance(saved_sig, str) and saved_sig == encoded(curr_struct).decode('utf-8')) or legacy_source == snap_ids[0] or isinstance(legacy_source, dict):
+                            snap_struct = copy.deepcopy(curr_struct)
+                            node.setdefault('configuration', {})['structure'] = snap_struct
+                    if not isinstance(snap_struct, dict) and owner and project:
+                        try:
+                            doc = self.input_document(owner, project, snap_ids[0]).get('structure')
+                            if isinstance(doc, dict):
+                                snap_struct = copy.deepcopy(doc)
+                                node.setdefault('configuration', {})['structure'] = snap_struct
+                        except Exception:
+                            pass
+                elif isinstance(snap_struct, dict) and (not isinstance(curr_struct, dict)) and snap_ids and (snap_ids == curr_ids):
+                    node.get('configuration', {}).pop('structure', None)
+                    snap_struct = None
+                if isinstance(snap_struct, dict) and isinstance(curr_struct, dict) and snap_ids and curr_ids and (snap_ids != curr_ids):
+                    snap_canon = canonical_configuration({'structure': snap_struct}, 'structure').get('structure')
+                    curr_canon = canonical_configuration({'structure': curr_struct}, 'structure').get('structure')
+                    if isinstance(snap_canon, dict) and isinstance(curr_canon, dict) and (encoded(snap_canon) == encoded(curr_canon)):
+                        node['resources'] = copy.deepcopy(current['resources'])
+        try:
+            return fingerprints(workflow)
+        except Exception:
+            return {}
+
+    def attempt_matches_fingerprint(self, owner: str, project: str, item: dict[str, Any], fingerprint: str) -> bool:
+        if item.get('fingerprint') == fingerprint:
+            return True
+        run_id, node_id = (item.get('runId'), item.get('nodeId'))
+        if not identifier(run_id) or not identifier(node_id):
+            return False
+        envelope = self.load(owner, project)
+        cache_key = (owner, run_id, int(envelope.get('revision', 0)))
+        if cache_key not in self._run_snapshot_hashes:
+            run_item = self.services.get_item(owner, 'PROJECT_RUN', run_id)
+            if not run_item or run_item.get('projectId') != project or (not run_item.get('objectKey')) or (not run_item.get('sha256')):
+                self._run_snapshot_hashes[cache_key] = {}
+            else:
+                try:
+                    snapshot = self.read_json(run_item['objectKey'], run_item['sha256'])
+                    self._run_snapshot_hashes[cache_key] = self.snapshot_fingerprints(snapshot.get('workflow'), envelope.get('workflow'), owner, project)
+                except Exception:
+                    self._run_snapshot_hashes[cache_key] = {}
+        return self._run_snapshot_hashes[cache_key].get(node_id) == fingerprint
 
     def find_reusable(self, owner: str, project: str, node: dict[str, Any], fingerprint: str) -> dict[str, Any] | None:
         if node['kind'] in {'structure', 'trajectory', 'figure', 'legacy'}:
@@ -318,7 +482,7 @@ class ProjectWorkflowApi:
             self._attempt_candidates[owner] = self.services.list_owner_items(owner, 'WORKFLOW_ATTEMPT')
         candidates = self._attempt_candidates[owner]
         for item in sorted(candidates, key=lambda attempt: attempt.get('createdAt', ''), reverse=True):
-            if item.get('projectId') != project or item.get('fingerprint') != fingerprint or item.get('status') not in SUCCESS:
+            if item.get('projectId') != project or item.get('status') not in SUCCESS or (not self.attempt_matches_fingerprint(owner, project, item, fingerprint)):
                 continue
             if not item.get('jobId'):
                 continue
@@ -747,13 +911,18 @@ class ProjectWorkflowApi:
         if item.get('projectId') != project:
             fail('Run belongs to another project.', 'PROJECT_MISMATCH', 409)
         snapshot = self.read_json(item['objectKey'], item['sha256'])
-        current_hashes = fingerprints(self.load(owner, project)['workflow'])
+        current_workflow = self.load(owner, project)['workflow']
+        current_hashes = fingerprints(current_workflow)
+        snapshot_hashes = self.snapshot_fingerprints(snapshot.get('workflow'), current_workflow, owner, project)
         attempts = []
         allowed = {'nodeId', 'fingerprint', 'status', 'jobId', 'jobKind', 'error', 'result', 'sourceAttemptId'}
         for planned in snapshot['plan']['nodes']:
             attempt = self.attempt(owner, run_id, planned['nodeId'])
             if attempt:
-                attempts.append({key: value for key, value in attempt.items() if key in allowed} | {'outdated': current_hashes.get(attempt['nodeId']) != attempt['fingerprint']})
+                node_id = attempt['nodeId']
+                current_hash = current_hashes.get(node_id)
+                outdated = current_hash != attempt['fingerprint'] and current_hash != snapshot_hashes.get(node_id)
+                attempts.append({key: value for key, value in attempt.items() if key in allowed} | {'outdated': outdated})
         return {'run': {key: item[key] for key in ('id', 'projectId', 'workflowRevision', 'status', 'createdAt', 'targets')} | {'attempts': attempts}}
 
     def cancel(self, owner: str, project: str, run_id: str, payload: dict[str, Any]) -> dict[str, Any]:
