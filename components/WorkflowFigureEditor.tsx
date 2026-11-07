@@ -58,7 +58,6 @@ export function WorkflowFigureEditor({ owner, projectId, projectName, node, grap
   }, [owner, projectId, node.id, phase, resultJson, bindingKey]);
 
   if (phase === 'ready' && current?.figureId) return <div className="workflow-bound-figure">
-    {attempt?.outdated && <p className="workflow-editor-notice">{t('Sources changed. You are viewing the previous Figure revision.', 'Sumber berubah. Anda melihat revisi Figure sebelumnya.')} <button disabled={runDisabled} onClick={onRun}>{t('Review update', 'Tinjau pembaruan')}</button></p>}
     <FiguresWorkspace key={current.figureId} embedded ownerId={owner} projectId={projectId} projectName={projectName} jobs={[]} initialFigureId={current.figureId} onWorkflowFigureChange={figure => { const style = workflowFigureStyle(figure); if (JSON.stringify(style) !== JSON.stringify(styleRef.current)) { styleRef.current = style; onStyleChange(style); } }} onClose={onClose} theme={theme} />
   </div>;
 
@@ -76,10 +75,10 @@ export function WorkflowFigureEditor({ owner, projectId, projectName, node, grap
       {(loading || running) && <WorkspaceLoading layout="inline" label={loading ? t('Loading figure data…', 'Memuat data Figure…') : t('Waiting for results…', 'Menunggu hasil…')} />}
       {failed && <div className="workflow-figure-error" role="alert">{current?.error || attempt?.error || t('Preparation did not finish. Review the source results before trying again.', 'Persiapan belum selesai. Tinjau hasil sumber sebelum mencoba lagi.')}</div>}
       {!!inputs.length && <div className="workflow-figure-sources"><h3>{t('Connected sources', 'Sumber terhubung')}<span>{inputs.length}</span></h3><ul>{inputs.map(({ node: source, attempt: sourceAttempt }) => {
-        const state = sourceAttempt?.outdated ? 'outdated' : sourceAttempt?.status;
+        const state = sourceAttempt?.status;
         const active = state && ['running', 'queued', 'pending'].includes(state);
         const ready = state && ['completed', 'ready', 'reused'].includes(state);
-        const label = state === 'outdated' ? t('Needs update', 'Perlu pembaruan') : ready ? t('Completed', 'Selesai') : active ? t('In progress', 'Diproses') : state === 'failed' ? t('Failed', 'Gagal') : state === 'blocked' ? t('Blocked', 'Terhambat') : state === 'cancelled' ? t('Cancelled', 'Dibatalkan') : t('Not run yet', 'Belum dijalankan');
+        const label = ready ? t('Completed', 'Selesai') : active ? t('In progress', 'Diproses') : state === 'failed' ? t('Failed', 'Gagal') : state === 'blocked' ? t('Blocked', 'Terhambat') : state === 'cancelled' ? t('Cancelled', 'Dibatalkan') : t('Not run yet', 'Belum dijalankan');
         return <li key={source.id}><button type="button" disabled={!onOpenSource} onClick={() => onOpenSource?.(source.id)}><span className="workflow-figure-source-icon" aria-hidden="true">{ready ? <Check size={15} /> : active ? <LoaderCircle size={15} /> : <Network size={15} />}</span><span className="workflow-figure-source-name">{source.name}<small>{label}</small></span><ArrowUpRight size={14} aria-hidden="true" /></button></li>;
       })}</ul></div>}
       <div className="workflow-figure-state-actions">

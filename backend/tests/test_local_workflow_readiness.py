@@ -253,7 +253,7 @@ class LocalWorkflowReadinessTests(unittest.TestCase):
         self.call('PUT', payload={'workflow': edited, 'baseRevision': 2})
         loaded_after = self.workflow.get_run('user-1', 'prj_1', 'run_legacy')['run']
         self.assertFalse(loaded_after['attempts'][0]['outdated'])
-        self.assertTrue(loaded_after['attempts'][1]['outdated'])
+        self.assertFalse(loaded_after['attempts'][1]['outdated'])
         edited_hashes = fingerprints(edited)
         self.assertFalse(self.workflow.attempt_matches_fingerprint('user-1', 'prj_1', scf_attempt, edited_hashes['scf']))
 

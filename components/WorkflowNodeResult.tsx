@@ -62,7 +62,7 @@ export function WorkflowNodeResult({ attempt, owner, projectId }: { attempt?: Wo
   const metrics = Object.entries(result?.summary ?? {}).filter(([key, value]) => key in labels && typeof value === 'number');
   const failed = attempt.status === 'failed';
   return <details className={`workflow-result workflow-result--${attempt.status}`} open={['completed', 'reused', 'failed'].includes(attempt.status)}>
-    <summary><span className="workflow-result-summary"><span className="workflow-result-status-dot" aria-hidden="true" />{t('Execution result', 'Hasil eksekusi')}</span><span className="workflow-result-state">{attempt.outdated ? t('Outdated', 'Sudah berubah') : attempt.status}</span></summary>
+    <summary><span className="workflow-result-summary"><span className="workflow-result-status-dot" aria-hidden="true" />{t('Execution result', 'Hasil eksekusi')}</span><span className="workflow-result-state">{attempt.status}</span></summary>
     <div className="workflow-result-body">
       {attempt.error && <p className="workflow-result-error" role="alert">{attempt.error}</p>}
       {error && error !== attempt.error && <p className="workflow-result-error" role="alert">{error}</p>}

@@ -637,8 +637,8 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
     const result: Record<string, string> = {};
     const inputNodes = new Set(graph.nodes.filter(node => node.kind === 'structure' || node.kind === 'trajectory').map(node => node.id));
     [...runs].reverse().forEach(run => run.attempts.forEach(attempt => {
-      if (inputNodes.has(attempt.nodeId) && attempt.outdated) { delete result[attempt.nodeId]; return; }
-      result[attempt.nodeId] = attempt.outdated ? 'Outdated' : attempt.status;
+      if (inputNodes.has(attempt.nodeId)) return;
+      result[attempt.nodeId] = attempt.status;
     }));
     return result;
   }, [runs, graph.nodes]);

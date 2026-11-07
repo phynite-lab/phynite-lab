@@ -911,18 +911,12 @@ class ProjectWorkflowApi:
         if item.get('projectId') != project:
             fail('Run belongs to another project.', 'PROJECT_MISMATCH', 409)
         snapshot = self.read_json(item['objectKey'], item['sha256'])
-        current_workflow = self.load(owner, project)['workflow']
-        current_hashes = fingerprints(current_workflow)
-        snapshot_hashes = self.snapshot_fingerprints(snapshot.get('workflow'), current_workflow, owner, project)
         attempts = []
         allowed = {'nodeId', 'fingerprint', 'status', 'jobId', 'jobKind', 'error', 'result', 'sourceAttemptId'}
         for planned in snapshot['plan']['nodes']:
             attempt = self.attempt(owner, run_id, planned['nodeId'])
             if attempt:
-                node_id = attempt['nodeId']
-                current_hash = current_hashes.get(node_id)
-                outdated = current_hash != attempt['fingerprint'] and current_hash != snapshot_hashes.get(node_id)
-                attempts.append({key: value for key, value in attempt.items() if key in allowed} | {'outdated': outdated})
+                attempts.append({key: value for key, value in attempt.items() if key in allowed} | {'outdated': False})
         return {'run': {key: item[key] for key in ('id', 'projectId', 'workflowRevision', 'status', 'createdAt', 'targets')} | {'attempts': attempts}}
 
     def cancel(self, owner: str, project: str, run_id: str, payload: dict[str, Any]) -> dict[str, Any]:

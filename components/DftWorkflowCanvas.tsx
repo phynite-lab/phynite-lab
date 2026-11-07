@@ -9,7 +9,7 @@ import { ScfConvergenceMonitor } from './ScfConvergenceMonitor';
 import type { ScfConvergence } from '@/lib/qe-live-scf';
 import { UiSelect } from './UiSelect';
 import type { CalculationJob, CalculationType } from './JobComposer';
-import { ANALYSES, autoArrange, copyWorkflow, parseWorkflowClipboard, removeWorkflowNodes, snapWorkflowPoint, structureNodeId, workflowEdges, staleWorkflowNodes, connectWorkflow, type WorkflowDocument, type WorkflowMaterial, type WorkflowClipboard, type WorkflowPoint } from '@/lib/dft-workflow';
+import { ANALYSES, autoArrange, copyWorkflow, parseWorkflowClipboard, removeWorkflowNodes, snapWorkflowPoint, structureNodeId, workflowEdges, connectWorkflow, type WorkflowDocument, type WorkflowMaterial, type WorkflowClipboard, type WorkflowPoint } from '@/lib/dft-workflow';
 
 type NodeData = { scfConvergence?: ScfConvergence; label: string; detail: string; kind: string; status?: string; error?: string; configure: () => void; add: () => void; open?: () => void; [key: string]: unknown };
 type FlowNode = Node<NodeData>;
@@ -41,7 +41,7 @@ export type DftWorkflowCanvasProps = {
 };
 
 function Canvas(props: DftWorkflowCanvasProps) {
-  const { document, materials, jobs, projectId, ownerId, onChange, onConfigure, onOpenStructure, outdatedNodeIds } = props;
+  const { document, materials, jobs, projectId, ownerId, onChange, onConfigure, onOpenStructure } = props;
   const flow = useReactFlow<FlowNode, Edge>();
   const root = useRef<HTMLDivElement>(null), internalClipboard = useRef(''), pointer = useRef<WorkflowPoint | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
@@ -50,11 +50,7 @@ function Canvas(props: DftWorkflowCanvasProps) {
   const [message, setMessage] = useState(''), [help, setHelp] = useState(false), [menu, setMenu] = useState<{ x: number; y: number; source?: string } | null>(null);
   const [guides, setGuides] = useState<Array<{ x?: number; y?: number }>>([]);
   const dragBase = useRef<WorkflowDocument | null>(null), dragAnchor = useRef<WorkflowPoint | null>(null);
-  const edges = useMemo(() => {
-    const connections = workflowEdges(document.components, materials);
-    const stale = staleWorkflowNodes(connections, props.outdatedNodeIds ?? []);
-    return connections.map(edge => stale.has(edge.source) || stale.has(edge.target) ? { ...edge, className: 'dft-flow-edge-stale', style: { stroke: 'var(--status-warning, #d79021)', strokeDasharray: '7 5', strokeWidth: 2.5 }, ariaLabel: 'Outdated source data: rerun this dependency' } : edge);
-  }, [document.components, materials, props.outdatedNodeIds]);
+  const edges = useMemo(() => workflowEdges(document.components, materials), [document.components, materials]);
   const generatedPositions = useMemo(() => autoArrange(document.components, materials), [document.components, materials]);
   const latest = useRef(props); useEffect(() => { latest.current = props; });
   const addAtNode = useCallback((source: string) => {
@@ -73,13 +69,12 @@ function Canvas(props: DftWorkflowCanvasProps) {
       let status: string = job?.status ?? 'Ready';
       if (job?.status === 'Queued' && c.scfSourceId) status = 'Waiting for SCF';
       if (job?.resultDetail?.includes('Reusing SCF')) status = job.status === 'Completed' ? 'Completed' : 'Reusing SCF';
-      if (staleWorkflowNodes(edges, outdatedNodeIds ?? []).has(c.id)) status = 'Outdated';
       if (missing) status = 'Blocked';
       next.push({ id: c.id, type: 'calculation', position: document.canvas.positions[c.id] ?? generatedPositions[c.id], data: { label: c.name, detail: materials.find(m => m.id === c.materialId)?.name ?? 'Missing structure', kind: c.geometry?.kind ?? (c.sweep ? 'parameter_sweep' : c.neb ? 'dft_neb' : c.calculation === 'Total energy' ? 'SCF' : c.calculation),
         status, scfConvergence: job?.status === 'Running' ? job.scfConvergence : undefined, error: missing ? `Connect ${ANALYSES.includes(c.calculation) ? 'SCF' : 'structure'} input` : undefined, configure: () => onConfigure(c.id), add: () => addAtNode(c.id) } });
     }
     return next;
-  }, [document, generatedPositions, materials, edges, jobs, addAtNode, onConfigure, onOpenStructure, outdatedNodeIds]);
+  }, [document, generatedPositions, materials, edges, jobs, addAtNode, onConfigure, onOpenStructure]);
   // Domain/job data is derived directly. Only temporary drag/measurement changes
   // live in view state; polling cannot reset an in-progress drag or edit history.
   const nodes = useMemo(() => {
