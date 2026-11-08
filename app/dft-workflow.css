@@ -14,7 +14,6 @@
 .dft-flow-node header { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px 3px; gap: 6px; }
 .dft-flow-kind { color: var(--muted-ink); font-size: 9px; font-weight: 500; }
 .dft-flow-status { color: var(--muted-ink); font-size: 9px; white-space: nowrap; }
-.dft-flow-status[data-status='Outdated'] { color: var(--status-warning, #d79021); }
 .dft-flow-status[data-status='Completed'] { color: #44825a; }
 .dft-flow-status[data-status='Failed'], .dft-flow-status[data-status='Blocked'] { color: #b94b51; }
 .dft-workflow .dft-flow-name { display: block; max-width: 100%; padding: 2px 12px; min-height: 23px; font-size: 12px; font-weight: 600; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

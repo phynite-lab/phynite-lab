@@ -31,7 +31,6 @@ const editable = (target: EventTarget | null) => target instanceof Element && !!
 
 export type DftWorkflowCanvasProps = {
   projectId: string; ownerId: string; theme: 'light' | 'dark'; document: WorkflowDocument; materials: WorkflowMaterial[]; jobs: CalculationJob[];
-  outdatedNodeIds?: string[];
   canUndo: boolean; canRedo: boolean; busy?: boolean;
   onChange: (next: WorkflowDocument) => void; onUndo: () => void; onRedo: () => void;
   onAdd: (calculation: CalculationType, sourceId?: string) => void; onConfigure: (id: string) => void; onOpenStructure: (id: string) => void;

@@ -1886,7 +1886,7 @@ Gunakan Run history untuk percobaan eksekusi dan pembatalan. Gunakan Research co
 Periksa project terpilih dan penyebab pertama yang tercatat; tidak ada output solver yang dibuat-buat.
 
 1. Buka Canvas project. Pilih ikon jam/histori berlabel Run history untuk melihat run, waktu pembuatannya, status percobaan tiap modul, dan error tercatat.
-2. Periksa Execution result pada modul tertentu untuk ringkasan numerik, Execution log, unduhan artefak, dan pratinjau trajectory bila tersedia. Eksekusi lama dapat ditandai Outdated setelah setup saat ini berubah.
+2. Periksa Execution result pada modul tertentu untuk ringkasan numerik, Execution log, unduhan artefak, dan pratinjau trajectory bila tersedia.
 3. Gunakan Cancel branch untuk cabang modul aktif atau Cancel run untuk workflow aktif. Tunggu status akhir sebelum mengirim ulang; permintaan pembatalan belum berarti proses selesai berhenti.
 4. Pilih ikon garis aktivitas berlabel Research context. Refresh research context memuat ulang bukti tercatat untuk project ini.
 

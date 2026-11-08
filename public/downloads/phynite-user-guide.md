@@ -1877,7 +1877,7 @@ Use Run history for execution attempts and cancellation. Use Research context fo
 Inspect the selected project and first recorded cause; no solver output is invented.
 
 1. Open a project’s Canvas. Choose the clock/history icon labeled Run history to see runs, their creation times, per-module attempt states, and recorded errors.
-2. Inspect a specific module’s Execution result for numerical summaries, Execution log, artifact downloads, and trajectory preview when available. An old execution can be marked Outdated after its current setup changes.
+2. Inspect a specific module’s Execution result for numerical summaries, Execution log, artifact downloads, and trajectory preview when available.
 3. Use Cancel branch for an active module branch or Cancel run for an active workflow. Wait for the terminal state before resubmitting; a cancellation request is not yet a completed stop.
 4. Choose the activity-line icon labeled Research context. Refresh research context reloads recorded evidence for this project.
 
