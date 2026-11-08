@@ -214,6 +214,19 @@ class VaultAndGatewayTests(unittest.TestCase):
             registry.disconnect()
             backend.delete_password.assert_not_called()
 
+    def test_unconfigured_gateway_status_never_reads_keychain_vault(self):
+        with tempfile.TemporaryDirectory() as directory:
+            backend = mock.Mock()
+            vault = CredentialVault(Path(directory), backend=backend)
+            registry = GatewayRegistry(Path(directory), vault)
+            status = registry.status()
+            self.assertFalse(status["configured"])
+            self.assertFalse(status["hasCredential"])
+            self.assertIsNone(status["baseUrl"])
+            self.assertEqual(status["connectionStatus"], "not_configured")
+            self.assertEqual(registry.environment(), {})
+            backend.get_password.assert_not_called()
+
     def test_clearing_gateway_token_removes_existing_credential(self):
         with tempfile.TemporaryDirectory() as directory:
             values = {}
