@@ -28,18 +28,6 @@ export function workflowEdges(components: CalculationComponentInstance[], materi
   });
 }
 
-/** Mark the incoming wire as well as every descendant carrying stale provenance. */
-export function staleWorkflowNodes(edges: Array<{ source: string; target: string }>, outdated: string[]): Set<string> {
-  const stale = new Set(outdated);
-  const children = new Map<string, string[]>();
-  for (const edge of edges) children.set(edge.source, [...(children.get(edge.source) ?? []), edge.target]);
-  const queue = [...stale];
-  for (let index = 0; index < queue.length; index++) for (const child of children.get(queue[index]) ?? []) {
-    if (!stale.has(child)) { stale.add(child); queue.push(child); }
-  }
-  return stale;
-}
-
 export function connectWorkflow(document: WorkflowDocument, materials: WorkflowMaterial[], source: string, target: string, port?: string | null): WorkflowDocument {
   const child = document.components.find(c => c.id === target);
   const parent = document.components.find(c => c.id === source);

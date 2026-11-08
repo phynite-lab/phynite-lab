@@ -60,8 +60,8 @@ class GatewayRegistry:
     def status(self) -> dict[str, Any]:
         with self.lock:
             config = self._read()
-            credential = self.vault.read("ai:gateway")
             configured = bool(config)
+            credential = self.vault.read("ai:gateway") if configured else None
             return {"configured": configured, "baseUrl": config.get("baseUrl"), "hasCredential": bool(credential and credential.get("token")), "credentialStorage": "os-keychain" if self.vault.persistent else "session-only", "connectionStatus": config.get("connectionStatus", "not_checked" if configured else "not_configured"), "checkedAt": config.get("checkedAt"), "models": config.get("models", []), "capabilities": config.get("capabilities", {"models": {}}), "protocol": "anthropic-messages", "connectors": self.official_connectors()}
 
     @staticmethod
