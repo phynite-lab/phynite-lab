@@ -276,7 +276,7 @@ export function LabComputeDestination({
         <div><dt>{t('Expires', 'Berlaku hingga')}</dt><dd>{grant?.expiresAtEpoch ? new Date(grant.expiresAtEpoch * 1000).toLocaleString(intlLocale) : '—'}</dd></div>
       </dl><p>{grant?.available ? t('One global slot. No Quanta charge.', 'Satu slot global. Tanpa biaya Quanta.') : t('Ask an admin for a pilot grant.', 'Minta grant pilot kepada admin.')}</p></div>}
     </>}
-    <dl className="compute-accelerator-status"><div><dt>GPU</dt><dd>{t('Not supported by this runtime', 'Belum didukung runtime ini')}</dd></div><div><dt>VRAM</dt><dd>{t('Not reported', 'Belum dilaporkan')}</dd></div></dl>
+    <dl className="compute-accelerator-status"><div><dt>GPU</dt><dd>{target === 'hpc' ? t('CPU-only HPC adapter', 'Adapter HPC CPU-only') : target === 'shared' ? t('CPU-only cloud profile', 'Profil cloud CPU-only') : t('CPU-only local runtime', 'Runtime lokal CPU-only')}</dd></div><div><dt>VRAM</dt><dd>{t('Not applicable to CPU allocation', 'Tidak berlaku untuk alokasi CPU')}</dd></div></dl>
     {run && <div className="compute-scope-actions"><p>{t('Changes apply to this run configuration.', 'Perubahan berlaku untuk konfigurasi run ini.')}</p><button type="button" className="lab-button" disabled={!account || busy || (target === 'personal' && (allocation.vcpus !== undefined || allocation.memoryMiB !== undefined) && !validPersonalAllocation(allocation, limit))} onClick={() => void persist(resolved)}>{t('Make default', 'Jadikan default')}</button></div>}
     {notice && <p role="status">{notice}</p>}
     {error && <p role="alert">{error}<button type="button" className="lab-button" onClick={() => void refresh().catch(() => {})}>{t('Refresh', 'Perbarui')}</button></p>}
