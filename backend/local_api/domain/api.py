@@ -1398,8 +1398,8 @@ class PhyniteApi:
             if not re.fullmatch('[A-Za-z0-9_-]+', requested_id):
                 raise ApiError(400, 'Requested calculation ID is invalid.', 'INVALID_JOB_ID')
         affinity = normalize_execution_affinity(payload.get('executionAffinity'))
-        if affinity is not None and (requested_id is None or False or self.worker_owner is None):
-            raise ApiError(403, 'Scheduler claims require an owner-paired worker and an exact calculation ID.', 'WORKER_SCOPE_MISMATCH')
+        if affinity is not None and self.worker_owner is None:
+            raise ApiError(403, 'Scheduler claims require an owner-paired personal worker.', 'WORKER_SCOPE_MISMATCH')
         raw_capabilities = payload.get('capabilities')
         if raw_capabilities is None:
             capabilities = {'qe'}
@@ -2166,6 +2166,8 @@ class PhyniteApi:
         del worker_api_url
         require_local_target(payload)
         affinity = normalize_execution_affinity(payload.get('executionAffinity'))
+        if affinity is not None:
+            raise ApiError(400, 'Remote MD is not available. Use Your computer for MD.', 'MD_HPC_UNAVAILABLE')
         if affinity is not None and 'personal' != 'personal':
             raise ApiError(400, 'Scheduler jobs run on owner-paired personal compute.', 'INVALID_EXECUTION_AFFINITY')
         require_project(self.services, user_id, project_id)
@@ -2599,6 +2601,8 @@ class PhyniteApi:
         require_project(self.services, user_id, project_id)
         require_local_target(payload)
         affinity = normalize_execution_affinity(payload.get('executionAffinity'))
+        if affinity is not None:
+            raise ApiError(400, 'Remote MD is not available. Use Your computer for MD.', 'MD_HPC_UNAVAILABLE')
         if affinity is not None and 'personal' != 'personal':
             raise ApiError(400, 'Scheduler jobs run on owner-paired personal compute.', 'INVALID_EXECUTION_AFFINITY')
         worker = self.services.get_item(user_id, 'PERSONAL_WORKER', 'primary') or {}
@@ -2794,6 +2798,17 @@ class PhyniteApi:
                     formatted_grid = '×'.join((str(value) for value in k_grid))
                     raise ApiError(422, f'Local compute resource check rejected the {formatted_grid} k-grid ({k_product:,} points); this development worker is limited to {self.services.max_local_kpoint_product:,} before symmetry reduction. Reduce the grid. For a slab, set the non-periodic axis to 1.', 'LOCAL_RESOURCE_LIMIT')
         default_vcpus = min(6, self.services.max_job_vcpus)
+        if affinity is not None:
+            from backend.local_api.hpc_profiles import HpcProfileStore, validate_hpc_allocation
+            profile = HpcProfileStore(self.services).snapshot_by_checksum(affinity['profileSha256'])
+            if not profile or profile.get('scheduler') != affinity['scheduler']:
+                raise ApiError(400, 'The HPC profile snapshot is unavailable in this workspace. Select a local cluster again.', 'HPC_PROFILE_SNAPSHOT_NOT_FOUND')
+            allocation = validate_hpc_allocation(settings.get('hpcAllocation'), profile)
+            ranks, memory = allocation['nodes'] * allocation['ranksPerNode'], allocation['nodes'] * allocation['memoryMiBPerNode']
+            if payload.get('vcpus', ranks) != ranks or payload.get('memoryMiB', memory) != memory:
+                raise ApiError(400, 'Requested CPU/RAM differs from the frozen HPC allocation.', 'INVALID_HPC_ALLOCATION')
+            settings['hpcAllocation'] = allocation
+            payload = {**payload, 'vcpus': ranks, 'memoryMiB': memory}
         resources = personal_resources(self.services, user_id, 'qe', payload) if 'personal' == 'personal' and affinity is None else payload
         try:
             vcpus = int(resources.get('vcpus') or default_vcpus)

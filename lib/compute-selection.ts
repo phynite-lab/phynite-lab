@@ -1,16 +1,50 @@
 import { accountRequest, type AccountResponse } from './account-api.ts';
 import { personalComputeRequest, type ComputeWorkload, type PersonalComputePreferences } from './compute-preferences.ts';
+import { localRequest } from './local-api.ts';
+import type { HpcClusterProfile } from './hpc-profile.ts';
 
 export type CloudFundingMode = 'paid' | 'pilot';
+export type ComputeTarget = 'personal' | 'shared' | 'hpc';
+
+export interface HpcComputeSelection {
+  clusterId: string;
+  partition?: string;
+  account?: string;
+  nodes: number;
+  ranksPerNode: number;
+  wallSeconds: number;
+  memoryMiBPerNode?: number;
+  autoRestartOnWalltime?: boolean;
+}
+
+export function isHpcComputeSelection(value: unknown): value is HpcComputeSelection {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const candidate = value as Record<string, unknown>;
+  const nodes = Number(candidate.nodes);
+  const ranksPerNode = Number(candidate.ranksPerNode);
+  const wallSeconds = Number(candidate.wallSeconds);
+  return typeof candidate.clusterId === 'string' && candidate.clusterId.length > 0
+    && Number.isSafeInteger(nodes) && nodes >= 1 && nodes <= 4096
+    && Number.isSafeInteger(ranksPerNode) && ranksPerNode >= 1 && ranksPerNode <= 1024
+    && nodes * ranksPerNode <= 65536
+    && Number.isSafeInteger(wallSeconds) && wallSeconds >= 300 && wallSeconds <= 5_184_000
+    && (candidate.partition === undefined || typeof candidate.partition === 'string')
+    && (candidate.account === undefined || typeof candidate.account === 'string')
+    && (candidate.memoryMiBPerNode === undefined || (Number.isSafeInteger(candidate.memoryMiBPerNode) && Number(candidate.memoryMiBPerNode) >= 1024 && Number(candidate.memoryMiBPerNode) <= 16_777_216))
+    && (candidate.autoRestartOnWalltime === undefined || typeof candidate.autoRestartOnWalltime === 'boolean');
+}
+
 export type ComputeProfile = {
   id: string; family: string; vcpus: number; memoryMiB: number; machineMemoryMiB: number;
   hourlyMicros: number; hourlyQuanta: number;
 };
 export type ComputeCatalog = { region: string; updatedAt: string; minimumSeconds: number; profiles: ComputeProfile[] };
 export type ComputeSelection = {
-  computeTarget?: 'personal' | 'shared'; cloudMode?: CloudFundingMode;
+  computeTarget?: ComputeTarget; cloudMode?: CloudFundingMode;
   computeProfileId?: string; quoteId?: string;
   vcpus?: number; memoryMiB?: number; estimatedComputeSeconds?: number;
+  hpc?: HpcComputeSelection;
+  executionAffinity?: { scheduler: 'slurm' | 'pbs'; profileSha256: string };
 };
 /** Capacity labels keep provider identifiers internal. Collapse equal pilot
  * allocations to the cheapest profile, while retaining an explicit selection. */
@@ -44,6 +78,33 @@ export async function prepareComputeRequest<T extends ComputeSelection & { run?:
   if (typeof window === 'undefined' || input.run === false) return wireInput as T;
   const { account } = await accountRequest<AccountResponse>();
   const computeTarget = workload.startsWith('md-') ? 'personal' : input.computeTarget ?? account.computeTarget;
+  if (computeTarget === 'hpc') {
+    if (!isHpcComputeSelection(input.hpc)) throw new Error('Choose a valid HPC cluster allocation before running.');
+    let profile: HpcClusterProfile;
+    try {
+      const result = await localRequest<{ cluster?: HpcClusterProfile }>(`hpc/clusters/${encodeURIComponent(input.hpc.clusterId)}`);
+      if (!result.cluster || typeof result.cluster.profileSha256 !== 'string' || !/^[a-f0-9]{64}$/.test(result.cluster.profileSha256)) {
+        throw new Error('The selected HPC profile has no verified checksum.');
+      }
+      profile = result.cluster;
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : '';
+      throw new Error(detail && /profile|cluster|local workspace/i.test(detail)
+        ? detail
+        : 'HPC execution is available only in the local Phynite workspace. Open the local application and retry.');
+    }
+    const memoryPerNode = input.hpc.memoryMiBPerNode ?? profile.defaults.memoryMiBPerNode;
+    const request = {
+      ...wireInput,
+      computeTarget: 'personal' as const,
+      vcpus: input.hpc.nodes * input.hpc.ranksPerNode,
+      memoryMiB: input.hpc.nodes * memoryPerNode,
+      executionAffinity: { scheduler: profile.scheduler, profileSha256: profile.profileSha256 },
+      settings: { ...((wireInput as Record<string, unknown>).settings as Record<string, unknown> ?? {}), hpcAllocation: { nodes: input.hpc.nodes, ranksPerNode: input.hpc.ranksPerNode, wallSeconds: input.hpc.wallSeconds, memoryMiBPerNode: memoryPerNode, ...(input.hpc.partition ? { queue: input.hpc.partition } : {}), ...(input.hpc.account ? { account: input.hpc.account } : {}) } },
+    };
+    delete (request as Partial<ComputeSelection>).hpc;
+    return request as unknown as T;
+  }
   if (computeTarget !== 'shared') return personalComputeRequest({ ...wireInput, computeTarget }, (account as AccountResponse['account'] & PersonalComputePreferences).personalDefaults?.[workload]) as T;
   const cloudMode = input.cloudMode ?? account.cloudMode ?? 'paid';
   const computeProfileId = input.computeProfileId ?? account.computeProfileId;

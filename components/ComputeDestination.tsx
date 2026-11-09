@@ -13,9 +13,11 @@ import { ComputeResourcePicker } from './ComputeResourcePicker';
 import { startBrowserPoll } from '@/lib/browser-poll';
 import { UiSelect } from './UiSelect';
 import { LocalComputeReadiness } from './LocalComputeReadiness';
+import type { HpcClusterProfile } from '@/lib/hpc-profile';
+import { localRequest } from '@/lib/local-api';
 import './compute-destination.css';
 
-type ComputeTarget = 'shared' | 'personal';
+type ComputeTarget = 'shared' | 'personal' | 'hpc';
 const subscribeReturnPath = (listener: () => void) => {
   const events = ['popstate', 'hashchange', 'phynite:navigation-change'];
   events.forEach(event => window.addEventListener(event, listener));
@@ -104,7 +106,36 @@ export function LabComputeDestination({
   const available = account?.quanta.available ?? account?.quanta.balance;
   const estimate = selected ? estimateQuanta(selected, seconds) : null;
   const affordable = affordableComputeHours(available, selected?.hourlyQuanta, catalog?.minimumSeconds ?? 60);
-  const resolved: ComputeSelection = { computeTarget: target, cloudMode: mode, computeProfileId: profileId, estimatedComputeSeconds: seconds, ...allocation };
+  const [hpcClusters, setHpcClusters] = useState<HpcClusterProfile[]>([]);
+  const [hpcLocalAvailable, setHpcLocalAvailable] = useState(false);
+  useEffect(() => {
+    localRequest<{ clusters?: unknown }>('hpc/clusters')
+      .then(data => {
+        const clusters = data && typeof data === 'object' && Array.isArray((data as { clusters?: unknown }).clusters)
+          ? (data as { clusters: HpcClusterProfile[] }).clusters
+          : [];
+        setHpcClusters(clusters);
+        setHpcLocalAvailable(true);
+      })
+      .catch(() => { setHpcClusters([]); setHpcLocalAvailable(false); });
+  }, []);
+  const selectedCluster = hpcClusters.find(c => c.id === local.hpc?.clusterId) || hpcClusters.find(c => c.isDefault) || hpcClusters[0];
+  const hpcSelection = local.hpc ?? (selectedCluster ? {
+    clusterId: selectedCluster.id,
+    nodes: selectedCluster.defaults.nodes,
+    ranksPerNode: selectedCluster.defaults.ranksPerNode,
+    wallSeconds: selectedCluster.defaults.wallSeconds,
+    partition: selectedCluster.defaults.queue,
+  } : undefined);
+
+  const resolved: ComputeSelection = {
+    computeTarget: target,
+    cloudMode: mode,
+    computeProfileId: profileId,
+    estimatedComputeSeconds: seconds,
+    ...(target === 'hpc' && hpcSelection ? { hpc: hpcSelection } : {}),
+    ...allocation,
+  };
 
   const refresh = useCallback(async () => {
     const [accountResult, compute] = await Promise.all([
@@ -160,12 +191,77 @@ export function LabComputeDestination({
     <UiSelect ariaLabel={ariaLabel} compact disabled={!account || busy || Boolean(fixedTarget)} value={target}
       options={[
         { value: 'personal', label: t('Your computer', 'Komputer Anda'), detail: (status?.status ?? account?.computer.status) === 'connected' ? t('Connected', 'Terhubung') : (status?.status ?? account?.computer.status) === 'offline' ? t('Worker offline', 'Worker offline') : t('Connect your worker', 'Hubungkan worker') },
+        { value: 'hpc', label: t('HPC Cluster', 'Kluster HPC'), disabled: requiredCapability.startsWith('md-') || !hpcLocalAvailable, detail: requiredCapability.startsWith('md-') ? t('Not available for MD yet', 'Belum tersedia untuk MD') : !hpcLocalAvailable ? t('Available in the local workspace', 'Tersedia di workspace lokal') : (selectedCluster ? `${selectedCluster.name} · ${selectedCluster.scheduler.toUpperCase()}` : t('Connect cluster', 'Hubungkan kluster')) },
         { value: 'shared', label: 'Phynite Cloud', disabled: desktop || !sharedAvailable || requiredCapability.startsWith('md-'), detail: requiredCapability.startsWith('md-') ? t('Not available for MD yet', 'Belum tersedia untuk MD') : desktop ? t('Submit through the optional Cloud connection in Settings', 'Kirim melalui koneksi Cloud opsional di Pengaturan') : t('Choose CPU and RAM for this job', 'Pilih CPU dan RAM untuk job') },
       ]} onChange={value => change({ computeTarget: value as ComputeTarget })} />
     {target === 'personal' && <>
       {desktop && <LocalComputeReadiness capability={requiredCapability} />}
       <PersonalResourceFields live={draft} key={draft ? requiredCapability : `${requiredCapability}:${allocation.vcpus ?? ''}:${allocation.memoryMiB ?? ''}`} allocation={allocation} limit={limit} disabled={!account || busy} onApply={next => change(next)} />
       <p>{t('Uses your connected computer. No Quanta charge.', 'Memakai komputer yang terhubung. Tanpa biaya Quanta.')}</p>
+    </>}
+    {target === 'hpc' && <>
+      {hpcClusters.length === 0 ? (
+        <div className="hpc-empty-state">
+          <p>{t('No HPC clusters configured.', 'Belum ada kluster HPC.')}</p>
+          <Link href="/account/compute#hpc-clusters" className="lab-button lab-button-primary">
+            {t('Add HPC Cluster →', 'Tambah Kluster HPC →')}
+          </Link>
+        </div>
+      ) : (
+        <div className="hpc-selection-fields">
+          <UiSelect
+            label={t('Cluster', 'Kluster')}
+            compact
+            value={hpcSelection?.clusterId ?? ''}
+            options={hpcClusters.map(c => ({
+              value: c.id,
+              label: c.name,
+              detail: `${c.scheduler.toUpperCase()} · ${c.connection.host}`,
+            }))}
+            onChange={val => {
+              const cl = hpcClusters.find(c => c.id === val);
+              if (cl) {
+                change({
+                  hpc: {
+                    clusterId: cl.id,
+                    nodes: cl.defaults.nodes,
+                    ranksPerNode: cl.defaults.ranksPerNode,
+                    wallSeconds: cl.defaults.wallSeconds,
+                    partition: cl.defaults.queue,
+                  },
+                });
+              }
+            }}
+          />
+          <div className="compute-resource-picker">
+            <label className="compute-number-field">
+              <span>{t('Nodes', 'Jumlah Node')}</span>
+              <input
+                type="number"
+                min="1"
+                max="4096"
+                value={hpcSelection?.nodes ?? 1}
+                disabled={busy}
+                onChange={e => change({ hpc: { ...hpcSelection!, clusterId: hpcSelection!.clusterId, nodes: Number(e.target.value) || 1 } })}
+              />
+            </label>
+            <label className="compute-number-field">
+              <span>{t('Ranks/Node', 'Ranks/Node')}</span>
+              <input
+                type="number"
+                min="1"
+                max="1024"
+                value={hpcSelection?.ranksPerNode ?? 32}
+                disabled={busy}
+                onChange={e => change({ hpc: { ...hpcSelection!, clusterId: hpcSelection!.clusterId, ranksPerNode: Number(e.target.value) || 32 } })}
+              />
+            </label>
+          </div>
+          <p className="lab-caption">
+            {t('Total MPI ranks', 'Total MPI ranks')}: {((hpcSelection?.nodes ?? 1) * (hpcSelection?.ranksPerNode ?? 32)).toLocaleString(intlLocale)} · {selectedCluster?.scheduler.toUpperCase()}
+          </p>
+        </div>
+      )}
     </>}
     {target === 'shared' && <>
       {desktop && <p role="alert">{t('This workflow runs on Your computer. Choose it below, or submit online through the Cloud connection in Settings.', 'Workflow ini berjalan di Komputer Anda. Pilih di bawah, atau kirim online melalui koneksi Cloud di Pengaturan.')} <button type="button" className="lab-button" onClick={() => change({ computeTarget: 'personal' })}>{t('Use Your computer', 'Gunakan Komputer Anda')}</button></p>}

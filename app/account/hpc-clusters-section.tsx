@@ -1,0 +1,378 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import { Server, Plus, Trash2, RefreshCw, CheckCircle2, XCircle, Pencil, Star } from 'lucide-react';
+import { useLocale } from '../locale-provider';
+import type { HpcAuthKind, HpcClusterProfile, HpcScheduler } from '@/lib/hpc-profile';
+import { localRequest } from '@/lib/local-api';
+
+type ProbeResult = {
+  ok: boolean;
+  latencyMs: number;
+  system?: string;
+  error?: string;
+  schedulers: Record<string, boolean>;
+  solvers: Record<string, string | null>;
+};
+
+export function HpcClustersSection({ localMode = false }: { localMode?: boolean }) {
+  const { t } = useLocale();
+  const [clusters, setClusters] = useState<HpcClusterProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [probeResults, setProbeResults] = useState<Record<string, ProbeResult | null>>({});
+  const [probing, setProbing] = useState<Record<string, boolean>>({});
+
+  // Form state
+  const [name, setName] = useState('');
+  const [scheduler, setScheduler] = useState<HpcScheduler>('slurm');
+  const [host, setHost] = useState('');
+  const [port, setPort] = useState('22');
+  const [username, setUsername] = useState('');
+  const [authKind, setAuthKind] = useState<HpcAuthKind>('key');
+  const [privateKeyPath, setPrivateKeyPath] = useState('');
+  const [scratchRoot, setScratchRoot] = useState('');
+  const [partition, setPartition] = useState('');
+  const [nodes, setNodes] = useState('1');
+  const [ranksPerNode, setRanksPerNode] = useState('32');
+  const [wallHours, setWallHours] = useState('4');
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+
+  const fetchClusters = useCallback(async () => {
+    if (!localMode) { setLoading(false); return; }
+    try {
+      setLoading(true);
+      setError('');
+      const data = await localRequest<{ clusters?: unknown }>('hpc/clusters');
+      setClusters(Array.isArray(data.clusters) ? data.clusters as HpcClusterProfile[] : []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('Failed to load clusters.', 'Gagal memuat kluster.'));
+    } finally {
+      setLoading(false);
+    }
+  }, [localMode, t]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void fetchClusters(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchClusters]);
+
+  const handleTestProbe = async (id: string) => {
+    setProbing(prev => ({ ...prev, [id]: true }));
+    try {
+      const data = await localRequest<{ probe?: ProbeResult }>(`hpc/clusters/${id}/probe`, 'POST');
+      if (data.probe) setProbeResults(prev => ({ ...prev, [id]: data.probe! }));
+    } catch {
+      setProbeResults(prev => ({
+        ...prev,
+        [id]: { ok: false, latencyMs: 0, error: 'Connection test failed', schedulers: {}, solvers: {} },
+      }));
+    } finally {
+      setProbing(prev => ({ ...prev, [id]: false }));
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm(t('Are you sure you want to remove this HPC cluster profile?', 'Yakin ingin menghapus profil kluster HPC ini?'))) return;
+    try {
+      await localRequest(`hpc/clusters/${id}`, 'DELETE');
+      await fetchClusters();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete cluster.');
+    }
+  };
+
+  const handleSaveCluster = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setFormError('');
+
+    const payload = {
+      name,
+      scheduler,
+      isDefault: editingId ? Boolean(clusters.find(cluster => cluster.id === editingId)?.isDefault) : clusters.length === 0,
+      connection: {
+        host,
+        port: Number(port) || 22,
+        username,
+        authKind,
+        ...(authKind === 'key' ? { privateKeyPath: privateKeyPath.trim() || undefined } : {}),
+      },
+      storage: {
+        scratchRoot: scratchRoot.trim() || '/scratch',
+        purgeWavefunctions: true,
+      },
+      runtime: {
+        environmentModules: [],
+        mpiLauncher: scheduler === 'slurm'
+          ? ['srun', '--mpi=pmix', '--ntasks={ranks}']
+          : ['mpiexec', '-n', '{ranks}'],
+      },
+      defaults: {
+        nodes: Number(nodes) || 1,
+        ranksPerNode: Number(ranksPerNode) || 32,
+        wallSeconds: (Number(wallHours) || 4) * 3600,
+        memoryMiBPerNode: 65536,
+        queue: partition.trim() || undefined,
+      },
+    };
+
+    try {
+      await localRequest(editingId ? `hpc/clusters/${encodeURIComponent(editingId)}` : 'hpc/clusters', editingId ? 'PUT' : 'POST', payload);
+      setShowModal(false);
+      resetForm();
+      await fetchClusters();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Failed to save cluster.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const resetForm = () => {
+    setEditingId(null);
+    setName('');
+    setHost('');
+    setPort('22');
+    setUsername('');
+    setAuthKind('key');
+    setPrivateKeyPath('');
+    setScratchRoot('');
+    setPartition('');
+    setNodes('1');
+    setRanksPerNode('32');
+    setWallHours('4');
+    setFormError('');
+  };
+
+  const editCluster = (cluster: HpcClusterProfile) => {
+    setEditingId(cluster.id);
+    setName(cluster.name);
+    setScheduler(cluster.scheduler);
+    setHost(cluster.connection.host);
+    setPort(String(cluster.connection.port));
+    setUsername(cluster.connection.username);
+    setAuthKind(cluster.connection.authKind);
+    setPrivateKeyPath(cluster.connection.privateKeyPath ?? '');
+    setScratchRoot(cluster.storage.scratchRoot);
+    setPartition(cluster.defaults.queue ?? '');
+    setNodes(String(cluster.defaults.nodes));
+    setRanksPerNode(String(cluster.defaults.ranksPerNode));
+    setWallHours(String(cluster.defaults.wallSeconds / 3600));
+    setFormError('');
+    setShowModal(true);
+  };
+
+  const setDefaultCluster = async (cluster: HpcClusterProfile) => {
+    try {
+      await localRequest(`hpc/clusters/${encodeURIComponent(cluster.id)}`, 'PUT', { ...cluster, isDefault: true });
+      await fetchClusters();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('Could not set the default cluster.', 'Default kluster belum dapat diubah.'));
+    }
+  };
+
+  return (
+    <div className="hpc-clusters-section">
+      <div className="hpc-section-header">
+        <div>
+          <h4>{t('Connected Clusters', 'Kluster Terhubung')}</h4>
+          <p className="lab-caption">
+            {localMode
+              ? t('Submit Quantum ESPRESSO jobs to your institution’s Slurm or OpenPBS cluster through this local workspace.', 'Kirim job Quantum ESPRESSO ke kluster Slurm atau OpenPBS institusi melalui workspace lokal ini.')
+              : t('HPC profiles and SSH probes run only in the local Phynite workspace.', 'Profil HPC dan probe SSH hanya berjalan di workspace Phynite lokal.')}
+          </p>
+        </div>
+        {localMode && <button
+          type="button"
+          className="lab-button lab-button-primary"
+          onClick={() => { resetForm(); setShowModal(true); }}
+        >
+          <Plus size={15} />
+          {t('Add Cluster', 'Tambah Kluster')}
+        </button>}
+      </div>
+
+      {loading && <p className="lab-caption">{t('Loading clusters…', 'Memuat daftar kluster…')}</p>}
+      {error && <p className="settings-notice" role="alert">{error}</p>}
+
+      {!localMode && <div className="hpc-empty-state"><Server size={32} /><p>{t('Open the local Phynite application to add and probe SSH cluster profiles. Hosted Phynite never stores private-key paths.', 'Buka aplikasi Phynite lokal untuk menambah dan menguji profil kluster SSH. Phynite hosted tidak pernah menyimpan path kunci privat.')}</p></div>}
+      {localMode && !loading && clusters.length === 0 && (
+        <div className="hpc-empty-state">
+          <Server size={32} />
+          <p>{t('No HPC clusters configured yet. Add your institution’s Slurm or PBS cluster to get started.', 'Belum ada kluster HPC. Tambahkan kluster Slurm atau PBS institusi Anda untuk memulai.')}</p>
+        </div>
+      )}
+
+      <div className="hpc-cluster-list">
+        {clusters.map((c) => {
+          const probe = probeResults[c.id];
+          const isProbing = probing[c.id];
+          return (
+            <div key={c.id} className="hpc-cluster-card">
+              <div className="hpc-cluster-card-header">
+                <div>
+                  <strong>{c.name}</strong>
+                  <span className="hpc-tag">{c.scheduler.toUpperCase()}</span>
+                  {c.isDefault && <span className="hpc-tag hpc-tag-default">{t('Default', 'Default')}</span>}
+                </div>
+                <div className="hpc-cluster-actions">
+                  <button
+                    type="button"
+                    className="lab-button"
+                    onClick={() => editCluster(c)}
+                    aria-label={t('Edit cluster', 'Edit kluster')}
+                  >
+                    <Pencil size={13} />
+                  </button>
+                  {!c.isDefault && <button
+                    type="button"
+                    className="lab-button"
+                    onClick={() => void setDefaultCluster(c)}
+                    aria-label={t('Set default cluster', 'Jadikan kluster default')}
+                  >
+                    <Star size={13} />
+                  </button>}
+                  <button
+                    type="button"
+                    className="lab-button"
+                    disabled={isProbing}
+                    onClick={() => void handleTestProbe(c.id)}
+                  >
+                    <RefreshCw size={13} className={isProbing ? 'animate-spin' : ''} />
+                    {isProbing ? t('Testing…', 'Menguji…') : t('Test Probe', 'Uji Probe')}
+                  </button>
+                  <button
+                    type="button"
+                    className="lab-button lab-button-danger"
+                    onClick={() => void handleDelete(c.id)}
+                    aria-label={t('Delete cluster', 'Hapus kluster')}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="hpc-cluster-details">
+                <div><span>{t('Host', 'Host')}:</span> <code>{c.connection.username}@{c.connection.host}:{c.connection.port}</code></div>
+                <div><span>{t('Scratch', 'Scratch')}:</span> <code>{c.storage.scratchRoot}</code></div>
+                <div><span>{t('Allocation', 'Alokasi')}:</span> {c.defaults.nodes} node(s) · {c.defaults.ranksPerNode} ranks/node · {Math.round(c.defaults.wallSeconds / 3600)}h max</div>
+                {c.defaults.queue && <div><span>{t('Partition', 'Partisi')}:</span> <code>{c.defaults.queue}</code></div>}
+                {c.profileSha256 && <div><span>{t('Profile checksum', 'Checksum profil')}:</span> <code className="hpc-checksum">{c.profileSha256}</code></div>}
+              </div>
+
+              {probe && (
+                <div className={`hpc-probe-result ${probe.ok ? 'hpc-probe-ok' : 'hpc-probe-fail'}`}>
+                  {probe.ok ? (
+                    <>
+                      <CheckCircle2 size={15} />
+                      <span>{t('Connected', 'Terhubung')} ({probe.latencyMs}ms) · {probe.system}</span>
+                      {probe.solvers?.qe && <small>· pw.x: {probe.solvers.qe}</small>}
+                    </>
+                  ) : (
+                    <>
+                      <XCircle size={15} />
+                      <span>{t('Probe failed', 'Uji koneksi gagal')}: {probe.error}</span>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {showModal && (
+        <div className="lab-modal-overlay">
+          <div className="lab-modal-content">
+            <header className="lab-modal-header">
+              <h3>{editingId ? t('Edit HPC Cluster Profile', 'Edit Profil Kluster HPC') : t('Add HPC Cluster Profile', 'Tambah Profil Kluster HPC')}</h3>
+              <button type="button" className="lab-button lab-button-quiet" onClick={() => { resetForm(); setShowModal(false); }}>✕</button>
+            </header>
+            <form onSubmit={handleSaveCluster} className="hpc-modal-form">
+              {formError && <p className="settings-notice" role="alert">{formError}</p>}
+              <div className="lab-field-grid">
+                <label>
+                  <span>{t('Profile Name', 'Nama Profil')}</span>
+                  <input type="text" required placeholder="misal: BRIN Mahameru - DFT" value={name} onChange={e => setName(e.target.value)} />
+                </label>
+                <label>
+                  <span>{t('Scheduler Type', 'Tipe Scheduler')}</span>
+                  <select value={scheduler} onChange={e => setScheduler(e.target.value as HpcScheduler)}>
+                    <option value="slurm">Slurm Workload Manager</option>
+                    <option value="pbs">OpenPBS / PBS Pro</option>
+                  </select>
+                </label>
+              </div>
+
+              <div className="lab-field-grid">
+                <label>
+                  <span>{t('Login Host', 'Host Login Node')}</span>
+                  <input type="text" required placeholder="login2.hpc.brin.go.id" value={host} onChange={e => setHost(e.target.value)} />
+                </label>
+                <label>
+                  <span>{t('Port', 'Port')}</span>
+                  <input type="number" required value={port} onChange={e => setPort(e.target.value)} />
+                </label>
+              </div>
+
+              <div className="lab-field-grid">
+                <label>
+                  <span>{t('SSH Username', 'Username SSH')}</span>
+                  <input type="text" required placeholder="jauhar.nr" value={username} onChange={e => setUsername(e.target.value)} />
+                </label>
+                <label>
+                  <span>{t('Authentication', 'Autentikasi')}</span>
+                  <select value={authKind} onChange={e => setAuthKind(e.target.value as HpcAuthKind)}>
+                    <option value="key">Private key</option>
+                    <option value="agent">SSH agent</option>
+                  </select>
+                </label>
+                <label>
+                  <span>{t('Private Key Path (Local)', 'Path Kunci Privat (Lokal)')}</span>
+                  <input type="text" disabled={authKind !== 'key'} placeholder="/Users/name/.ssh/id_ed25519" value={privateKeyPath} onChange={e => setPrivateKeyPath(e.target.value)} />
+                </label>
+              </div>
+
+              <div className="lab-field-grid">
+                <label>
+                  <span>{t('Remote Scratch Root', 'Direktori Scratch Remote')}</span>
+                  <input type="text" required placeholder="/scratch/users/jauhar.nr/phynite-work" value={scratchRoot} onChange={e => setScratchRoot(e.target.value)} />
+                </label>
+                <label>
+                  <span>{t('Default Partition/Queue', 'Partisi / Antrean Default')}</span>
+                  <input type="text" placeholder="misal: cpu, normal" value={partition} onChange={e => setPartition(e.target.value)} />
+                </label>
+              </div>
+
+              <div className="lab-field-grid">
+                <label>
+                  <span>{t('Default Nodes', 'Jumlah Node Default')}</span>
+                  <input type="number" min="1" max="4096" value={nodes} onChange={e => setNodes(e.target.value)} />
+                </label>
+                <label>
+                  <span>{t('Ranks per Node', 'Ranks per Node')}</span>
+                  <input type="number" min="1" max="1024" value={ranksPerNode} onChange={e => setRanksPerNode(e.target.value)} />
+                </label>
+                <label>
+                  <span>{t('Max Walltime (Hours)', 'Max Walltime (Jam)')}</span>
+                  <input type="number" min="1" max="720" value={wallHours} onChange={e => setWallHours(e.target.value)} />
+                </label>
+              </div>
+
+              <div className="lab-modal-footer">
+                <button type="button" className="lab-button" onClick={() => { resetForm(); setShowModal(false); }}>{t('Cancel', 'Batal')}</button>
+                <button type="submit" className="lab-button lab-button-primary" disabled={saving}>
+                  {saving ? t('Saving…', 'Menyimpan…') : editingId ? t('Update Cluster Profile', 'Perbarui Profil Kluster') : t('Save Cluster Profile', 'Simpan Profil Kluster')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
