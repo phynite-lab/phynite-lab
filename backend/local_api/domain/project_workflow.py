@@ -192,7 +192,7 @@ def canonical_configuration(configuration: dict[str, Any], kind: str | None=None
     config = copy.deepcopy(configuration)
     if configuration.get('compilerVersion') == 1 or (kind in DFT_TYPES and isinstance(config.get('draft'), dict)) or (kind == 'md' and isinstance(config.get('components'), list)):
         config.pop('execution', None)
-    for key in ('savedStructureSignature', 'configurationError', 'legacySource', 'preservedHistory', 'plotSettings', 'elementMapText', 'style', 'compilerVersion', 'estimatedComputeSeconds', 'formula', 'missingInputs', 'parameterStudy', 'pseudopotentialChecksums', 'computeTarget', 'cloudMode', 'computeProfileId', 'vcpus', 'memoryMiB'):
+    for key in ('savedStructureSignature', 'configurationError', 'legacySource', 'preservedHistory', 'plotSettings', 'elementMapText', 'style', 'compilerVersion', 'estimatedComputeSeconds', 'formula', 'missingInputs', 'parameterStudy', 'pseudopotentialChecksums', 'computeTarget', 'cloudMode', 'computeProfileId', 'vcpus', 'memoryMiB', 'resolvedHpcCompute'):
         config.pop(key, None)
     for key in ('structure', 'draft', 'execution'):
         value = config.get(key)
@@ -583,6 +583,8 @@ class ProjectWorkflowApi:
             if node['kind'] in DFT_TYPES and node['configuration'].get('compilerVersion') == 1:
                 deferred = node_id in deferred_nodes
                 error = error or compiled.get(node_id, {}).get('issue')
+                if not deferred and compiled.get(node_id, {}).get('execution'):
+                    node['configuration']['execution'] = compiled[node_id]['execution']
             if node['kind'] == 'md' and isinstance(node['configuration'].get('components'), list):
                 error = error or compiled.get(node_id, {}).get('issue')
                 if not error:
@@ -631,16 +633,26 @@ class ProjectWorkflowApi:
                 error = str(exc)
             reusable = None if node_id in forced or error else self.find_reusable(owner, project, node, hashes[node_id])
             action = 'reuse' if reusable else 'input' if node['kind'] in {'structure', 'trajectory'} or legacy_result else 'prepare' if node['kind'] == 'figure' else 'run'
+            hpc_compute = None
+            if action == 'run' and not error and node['kind'] in DFT_TYPES and node['configuration'].get('computeTarget') == 'hpc':
+                from backend.local_api.hpc_profiles import resolve_hpc_compute
+                try:
+                    hpc_compute = resolve_hpc_compute(self.services, owner, node['configuration'].get('hpc'))
+                    node['configuration']['resolvedHpcCompute'] = hpc_compute
+                except ApiError as exc:
+                    error = str(exc)
             if action == 'run' and (not error) and (node['kind'] in DFT_TYPES) and (node['configuration'].get('computeTarget') == 'shared'):
                 raise ApiError(400, 'Submit online compute through the optional Cloud connection. This workflow runner executes on Your computer.', 'INVALID_COMPUTE_TARGET')
             capability = 'qe' if node['kind'] in DFT_TYPES else 'md-simulation' if node['kind'] == 'md' else 'md-analysis' if node['kind'] in {'md-analysis', 'extract-frame'} else None
             if action == 'run' and not error and capability:
                 runtime = 'DFT (Quantum ESPRESSO)' if capability == 'qe' else 'MD and analysis (LAMMPS/OVITO)'
-                if not worker.get('tokenHash') or int(worker.get('lastSeenAtEpoch') or 0) < now - 90:
+                if hpc_compute and not self.services.compute_enabled:
+                    error = 'The local HPC dispatcher is unavailable. Open or restart the local Phynite launcher and inspect the cluster profile in Settings > Compute.'
+                elif not hpc_compute and (not worker.get('tokenHash') or int(worker.get('lastSeenAtEpoch') or 0) < now - 90):
                     error = 'Your computer is offline. Start or restart phynite-lab and wait for Your computer in Settings > Compute (/local#runtime) to become ready.'
                     if capability not in (worker.get('capabilities') or []):
                         error += f' If the {runtime} runtime is not installed for this workspace, install it there (/local#runtime).'
-                elif capability not in (worker.get('capabilities') or []):
+                elif not hpc_compute and capability not in (worker.get('capabilities') or []):
                     error = f'Install the {runtime} runtime for this workspace in Settings > Compute (/local#runtime), then wait for Your computer to become ready.'
                 elif capability == 'qe' and getattr(self.services, 'local_workspace', False):
                     from backend.local_api.pseudopotentials import execution_pseudopotential_error
@@ -648,7 +660,7 @@ class ProjectWorkflowApi:
             if error:
                 errors.append({'nodeId': node_id, 'message': error})
             scf_source = next((edge['source'] for edge in input_edges if edge['port'] == 'electronic'), None)
-            planned.append({'nodeId': node_id, 'fingerprint': hashes[node_id], 'action': action, 'force': node_id in forced, 'validationDeferred': deferred, **({'sourceScfNodeId': scf_source} if scf_source else {}), **({'sourceAttemptId': reusable['id']} if reusable else {}), **({'error': error} if error else {})})
+            planned.append({'nodeId': node_id, 'fingerprint': hashes[node_id], 'action': action, 'force': node_id in forced, 'validationDeferred': deferred, **({'compute': {'target': 'hpc', 'clusterId': node['configuration']['hpc']['clusterId'], **hpc_compute}} if hpc_compute else {}), **({'sourceScfNodeId': scf_source} if scf_source else {}), **({'sourceAttemptId': reusable['id']} if reusable else {}), **({'error': error} if error else {})})
         compiler_sha = None
         if needs_compiler:
             from backend.local_api.domain.workflow_compiler import compiler_source
@@ -667,6 +679,8 @@ class ProjectWorkflowApi:
                 fail('This run key already identifies another request.', 'IDEMPOTENCY_CONFLICT', 409)
             return self.get_run(owner, project, run_id)
         plan, graph = self.plan(owner, project, payload)
+        if payload.get('reviewedPlan') is not None and (payload['reviewedPlan'] != plan or payload.get('reviewedWorkflow') != graph):
+            fail('The reviewed run plan changed. Prepare and review a fresh action.', 'AI_CONTEXT_CHANGED', 409)
         if plan['errors']:
             fail('Fix workflow configuration errors before submitting.', 'WORKFLOW_NOT_READY', 422)
         if plan.get('compilerSha256') and payload.get('compilerSha256') != plan['compilerSha256']:
@@ -866,6 +880,12 @@ class ProjectWorkflowApi:
             payload = invoke('compileBoundDft', [frozen, node['id'], structure, structure_id], snapshot['compiler'])
             payload['idempotencyKey'] = 'wf_' + hashlib.sha256(attempt_id.encode()).hexdigest()[:60]
         if kind in DFT_TYPES:
+            if node['configuration'].get('computeTarget') == 'hpc':
+                compute = node['configuration'].get('resolvedHpcCompute')
+                if not compute:
+                    raise ApiError(409, 'Review a fresh run plan to freeze the HPC allocation.', 'HPC_ALLOCATION_REQUIRED')
+                payload = {**payload, **compute, 'settings': {**payload.get('settings', {}), **compute['settings']}}
+                payload.pop('hpc', None)
             # Canvas DFT nodes use the same owner-scoped local calculation
             # admission as the standalone DFT form.  The workflow runner used
             # to reject every DFT node here, even when the node explicitly

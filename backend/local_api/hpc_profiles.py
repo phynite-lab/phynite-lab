@@ -198,6 +198,29 @@ def validate_hpc_allocation(raw: Any, profile: dict[str, Any]) -> dict[str, Any]
     return value
 
 
+def resolve_hpc_compute(services: Any, owner: str, selection: Any) -> dict[str, Any]:
+    """Resolve a UI/AI cluster choice locally before review; never trust wire affinity."""
+    if not getattr(services, 'local_workspace', False) or owner != services.owner:
+        raise ApiError(403, 'Open the local Phynite workspace to use HPC clusters.', 'HPC_LOCAL_ONLY')
+    allowed = {'clusterId', 'profileSha256', 'nodes', 'ranksPerNode', 'wallSeconds', 'memoryMiBPerNode', 'partition', 'account', 'autoRestartOnWalltime'}
+    if not isinstance(selection, dict) or set(selection) - allowed or not isinstance(selection.get('clusterId'), str):
+        raise ApiError(400, 'Choose a saved local HPC cluster and allocation.', 'INVALID_HPC_ALLOCATION')
+    profile = HpcProfileStore(services).get(selection['clusterId'])
+    if not profile:
+        raise ApiError(404, 'The selected HPC cluster is unavailable. Read the local compute inventory again.', 'HPC_PROFILE_NOT_FOUND')
+    if 'profileSha256' in selection and selection['profileSha256'] != profile['profileSha256']:
+        raise ApiError(409, 'The HPC profile changed. Read compute settings and review a fresh action.', 'HPC_PROFILE_CHANGED')
+    if selection.get('autoRestartOnWalltime') not in (None, False):
+        raise ApiError(400, 'HPC continuation requires explicit inspection; automatic scientific restart is unavailable.', 'INVALID_HPC_ALLOCATION')
+    allocation = {key: selection[key] for key in ('nodes', 'ranksPerNode', 'wallSeconds', 'memoryMiBPerNode', 'account') if key in selection}
+    if 'partition' in selection:
+        allocation['queue'] = selection['partition']
+    allocation = validate_hpc_allocation(allocation, profile)
+    return {'computeTarget': 'personal', 'executionAffinity': {'scheduler': profile['scheduler'], 'profileSha256': profile['profileSha256']},
+            'vcpus': allocation['nodes'] * allocation['ranksPerNode'], 'memoryMiB': allocation['nodes'] * allocation['memoryMiBPerNode'],
+            'settings': {'hpcAllocation': allocation}}
+
+
 class HpcProfileStore:
     def __init__(self, services: Any):
         self.services = services

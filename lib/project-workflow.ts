@@ -160,7 +160,7 @@ export async function workflowFingerprints(graph: ProjectWorkflow): Promise<Reco
 export function scientificWorkflowConfiguration(configuration: Record<string, unknown>, kind?: WorkflowKind): Record<string, unknown> {
   const result = structuredClone(configuration);
   if (configuration.compilerVersion === 1 || kind && DFT_WORKFLOW_KINDS.has(kind) && record(configuration.draft) || kind === 'md' && Array.isArray(configuration.components)) delete result.execution;
-  for (const key of ['savedStructureSignature', 'configurationError', 'legacySource', 'preservedHistory', 'plotSettings', 'elementMapText', 'style', 'compilerVersion', 'estimatedComputeSeconds', 'formula', 'missingInputs', 'parameterStudy', 'pseudopotentialChecksums', 'computeTarget', 'cloudMode', 'computeProfileId', 'vcpus', 'memoryMiB']) delete result[key];
+  for (const key of ['savedStructureSignature', 'configurationError', 'legacySource', 'preservedHistory', 'plotSettings', 'elementMapText', 'style', 'compilerVersion', 'estimatedComputeSeconds', 'formula', 'missingInputs', 'parameterStudy', 'pseudopotentialChecksums', 'computeTarget', 'cloudMode', 'computeProfileId', 'vcpus', 'memoryMiB', 'resolvedHpcCompute']) delete result[key];
   for (const key of ['structure', 'draft', 'execution']) {
     const value = result[key];
     if (!record(value)) continue;

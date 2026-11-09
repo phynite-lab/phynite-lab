@@ -9,6 +9,32 @@ import { compileMdSimulationWorkflow } from './md-workflow-compiler.ts';
 import { createSimulationComponentInstance, MD_SIMULATION_RECIPES, validateMdSimulationConfig, type MdSimulationComponentInstance } from './md-simulation-types.ts';
 import { createParameterStudy, studyParameters, type ParameterStudy } from './workflow-parameter-study.ts';
 import { workflowFigureStyleTemplate, workflowFigureStyle } from './workflow-figure-style.ts';
+import { isHpcComputeSelection, type ComputeSelection } from './compute-selection.ts';
+
+export function aiQeCompute(value: unknown): ComputeSelection {
+  if (!object(value) || Object.keys(value).some(key => !['computeTarget', 'hpc'].includes(key)) || !['personal', 'hpc'].includes(String(value.computeTarget))) fail('Choose personal or a saved local HPC cluster.', 'compute');
+  if (value.computeTarget === 'personal') {
+    if (value.hpc !== undefined) fail('Personal compute cannot contain an HPC allocation.', 'compute.hpc');
+    return { computeTarget: 'personal' };
+  }
+  const hpc = value.hpc;
+  if (!object(hpc) || Object.keys(hpc).some(key => !['clusterId', 'profileSha256', 'nodes', 'ranksPerNode', 'wallSeconds', 'memoryMiBPerNode', 'partition', 'account'].includes(key)) || ['nodes', 'ranksPerNode', 'wallSeconds'].some(key => typeof hpc[key] !== 'number') || !isHpcComputeSelection(hpc) || typeof hpc.profileSha256 !== 'string') fail('Read compute settings and supply the cluster checksum and a valid explicit allocation.', 'compute.hpc');
+  return { computeTarget: 'hpc', hpc: structuredClone(hpc) };
+}
+
+/** The normal save_workflow approval applies to compute edits; no job starts here. */
+export function configureAiQeCompute(original: ProjectWorkflow, nodeIds: unknown, value: unknown) {
+  const compute = aiQeCompute(value);
+  if (!Array.isArray(nodeIds) || !nodeIds.length || nodeIds.length > 100 || nodeIds.some(id => typeof id !== 'string') || new Set(nodeIds).size !== nodeIds.length) fail('Select existing QE module IDs.', 'nodeIds');
+  const workflow = structuredClone(original);
+  for (const id of nodeIds) {
+    const node = workflow.nodes.find(node => node.id === id);
+    if (!node || !['scf', 'relax', 'bands', 'dos', 'phonon', 'btp2'].includes(node.kind)) fail('HPC compute configuration supports QE modules only. MD uses personal compute.', 'nodeIds', id);
+    for (const key of ['hpc', 'execution', 'executionAffinity', 'resolvedHpcCompute', 'vcpus', 'memoryMiB', 'cloudMode', 'computeProfileId', 'quoteId']) delete node.configuration[key];
+    Object.assign(node.configuration, compute);
+  }
+  return { workflow, nodeIds, changes: nodeIds.map(id => ({ nodeId: id, before: original.nodes.find(node => node.id === id)!, after: workflow.nodes.find(node => node.id === id)! })) };
+}
 
 export type AiCanvasOperation = { type: 'add' | 'duplicate' | 'remove' | 'connect' | 'disconnect' | 'rename' | 'move' | 'group' | 'ungroup' | 'configure' | 'parameter_study'; nodeId?: string; kind?: WorkflowKind; name?: string; ref?: string; source?: string; target?: string; nodeIds?: string[]; position?: { x: number; y: number }; patch?: Record<string, unknown>; study?: ParameterStudy };
 const fields: Record<string, string[]> = {

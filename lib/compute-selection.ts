@@ -8,6 +8,7 @@ export type ComputeTarget = 'personal' | 'shared' | 'hpc';
 
 export interface HpcComputeSelection {
   clusterId: string;
+  profileSha256?: string;
   partition?: string;
   account?: string;
   nodes: number;
@@ -24,6 +25,7 @@ export function isHpcComputeSelection(value: unknown): value is HpcComputeSelect
   const ranksPerNode = Number(candidate.ranksPerNode);
   const wallSeconds = Number(candidate.wallSeconds);
   return typeof candidate.clusterId === 'string' && candidate.clusterId.length > 0
+    && (candidate.profileSha256 === undefined || typeof candidate.profileSha256 === 'string' && /^[a-f0-9]{64}$/.test(candidate.profileSha256))
     && Number.isSafeInteger(nodes) && nodes >= 1 && nodes <= 4096
     && Number.isSafeInteger(ranksPerNode) && ranksPerNode >= 1 && ranksPerNode <= 1024
     && nodes * ranksPerNode <= 65536
@@ -87,6 +89,7 @@ export async function prepareComputeRequest<T extends ComputeSelection & { run?:
         throw new Error('The selected HPC profile has no verified checksum.');
       }
       profile = result.cluster;
+      if (input.hpc.profileSha256 && input.hpc.profileSha256 !== profile.profileSha256) throw new Error('The HPC profile changed. Read the cluster settings and review the allocation again.');
     } catch (error) {
       const detail = error instanceof Error ? error.message : '';
       throw new Error(detail && /profile|cluster|local workspace/i.test(detail)
