@@ -18,6 +18,17 @@ export interface HpcComputeSelection {
   autoRestartOnWalltime?: boolean;
 }
 
+/** Carry the displayed cluster's complete defaults into the saved run choice. */
+export function hpcProfileSelection(profile: HpcClusterProfile): HpcComputeSelection {
+  return {
+    clusterId: profile.id, profileSha256: profile.profileSha256,
+    nodes: profile.defaults.nodes, ranksPerNode: profile.defaults.ranksPerNode,
+    wallSeconds: profile.defaults.wallSeconds, memoryMiBPerNode: profile.defaults.memoryMiBPerNode,
+    ...(profile.defaults.queue ? { partition: profile.defaults.queue } : {}),
+    ...(profile.defaults.account ? { account: profile.defaults.account } : {}),
+  };
+}
+
 export function isHpcComputeSelection(value: unknown): value is HpcComputeSelection {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const candidate = value as Record<string, unknown>;

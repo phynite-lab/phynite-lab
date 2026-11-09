@@ -42,6 +42,7 @@
 .hpc-modal-form { display: grid; gap: 14px; }
 .lab-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .lab-field-grid label { display: grid; gap: 4px; font-size: 12px; font-weight: 500; }
-.lab-field-grid input, .lab-field-grid select { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; }
+.lab-field-grid input, .lab-field-grid select, .lab-field-grid textarea { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-family: inherit; }
+.lab-field-grid textarea { resize: vertical; min-height: 80px; }
 .lab-modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
 .hpc-selection-fields { display: grid; gap: 10px; margin-top: 10px; padding: 12px; background: var(--panel-subtle, rgba(0,0,0,0.02)); border-radius: 6px; border: 1px solid var(--border); }

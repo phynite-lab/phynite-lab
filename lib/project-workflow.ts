@@ -15,7 +15,12 @@ export type WorkflowEnvelope = { workflow: ProjectWorkflow; revision: number; mi
 export type WorkflowAttemptStatus = 'pending' | 'queued' | 'running' | 'completed' | 'ready' | 'reused' | 'failed' | 'blocked' | 'cancelled';
 export type WorkflowAttempt = { nodeId: string; fingerprint: string; status: WorkflowAttemptStatus; jobId?: string; jobKind?: string; error?: string; outdated?: boolean; result?: Record<string, unknown>; sourceAttemptId?: string };
 export type ProjectRun = { id: string; projectId: string; workflowRevision: number; status: string; createdAt: string; targets: string[]; attempts: WorkflowAttempt[] };
-export type WorkflowPlan = { compilerSha256?: string | null; revision: number; targets: string[]; order: string[]; nodes: Array<{ nodeId: string; fingerprint: string; action: 'run' | 'reuse' | 'input' | 'prepare'; sourceScfNodeId?: string; force?: boolean; validationDeferred?: boolean; error?: string }>; errors: Array<{ nodeId: string; message: string }>; compute: { pricing: 'existing'; md: 'personal'; requiresConfirmation: true; estimatedQuanta?: number | null; hasSharedCompute?: boolean } };
+export type WorkflowHpcCompute = {
+  target: 'hpc'; clusterId: string; computeTarget: 'personal';
+  executionAffinity: { scheduler: 'slurm' | 'pbs'; profileSha256: string };
+  vcpus: number; memoryMiB: number;
+};
+export type WorkflowPlan = { compilerSha256?: string | null; revision: number; targets: string[]; order: string[]; nodes: Array<{ nodeId: string; fingerprint: string; action: 'run' | 'reuse' | 'input' | 'prepare'; sourceScfNodeId?: string; force?: boolean; validationDeferred?: boolean; error?: string; compute?: WorkflowHpcCompute }>; errors: Array<{ nodeId: string; message: string }>; compute: { pricing: 'existing'; md: 'personal'; requiresConfirmation: true; estimatedQuanta?: number | null; hasSharedCompute?: boolean } };
 
 export const workflowModules: Record<WorkflowKind, { en: string; id: string; input?: WorkflowPort; output: WorkflowPort; multiple?: boolean }> = {
   structure: { en: 'Crystal structure', id: 'Struktur kristal', output: 'structure' },

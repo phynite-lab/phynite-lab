@@ -6,7 +6,7 @@ import { useLocale } from '@/app/locale-provider';
 import { useSession } from '@/app/use-session';
 import { accountRequest, type AccountResponse, type LabAccount } from '@/lib/account-api';
 import { phyniteCompute, type LocalWorkerCapability, type PhyniteComputeStatus } from '@/lib/phynite-api';
-import { computeCapacityChoices, estimateQuanta, type ComputeSelection } from '@/lib/compute-selection';
+import { computeCapacityChoices, estimateQuanta, hpcProfileSelection, type ComputeSelection } from '@/lib/compute-selection';
 import { affordableComputeHours, computeDurationSeconds, computeDurationValue, personalComputeRequest, validPersonalAllocation, type ComputeDurationUnit, type PersonalComputeAllocation, type PersonalComputeLimit, type PersonalComputePreferences } from '@/lib/compute-preferences';
 import { useComputeCatalog } from '@/app/use-compute-catalog';
 import { ComputeResourcePicker } from './ComputeResourcePicker';
@@ -120,13 +120,7 @@ export function LabComputeDestination({
       .catch(() => { setHpcClusters([]); setHpcLocalAvailable(false); });
   }, []);
   const selectedCluster = hpcClusters.find(c => c.id === local.hpc?.clusterId) || hpcClusters.find(c => c.isDefault) || hpcClusters[0];
-  const hpcSelection = local.hpc ?? (selectedCluster ? {
-    clusterId: selectedCluster.id,
-    nodes: selectedCluster.defaults.nodes,
-    ranksPerNode: selectedCluster.defaults.ranksPerNode,
-    wallSeconds: selectedCluster.defaults.wallSeconds,
-    partition: selectedCluster.defaults.queue,
-  } : undefined);
+  const hpcSelection = local.hpc ?? (selectedCluster ? hpcProfileSelection(selectedCluster) : undefined);
 
   const resolved: ComputeSelection = {
     computeTarget: target,
@@ -181,6 +175,7 @@ export function LabComputeDestination({
   }
   function change(changes: Partial<ComputeSelection>) {
     const next = { ...resolved, ...changes };
+    if (next.computeTarget === 'hpc' && !next.hpc && hpcSelection) next.hpc = hpcSelection;
     setError(''); setNotice('');
     if (run || draft) { setRunSelection(next); onChange?.(next); }
     else void persist(next);
@@ -222,13 +217,7 @@ export function LabComputeDestination({
               const cl = hpcClusters.find(c => c.id === val);
               if (cl) {
                 change({
-                  hpc: {
-                    clusterId: cl.id,
-                    nodes: cl.defaults.nodes,
-                    ranksPerNode: cl.defaults.ranksPerNode,
-                    wallSeconds: cl.defaults.wallSeconds,
-                    partition: cl.defaults.queue,
-                  },
+                  hpc: hpcProfileSelection(cl),
                 });
               }
             }}
@@ -287,7 +276,7 @@ export function LabComputeDestination({
         <div><dt>{t('Expires', 'Berlaku hingga')}</dt><dd>{grant?.expiresAtEpoch ? new Date(grant.expiresAtEpoch * 1000).toLocaleString(intlLocale) : '—'}</dd></div>
       </dl><p>{grant?.available ? t('One global slot. No Quanta charge.', 'Satu slot global. Tanpa biaya Quanta.') : t('Ask an admin for a pilot grant.', 'Minta grant pilot kepada admin.')}</p></div>}
     </>}
-    <dl className="compute-accelerator-status"><div><dt>GPU</dt><dd>{t('Not supported by this runtime', 'Belum didukung runtime ini')}</dd></div><div><dt>VRAM</dt><dd>{t('Not reported', 'Belum dilaporkan')}</dd></div></dl>
+    <dl className="compute-accelerator-status"><div><dt>GPU</dt><dd>{target === 'hpc' ? t('CPU-only HPC adapter', 'Adapter HPC CPU-only') : target === 'shared' ? t('CPU-only cloud profile', 'Profil cloud CPU-only') : t('CPU-only local runtime', 'Runtime lokal CPU-only')}</dd></div><div><dt>VRAM</dt><dd>{t('Not applicable to CPU allocation', 'Tidak berlaku untuk alokasi CPU')}</dd></div></dl>
     {run && <div className="compute-scope-actions"><p>{t('Changes apply to this run configuration.', 'Perubahan berlaku untuk konfigurasi run ini.')}</p><button type="button" className="lab-button" disabled={!account || busy || (target === 'personal' && (allocation.vcpus !== undefined || allocation.memoryMiB !== undefined) && !validPersonalAllocation(allocation, limit))} onClick={() => void persist(resolved)}>{t('Make default', 'Jadikan default')}</button></div>}
     {notice && <p role="status">{notice}</p>}
     {error && <p role="alert">{error}<button type="button" className="lab-button" onClick={() => void refresh().catch(() => {})}>{t('Refresh', 'Perbarui')}</button></p>}

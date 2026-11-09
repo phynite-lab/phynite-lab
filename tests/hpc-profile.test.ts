@@ -77,6 +77,17 @@ test('valid PBS cluster profile uses default MPI launcher if omitted', () => {
   assert.deepEqual(profile.runtime.mpiLauncher, ['mpiexec', '-n', '{ranks}']);
 });
 
+test('environment module names accept one-per-line HPC site modules and stay canonical', () => {
+  const profile = validateHpcProfile({
+    ...validProfileInput,
+    runtime: {
+      environmentModules: ['intel/2024.0', 'impi/2021.11.0', 'mkl', 'materials/qe/7.2-impi'],
+      mpiLauncher: ['srun', '--mpi=pmix', '--ntasks={ranks}'],
+    },
+  });
+  assert.deepEqual(profile.runtime.environmentModules, ['intel/2024.0', 'impi/2021.11.0', 'mkl', 'materials/qe/7.2-impi']);
+});
+
 test('MPI launcher validation enforces exactly one {ranks} placeholder', () => {
   assert.deepEqual(validateMpiLauncher(['srun', '--ntasks={ranks}']), ['srun', '--ntasks={ranks}']);
   assert.deepEqual(defaultMpiLauncher('slurm'), ['srun', '--mpi=pmix', '--ntasks={ranks}']);
