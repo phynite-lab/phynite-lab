@@ -61,6 +61,8 @@ class DesktopApplication:
         self.worker_started: dict[subprocess.Popen, float] = {}
         self.worker_failures = 0
         self.worker_retry_at = 0.0
+        self.hpc_workers: dict[str, subprocess.Popen] = {}
+        self.hpc_worker_signatures: dict[str, str] = {}
         self.worker_environment: str | None = None
         self.runtime = self.scheduler = None
         # The legacy Python control-plane contract reads AI catalogues from
@@ -90,6 +92,55 @@ class DesktopApplication:
                     break
                 return item
         raise ApiError(404, 'The owned local job was not found.', 'NOT_FOUND')
+
+    def hpc_request(self, method: str, path: str, raw: bytes, headers, query: dict) -> dict:
+        """Serve owner-scoped HPC profiles and immutable worker snapshots."""
+        import re
+        from backend.local_api.hpc_profiles import HpcProfileStore, probe_profile
+
+        store = HpcProfileStore(self.services)
+        snapshot = re.fullmatch(r"/__local/hpc/clusters/([A-Za-z0-9][A-Za-z0-9_.@-]{0,95})/(?:snapshot|snapshots)/([a-f0-9]{64})", path)
+        if snapshot:
+            return response(200, {"profile": store.worker_snapshot(headers, snapshot[1], snapshot[2])})
+
+        collection = path == "/__local/hpc/clusters"
+        probe = re.fullmatch(r"/__local/hpc/clusters/([A-Za-z0-9][A-Za-z0-9_.@-]{0,95})/probe", path)
+        member = re.fullmatch(r"/__local/hpc/clusters/([A-Za-z0-9][A-Za-z0-9_.@-]{0,95})", path)
+        if collection and method == "GET":
+            return response(200, {"clusters": store.list()})
+        if collection and method == "POST":
+            payload = json.loads(raw or b"{}")
+            if not isinstance(payload, dict):
+                raise ApiError(400, "Invalid HPC profile payload.", "INVALID_HPC_PROFILE")
+            profile = store.save(payload, "cl-" + secrets.token_hex(12))
+            return response(201, {"cluster": profile})
+        if probe and method == "POST":
+            profile = store.get(probe[1])
+            if not profile:
+                raise ApiError(404, "HPC profile was not found.", "HPC_PROFILE_NOT_FOUND")
+            return response(200, {"probe": probe_profile(profile)})
+        if not member:
+            raise ApiError(404, "HPC route was not found.", "NOT_FOUND")
+        identifier = member[1]
+        if method == "GET":
+            if query.get("profileSha256"):
+                return response(200, {"profile": store.worker_snapshot(headers, identifier, str(query["profileSha256"]))})
+            profile = store.get(identifier)
+            if not profile:
+                raise ApiError(404, "HPC profile was not found.", "HPC_PROFILE_NOT_FOUND")
+            return response(200, {"cluster": profile})
+        if method == "PUT":
+            if not store.get(identifier):
+                raise ApiError(404, "HPC profile was not found.", "HPC_PROFILE_NOT_FOUND")
+            payload = json.loads(raw or b"{}")
+            if not isinstance(payload, dict):
+                raise ApiError(400, "Invalid HPC profile payload.", "INVALID_HPC_PROFILE")
+            return response(200, {"cluster": store.save(payload, identifier)})
+        if method == "DELETE":
+            if not store.delete(identifier):
+                raise ApiError(404, "HPC profile was not found.", "HPC_PROFILE_NOT_FOUND")
+            return response(200, {"deleted": True, "id": identifier})
+        raise ApiError(405, "HPC method is not supported.", "METHOD_NOT_ALLOWED")
 
     def job_request(self, headers, job_id: str, action: str, payload: dict) -> dict:
         item = self.worker_job(headers, job_id)
@@ -128,15 +179,66 @@ class DesktopApplication:
             raise ApiError(404, 'Unknown local job operation.', 'NOT_FOUND')
         return response(200, {'reservation': self.scheduler.job(job_id)})
 
-    def stop_workers(self):
+    def _stop_process(self, process: subprocess.Popen) -> None:
+        if process.poll() is None:
+            process.terminate()
+        try:
+            process.wait(timeout=15)
+        except subprocess.TimeoutExpired:
+            process.kill(); process.wait(timeout=5)
+
+    def maintain_hpc_workers(self) -> None:
+        """Keep one affinity-pinned remote QE worker per configured profile."""
+        import re
+        from backend.local_api.hpc_profiles import HpcProfileStore
+
+        profiles = [profile for profile in HpcProfileStore(self.services).list()
+                    if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.@-]{0,95}", str(profile.get("id", "")))
+                    and re.fullmatch(r"[a-f0-9]{64}", str(profile.get("profileSha256", "")))]
+        # Updating a profile must not kill a worker polling an older frozen
+        # allocation. Keep those snapshots alive through the terminal receipt.
+        store = HpcProfileStore(self.services)
+        checksums = {profile["profileSha256"] for profile in profiles}
+        for job in self.services.list_owner_items(self.services.owner, 'CALCULATION'):
+            checksum = (job.get('executionAffinity') or {}).get('profileSha256')
+            if job.get('status') in {'PREPARING', 'QUEUED', 'RUNNING', 'CANCEL_REQUESTED'} and checksum and checksum not in checksums:
+                snapshot = store.snapshot_by_checksum(checksum)
+                if snapshot:
+                    profiles.append(snapshot)
+                    checksums.add(checksum)
+        desired = {f"{profile['id']}-{profile['profileSha256']}": str(profile["profileSha256"]) for profile in profiles}
+        for identifier, process in list(self.hpc_workers.items()):
+            if identifier not in desired or self.hpc_worker_signatures.get(identifier) != desired[identifier] or process.poll() is not None:
+                self._stop_process(process)
+                self.hpc_workers.pop(identifier, None)
+                self.hpc_worker_signatures.pop(identifier, None)
+
+        log_dir = self.data_dir / "logs"
+        log_dir.mkdir(mode=0o700, exist_ok=True)
+        base_command = [sys.executable, "--worker"] if getattr(sys, "frozen", False) else [sys.executable, str(Path(__file__).resolve()), "--worker"]
+        for profile in profiles:
+            identifier, checksum = str(profile["id"]), str(profile["profileSha256"])
+            worker_key = f"{identifier}-{checksum}"
+            if worker_key in self.hpc_workers:
+                continue
+            work_dir = self.data_dir / "work" / "hpc" / f"{identifier}-{checksum[:12]}"
+            log_path = log_dir / f"hpc-{identifier}-{checksum[:12]}.log"
+            command = [*base_command, "--runtime", "native", "--api-url", self.origin, "--work-dir", str(work_dir), "--pseudo-root", str(self.data_dir / "pseudopotentials"), "--poll-seconds", "10", "--timeout-seconds", str(max(300, int(profile["defaults"].get("wallSeconds", 14400)) + 600)), "--hpc-cluster-id", identifier, "--hpc-profile-sha256", checksum]
+            env = {key: value for key, value in os.environ.items() if not key.startswith("PHYNITE_HPC_")}
+            env.update({"PHYNITE_APP_MODE": "local", "PHYNITE_DATA_DIR": str(self.data_dir), "PHYNITE_API_URL": self.origin, "PHYNITE_LOCAL_WORKER_TOKEN": self.services.worker_token})
+            with log_path.open("ab") as output:
+                process = subprocess.Popen(command, env=env, stdout=output, stderr=subprocess.STDOUT)
+            self.hpc_workers[worker_key] = process
+            self.hpc_worker_signatures[worker_key] = checksum
+
+    def stop_workers(self, *, include_hpc: bool = True):
         for process in self.workers:
-            if process.poll() is None:
-                process.terminate()
-        for process in self.workers:
-            try:
-                process.wait(timeout=15)
-            except subprocess.TimeoutExpired:
-                process.kill(); process.wait(timeout=5)
+            self._stop_process(process)
+        if include_hpc:
+            for process in self.hpc_workers.values():
+                self._stop_process(process)
+            self.hpc_workers.clear()
+            self.hpc_worker_signatures.clear()
         self.workers.clear()
         self.worker_slots.clear()
         self.worker_started.clear()
@@ -160,7 +262,7 @@ class DesktopApplication:
         if changed or len(self.workers) > maximum:
             if active:
                 return
-            self.stop_workers()
+            self.stop_workers(include_hpc=False)
             self.worker_environment = signature
             if changed:
                 self.worker_failures = 0
@@ -197,12 +299,16 @@ class DesktopApplication:
     def maintain(self):
         while not self.closed.wait(1):
             try:
+                self.maintain_hpc_workers()
+                hpc_ready = any(process.poll() is None for process in self.hpc_workers.values())
                 if not self.runtime or not self.scheduler:
+                    self.services.compute_enabled = hpc_ready
                     continue
                 self.scheduler.poll()
                 self.services.reconcile_interrupted_jobs()
                 worker = self.services.get_item(self.services.owner, 'PERSONAL_WORKER', 'primary') or {}
-                self.services.compute_enabled = 'qe' in worker.get('capabilities', []) and int(worker.get('lastSeenAtEpoch') or 0) > time.time() - 90
+                personal_ready = 'qe' in worker.get('capabilities', []) and int(worker.get('lastSeenAtEpoch') or 0) > time.time() - 90
+                self.services.compute_enabled = personal_ready or hpc_ready
                 environment = self.runtime.environment()
                 # Capability startup belongs to the worker; do not claim readiness
                 # until the installed runtime passes the existing validation.
@@ -233,7 +339,7 @@ class DesktopApplication:
     def dispatch(self, method: str, path: str, raw: bytes, headers, query: dict) -> dict:
         if path == "/__local/health" and method == "GET":
             return response(200, {"ready": True, "environment": "local", "mode": "local"})
-        worker = path.startswith(("/worker/v1/", "/md-worker/v1/", "/__local/jobs/"))
+        worker = path.startswith(("/worker/v1/", "/md-worker/v1/", "/__local/jobs/")) or bool(__import__('re').fullmatch(r"/__local/hpc/clusters/[A-Za-z0-9][A-Za-z0-9_.@-]{0,95}/(?:snapshot|snapshots)/[a-f0-9]{64}", path)) or (path.startswith("/__local/hpc/clusters/") and bool(query.get("profileSha256")))
         if not self.authorized(headers) and not worker:
             raise ApiError(401, "Open this workspace through the Phynite Lab launcher.", "LOCAL_SESSION_REQUIRED")
         import re
@@ -241,6 +347,8 @@ class DesktopApplication:
         if archive_part and method == 'PUT':
             return response(200, self.archives.upload(archive_part[1], int(archive_part[2]), raw))
         payload = json.loads(raw or b"{}")
+        if path.startswith("/__local/hpc"):
+            return self.hpc_request(method, path, raw, headers, query)
         recovery_status = re.fullmatch(r'/__local/jobs/([A-Za-z0-9_-]+)/recovery', path)
         if recovery_status and method == 'GET':
             if not self.authorized(headers):
@@ -347,7 +455,7 @@ class DesktopApplication:
             # this flag until the next tick made an immediately submitted Run
             # incorrectly fail with COMPUTE_DISABLED.
             presence = self.services.get_item(self.services.owner, 'PERSONAL_WORKER', 'primary') or {}
-            self.services.compute_enabled = 'qe' in presence.get('capabilities', []) and int(presence.get('lastSeenAtEpoch') or 0) > time.time() - 90
+            self.services.compute_enabled = ('qe' in presence.get('capabilities', []) and int(presence.get('lastSeenAtEpoch') or 0) > time.time() - 90) or any(process.poll() is None for process in self.hpc_workers.values())
         # Worker authorization state belongs to one request. Threaded HTTP
         # handlers must never share a mutable PhyniteApi instance. The AI
         # branch also refreshes process-global environment values, so hold its

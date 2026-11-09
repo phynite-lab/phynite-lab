@@ -13,7 +13,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from recovery import atomic_json, canonical_digest
+try:
+    from .recovery import atomic_json, canonical_digest
+except ImportError:
+    from recovery import atomic_json, canonical_digest
 
 
 class HpcError(RuntimeError):
@@ -198,6 +201,10 @@ def batch_script(profile: dict[str, Any], calculation_id: str) -> str:
     environment = {**profile.get("environment", {}), "PHYNITE_HPC_SCHEDULER": scheduler,
                    "PHYNITE_MPI_LAUNCHER": json.dumps(profile["mpiLauncher"], separators=(",", ":")),
                    "PHYNITE_HPC_MAX_RANKS": str(ranks), "PHYNITE_HPC_PROFILE_SHA256": canonical_digest(profile)}
+    if profile.get("id"):
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.@-]{0,95}", str(profile["id"])):
+            raise HpcError("HPC profile ID is invalid.")
+        environment["PHYNITE_HPC_PROFILE_ID"] = str(profile["id"])
     argv = [profile["python"], str(Path(profile["repository"]) / "backend/local_worker/worker.py"), "--runtime", "native", "--config", profile["workerConfig"], "--work-dir", str(Path(profile["workRoot"]) / calculation_id), "--pseudo-root", profile["pseudoRoot"], "--calculation-id", calculation_id, "--once", "--timeout-seconds", str(profile["wallSeconds"] - 90)]
     return "\n".join(["#!/bin/bash", *directives, "set -eu", "umask 077", *[f"export {key}={shlex.quote(value)}" for key, value in environment.items()], f"cd {shlex.quote(profile['repository'])}", "exec " + shlex.join(argv), ""])
 

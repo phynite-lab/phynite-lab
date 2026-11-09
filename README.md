@@ -79,6 +79,9 @@ or run this application.
 
 ## Documentation
 
+See [local HPC clusters](docs/hpc-clusters.md) for SSH setup, Slurm/OpenPBS QE
+execution, scientific runtime requirements and manual recovery.
+
 Read the complete bilingual guide at
 [phynitelab.com/guide](https://phynitelab.com/guide). The most relevant topics
 for the local package are [Install, update, and diagnose the npm app](https://phynitelab.com/guide/npm-local-app),

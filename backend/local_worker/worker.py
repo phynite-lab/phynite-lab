@@ -146,6 +146,29 @@ class ApiClient:
             raise WorkerError("Worker API returned an invalid response")
         return parsed
 
+    def get(self, path: str) -> dict[str, Any]:
+        """Read a bounded worker-authenticated JSON response."""
+        request = urllib.request.Request(
+            f"{self.base_url}{path}", method="GET",
+            headers={"Accept": "application/json", "X-Phynite-Worker-Token": self.token},
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout, context=self.ssl_context) as response:
+                body = response.read(5_000_001)
+        except urllib.error.HTTPError as exc:
+            body = exc.read(1_000_001)
+            try: message = json.loads(body).get("error")
+            except (UnicodeDecodeError, json.JSONDecodeError): message = None
+            raise WorkerError(message or f"Worker API returned HTTP {exc.code}") from exc
+        except (urllib.error.URLError, TimeoutError, socket.timeout, ssl.SSLError) as exc:
+            raise WorkerError("Worker API request timed out or is unreachable") from exc
+        if len(body) > 5_000_000:
+            raise WorkerError("Worker API response is unexpectedly large")
+        try: parsed = json.loads(body)
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc: raise WorkerError("Worker API returned invalid JSON") from exc
+        if not isinstance(parsed, dict): raise WorkerError("Worker API returned an invalid response")
+        return parsed
+
     def download(self, url: str, destination: Path, maximum_bytes: int = 2_000_000_000) -> None:
         desktop = os.environ.get("PHYNITE_APP_MODE") == "local"
         if desktop:
@@ -1170,6 +1193,67 @@ def retain_terminal_worker_log(job_dir: Path, manifest: dict[str, Any]) -> None:
     (job_dir / "results" / "result.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
 
+def prepare_remote_workspace(client: ApiClient, job: dict[str, Any], directory: Path, pseudo_root: Path) -> dict[str, Path]:
+    """Reuse personal QE input/pseudopotential checks, then send reviewed sources."""
+    prepare_workspace(client, job, directory, pseudo_root)
+    files = {path.relative_to(directory).as_posix(): path for path in directory.rglob("*") if path.is_file()}
+    root = Path(__file__).resolve().parents[1] / "compute"
+    for name in ("local_runner.py", "scientific_runner.py", "results.py", "qe_model.py", "kpath.py", "compute_clock.py", "scf_reuse.py", "workflow_scf.py", "neb.py", "neb_inputs.py", "btp2_soc.py", "projected_bands.py", "hpc_manifest.py"):
+        path = root / name
+        if not path.is_file():
+            raise WorkerError(f"The native package is missing the remote scientific runner source: {name}")
+        files[f"runners/{name}"] = path
+    return files
+
+
+def remote_result(job_dir: Path, job: dict[str, Any], outcome: dict[str, Any]) -> None:
+    """Write the broker result envelope for a verified remote QE outcome.
+
+    Remote files are already sparse-harvested into ``results``.  The local
+    broker still receives the same immutable result envelope as personal QE;
+    a scheduler failure, timeout, uncertain receipt, or bad manifest is
+    deliberately terminal with an explicit manual-resume-required message.
+    """
+    state = str(outcome.get("state") or "manual-resume-required")
+    completed = state == "completed" and outcome.get("manifestValidated") is True
+    results = job_dir / "results"
+    results.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if completed:
+        manifest = json.loads((results / "result.json").read_text())
+        from qe_model import dft_result_error
+        failure = dft_result_error(manifest, str((job.get("input") or {}).get("calculationType", "")))
+        if manifest.get("calculationId") != job["calculationId"] or manifest.get("status") != "completed" or failure:
+            raise WorkerError(f"Remote scientific results do not match the accepted job: {failure or 'identity/status mismatch'}")
+        # Keep the checksummed scientific result bytes intact. Scheduler and
+        # profile evidence live in a separate artifact beside that manifest.
+        atomic = {"profileSha256": job.get("executionAffinity", {}).get("profileSha256"), "receipt": outcome.get("receipt"), "status": outcome.get("status")}
+        (results / "hpc-execution.json").write_text(json.dumps(atomic, indent=2))
+        return
+    status = "completed" if completed else "failed"
+    reason = None if completed else str(outcome.get("reason") or "Remote HPC execution requires manual reconciliation; scratch and checkpoints were retained.")[:1000]
+    receipt = outcome.get("receipt")
+    scheduler = receipt.get("scheduler") if isinstance(receipt, dict) else None
+    manifest = {
+        "version": 2,
+        "calculationId": job["calculationId"],
+        "calculationType": (job.get("input") or {}).get("calculationType"),
+        "status": status,
+        "completedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "error": reason,
+        "platformFailure": False,
+        "artifacts": [],
+        "provenance": {
+            "executionMode": "remote-hpc",
+            "scheduler": scheduler,
+            "profileSha256": job.get("executionAffinity", {}).get("profileSha256"),
+            "syntheticData": False,
+            "manualResumeRequired": not completed,
+            "scratchRetained": True,
+        },
+    }
+    (results / "result.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as source:
@@ -1925,6 +2009,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--heartbeat-seconds", type=int, default=int(os.environ.get("PHYNITE_LOCAL_WORKER_HEARTBEAT_SECONDS", "15")))
     parser.add_argument("--timeout-seconds", type=int, default=int(os.environ.get("PHYNITE_LOCAL_WORKER_TIMEOUT_SECONDS", "86400")))
     parser.add_argument("--calculation-id", default="", help="Claim only this owned queued job (for scheduler allocations).")
+    parser.add_argument("--hpc-cluster-id", default="", help="Run one QE job through a local-only remote HPC profile snapshot.")
+    parser.add_argument("--hpc-profile-sha256", default="", help="Exact checksum paired with --hpc-cluster-id.")
     parser.add_argument("--once", action="store_true", help="Claim at most one job, then exit.")
     parser.add_argument("--check", action="store_true", help="Validate the selected runtime and configuration without claiming a job.")
     args = parser.parse_args(argv)
@@ -1932,6 +2018,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         raise WorkerError("Timeout must be positive seconds, or 0 for an explicitly unlimited personal run.")
     if args.calculation_id:
         safe_name(args.calculation_id, "calculation ID")
+    if bool(args.hpc_cluster_id) != bool(args.hpc_profile_sha256) or (args.hpc_profile_sha256 and not re.fullmatch(r"[a-f0-9]{64}", args.hpc_profile_sha256)):
+        raise WorkerError("Remote HPC mode requires a cluster ID and an exact profile SHA-256.")
     if args.config:
         try:
             with args.config.expanduser().open(encoding="utf-8") as handle:
@@ -1966,6 +2054,47 @@ def main(argv: list[str] | None = None) -> int:
         raise WorkerError("Another Phynite local worker is already using this work directory") from exc
     lock_handle.write(str(os.getpid()))
     lock_handle.flush()
+    if args.hpc_cluster_id:
+        try:
+            from hpc_remote import HpcRemoteWorker, fetch_profile_snapshot
+            from hpc_ssh import HpcSshConnection
+            client = ApiClient(args.api_url, args.token)
+            profile = fetch_profile_snapshot(client, args.hpc_cluster_id, args.hpc_profile_sha256)
+            connection = HpcSshConnection(
+                host=profile["connection"]["host"], username=profile["connection"]["username"], port=int(profile["connection"].get("port", 22)),
+                private_key_path=profile["connection"].get("privateKeyPath") if profile["connection"].get("authKind") == "key" else None,
+                bastion_host=profile["connection"].get("bastionHost"), bastion_port=int(profile["connection"].get("bastionPort", 22)), bastion_user=profile["connection"].get("bastionUser"),
+                control_dir=args.work_dir / "ssh-sockets",
+            )
+            remote = HpcRemoteWorker(client, worker_id(args.work_dir), args.hpc_cluster_id, args.hpc_profile_sha256,
+                                     workspace_builder=lambda job, directory: prepare_remote_workspace(client, job, directory, args.pseudo_root))
+            max_polls = max(1, int((args.timeout_seconds or 86_400) / max(1, args.poll_seconds)))
+            while True:
+                try:
+                    result = remote.run_once(args.calculation_id or None, connection, args.work_dir, poll_seconds=args.poll_seconds, max_polls=max_polls)
+                except Exception as exc:
+                    if args.once:
+                        raise
+                    print(f"Remote HPC worker: {exc}", file=sys.stderr, flush=True)
+                    time.sleep(max(5, args.poll_seconds))
+                    continue
+                if result.get("state") == "no-job":
+                    if args.once:
+                        return 0
+                    time.sleep(max(2, args.poll_seconds))
+                    continue
+                job = result.get("job")
+                if not isinstance(job, dict):
+                    raise WorkerError("Remote HPC worker returned a result without its claimed job.")
+                calculation_id = safe_name(job.get("calculationId"), "calculation ID")
+                job_dir = args.work_dir / calculation_id
+                remote_result(job_dir, job, result)
+                status = upload_results(client, remote.worker_id, job, job_dir)
+                print(json.dumps({**result, "status": status}, sort_keys=True))
+                if args.once or args.calculation_id:
+                    return 0 if status == "completed" else 2
+        except Exception as exc:
+            raise WorkerError(f"Remote HPC execution requires manual reconciliation: {exc}") from exc
     cloud_image_reference = args.image
     if args.cloud and (not re.fullmatch(r"public\.ecr\.aws/[A-Za-z0-9/_-]+@sha256:[a-f0-9]{64}", args.image) or args.md_image != args.image):
         raise WorkerError("Cloud jobs require one immutable paired runtime reference for QE and LAMMPS")

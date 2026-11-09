@@ -34,8 +34,9 @@ export function ComputeDefaults({ account, onSaved, onNotice }: { account: LabAc
   const selection: ComputeSelection = { computeTarget: draft.computeTarget, cloudMode: draft.cloudMode, computeProfileId: draft.computeProfileId, estimatedComputeSeconds: draft.estimatedComputeSeconds, ...draft.personalDefaults?.[workload] };
   const change = (next: ComputeSelection) => {
     setError('');
+    const accountTarget = next.computeTarget === 'hpc' ? undefined : next.computeTarget;
     setDraft(current => ({ ...current,
-      ...(workload === 'qe' ? { computeTarget: next.computeTarget ?? current.computeTarget, cloudMode: next.cloudMode, computeProfileId: next.computeProfileId, estimatedComputeSeconds: next.estimatedComputeSeconds } : {}),
+      ...(workload === 'qe' ? { computeTarget: accountTarget ?? current.computeTarget, cloudMode: next.cloudMode, computeProfileId: next.computeProfileId, estimatedComputeSeconds: next.estimatedComputeSeconds } : {}),
       ...(next.computeTarget === 'personal' && next.vcpus !== undefined && next.memoryMiB !== undefined ? { personalDefaults: { ...current.personalDefaults, [workload]: { vcpus: next.vcpus, memoryMiB: next.memoryMiB } } } : {}),
     }));
   };
