@@ -100,12 +100,16 @@ class DesktopApplication:
 
         store = HpcProfileStore(self.services)
         snapshot = re.fullmatch(r"/__local/hpc/clusters/([A-Za-z0-9][A-Za-z0-9_.@-]{0,95})/(?:snapshot|snapshots)/([a-f0-9]{64})", path)
-        if snapshot:
+        if snapshot and method == "GET":
             return response(200, {"profile": store.worker_snapshot(headers, snapshot[1], snapshot[2])})
+        member = re.fullmatch(r"/__local/hpc/clusters/([A-Za-z0-9][A-Za-z0-9_.@-]{0,95})", path)
+        if member and method == "GET" and query.get("profileSha256"):
+            return response(200, {"profile": store.worker_snapshot(headers, member[1], str(query["profileSha256"]))})
+        if not self.authorized(headers):
+            raise ApiError(401, "Open this workspace through the Phynite Lab launcher.", "LOCAL_SESSION_REQUIRED")
 
         collection = path == "/__local/hpc/clusters"
         probe = re.fullmatch(r"/__local/hpc/clusters/([A-Za-z0-9][A-Za-z0-9_.@-]{0,95})/probe", path)
-        member = re.fullmatch(r"/__local/hpc/clusters/([A-Za-z0-9][A-Za-z0-9_.@-]{0,95})", path)
         if collection and method == "GET":
             return response(200, {"clusters": store.list()})
         if collection and method == "POST":
@@ -123,8 +127,6 @@ class DesktopApplication:
             raise ApiError(404, "HPC route was not found.", "NOT_FOUND")
         identifier = member[1]
         if method == "GET":
-            if query.get("profileSha256"):
-                return response(200, {"profile": store.worker_snapshot(headers, identifier, str(query["profileSha256"]))})
             profile = store.get(identifier)
             if not profile:
                 raise ApiError(404, "HPC profile was not found.", "HPC_PROFILE_NOT_FOUND")
@@ -339,7 +341,9 @@ class DesktopApplication:
     def dispatch(self, method: str, path: str, raw: bytes, headers, query: dict) -> dict:
         if path == "/__local/health" and method == "GET":
             return response(200, {"ready": True, "environment": "local", "mode": "local"})
-        worker = path.startswith(("/worker/v1/", "/md-worker/v1/", "/__local/jobs/")) or bool(__import__('re').fullmatch(r"/__local/hpc/clusters/[A-Za-z0-9][A-Za-z0-9_.@-]{0,95}/(?:snapshot|snapshots)/[a-f0-9]{64}", path)) or (path.startswith("/__local/hpc/clusters/") and bool(query.get("profileSha256")))
+        import re
+        hpc_snapshot = method == 'GET' and (bool(re.fullmatch(r"/__local/hpc/clusters/[A-Za-z0-9][A-Za-z0-9_.@-]{0,95}/(?:snapshot|snapshots)/[a-f0-9]{64}", path)) or (bool(re.fullmatch(r"/__local/hpc/clusters/[A-Za-z0-9][A-Za-z0-9_.@-]{0,95}", path)) and bool(query.get('profileSha256'))))
+        worker = path.startswith(("/worker/v1/", "/md-worker/v1/", "/__local/jobs/")) or hpc_snapshot
         if not self.authorized(headers) and not worker:
             raise ApiError(401, "Open this workspace through the Phynite Lab launcher.", "LOCAL_SESSION_REQUIRED")
         import re

@@ -104,6 +104,20 @@ class HpcDesktopProtocolTests(unittest.TestCase):
                     app.dispatch('GET', path, b'', {'X-Phynite-Worker-Token': 'wrong'}, {})
                 snapshot = json.loads(app.dispatch('GET', path, b'', {'X-Phynite-Worker-Token': app.services.worker_token}, {})['body'])['profile']
                 self.assertEqual(snapshot['profileSha256'], cluster['profileSha256'])
+                from unittest.mock import patch
+                query = {'profileSha256': cluster['profileSha256']}
+                member = '/__local/hpc/clusters/' + cluster['id']
+                with patch('backend.local_api.hpc_profiles.probe_profile', side_effect=AssertionError('Unauthorized SSH probe')):
+                    for route, method in ((member, 'PUT'), (member, 'DELETE'), (member + '/probe', 'POST')):
+                        for credentials in ({}, {'X-Phynite-Worker-Token': app.services.worker_token}):
+                            with self.assertRaises(ApiError) as rejected:
+                                app.dispatch(method, route, json.dumps(profile('Unauthorized replacement')).encode(), credentials, query)
+                            self.assertEqual(rejected.exception.code, 'LOCAL_SESSION_REQUIRED')
+                            with self.assertRaises(ApiError):
+                                app.hpc_request(method, route, b'{}', credentials, query)
+                self.assertEqual(HpcProfileStore(app.services).get(cluster['id'])['name'], cluster['name'])
+                alias = json.loads(app.dispatch('GET', member, b'', {'X-Phynite-Worker-Token': app.services.worker_token}, query)['body'])['profile']
+                self.assertEqual(alias['profileSha256'], cluster['profileSha256'])
             finally:
                 app.close()
 
