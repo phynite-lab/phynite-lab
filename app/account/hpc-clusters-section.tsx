@@ -38,6 +38,9 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
   const [nodes, setNodes] = useState('1');
   const [ranksPerNode, setRanksPerNode] = useState('32');
   const [wallHours, setWallHours] = useState('4');
+  const [modulesText, setModulesText] = useState('');
+  const [mpiLauncherText, setMpiLauncherText] = useState('srun --mpi=pmix --ntasks={ranks}');
+  const [launcherEdited, setLauncherEdited] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -90,11 +93,18 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
     setSaving(true);
     setFormError('');
 
+    const rawModules = modulesText.split('\n').map(module => module.trim()).filter(Boolean);
+    const existing = editingId ? clusters.find(cluster => cluster.id === editingId) : undefined;
+    const launcherArgs = mpiLauncherText.trim()
+      ? mpiLauncherText.trim().split(/\s+/)
+      : (scheduler === 'slurm' ? ['srun', '--mpi=pmix', '--ntasks={ranks}'] : ['mpiexec', '-n', '{ranks}']);
+
     const payload = {
       name,
       scheduler,
       isDefault: editingId ? Boolean(clusters.find(cluster => cluster.id === editingId)?.isDefault) : clusters.length === 0,
       connection: {
+        ...existing?.connection,
         host,
         port: Number(port) || 22,
         username,
@@ -102,20 +112,20 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
         ...(authKind === 'key' ? { privateKeyPath: privateKeyPath.trim() || undefined } : {}),
       },
       storage: {
+        ...existing?.storage,
         scratchRoot: scratchRoot.trim() || '/scratch',
-        purgeWavefunctions: true,
+        purgeWavefunctions: existing?.storage.purgeWavefunctions ?? true,
       },
       runtime: {
-        environmentModules: [],
-        mpiLauncher: scheduler === 'slurm'
-          ? ['srun', '--mpi=pmix', '--ntasks={ranks}']
-          : ['mpiexec', '-n', '{ranks}'],
+        environmentModules: rawModules,
+        mpiLauncher: !launcherEdited && existing ? existing.runtime.mpiLauncher : launcherArgs,
       },
       defaults: {
+        ...existing?.defaults,
         nodes: Number(nodes) || 1,
         ranksPerNode: Number(ranksPerNode) || 32,
         wallSeconds: (Number(wallHours) || 4) * 3600,
-        memoryMiBPerNode: 65536,
+        memoryMiBPerNode: existing?.defaults.memoryMiBPerNode ?? 65536,
         queue: partition.trim() || undefined,
       },
     };
@@ -134,6 +144,7 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
 
   const resetForm = () => {
     setEditingId(null);
+    setScheduler('slurm');
     setName('');
     setHost('');
     setPort('22');
@@ -145,6 +156,9 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
     setNodes('1');
     setRanksPerNode('32');
     setWallHours('4');
+    setModulesText('');
+    setMpiLauncherText('srun --mpi=pmix --ntasks={ranks}');
+    setLauncherEdited(false);
     setFormError('');
   };
 
@@ -162,6 +176,9 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
     setNodes(String(cluster.defaults.nodes));
     setRanksPerNode(String(cluster.defaults.ranksPerNode));
     setWallHours(String(cluster.defaults.wallSeconds / 3600));
+    setModulesText((cluster.runtime?.environmentModules ?? []).join('\n'));
+    setMpiLauncherText((cluster.runtime?.mpiLauncher ?? []).join(' '));
+    setLauncherEdited(false);
     setFormError('');
     setShowModal(true);
   };
@@ -261,6 +278,7 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
                 <div><span>{t('Scratch', 'Scratch')}:</span> <code>{c.storage.scratchRoot}</code></div>
                 <div><span>{t('Allocation', 'Alokasi')}:</span> {c.defaults.nodes} node(s) · {c.defaults.ranksPerNode} ranks/node · {Math.round(c.defaults.wallSeconds / 3600)}h max</div>
                 {c.defaults.queue && <div><span>{t('Partition', 'Partisi')}:</span> <code>{c.defaults.queue}</code></div>}
+                {c.runtime.environmentModules.length > 0 && <div><span>{t('Environment Modules', 'Environment Modules')}:</span> <code>{c.runtime.environmentModules.join(' · ')}</code></div>}
                 {c.profileSha256 && <div><span>{t('Profile checksum', 'Checksum profil')}:</span> <code className="hpc-checksum">{c.profileSha256}</code></div>}
               </div>
 
@@ -301,7 +319,14 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
                 </label>
                 <label>
                   <span>{t('Scheduler Type', 'Tipe Scheduler')}</span>
-                  <select value={scheduler} onChange={e => setScheduler(e.target.value as HpcScheduler)}>
+                  <select value={scheduler} onChange={e => {
+                      const next = e.target.value as HpcScheduler;
+                      setScheduler(next);
+                      if (!launcherEdited) {
+                        setMpiLauncherText(next === 'slurm' ? 'srun --mpi=pmix --ntasks={ranks}' : 'mpiexec -n {ranks}');
+                        setLauncherEdited(true);
+                      }
+                    }}>
                     <option value="slurm">Slurm Workload Manager</option>
                     <option value="pbs">OpenPBS / PBS Pro</option>
                   </select>
@@ -360,6 +385,38 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
                 <label>
                   <span>{t('Max Walltime (Hours)', 'Max Walltime (Jam)')}</span>
                   <input type="number" min="1" max="720" value={wallHours} onChange={e => setWallHours(e.target.value)} />
+                </label>
+              </div>
+
+              <div className="lab-field-grid">
+                <label style={{ gridColumn: '1 / -1' }}>
+                  <span>{t('Environment Modules (one per line)', 'Environment Modules (satu per baris)')}</span>
+                  <textarea
+                    rows={4}
+                    placeholder={'intel/2024.0\nimpi/2021.11.0\nmkl\nmaterials/qe/7.2-impi'}
+                    value={modulesText}
+                    onChange={event => setModulesText(event.target.value)}
+                    aria-label={t('Environment Modules (one per line)', 'Environment Modules (satu per baris)')}
+                  />
+                  <small style={{ color: 'var(--muted, #666)', fontSize: '11px', marginTop: '2px' }}>
+                    {t('Loaded before Quantum ESPRESSO. Enter module names only, one per line.', 'Di-load sebelum Quantum ESPRESSO. Masukkan nama modul saja, satu per baris.')}
+                  </small>
+                </label>
+              </div>
+
+              <div className="lab-field-grid">
+                <label style={{ gridColumn: '1 / -1' }}>
+                  <span>{t('MPI Launcher Command', 'Perintah MPI Launcher')}</span>
+                  <input
+                    type="text"
+                    placeholder="srun --mpi=pmix --ntasks={ranks}"
+                    value={mpiLauncherText}
+                    onChange={event => { setLauncherEdited(true); setMpiLauncherText(event.target.value); }}
+                    aria-label={t('MPI Launcher Command', 'Perintah MPI Launcher')}
+                  />
+                  <small style={{ color: 'var(--muted, #666)', fontSize: '11px', marginTop: '2px' }}>
+                    {t('Use {ranks} where the total MPI rank count belongs.', 'Gunakan {ranks} pada posisi jumlah total MPI rank.')}
+                  </small>
                 </label>
               </div>
 

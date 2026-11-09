@@ -6,7 +6,7 @@ import { useLocale } from '@/app/locale-provider';
 import { useSession } from '@/app/use-session';
 import { accountRequest, type AccountResponse, type LabAccount } from '@/lib/account-api';
 import { phyniteCompute, type LocalWorkerCapability, type PhyniteComputeStatus } from '@/lib/phynite-api';
-import { computeCapacityChoices, estimateQuanta, type ComputeSelection } from '@/lib/compute-selection';
+import { computeCapacityChoices, estimateQuanta, hpcProfileSelection, type ComputeSelection } from '@/lib/compute-selection';
 import { affordableComputeHours, computeDurationSeconds, computeDurationValue, personalComputeRequest, validPersonalAllocation, type ComputeDurationUnit, type PersonalComputeAllocation, type PersonalComputeLimit, type PersonalComputePreferences } from '@/lib/compute-preferences';
 import { useComputeCatalog } from '@/app/use-compute-catalog';
 import { ComputeResourcePicker } from './ComputeResourcePicker';
@@ -120,13 +120,7 @@ export function LabComputeDestination({
       .catch(() => { setHpcClusters([]); setHpcLocalAvailable(false); });
   }, []);
   const selectedCluster = hpcClusters.find(c => c.id === local.hpc?.clusterId) || hpcClusters.find(c => c.isDefault) || hpcClusters[0];
-  const hpcSelection = local.hpc ?? (selectedCluster ? {
-    clusterId: selectedCluster.id,
-    nodes: selectedCluster.defaults.nodes,
-    ranksPerNode: selectedCluster.defaults.ranksPerNode,
-    wallSeconds: selectedCluster.defaults.wallSeconds,
-    partition: selectedCluster.defaults.queue,
-  } : undefined);
+  const hpcSelection = local.hpc ?? (selectedCluster ? hpcProfileSelection(selectedCluster) : undefined);
 
   const resolved: ComputeSelection = {
     computeTarget: target,
@@ -181,6 +175,7 @@ export function LabComputeDestination({
   }
   function change(changes: Partial<ComputeSelection>) {
     const next = { ...resolved, ...changes };
+    if (next.computeTarget === 'hpc' && !next.hpc && hpcSelection) next.hpc = hpcSelection;
     setError(''); setNotice('');
     if (run || draft) { setRunSelection(next); onChange?.(next); }
     else void persist(next);
@@ -222,13 +217,7 @@ export function LabComputeDestination({
               const cl = hpcClusters.find(c => c.id === val);
               if (cl) {
                 change({
-                  hpc: {
-                    clusterId: cl.id,
-                    nodes: cl.defaults.nodes,
-                    ranksPerNode: cl.defaults.ranksPerNode,
-                    wallSeconds: cl.defaults.wallSeconds,
-                    partition: cl.defaults.queue,
-                  },
+                  hpc: hpcProfileSelection(cl),
                 });
               }
             }}

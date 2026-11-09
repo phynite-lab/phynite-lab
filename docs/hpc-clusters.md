@@ -13,8 +13,18 @@ connection and discovered commands; it does not qualify a scientific job.
 Compute nodes need Quantum ESPRESSO, the scheduler's MPI launcher, and `python3`
 with the scientific runner dependencies (`numpy`, `scipy`, `matplotlib`,
 `seekpath`, and `spglib`). Transport calculations also need BoltzTraP2.
-Enter module names such as `qe/7.2` and `python/3.12`; Phynite renders their
-`module load` commands. Match the site's MPI launcher and QE build.
+In **Environment Modules**, enter one module name per line, for example:
+
+```text
+intel/2024.0
+impi/2021.11.0
+mkl
+materials/qe/7.2-impi
+```
+
+Phynite validates these as module names and renders `module load <name>` on the
+remote job script. Do not enter shell commands in this field. Match the site's
+MPI launcher and QE build.
 
 Choose **HPC Cluster** in a QE run configuration. Phynite freezes the profile
 checksum, scheduler allocation, exact inputs and verified pseudopotentials;
