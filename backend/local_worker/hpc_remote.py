@@ -342,6 +342,7 @@ class HpcRemoteWorker:
         payload: dict[str, Any] = {
             "workerId": self.worker_id,
             "capabilities": ["qe"],
+            "workflowVersion": 1,
             "executionAffinity": {"scheduler": self.scheduler, "profileSha256": self.profile_sha256},
         }
         if calculation_id is not None:
@@ -362,7 +363,7 @@ class HpcRemoteWorker:
                     "progress": max(12, min(99, int(progress))),
                     "computePhase": "COMPUTING",
                     "stage": stage,
-                    "logTail": "Remote scheduler execution is being polled.",
+                    "logTail": getattr(self, 'scheduler_observation', 'Remote scheduler execution is being polled.'),
                 },
             )
             if reply.get("cancelRequested"):
@@ -380,6 +381,7 @@ class HpcRemoteWorker:
             return {"state": "no-job"}
         if str(job.get("kind") or "qe") != "qe":
             raise HpcError("Remote LAMMPS is not enabled; release this job for personal MD compute.")
+        self.scheduler_observation = 'Remote scheduler submission is being prepared; scientific results are not available.'
         payload = job.get("input") if isinstance(job.get("input"), dict) else {}
         job_destination = destination if destination.name == job["calculationId"] else destination / job["calculationId"]
         stopped = threading.Event()
@@ -408,12 +410,15 @@ class HpcRemoteWorker:
             if heartbeat_failure:
                 raise heartbeat_failure[0]
             receipt = manager.submit_job(job["calculationId"], files, job_destination / "receipts")
+            self.scheduler_observation = f"{self.scheduler} job {receipt['schedulerJobId']}: submitted; scientific results pending validation."
             max_polls = max(max_polls, int((int(allocation["wallSeconds"]) + 600) / max(1, poll_seconds)))
             for poll_index in range(max(1, max_polls)):
                 if heartbeat_failure:
                     raise heartbeat_failure[0]
                 self._heartbeat(job, min(95, 15 + round(75 * poll_index / max(1, max_polls))), "REMOTE_SCHEDULER")
                 status = manager.poll_job(receipt["schedulerJobId"])
+                self.scheduler_observation = f"{self.scheduler} job {receipt['schedulerJobId']}: {status.get('state', 'UNKNOWN')}; exit code {status.get('exitCode') or 'unavailable'}; scientific results pending validation."
+                self._heartbeat(job, min(95, 15 + round(75 * poll_index / max(1, max_polls))), "REMOTE_SCHEDULER")
                 if status.get("terminal"):
                     result = manager.harvest_completed(receipt["schedulerJobId"], receipt["remoteWorkDir"], job_destination / "results")
                     result["receipt"] = receipt
@@ -438,6 +443,7 @@ class HpcRemoteWorker:
             {
                 "workerId": self.worker_id,
                 "capabilities": ["qe"],
+                "workflowVersion": 1,
                 "executionAffinity": {"scheduler": self.scheduler, "profileSha256": self.profile_sha256},
             },
         )

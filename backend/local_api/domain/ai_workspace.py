@@ -15,7 +15,7 @@ from backend.local_api.domain.phynite_core import ApiError, json_safe, owner_par
 MODES = {'chat', 'approval', 'full'}
 RESOURCE_KINDS = {'structure': 'STRUCTURE', 'calculation': 'CALCULATION', 'trajectory': 'MD_TRAJECTORY', 'simulation': 'MD_SIMULATION', 'analysis': 'MD_ANALYSIS', 'md_configuration': 'MD_CONFIGURATION', 'potential': 'MD_POTENTIAL', 'dataset': 'DATASET', 'figure': 'FIGURE'}
 ACTIONS = {'derive_structure', 'import_structure', 'save_dft', 'run_dft', 'save_md', 'run_md', 'run_analysis', 'cancel_job', 'save_figure', 'export_figure', 'save_workflow', 'run_workflow', 'cancel_workflow'}
-PATH = re.compile('^/v1/ai/conversations(?:/([a-z0-9_]+)(?:/(detail|settings|start|resume|renew|stop|context|read|canvas|step|message|finish|prepare|execute|actions|queue|steer|continue|events|control|attachment_read|attachment_provider|save_plan|complete_call|replay|references|artifacts|report)(?:/([a-z0-9_]+))?)?)?$')
+PATH = re.compile('^/v1/ai/conversations(?:/([a-z0-9_]+)(?:/(detail|settings|start|resume|renew|stop|context|compute|read|canvas|step|message|finish|prepare|execute|actions|queue|steer|continue|events|control|attachment_read|attachment_provider|save_plan|complete_call|replay|references|artifacts|report)(?:/([a-z0-9_]+))?)?)?$')
 
 def router_models(provider: str='9router') -> list[str]:
     try:
@@ -55,7 +55,7 @@ def digest(value: Any) -> str:
 def clean(value: Any) -> Any:
     """Strip storage locations, signed links and credentials before exposing model context."""
     if isinstance(value, dict):
-        return {key: clean(item) for key, item in value.items() if key not in {'PK', 'SK', 'history', 'objectKey', 'extractedKey', 'visionKey', 'inputKey', 'outputPrefix', 'tokenHash', 'leaseHash'} and (not key.startswith('GSI')) and (key in {'inputTokens', 'outputTokens'} or not re.search('(?i)(?:token|secret|password|credential|downloadurl|uploadurl|authorization)', key))}
+        return {key: clean(item) for key, item in value.items() if key not in {'PK', 'SK', 'history', 'objectKey', 'extractedKey', 'visionKey', 'inputKey', 'outputPrefix', 'tokenHash', 'leaseHash', 'connection', 'privateKeyPath', 'remoteWorkDir', 'scratchRoot', 'pseudoRoot'} and (not key.startswith('GSI')) and (key in {'inputTokens', 'outputTokens'} or not re.search('(?i)(?:token|secret|password|credential|downloadurl|uploadurl|authorization)', key))}
     if isinstance(value, list):
         return [clean(item) for item in value]
     if isinstance(value, str):
@@ -244,6 +244,14 @@ class AiWorkspace:
         projects += [{'key': f"project:{p['id']}", 'kind': 'canvas', 'name': p['name'], 'href': f"/projects/{p['id']}"} for p in self.services.list_owner_items(owner, 'PROJECT') if f"project:{p['id']}" not in listed]
         return projects
 
+    def compute_context(self, owner: str) -> dict:
+        from backend.local_api.hpc_profiles import HpcProfileStore
+        local = getattr(self.services, 'local_workspace', False) and owner == self.services.owner
+        worker = self.services.get_item(owner, 'PERSONAL_WORKER', 'primary') or {}
+        return {'mode': 'local' if local else 'unavailable', 'personal': {'online': bool(worker.get('tokenHash')) and int(worker.get('lastSeenAtEpoch') or 0) >= time.time() - 90, 'capabilities': worker.get('capabilities', [])},
+                'clusters': [{key: profile[key] for key in ('id', 'name', 'scheduler', 'isDefault', 'profileSha256', 'defaults') if key in profile} for profile in HpcProfileStore(self.services).list()] if local else [],
+                'hpc': {'localOnly': True, 'solvers': ['qe'], 'schedulers': ['slurm', 'pbs'], 'profileState': 'configured, not a live SSH/solver probe', 'settingsHref': '/account/compute#hpc-clusters', 'automaticRestart': False}, 'md': 'personal-only'}
+
     def context(self, owner: str, conversation: dict) -> dict:
         project = self.scope(owner, conversation.get('projectKey'))
         if not project:
@@ -402,6 +410,10 @@ class AiWorkspace:
         if kind == 'run_md':
             configuration = self.resource(owner, conversation, 'md_configuration', valid_id(data.get('configurationId')))['item']
             data['workflow'] = configuration['workflow']
+        if kind in {'save_dft', 'run_dft'} and data.get('compute', {}).get('computeTarget') == 'hpc':
+            from backend.local_api.hpc_profiles import resolve_hpc_compute
+            compute = resolve_hpc_compute(self.services, owner, data['compute']['hpc'])
+            data['submission'] = {**data['submission'], **compute, 'settings': {**data['submission'].get('settings', {}), **compute['settings']}}
         if kind == 'run_workflow':
             from backend.local_api.domain.project_workflow import ProjectWorkflowApi
             plan, graph = ProjectWorkflowApi(self.api).plan(owner, project=context['project']['id'], payload=data)
@@ -424,6 +436,10 @@ class AiWorkspace:
             before['settings'] = current.get('draft') if current else None
             after['settings'] = data['draft']
             after['applicationDefaultsUsed'] = data.get('defaultsUsed', False)
+            after['compute'] = data.get('compute', {'computeTarget': 'personal'})
+            after['allocation'] = {key: data['submission'][key] for key in ('executionAffinity', 'vcpus', 'memoryMiB') if key in data['submission']}
+        elif kind == 'run_workflow':
+            after['plan'] = data['reviewedPlan']
         elif kind == 'derive_structure':
             current = next((m for m in context['workspace']['materials'] if m['id'] == data['materialId']))
             before['structure'] = {'name': current['name'], 'atomCount': len(current['atoms']), 'lattice': current['lattice']}
@@ -441,17 +457,25 @@ class AiWorkspace:
     def summary(context: dict) -> dict:
         return {'project': context['project']['name'], 'workspaceRevision': context['workspaceRevision'], 'sourceFingerprint': context['stamp']}
 
-    @staticmethod
-    def personal_workflow(graph: dict) -> None:
+    def local_workflow(self, owner: str, graph: dict) -> None:
         for node in graph['nodes']:
             config = node['configuration']
-            if config.get('computeTarget', 'personal') != 'personal' or config.get('execution', {}).get('computeTarget', 'personal') != 'personal' or config.get('cloudMode'):
-                fail(403, 'AI Canvas actions support personal compute only.', 'AI_PERMISSION_DENIED')
+            execution = config.get('execution') or {}
+            target = config.get('computeTarget', execution.get('computeTarget', 'personal'))
+            if target == 'hpc' and node['kind'] in {'scf', 'relax', 'bands', 'dos', 'phonon', 'btp2'}:
+                from backend.local_api.hpc_profiles import resolve_hpc_compute
+                resolve_hpc_compute(self.services, owner, config.get('hpc'))
+            elif target != 'personal' or execution.get('computeTarget', 'personal') != 'personal' or config.get('hpc') or execution.get('executionAffinity') or config.get('executionAffinity'):
+                fail(403, 'AI supports local QE HPC or personal compute; MD uses personal compute only.', 'AI_PERMISSION_DENIED')
+            if config.get('cloudMode'):
+                fail(403, 'AI Canvas actions cannot use shared compute.', 'AI_PERMISSION_DENIED')
 
     def validate_action(self, owner: str, conversation: dict, kind: str, data: dict) -> None:
         project = self.scope(owner, conversation['projectKey'])
         if any((key in data for key in ('computeTarget', 'cloudMode', 'quoteId', 'url', 'path', 'ownerId'))):
             fail(400, 'AI actions cannot override ownership, network destinations or compute targets.')
+        if kind not in {'save_dft', 'run_dft'} and any(key in data for key in ('compute', 'hpc', 'executionAffinity')):
+            fail(400, 'Only QE actions accept HPC compute configuration. MD uses personal compute.', 'INVALID_COMPUTE_TARGET')
         if kind == 'import_structure':
             if not project or project['kind'] != 'canvas':
                 fail(400, 'Select a Canvas project to import a database structure.', 'AI_PROJECT_REQUIRED')
@@ -480,8 +504,8 @@ class AiWorkspace:
                 if type(data.get('baseRevision')) is not int or data['baseRevision'] != envelope['revision']:
                     fail(409, 'The Canvas workflow changed. Read its current revision.', 'AI_CONTEXT_CHANGED')
                 old_nodes = {n['id']: n for n in envelope['workflow']['nodes']}
-                changed_compute = [n for n in graph['nodes'] if n['id'] not in old_nodes or any((n['configuration'].get(k) != old_nodes[n['id']]['configuration'].get(k) for k in ('computeTarget', 'cloudMode')))]
-                self.personal_workflow({'nodes': changed_compute})
+                changed_compute = [n for n in graph['nodes'] if n['id'] not in old_nodes or n['configuration'] != old_nodes[n['id']]['configuration']]
+                self.local_workflow(owner, {'nodes': changed_compute})
                 from backend.local_api.domain.api import normalize_md_pipeline
                 for node in graph['nodes']:
                     old = old_nodes.get(node['id'], {})
@@ -496,7 +520,7 @@ class AiWorkspace:
                 graph = envelope['workflow']
                 plan, _ = service.plan(owner, project['id'], data)
                 selected = set(plan['order'])
-                self.personal_workflow({'nodes': [n for n in graph['nodes'] if n['id'] in selected]})
+                self.local_workflow(owner, {'nodes': [n for n in graph['nodes'] if n['id'] in selected]})
                 if plan['errors']:
                     raise ApiError(422, 'Fix the Canvas workflow inputs before running.', 'WORKFLOW_NOT_READY', issues=[{'nodeId': e['nodeId'], 'path': 'configuration', 'message': e['message']} for e in plan['errors']])
                 if data.get('reviewedPlan') is not None and (data['reviewedPlan'] != plan or data.get('reviewedWorkflow') != service.plan(owner, project['id'], data)[1]):
@@ -506,7 +530,6 @@ class AiWorkspace:
                 if run.get('projectId') != project['id']:
                     fail(404, 'This run is not in the selected project.', 'AI_NOT_FOUND')
                 graph = service.read_json(run['objectKey'], run['sha256'])['workflow']
-                self.personal_workflow(graph)
         if kind in {'save_dft', 'run_dft', 'derive_structure'}:
             if project['kind'] != 'dft':
                 fail(400, 'This action requires a DFT project.')
@@ -519,8 +542,18 @@ class AiWorkspace:
                 if configuration.get('materialId') != data['materialId']:
                     fail(409, 'The configuration belongs to another structure.', 'AI_PROJECT_MISMATCH')
             submission = data['submission']
-            if set(submission) - {'calculationType', 'qeInput', 'inputFiles', 'settings', 'vcpus', 'memoryMiB'}:
+            if set(submission) - {'calculationType', 'qeInput', 'inputFiles', 'settings', 'vcpus', 'memoryMiB', 'computeTarget', 'executionAffinity'}:
                 fail(400, 'Calculation submission fields are invalid.')
+            compute = data.get('compute', {'computeTarget': 'personal'})
+            if not isinstance(compute, dict) or set(compute) - {'computeTarget', 'hpc'} or compute.get('computeTarget') not in {'personal', 'hpc'}:
+                fail(400, 'Choose personal or a saved local HPC cluster.', 'INVALID_COMPUTE_TARGET')
+            if compute['computeTarget'] == 'hpc':
+                from backend.local_api.hpc_profiles import resolve_hpc_compute
+                resolved = resolve_hpc_compute(self.services, owner, compute.get('hpc'))
+                if submission.get('executionAffinity') is not None and (any(submission.get(key) != resolved[key] for key in ('computeTarget', 'executionAffinity', 'vcpus', 'memoryMiB')) or submission.get('settings', {}).get('hpcAllocation') != resolved['settings']['hpcAllocation']):
+                    fail(409, 'The reviewed HPC allocation changed. Prepare a fresh action.', 'AI_CONTEXT_CHANGED')
+            elif compute.get('hpc') or submission.get('executionAffinity') or submission.get('computeTarget', 'personal') != 'personal' or submission.get('settings', {}).get('hpcAllocation'):
+                fail(400, 'Personal compute cannot override HPC affinity.', 'INVALID_COMPUTE_TARGET')
             if not isinstance(submission.get('qeInput'), str) or not isinstance(submission.get('inputFiles'), dict):
                 fail(400, 'Exact Quantum ESPRESSO input is required.')
         if kind == 'derive_structure':
@@ -620,7 +653,7 @@ class AiWorkspace:
                 saved = service.save(owner, project['id'], {'workflow': data['workflow'], 'baseRevision': data['baseRevision']})
                 return {'saved': True, 'revision': saved['revision'], 'nodeIds': data.get('nodeIds', [])}
             if kind == 'run_workflow':
-                return service.start(owner, project['id'], {'revision': data['revision'], 'targets': data['targets'], 'compilerSha256': data['compilerSha256'], 'idempotencyKey': action['id']})
+                return service.start(owner, project['id'], {'revision': data['revision'], 'targets': data['targets'], 'compilerSha256': data['compilerSha256'], 'idempotencyKey': action['id'], 'reviewedPlan': data['reviewedPlan'], 'reviewedWorkflow': data['reviewedWorkflow']})
             return service.cancel(owner, project['id'], data['runId'], {})
         if kind in {'save_dft', 'derive_structure'}:
             workspace = self.workspace(owner)
@@ -635,10 +668,10 @@ class AiWorkspace:
                 result = {'materialId': material['id'], 'href': f"/calculation?project={project['id']}", 'provenance': data.get('operation')}
             else:
                 configuration_id = data.get('configurationId') or action['id']
-                configuration = {'id': configuration_id, 'name': str(data.get('name') or 'AI research draft')[:160], 'calculation': data['submission']['calculationType'], 'materialId': source['id'], 'materialName': source['name'], 'databaseId': source.get('databaseId', 'db-workspace'), 'databaseName': source.get('database', 'Workspace'), 'updated': now, 'draft': data['draft']}
+                configuration = {'id': configuration_id, 'name': str(data.get('name') or 'AI research draft')[:160], 'calculation': data['submission']['calculationType'], 'materialId': source['id'], 'materialName': source['name'], 'databaseId': source.get('databaseId', 'db-workspace'), 'databaseName': source.get('database', 'Workspace'), 'updated': now, 'draft': data['draft'], **data.get('compute', {'computeTarget': 'personal'})}
                 component = next((c for c in snapshot.get('calculationComponents', []) if c.get('id') == configuration_id), None)
                 if component:
-                    snapshot['calculationComponents'] = [{**c, 'draft': data['draft'], 'name': configuration['name'], 'calculation': configuration['calculation'], 'updatedAt': now} if c['id'] == configuration_id else c for c in snapshot['calculationComponents']]
+                    snapshot['calculationComponents'] = [{**{k: v for k, v in c.items() if k != 'hpc'}, 'draft': data['draft'], 'name': configuration['name'], 'calculation': configuration['calculation'], 'updatedAt': now, **data.get('compute', {'computeTarget': 'personal'})} if c['id'] == configuration_id else c for c in snapshot['calculationComponents']]
                 else:
                     snapshot['calculationConfigurations'] = [c for c in snapshot.get('calculationConfigurations', []) if c['id'] != configuration_id] + [configuration]
                 result = {'configurationId': configuration_id, 'href': f"/calculation?project={project['id']}", 'saved': True}
@@ -865,6 +898,8 @@ class AiWorkspace:
             return response(200, {'expiresAt': renewed['expiresAt']})
         if operation == 'context':
             return response(200, clean(self.context(owner, conversation)))
+        if operation == 'compute':
+            return response(200, clean(self.compute_context(owner)))
         if operation == 'replay':
             call_id = payload.get('toolCallId')
             if not isinstance(call_id, str) or not re.fullmatch('[A-Za-z0-9_-]{1,200}', call_id):

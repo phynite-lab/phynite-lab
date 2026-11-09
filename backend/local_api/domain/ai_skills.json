@@ -11,11 +11,11 @@
     },
     {
       "id": "dft_setup",
-      "version": 1,
+      "version": 2,
       "command": "dft_setup",
       "label": { "en": "DFT setup", "id": "Siapkan DFT" },
       "description": { "en": "Inspect DFT inputs and prepare a reproducible calculation plan.", "id": "Periksa input DFT dan siapkan rencana kalkulasi yang dapat direproduksi." },
-      "instruction": "Inspect the exact saved structure and DFT module configuration before proposing a Quantum ESPRESSO setup. Identify the intended property, exchange-correlation functional, verified pseudopotentials and element mapping, cutoffs, k-point grid, occupations, charge, spin and relevant convergence settings. Preserve existing explicit values and units; ask about missing scientific choices rather than substituting guesses. Explain the provenance of any suggested starting value and distinguish an untested starting point from a converged setting. Use existing Phynite validators and report the actual prepared, approved, queued or completed state. This skill grants no extra tools or permissions; obey the active task mode and never submit jobs without explicit user intent."
+      "instruction": "Inspect the exact saved structure and DFT module configuration before proposing a Quantum ESPRESSO setup. Identify the intended property, exchange-correlation functional, verified pseudopotentials and element mapping, cutoffs, k-point grid, occupations, charge, spin and relevant convergence settings. Preserve existing explicit values and units; ask about missing scientific choices rather than substituting guesses. Explain the provenance of any suggested starting value and distinguish an untested starting point from a converged setting. Use existing Phynite validators and report the actual prepared, approved, queued or completed state. This skill grants no extra tools or permissions; obey the active task mode and never submit jobs without explicit user intent. Read read_compute before choosing execution: QE may use the personal computer or a saved local Slurm/OpenPBS cluster. Use configure_qe_compute for Canvas or the compute field on legacy prepare_dft, preserve the selected profile checksum and explicit allocation, and review all prerequisites. Configured clusters are not proof of live SSH readiness. Profile management and probes belong in Settings; never request keys or raw SSH access. Queue through the existing approved workflow only. Monitor actual workflow/calculation evidence; scheduler completion requires validated scientific output. Uncertain submission or manual-resume-required means inspect retained checkpoints and wait for explicit continuation, never automatic resubmission. MD remains personal only."
     },
     {
       "id": "md_setup",
@@ -27,11 +27,11 @@
     },
     {
       "id": "results_review",
-      "version": 1,
+      "version": 2,
       "command": "results_review",
       "label": { "en": "Results review", "id": "Tinjau hasil" },
       "description": { "en": "Compare saved results with their inputs, units and evidence limits.", "id": "Bandingkan hasil tersimpan dengan input, satuan, dan batas buktinya." },
-      "instruction": "Review actual saved calculation, simulation, analysis or figure evidence and trace each result to its source inputs, status, units and provenance. Separate completed observations from pending jobs, interpretation and hypotheses. Check available convergence or quality evidence without claiming unperformed validation. Preserve numerical values, source identities, checksums and dataset bindings; cite exact source IDs and relevant fields. Compare only compatible quantities and explain missing data, uncertainty and reading limits. Never fabricate results or citations, and do not alter source data to improve presentation. This skill grants no extra tools or permissions; obey the active task mode and require explicit user intent before any permitted change."
+      "instruction": "Review actual saved calculation, simulation, analysis or figure evidence and trace each result to its source inputs, status, units and provenance. Separate completed observations from pending jobs, interpretation and hypotheses. Check available convergence or quality evidence without claiming unperformed validation. Preserve numerical values, source identities, checksums and dataset bindings; cite exact source IDs and relevant fields. Compare only compatible quantities and explain missing data, uncertainty and reading limits. Never fabricate results or citations, and do not alter source data to improve presentation. This skill grants no extra tools or permissions; obey the active task mode and require explicit user intent before any permitted change. For HPC, distinguish queued/running scheduler observations from completed scientific results; require the validated result manifest/checksum evidence. Explain submission-uncertain or manual-resume-required and retained checkpoints without resubmitting or proposing automatic solver restarts."
     }
   ]
 }

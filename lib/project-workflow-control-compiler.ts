@@ -30,12 +30,21 @@ export function compileMd(node: WorkflowNode) {
   if (node.kind !== 'md' || !Array.isArray(components) || !components.length) throw new Error('Configure at least one MD stage.');
   return compileMdSimulationWorkflow(components as MdSimulationComponentInstance[]);
 }
-export function prepareNodes(graph: ProjectWorkflow, nodeIds: string[]): Record<string, { issue?: string; mdWorkflow?: ReturnType<typeof compileMd> }> {
-  const selected = new Set(nodeIds), result: Record<string, { issue?: string; mdWorkflow?: ReturnType<typeof compileMd> }> = {};
+export function prepareNodes(graph: ProjectWorkflow, nodeIds: string[]): Record<string, { issue?: string; execution?: ReturnType<typeof compileWorkflowDft>; mdWorkflow?: ReturnType<typeof compileMd> }> {
+  const selected = new Set(nodeIds), result: ReturnType<typeof prepareNodes> = {};
   for (const node of graph.nodes) if (selected.has(node.id)) {
     try {
       if (node.kind === 'md' && Array.isArray(node.configuration.components)) result[node.id] = { mdWorkflow: compileMd(node) };
-      else if (workflowCalculationTypes[node.kind] && node.configuration.compilerVersion === 1) result[node.id] = { issue: validateDraft(graph, node.id) ?? undefined };
+      else if (workflowCalculationTypes[node.kind] && node.configuration.compilerVersion === 1) {
+        const issue = validateDraft(graph, node.id);
+        if (issue) result[node.id] = { issue };
+        // Downstream relaxed/extracted geometry is bound at execution time.
+        // A missing saved geometry must not hide otherwise valid draft settings.
+        else {
+          result[node.id] = {};
+          try { result[node.id].execution = compileWorkflowDft(graph, node, 'Project workflow'); } catch { /* Plan validates missing/deferred inputs. */ }
+        }
+      }
     } catch (error) { result[node.id] = { issue: (error as Error).message }; }
   }
   return result;

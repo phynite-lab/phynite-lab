@@ -45,6 +45,35 @@ See [settings and preferences](settings-preferences.md) for account, usage, and
 notification navigation. Provider CLI installation and subscription requirements
 remain separate from the scientific-compute runtime.
 
+## QE on local HPC clusters
+
+Configure and probe a Slurm or OpenPBS profile in **Settings → Compute → HPC
+clusters** first. AI can read its name, scheduler, allocation defaults and checksum
+with `read_compute`. SSH addresses, usernames, private-key paths and scratch paths
+are excluded from this inventory. A configured profile does not prove a live SSH
+connection, scheduler capacity or remote solver readiness. Profile management and
+SSH probes remain in Settings.
+
+For example: “Read my clusters and configure the saved SCF and DOS modules for
+cluster X with two nodes, 16 ranks per node and a one-hour wall limit.” AI uses
+`configure_qe_compute` and the existing Canvas change approval. Scientific settings
+remain intact; omitted physical choices must still be resolved. Legacy DFT drafts
+use the `compute` option on `prepare_dft`. Configuration does not start a solver.
+
+An explicit run request uses `run_workflow` or `prepare_dft` with `run: true`.
+Review includes exact scientific inputs, the cluster checksum, CPU/RAM and scheduler
+allocation. A changed or removed profile invalidates the pending request; a run
+already accepted retains its frozen snapshot. Existing Chat, Plan, Research,
+Summary and approval permissions still apply. AI cannot create SSH profiles, issue
+raw SSH commands or run LAMMPS remotely.
+
+AI monitors saved `workflow_run` and `calculation` resources through `read_resource`.
+Scheduler observations are reported as observations; completion requires verified
+scientific output. `submission-uncertain` and `manual-resume-required` preserve
+scratch/checkpoints and require inspection and explicit continuation. AI must never
+automatically resubmit or restart these jobs. See [HPC clusters](hpc-clusters.md)
+for remote runtime prerequisites and recovery boundaries.
+
 ## Crystal database tools
 
 For a manual import, open or add a Crystal structure module and choose
