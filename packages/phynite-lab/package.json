@@ -1,6 +1,6 @@
 {
   "name": "phynite-lab",
-  "version": "0.1.22",
+  "version": "0.1.23",
   "description": "Phynite Lab local computational materials-science workspace",
   "type": "module",
   "license": "AGPL-3.0-only",
@@ -27,9 +27,9 @@
     "README.md"
   ],
   "optionalDependencies": {
-    "phynite-lab-runtime-darwin-arm64": "0.1.22",
-    "phynite-lab-runtime-linux-arm64": "0.1.22",
-    "phynite-lab-runtime-linux-x64": "0.1.22"
+    "phynite-lab-runtime-darwin-arm64": "0.1.23",
+    "phynite-lab-runtime-linux-arm64": "0.1.23",
+    "phynite-lab-runtime-linux-x64": "0.1.23"
   },
   "scripts": {
     "prepack": "node lib/check-distribution.mjs"

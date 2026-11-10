@@ -63,6 +63,7 @@ export function aiFailureReason(failure: AiFailure | undefined, locale: 'en' | '
   if (/AI_TOOL_/.test(code)) return choose('An action could not finish. Review the recorded actions and inputs before continuing.', 'Salah satu aksi belum selesai. Tinjau aksi tercatat dan input sebelum melanjutkan.');
   if (code === 'AI_PERMISSION_DENIED') return choose('This action is not allowed with the current permissions. Review the requested action and permission setting.', 'Aksi ini belum diizinkan dengan pengaturan saat ini. Tinjau aksi yang diminta dan pengaturan izin.');
   if (/AI_(?:RUN_|CONFLICT|STEER_PENDING)/.test(code)) return choose('The saved turn changed. Refresh the conversation before continuing.', 'Giliran tersimpan sudah berubah. Muat ulang percakapan sebelum melanjutkan.');
+  if (/^(?:HPC|DISCOVERY|CAMPAIGN|REPAIR|RUNTIME)_/.test(code)) return choose('The scientific job needs review. Use the available status or evidence action before continuing.', 'Pekerjaan ilmiah perlu ditinjau. Gunakan aksi status atau evidence yang tersedia sebelum melanjutkan.');
   if (locale === 'en' && failure?.message) return failure.message;
   return choose('This turn did not finish. Send a follow-up or retry the turn when available.', 'Giliran ini belum selesai. Kirim pesan lanjutan atau ulangi giliran jika tersedia.');
 }

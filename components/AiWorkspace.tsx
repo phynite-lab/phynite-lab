@@ -19,6 +19,7 @@ import { findAiCommandToken, replaceAiCommandToken, type AiCommandToken } from '
 import { aiContextKey, isAiContextItem, type AiArtifact, type AiContextItem, type AiTaskMode } from '@/lib/ai-workbench';
 import type { AiSendPayload, AiSkillCatalogEntry, AiSkillRef, AiQueuedMessage } from '@/lib/ai-contract';
 import { AiActionCard } from './AiActionCard';
+import { AiAgentOperatorPanel } from './AiAgentOperatorPanel';
 import { AiTurnStatus, AiOperationNotice } from './AiTurnStatus';
 import { aiOperationFailure, aiRetryRunId, aiTurnSummary, aiNeedsTurnStatus, mergeAiHistory } from '@/lib/ai-turn-status';
 import { aiLiteratureEvidence } from '@/lib/ai-evidence';
@@ -634,6 +635,7 @@ function AiWorkspaceOwner({ owner, projectId, legacyProjectId, conversationId, v
     </div>
     <div className="ai-composer">
       <div className="ai-composer-notices">
+        {!composerOnly && <AiAgentOperatorPanel disabled={locked} onPreset={prompt => { setTaskMode('work'); setText(prompt); input.current?.focus(); }} />}
     {!loading && !configured && <div className="ai-notice" role="status">{localMode ? <>{providerReady.local ? t('Choose an available model to continue. Your draft stays saved.', 'Pilih model yang tersedia untuk melanjutkan. Draf Anda tetap tersimpan.') : catalogRefreshing ? t('Checking your models. They will appear automatically when ready.', 'Memeriksa model Anda. Model akan muncul otomatis setelah siap.') : t('Sign in with Codex or Antigravity in AI provider settings; models connect automatically.', 'Login dengan Codex atau Antigravity di pengaturan provider AI; model tersambung otomatis.')} <Link href="/account/ai-providers">{t('Open AI provider settings', 'Buka pengaturan provider AI')}</Link></> : t('The selected AI source is not connected yet. Choose another model; your draft stays saved here.', 'Sumber AI terpilih belum terhubung. Pilih model lain; draf Anda tetap tersimpan di sini.')}</div>}
       {!background && detail?.run?.status === 'awaiting_approval' && !detail.actions.some(action => ['pending', 'executing'].includes(action.status)) && <div className="ai-editing"><span>{t('The action is recorded. Continue the response.', 'Aksi sudah tercatat. Lanjutkan respons.')}</span><button disabled={submitting} onClick={() => { void streamForeground(detail.conversation.id, { resume: true, runId: detail.run!.id }).catch(failure => { if (current.current?.run?.status !== 'failed') setError(failure); }); }}>{t('Continue response', 'Lanjutkan respons')}</button></div>}
       </div>

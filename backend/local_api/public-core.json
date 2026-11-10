@@ -93,10 +93,12 @@
     "backend/local_api/hpc_profiles.py",
     "backend/local_worker/hpc_remote.py",
     "backend/local_worker/hpc_ssh.py",
+    "backend/local_worker/ai_operator.py",
     "backend/compute/hpc_manifest.py"
   ],
   "dataFiles": [
     "backend/local_api/runtime-manifest.json",
+    "backend/local_api/agent-runtime-manifest.json",
     "backend/local_api/domain/ai_skills.json",
     "data/sssp/SSSP_1.3.0_PBE_precision.json",
     "data/sssp/SSSP_1.3.0_PBE_efficiency.json",
@@ -174,7 +176,8 @@
     "backend/local_worker/install_pseudopotentials.py",
     "backend/local_api/hpc_profiles.py",
     "backend/local_worker/hpc_remote.py",
-    "backend/local_worker/hpc_ssh.py"
+    "backend/local_worker/hpc_ssh.py",
+    "backend/local_worker/ai_operator.py"
   ],
   "runnerSources": [
     "backend/local_api/__init__.py",
@@ -219,7 +222,8 @@
     "recovery",
     "hpc",
     "hpc_remote",
-    "hpc_ssh"
+    "hpc_ssh",
+    "ai_operator"
   ],
   "excludedModules": [
     "numpy",
@@ -251,6 +255,8 @@
     "backend/tests/test_local_result_recovery.py",
     "backend/tests/test_local_ai_structure_import.py",
     "backend/tests/test_hpc_local_api.py",
-    "backend/tests/test_hpc_remote.py"
+    "backend/tests/test_hpc_remote.py",
+    "backend/tests/test_ai_operator.py",
+    "backend/tests/test_agent_runtime_release.py"
   ]
 }
