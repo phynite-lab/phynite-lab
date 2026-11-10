@@ -143,7 +143,25 @@ class RuntimeManager:
             requirements[name] = {"downloadBytes": download_bytes, "maxInstalledBytes": entry.get("maxInstalledBytes", entry.get("unpackedBytes")), "minimumGlibc": entry.get("minimumGlibc"), "compatible": not reason, "reason": reason}
         available = [name for name in known if requirements[name]["compatible"]]
         qualification = {name: entry.get("qualificationStatus", "not-declared") for name, entry in known.items()}
-        return {"platform": target, "installed": installed, "availableComponents": available, "qualification": qualification, "requirements": requirements, "executables": binaries, "isolation": isolation, "progress": dict(self._progress), "downloadAvailable": bool(available)}
+        try:
+            from ai_operator import runtime_self_check
+        except ImportError:
+            try:
+                from backend.local_worker.ai_operator import runtime_self_check
+            except ImportError:
+                runtime_self_check = None
+        selected_python = environment.get("PHYNITE_RUNTIME_PYTHON_DFT") or environment.get("PHYNITE_RUNTIME_PYTHON_ANALYSIS")
+        agent = runtime_self_check(selected_python) if runtime_self_check else {"available": False, "message": "Versi aplikasi ini belum memiliki modul Discovery. Perbarui Phynite Lab untuk mengaktifkannya."}
+        agent_manifest = self.manifest_path.with_name("agent-runtime-manifest.json") if self.manifest_path else None
+        agent_contract = None
+        if agent_manifest and agent_manifest.is_file():
+            try:
+                value = json.loads(agent_manifest.read_text(encoding="utf-8"))
+                if isinstance(value, dict) and value.get("schemaVersion") == 1:
+                    agent_contract = {"component": value.get("component"), "requiredImports": value.get("requiredImports"), "acceptance": value.get("acceptance")}
+            except (OSError, ValueError):
+                agent_contract = None
+        return {"platform": target, "installed": installed, "availableComponents": available, "qualification": qualification, "requirements": requirements, "executables": binaries, "isolation": isolation, "progress": dict(self._progress), "downloadAvailable": bool(available), "agentRuntime": agent, "agentRuntimeContract": agent_contract}
 
     def install(self, component: str) -> dict[str, Any]:
         if component not in {"dft", "md", "analysis"}:

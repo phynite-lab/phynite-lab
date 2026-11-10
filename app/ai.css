@@ -360,3 +360,21 @@
 :root[data-diff-markers='color'] .ai-diff-table td[data-change='removed'] { background: color-mix(in srgb, #c85656 9%, transparent); }
 :root[data-diff-markers='color'] .ai-diff-table td[data-change='added'] { background: color-mix(in srgb, #348c62 9%, transparent); }
 :root[data-diff-markers='symbols'] .ai-diff-marker { display: inline-block; margin-right: 7px; font-family: var(--font-code); font-weight: 600; }
+
+.ai-agent-operator { display:grid; gap:8px; margin:0 0 10px; padding:10px 12px; border:1px solid var(--panel-border); border-radius:10px; background:var(--panel-raised); color:var(--panel-text); }
+.ai-agent-operator > header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.ai-agent-operator > header > div { min-width:0; }
+.ai-agent-operator strong, .ai-agent-operator strong span { display:flex; align-items:center; gap:7px; font-size:12px; font-weight:600; }
+.ai-agent-operator p { margin:3px 0 0; color:var(--panel-muted); font-size:11px; }
+.ai-agent-operator button { border:1px solid var(--panel-border); border-radius:7px; padding:6px 9px; color:var(--panel-text); background:var(--panel-bg); font:inherit; cursor:pointer; }
+.ai-agent-operator button:disabled { opacity:.5; cursor:default; }
+.ai-agent-operator-body { display:grid; gap:8px; }
+.ai-agent-presets { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+.ai-agent-presets > button { display:grid; gap:4px; min-width:0; padding:8px; text-align:left; }
+.ai-agent-presets > button span { display:flex; align-items:center; gap:5px; font-size:11px; }
+.ai-agent-presets small, .ai-agent-presets em { color:var(--panel-muted); font-size:10px; line-height:1.4; }
+.ai-agent-presets em { font-style:normal; }
+.ai-agent-sparse { display:flex; align-items:flex-start; gap:7px; color:var(--panel-muted); font-size:11px; line-height:1.4; }
+.ai-agent-sparse input { margin-top:2px; }
+.ai-agent-clock { display:flex; align-items:center; gap:6px; color:var(--panel-muted); font-size:10px; }
+@container ai-workspace (max-width: 520px) { .ai-agent-presets { grid-template-columns:1fr; } }

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "component": "agent",
+  "description": "Discovery is bundled in the reviewed DFT/analysis runtime; this manifest is a release acceptance contract, not an installer catalogue.",
+  "requiredImports": [
+    "numpy",
+    "scipy",
+    "scipy.linalg"
+  ],
+  "requiredModules": [
+    "backend.local_worker.ai_operator",
+    "backend.local_worker.hpc_remote",
+    "backend.local_worker.recovery"
+  ],
+  "acceptance": [
+    "numpy-import",
+    "scipy-linalg-import",
+    "gp-cholesky",
+    "local-worker-discovery",
+    "no-terminal-install-instructions"
+  ],
+  "researcherMessageWhenUnavailable": "Versi aplikasi ini belum memiliki modul Discovery. Perbarui Phynite Lab untuk mengaktifkannya."
+}
