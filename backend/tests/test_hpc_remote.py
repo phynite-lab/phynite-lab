@@ -18,13 +18,13 @@ class TestHpcSshConnection(unittest.TestCase):
     def test_valid_connection_initialization(self):
         conn = HpcSshConnection(
             host="login2.hpc.brin.go.id",
-            username="jauhar.nr",
+            username="user",
             port=22,
         )
         self.assertEqual(conn.host, "login2.hpc.brin.go.id")
-        self.assertEqual(conn.username, "jauhar.nr")
+        self.assertEqual(conn.username, "user")
         self.assertEqual(conn.port, 22)
-        self.assertEqual(conn.target, "jauhar.nr@login2.hpc.brin.go.id")
+        self.assertEqual(conn.target, "user@login2.hpc.brin.go.id")
         self.assertTrue(str(conn.socket_path).endswith(".sock"))
 
     def test_bastion_proxyjump_args(self):
@@ -74,7 +74,7 @@ class TestHpcRemoteJobManager(unittest.TestCase):
             "id": "cl-slurm-test",
             "ownerId": "usr-123",
             "scheduler": "slurm",
-            "storage": {"scratchRoot": "/scratch/users/jauhar"},
+            "storage": {"scratchRoot": "/scratch/users/user"},
             "runtime": {
                 "environmentModules": ["module load qe/7.2"],
                 "mpiLauncher": ["srun", "--mpi=pmix", "--ntasks={ranks}"],
@@ -91,7 +91,7 @@ class TestHpcRemoteJobManager(unittest.TestCase):
 
     def test_slurm_script_rendering(self):
         mgr = HpcRemoteJobManager(self.mock_conn, self.slurm_profile)
-        script = mgr.render_remote_script("calc-abc-123", "/scratch/users/jauhar/usr-123/calc-abc-123")
+        script = mgr.render_remote_script("calc-abc-123", "/scratch/users/user/usr-123/calc-abc-123")
         self.assertIn("#SBATCH --nodes=2", script)
         self.assertIn("#SBATCH --ntasks=32", script)
         self.assertIn("#SBATCH --time=02:00:00", script)

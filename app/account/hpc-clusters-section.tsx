@@ -347,7 +347,7 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
               <div className="lab-field-grid">
                 <label>
                   <span>{t('SSH Username', 'Username SSH')}</span>
-                  <input type="text" required placeholder="jauhar.nr" value={username} onChange={e => setUsername(e.target.value)} />
+                  <input type="text" required placeholder="user" value={username} onChange={e => setUsername(e.target.value)} />
                 </label>
                 <label>
                   <span>{t('Authentication', 'Autentikasi')}</span>
@@ -365,7 +365,7 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
               <div className="lab-field-grid">
                 <label>
                   <span>{t('Remote Scratch Root', 'Direktori Scratch Remote')}</span>
-                  <input type="text" required placeholder="/scratch/users/jauhar.nr/phynite-work" value={scratchRoot} onChange={e => setScratchRoot(e.target.value)} />
+                  <input type="text" required placeholder="/scratch/users/user/phynite-work" value={scratchRoot} onChange={e => setScratchRoot(e.target.value)} />
                 </label>
                 <label>
                   <span>{t('Default Partition/Queue', 'Partisi / Antrean Default')}</span>

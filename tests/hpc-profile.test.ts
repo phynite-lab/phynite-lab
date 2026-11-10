@@ -11,22 +11,22 @@ import { isHpcComputeSelection, prepareComputeRequest, type ComputeSelection } f
 
 const validProfileInput = {
   id: 'cl-brin-mahameru',
-  ownerId: 'usr-jauhar-123',
+  ownerId: 'usr-user-123',
   name: 'BRIN Mahameru - DFT Cluster',
   scheduler: 'slurm',
   isDefault: true,
   connection: {
     host: 'login2.hpc.brin.go.id',
     port: 22,
-    username: 'jauhar.nr',
+    username: 'user',
     authKind: 'key',
-    privateKeyPath: '/home/jauhar/.ssh/id_ed25519',
+    privateKeyPath: '/home/user/.ssh/id_ed25519',
     bastionHost: 'bastion.brin.go.id',
     bastionPort: 2222,
     bastionUser: 'jump-user',
   },
   storage: {
-    scratchRoot: '/scratch/users/jauhar.nr/phynite-work',
+    scratchRoot: '/scratch/users/user/phynite-work',
     pseudoRoot: '/shared/apps/pseudopotentials',
     purgeWavefunctions: true,
   },
