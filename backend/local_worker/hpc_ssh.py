@@ -199,7 +199,7 @@ class HpcSshConnection:
         except subprocess.TimeoutExpired as exc:
             raise HpcSshError(f"Remote command timed out after {timeout}s: {remote_cmd}") from exc
 
-    def probe_connection(self) -> dict[str, Any]:
+    def probe_connection(self, modules: list[str] | None = None) -> dict[str, Any]:
         """Probe connection latency, SSH banner, and solver/scheduler availability."""
         t0 = time.perf_counter()
         code, stdout, stderr = self.run_command(["echo", "PHYNITE_HPC_PROBE_OK"], timeout=15)
@@ -214,11 +214,18 @@ class HpcSshConnection:
                 "schedulers": {},
             }
 
-        # Probe schedulers and solvers
-        probe_cmd = [
-            "sh", "-c",
-            "which sbatch 2>/dev/null; which qsub 2>/dev/null; which pw.x 2>/dev/null; which lmp 2>/dev/null; uname -srm"
-        ]
+        safe_modules: list[str] = []
+        for raw in modules or []:
+            value = str(raw).strip()
+            if value.startswith("module load "):
+                value = value[len("module load "):].strip()
+            if value and value != "module purge" and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.+@:/-]{0,127}", value):
+                safe_modules.append(value)
+        module_prefix = " ".join(f"module load {shlex.quote(m)} >/dev/null 2>&1;" for m in safe_modules)
+
+        # Probe schedulers and solvers (use a login shell when modules are configured so Lmod/modules functions load)
+        probe_body = f"{module_prefix} which sbatch 2>/dev/null; which qsub 2>/dev/null; which pw.x 2>/dev/null; which lmp 2>/dev/null; uname -srm"
+        probe_cmd = ["bash", "-lc", probe_body] if safe_modules else ["sh", "-c", probe_body]
         _, probe_out, _ = self.run_command(probe_cmd, timeout=15)
         lines = [l.strip() for l in probe_out.splitlines() if l.strip()]
 

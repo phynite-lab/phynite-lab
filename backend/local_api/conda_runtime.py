@@ -514,7 +514,10 @@ def install_locked_runtime(manager, component: str, target: str, entry: dict) ->
         command = [str(binary), "create", "--offline", "--no-rc", "--no-env", "--json", "--yes", "--no-pyc", "--always-copy", "--no-deps", "--root-prefix", str(release / ".mamba"), "--prefix", str(release / "env"), "--file", str(explicit)]
         command = manager.sandbox.command(release, command)
         with (release / "installation.log").open("w", encoding="utf-8") as output:
-            process = subprocess.run(command, cwd=release, env=environment, stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.STDOUT, timeout=900, check=False)
+            try:
+                process = subprocess.run(command, cwd=release, env=environment, stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.STDOUT, timeout=2700, check=False)
+            except subprocess.TimeoutExpired as error:
+                raise RuntimeInstallError("Offline unpacking of the reviewed runtime timed out. Close disk-intensive tasks and retry; cached downloads are kept.") from error
         if process.returncode:
             raise RuntimeInstallError("Offline installation of the reviewed runtime failed. Inspect the retained installation log; the previous runtime remains active.")
         manager._progress["state"] = "verifying"

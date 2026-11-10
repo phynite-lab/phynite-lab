@@ -974,7 +974,7 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
       return;
     }
     const configuration = { ...node.configuration };
-    for (const key of ['computeTarget', 'cloudMode', 'computeProfileId', 'estimatedComputeSeconds', 'vcpus', 'memoryMiB']) delete configuration[key];
+    for (const key of ['computeTarget', 'cloudMode', 'computeProfileId', 'estimatedComputeSeconds', 'vcpus', 'memoryMiB', 'hpc', 'resolvedHpcCompute']) delete configuration[key];
     updateNode({ ...node, configuration: { ...configuration, ...selection } });
     if (plan) { runDialog.current?.close(); setPlan(null); }
   };

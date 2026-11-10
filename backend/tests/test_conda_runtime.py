@@ -218,6 +218,18 @@ class LockedRuntimeTests(unittest.TestCase):
                             self.assertTrue(ovito["url"].startswith("https://conda.ovito.org/"))
                             self.assertIn("py312", ovito["build"])
 
+    def test_unpacking_timeout_raises_clean_error_and_uses_extended_budget(self):
+        manager = self.manager()
+        seen_timeouts = []
+        def slow_unpack(command, **options):
+            seen_timeouts.append(options.get("timeout"))
+            raise subprocess.TimeoutExpired(command, options.get("timeout", 2700))
+        with mock.patch("backend.local_api.conda_runtime.subprocess.run", side_effect=slow_unpack):
+            with self.assertRaisesRegex(RuntimeInstallError, "timed out.*cached downloads are kept") as exc:
+                manager.install("md")
+            self.assertNotIn("micromamba", str(exc.exception))
+        self.assertGreaterEqual(seen_timeouts[0], 2700)
+
 
 if __name__ == "__main__":
     unittest.main()

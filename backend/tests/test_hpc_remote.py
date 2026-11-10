@@ -213,6 +213,25 @@ class TestHpcRemoteHardening(unittest.TestCase):
             self.assertTrue(manager.purge_wavefunctions_after_completion("/scratch/job", {"terminal": True, "state": "COMPLETED", "exitCode": "0"}, True))
             self.assertEqual(connection.run_command.call_args.args[0][0], "find")
 
+    def test_probe_connection_loads_environment_modules_via_login_shell(self):
+        with tempfile.TemporaryDirectory() as folder:
+            ssh = HpcSshConnection(host="login.example", username="researcher", control_dir=Path(folder))
+            calls = []
+            def fake_run(argv, timeout=60):
+                calls.append(argv)
+                if argv[:2] == ["echo", "PHYNITE_HPC_PROBE_OK"]:
+                    return 0, "PHYNITE_HPC_PROBE_OK\n", ""
+                return 0, "/usr/bin/sbatch\n/opt/qe/bin/pw.x\nLinux x86_64\n", ""
+            ssh.run_command = fake_run
+            result = ssh.probe_connection(modules=["intel/2024.0", "materials/qe/7.2-impi", "bad;rm -rf /"])
+            self.assertTrue(result["ok"])
+            self.assertTrue(result["schedulers"]["slurm"])
+            self.assertEqual(result["solvers"]["qe"], "/opt/qe/bin/pw.x")
+            self.assertEqual(calls[1][0:2], ["bash", "-lc"])
+            self.assertIn("module load intel/2024.0", calls[1][2])
+            self.assertIn("module load materials/qe/7.2-impi", calls[1][2])
+            self.assertNotIn("rm -rf", calls[1][2])
+
 
 if __name__ == "__main__":
     unittest.main()

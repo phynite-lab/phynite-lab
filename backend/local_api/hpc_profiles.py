@@ -317,6 +317,7 @@ def probe_profile(profile: dict[str, Any]) -> dict[str, Any]:
             private_key_path=connection.get("privateKeyPath") if connection.get("authKind") == "key" else None,
             bastion_host=connection.get("bastionHost"), bastion_port=int(connection.get("bastionPort", 22)), bastion_user=connection.get("bastionUser"),
         )
-        return client.probe_connection()
+        modules = profile.get("runtime", {}).get("environmentModules") or []
+        return client.probe_connection(modules=modules)
     except (HpcSshError, OSError, ValueError) as exc:
         return {"ok": False, "latencyMs": 0, "error": str(exc), "solvers": {}, "schedulers": {}}
