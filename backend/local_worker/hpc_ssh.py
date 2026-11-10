@@ -12,6 +12,7 @@ import shlex
 import subprocess
 import threading
 import time
+import uuid
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -201,6 +202,23 @@ class HpcSshConnection:
 
     def probe_connection(self, modules: list[str] | None = None) -> dict[str, Any]:
         """Probe connection latency, SSH banner, and solver/scheduler availability."""
+        safe_modules: list[str] = []
+        if modules is not None and not isinstance(modules, list):
+            raise HpcSshError("Environment modules are invalid; expected a list of module names.")
+        for raw in modules or []:
+            if not isinstance(raw, str):
+                raise HpcSshError("Environment modules are invalid; expected module names.")
+            value = raw.strip()
+            # Match job execution: legacy purge entries are a no-op, never a reset.
+            if value == "module purge":
+                continue
+            if value.startswith("module load "):
+                value = value[len("module load "):].strip()
+            if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.+@:/-]{0,127}", value):
+                raise HpcSshError("Environment modules must be safe module names.")
+            if value not in safe_modules:
+                safe_modules.append(value)
+
         t0 = time.perf_counter()
         code, stdout, stderr = self.run_command(["echo", "PHYNITE_HPC_PROBE_OK"], timeout=15)
         latency_ms = round((time.perf_counter() - t0) * 1000, 2)
@@ -214,37 +232,50 @@ class HpcSshConnection:
                 "schedulers": {},
             }
 
-        safe_modules: list[str] = []
-        for raw in modules or []:
-            value = str(raw).strip()
-            if value.startswith("module load "):
-                value = value[len("module load "):].strip()
-            if value and value != "module purge" and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.+@:/-]{0,127}", value):
-                safe_modules.append(value)
-        module_prefix = " ".join(f"module load {shlex.quote(m)} >/dev/null 2>&1;" for m in safe_modules)
+        # Login shells can print MOTD both before and after our commands. Only
+        # uniquely framed, explicitly labelled records describe capabilities.
+        marker = "PHYNITE_HPC_" + uuid.uuid4().hex
+        begin, end = marker + "_BEGIN", marker + "_END"
+        commands = [f"printf '%s\\n' {shlex.quote(begin)}"]
+        for name in safe_modules:
+            failure = shlex.quote(marker + "_MODULE_ERROR=" + name)
+            commands.append(f"if ! module load {shlex.quote(name)}; then printf '%s\\n' {failure}; exit 1; fi")
+        for label, command in (("slurm", "sbatch"), ("pbs", "qsub"), ("qe", "pw.x"), ("lammps", "lmp")):
+            commands.append(f"printf '%s=%s\\n' {label} \"$(command -v {command} 2>/dev/null || :)\"")
+        commands.extend(["printf 'system=%s\\n' \"$(uname -srm)\"", f"printf '%s\\n' {shlex.quote(end)}"])
+        probe_cmd = ["bash", "-lc" if safe_modules else "-c", "; ".join(commands)]
+        if not safe_modules:
+            probe_cmd[0] = "sh"
+        code, probe_out, probe_err = self.run_command(probe_cmd, timeout=15)
+        lines = [line.strip() for line in probe_out.splitlines()]
 
-        # Probe schedulers and solvers (use a login shell when modules are configured so Lmod/modules functions load)
-        probe_body = f"{module_prefix} which sbatch 2>/dev/null; which qsub 2>/dev/null; which pw.x 2>/dev/null; which lmp 2>/dev/null; uname -srm"
-        probe_cmd = ["bash", "-lc", probe_body] if safe_modules else ["sh", "-c", probe_body]
-        _, probe_out, _ = self.run_command(probe_cmd, timeout=15)
-        lines = [l.strip() for l in probe_out.splitlines() if l.strip()]
+        def failure(message: str) -> dict[str, Any]:
+            # Remote diagnostics are plain React text, bounded and stripped of
+            # terminal escapes/control characters before crossing the API.
+            detail = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", probe_err)
+            detail = "".join(char for char in detail if char.isprintable() or char in "\n\t").strip()[:2000]
+            return {"ok": False, "latencyMs": latency_ms, "error": message + (f": {detail}" if detail else ""), "solvers": {}, "schedulers": {}}
 
-        schedulers: dict[str, bool] = {
-            "slurm": any("sbatch" in line for line in lines),
-            "pbs": any("qsub" in line for line in lines),
-        }
-        solvers: dict[str, str | None] = {
-            "qe": next((line for line in lines if line.endswith("pw.x")), None),
-            "lammps": next((line for line in lines if line.endswith("lmp")), None),
-        }
-        system_info = lines[-1] if lines and not lines[-1].endswith(("sbatch", "qsub", "pw.x", "lmp")) else "Linux"
-
+        module_error = next((line.split("=", 1)[1] for line in lines if line.startswith(marker + "_MODULE_ERROR=")), None)
+        if module_error:
+            return failure(f"Failed to load environment module {module_error}")
+        if code != 0:
+            return failure(f"HPC environment probe failed with exit code {code}")
+        if begin not in lines or end not in lines or lines.index(end) <= lines.index(begin):
+            return failure("HPC environment probe returned incomplete output")
+        records = {}
+        for line in lines[lines.index(begin) + 1:lines.index(end)]:
+            key, separator, value = line.partition("=")
+            if separator and key in {"slurm", "pbs", "qe", "lammps", "system"}:
+                records[key] = value
+        if set(records) != {"slurm", "pbs", "qe", "lammps", "system"} or not records["system"]:
+            return failure("HPC environment probe returned incomplete capability records")
         return {
             "ok": True,
             "latencyMs": latency_ms,
-            "system": system_info,
-            "schedulers": schedulers,
-            "solvers": solvers,
+            "system": records["system"],
+            "schedulers": {"slurm": bool(records["slurm"]), "pbs": bool(records["pbs"])},
+            "solvers": {"qe": records["qe"] or None, "lammps": records["lammps"] or None},
         }
 
     def sftp_upload(self, local_path: Path, remote_path: str) -> None:

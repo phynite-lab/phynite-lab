@@ -15,7 +15,7 @@ import { LabComputeDestination } from './ComputeDestination';
 import { UiSelect } from './UiSelect';
 import { WorkspaceResources } from './WorkspaceResources';
 import { activeWorkspaceJobs, workloadForNode } from '@/lib/workspace-resource-metrics';
-import { workflowComputeSelection, resolvedWorkflowCompute, freezeWorkflowCompute, workflowExecutionCompute } from '@/lib/workflow-compute';
+import { workflowComputeSelection, resolvedWorkflowCompute, freezeWorkflowCompute, workflowExecutionCompute, changeWorkflowCompute } from '@/lib/workflow-compute';
 import type { ComputeSelection } from '@/lib/compute-selection';
 import { useLocale } from '@/app/locale-provider';
 import { useSiteTheme } from '@/app/use-site-theme';
@@ -973,9 +973,7 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
       try { sessionStorage.setItem(pendingComputeKey, JSON.stringify(selection)); } catch { /* The current selection remains usable. */ }
       return;
     }
-    const configuration = { ...node.configuration };
-    for (const key of ['computeTarget', 'cloudMode', 'computeProfileId', 'estimatedComputeSeconds', 'vcpus', 'memoryMiB', 'hpc', 'resolvedHpcCompute']) delete configuration[key];
-    updateNode({ ...node, configuration: { ...configuration, ...selection } });
+    updateNode({ ...node, configuration: changeWorkflowCompute(node.configuration, selection) });
     if (plan) { runDialog.current?.close(); setPlan(null); }
   };
   const [resourcesOpen, setResourcesOpen] = useState(false);

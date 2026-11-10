@@ -213,24 +213,92 @@ class TestHpcRemoteHardening(unittest.TestCase):
             self.assertTrue(manager.purge_wavefunctions_after_completion("/scratch/job", {"terminal": True, "state": "COMPLETED", "exitCode": "0"}, True))
             self.assertEqual(connection.run_command.call_args.args[0][0], "find")
 
-    def test_probe_connection_loads_environment_modules_via_login_shell(self):
+    def probe_fixture(self, modules=None, *, module_body=":", capabilities=True, truncate=False, code_override=None):
+        """Execute the generated probe body with synthetic tools and login noise."""
+        import subprocess
         with tempfile.TemporaryDirectory() as folder:
-            ssh = HpcSshConnection(host="login.example", username="researcher", control_dir=Path(folder))
+            root = Path(folder)
+            binary = root / "bin"
+            binary.mkdir()
+            for name in (["sbatch", "pw.x"] if capabilities else []) + ["uname"]:
+                tool = binary / name
+                tool.write_text("#!/bin/sh\necho 'Linux fixture-kernel x86_64'\n")
+                tool.chmod(0o755)
+            ssh = HpcSshConnection(host="login.example", username="researcher", control_dir=root / "control")
             calls = []
             def fake_run(argv, timeout=60):
                 calls.append(argv)
                 if argv[:2] == ["echo", "PHYNITE_HPC_PROBE_OK"]:
                     return 0, "PHYNITE_HPC_PROBE_OK\n", ""
-                return 0, "/usr/bin/sbatch\n/opt/qe/bin/pw.x\nLinux x86_64\n", ""
+                # Simulate a module function initialized by bash -lc, while
+                # keeping the test independent of this machine's login files.
+                process = subprocess.run(["/bin/bash" if argv[0] == "bash" else "/bin/sh", "-c",
+                    "module() { " + module_body + "; }; " + argv[2]], env={"PATH": str(binary)}, capture_output=True, text=True)
+                output = process.stdout
+                if truncate:
+                    output = output.rsplit("PHYNITE_HPC_", 1)[0]
+                noise = "MOTD: sbatch qsub available?\nqe=/banner/pw.x\n"
+                return (process.returncode if code_override is None else code_override,
+                    noise + output + "Farewell sbatch qsub\nsystem=Banner after uname\n", process.stderr)
             ssh.run_command = fake_run
-            result = ssh.probe_connection(modules=["intel/2024.0", "materials/qe/7.2-impi", "bad;rm -rf /"])
-            self.assertTrue(result["ok"])
-            self.assertTrue(result["schedulers"]["slurm"])
-            self.assertEqual(result["solvers"]["qe"], "/opt/qe/bin/pw.x")
-            self.assertEqual(calls[1][0:2], ["bash", "-lc"])
-            self.assertIn("module load intel/2024.0", calls[1][2])
-            self.assertIn("module load materials/qe/7.2-impi", calls[1][2])
-            self.assertNotIn("rm -rf", calls[1][2])
+            result = ssh.probe_connection(modules=modules)
+            return result, calls
+
+    def test_probe_connection_loads_normalized_modules_via_login_shell(self):
+        result, calls = self.probe_fixture(["module purge", "module load intel/2024.0", "materials/qe/7.2-impi", "intel/2024.0"],
+            module_body="printf 'module diagnostic: sbatch qsub\\n'")
+        self.assertTrue(result["ok"], result)
+        self.assertEqual(result["schedulers"], {"slurm": True, "pbs": False})
+        self.assertTrue(result["solvers"]["qe"].endswith("/bin/pw.x"))
+        self.assertIsNone(result["solvers"]["lammps"])
+        self.assertEqual(result["system"], "Linux fixture-kernel x86_64")
+        self.assertEqual(calls[1][:2], ["bash", "-lc"])
+        self.assertEqual(calls[1][2].count("module load intel/2024.0"), 1)
+        self.assertIn("module load materials/qe/7.2-impi", calls[1][2])
+        self.assertNotIn("module purge", calls[1][2])
+        self.assertIn("command -v sbatch", calls[1][2])
+        manager = HpcRemoteJobManager(MagicMock(spec=HpcSshConnection), {
+            'scheduler': 'slurm', 'runtime': {'environmentModules': ['module purge', 'module load intel/2024.0', 'materials/qe/7.2-impi', 'intel/2024.0']},
+        })
+        self.assertEqual(manager._modules(), ['intel/2024.0', 'materials/qe/7.2-impi'])
+
+    def test_probe_without_modules_or_with_only_legacy_purge_uses_sh(self):
+        for modules in (None, [], ["module purge"]):
+            with self.subTest(modules=modules):
+                result, calls = self.probe_fixture(modules, capabilities=False)
+                self.assertTrue(result["ok"], result)
+                self.assertEqual(calls[1][:2], ["sh", "-c"])
+                self.assertEqual(result["schedulers"], {"slurm": False, "pbs": False})
+                self.assertEqual(result["solvers"], {"qe": None, "lammps": None})
+                self.assertEqual(result["system"], "Linux fixture-kernel x86_64")
+
+    def test_probe_rejects_corrupt_module_lists_and_unsafe_names_before_ssh(self):
+        for modules in ("qe/7.2", "", {}, 123, [None], [12], [""], ["qe; touch /tmp/pwned"], ["$(id)"], ["module load qe mpi"], ["qe\nother"]):
+            with self.subTest(modules=modules), tempfile.TemporaryDirectory() as folder:
+                ssh = HpcSshConnection(host="login.example", username="researcher", control_dir=Path(folder))
+                ssh.run_command = MagicMock()
+                with self.assertRaises(HpcSshError):
+                    ssh.probe_connection(modules=modules)
+                ssh.run_command.assert_not_called()
+
+    def test_probe_reports_module_failure_and_missing_lmod_initialization(self):
+        for module_body in ("printf '\\033[31mLmod: unknown module qe/typo\\033[0m\\n' >&2; return 1", "printf 'module: command not found\\n' >&2; return 127"):
+            result, _ = self.probe_fixture(["qe/typo"], module_body=module_body)
+            self.assertFalse(result["ok"])
+            self.assertIn("Failed to load environment module qe/typo", result["error"])
+            self.assertTrue("unknown module" in result["error"] or "command not found" in result["error"])
+            self.assertNotIn("\x1b", result["error"])
+            self.assertEqual(result["solvers"], {})
+            self.assertEqual(result["schedulers"], {})
+        result, _ = self.probe_fixture(["qe/typo"], module_body="printf '%3000s' x >&2; return 1")
+        self.assertLess(len(result["error"]), 2100)
+
+    def test_probe_rejects_truncated_output_and_nonzero_status(self):
+        for options in ({"truncate": True}, {"code_override": 7}):
+            with self.subTest(options=options):
+                result, _ = self.probe_fixture(["qe/7.2"], **options)
+                self.assertFalse(result["ok"])
+                self.assertEqual(result["solvers"], {})
 
 
 if __name__ == "__main__":

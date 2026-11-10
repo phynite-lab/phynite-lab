@@ -317,7 +317,12 @@ def probe_profile(profile: dict[str, Any]) -> dict[str, Any]:
             private_key_path=connection.get("privateKeyPath") if connection.get("authKind") == "key" else None,
             bastion_host=connection.get("bastionHost"), bastion_port=int(connection.get("bastionPort", 22)), bastion_user=connection.get("bastionUser"),
         )
-        modules = profile.get("runtime", {}).get("environmentModules") or []
+        runtime = profile.get("runtime", {})
+        if not isinstance(runtime, dict):
+            raise HpcSshError("HPC runtime configuration is invalid.")
+        modules = runtime.get("environmentModules", [])
+        if not isinstance(modules, list):
+            raise HpcSshError("Environment modules are invalid; expected a list of module names.")
         return client.probe_connection(modules=modules)
     except (HpcSshError, OSError, ValueError) as exc:
         return {"ok": False, "latencyMs": 0, "error": str(exc), "solvers": {}, "schedulers": {}}

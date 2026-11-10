@@ -29,6 +29,40 @@ export function hpcProfileSelection(profile: HpcClusterProfile): HpcComputeSelec
   };
 }
 
+/** Refresh the reviewed snapshot while retaining valid overrides for this cluster. */
+export function refreshHpcProfileSelection(profile: HpcClusterProfile, saved?: HpcComputeSelection): HpcComputeSelection {
+  const defaults = hpcProfileSelection(profile);
+  if (!saved || saved.clusterId !== profile.id) return defaults;
+  const integer = (value: number | undefined, minimum: number, maximum: number, fallback: number) =>
+    typeof value === 'number' && Number.isSafeInteger(value) && value >= minimum && value <= maximum ? value : fallback;
+  const identifier = (value: string | undefined, fallback?: string) =>
+    value && /^[A-Za-z0-9][A-Za-z0-9_.@-]{0,95}$/.test(value) ? value : fallback;
+  let nodes = integer(saved.nodes, 1, 4096, defaults.nodes);
+  let ranksPerNode = integer(saved.ranksPerNode, 1, 1024, defaults.ranksPerNode);
+  if (nodes * ranksPerNode > 65536) {
+    nodes = defaults.nodes;
+    ranksPerNode = defaults.ranksPerNode;
+  }
+  return {
+    ...defaults, nodes, ranksPerNode,
+    wallSeconds: integer(saved.wallSeconds, 300, 5_184_000, defaults.wallSeconds),
+    memoryMiBPerNode: integer(saved.memoryMiBPerNode, 1024, 16_777_216, profile.defaults.memoryMiBPerNode),
+    partition: identifier(saved.partition, defaults.partition),
+    account: identifier(saved.account, defaults.account),
+    ...(typeof saved.autoRestartOnWalltime === 'boolean' ? { autoRestartOnWalltime: saved.autoRestartOnWalltime } : {}),
+  };
+}
+
+/** A fallback is a replacement choice, never the saved cluster's allocation. */
+export function resolveHpcProfileSelection(saved: HpcComputeSelection | undefined, profiles: HpcClusterProfile[], loaded: boolean) {
+  const matchedCluster = profiles.find(profile => profile.id === saved?.clusterId);
+  const selectedCluster = matchedCluster ?? profiles.find(profile => profile.isDefault) ?? profiles[0];
+  const missingClusterProfile = Boolean(saved && loaded && !matchedCluster);
+  const staleClusterProfile = Boolean(saved && matchedCluster?.profileSha256 && saved.profileSha256 !== matchedCluster.profileSha256);
+  const hpcSelection = saved ? (matchedCluster ? saved : undefined) : (selectedCluster ? hpcProfileSelection(selectedCluster) : undefined);
+  return { matchedCluster, selectedCluster, missingClusterProfile, staleClusterProfile, hpcSelection };
+}
+
 export function isHpcComputeSelection(value: unknown): value is HpcComputeSelection {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const candidate = value as Record<string, unknown>;

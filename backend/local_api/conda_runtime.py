@@ -510,7 +510,7 @@ def install_locked_runtime(manager, component: str, target: str, entry: dict) ->
         loopback = "lo0" if platform.system() == "Darwin" else "lo"
         environment.update(OMPI_MCA_btl="self,tcp", OMPI_MCA_btl_tcp_if_include=loopback)
         Path(environment["HOME"]).mkdir(exist_ok=True)
-        manager._progress["state"] = "installing"
+        manager._progress.update(state="installing", phase="unpacking")
         command = [str(binary), "create", "--offline", "--no-rc", "--no-env", "--json", "--yes", "--no-pyc", "--always-copy", "--no-deps", "--root-prefix", str(release / ".mamba"), "--prefix", str(release / "env"), "--file", str(explicit)]
         command = manager.sandbox.command(release, command)
         with (release / "installation.log").open("w", encoding="utf-8") as output:
@@ -520,6 +520,7 @@ def install_locked_runtime(manager, component: str, target: str, entry: dict) ->
                 raise RuntimeInstallError("Offline unpacking of the reviewed runtime timed out. Close disk-intensive tasks and retry; cached downloads are kept.") from error
         if process.returncode:
             raise RuntimeInstallError("Offline installation of the reviewed runtime failed. Inspect the retained installation log; the previous runtime remains active.")
+        manager._progress.pop("phase", None)
         manager._progress["state"] = "verifying"
         installed = list((release / "env/conda-meta").glob("*.json"))
         expected = {(item["name"], item["version"], item["build"]) for item in packages}

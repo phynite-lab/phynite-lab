@@ -3,6 +3,15 @@ import { isHpcComputeSelection, type ComputeSelection } from './compute-selectio
 import type { WorkflowNode } from './project-workflow.ts';
 import { workloadForNode } from './workspace-resource-metrics.ts';
 
+/** Changing destinations invalidates the old cluster allocation and frozen snapshot. */
+export function changeWorkflowCompute(configuration: WorkflowNode['configuration'], selection: ComputeSelection): WorkflowNode['configuration'] {
+  const next = { ...configuration };
+  for (const key of ['computeTarget', 'cloudMode', 'computeProfileId', 'estimatedComputeSeconds', 'vcpus', 'memoryMiB', 'hpc', 'resolvedHpcCompute']) delete next[key];
+  const compute = { ...selection };
+  if (compute.computeTarget !== 'hpc') delete compute.hpc;
+  return { ...next, ...compute };
+}
+
 export function workflowComputeSelection(node?: WorkflowNode): ComputeSelection {
   const configuration = node?.configuration ?? {};
   const execution = configuration.execution && typeof configuration.execution === 'object' ? configuration.execution : {};

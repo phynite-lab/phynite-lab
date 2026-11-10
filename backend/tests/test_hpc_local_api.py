@@ -7,8 +7,9 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
-from backend.local_api.hpc_profiles import HpcProfileStore, _profile_digest
+from backend.local_api.hpc_profiles import HpcProfileStore, _profile_digest, probe_profile
 
 
 class Table:
@@ -34,6 +35,28 @@ def profile(name='Cluster'):
 
 
 class HpcLocalApiTests(unittest.TestCase):
+    def test_probe_forwards_configured_environment_modules_and_failure(self):
+        failure = {'ok': False, 'error': 'Failed to load environment module qe/typo: Lmod unknown module', 'latencyMs': 2, 'solvers': {}, 'schedulers': {}}
+        with patch('backend.local_worker.hpc_ssh.HpcSshConnection') as connection:
+            connection.return_value.probe_connection.return_value = failure
+            value = profile()
+            value['runtime']['environmentModules'] = ['module purge', 'module load qe/typo']
+            self.assertEqual(probe_profile(value), failure)
+            connection.return_value.probe_connection.assert_called_once_with(modules=value['runtime']['environmentModules'])
+
+    def test_probe_rejects_corrupt_runtime_and_module_list(self):
+        for runtime in ('qe/7.2', None, {'environmentModules': 'qe/7.2'}, {'environmentModules': ''}, {'environmentModules': None}):
+            with self.subTest(runtime=runtime), patch('backend.local_worker.hpc_ssh.HpcSshConnection') as connection:
+                result = probe_profile({**profile(), 'runtime': runtime})
+                self.assertFalse(result['ok'])
+                self.assertIn('invalid', result['error'])
+                connection.return_value.probe_connection.assert_not_called()
+
+    def test_probe_defaults_missing_modules_to_empty_list(self):
+        with patch('backend.local_worker.hpc_ssh.HpcSshConnection') as connection:
+            probe_profile({**profile(), 'runtime': {}})
+            connection.return_value.probe_connection.assert_called_once_with(modules=[])
+
     def test_owner_scoped_crud_and_server_checksum(self):
         services = Services(); store = HpcProfileStore(services)
         saved = store.save(profile(), 'cl-one')

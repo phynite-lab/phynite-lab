@@ -1,4 +1,4 @@
-.compute-pseudopotential-setup { flex: 1 0 100%; font-size: 12px; }
+.compute-pseudopotential-setup { font-size: 12px; }
 .compute-pseudopotential-setup summary { cursor: pointer; }
 .compute-pseudopotentials { display: grid; gap: 12px; padding: 16px; font-size: 12px; line-height: 1.6; }
 .compute-pseudopotentials--compact { padding: 12px 0 0; }

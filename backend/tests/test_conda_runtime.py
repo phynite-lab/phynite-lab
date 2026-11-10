@@ -222,6 +222,9 @@ class LockedRuntimeTests(unittest.TestCase):
         manager = self.manager()
         seen_timeouts = []
         def slow_unpack(command, **options):
+            self.assertEqual(manager._progress['state'], 'installing')
+            self.assertEqual(manager._progress['phase'], 'unpacking')
+            self.assertEqual(manager._progress['downloadedBytes'], manager._progress['totalBytes'])
             seen_timeouts.append(options.get("timeout"))
             raise subprocess.TimeoutExpired(command, options.get("timeout", 2700))
         with mock.patch("backend.local_api.conda_runtime.subprocess.run", side_effect=slow_unpack):
@@ -229,6 +232,23 @@ class LockedRuntimeTests(unittest.TestCase):
                 manager.install("md")
             self.assertNotIn("micromamba", str(exc.exception))
         self.assertGreaterEqual(seen_timeouts[0], 2700)
+        self.assertEqual(manager._progress['state'], 'failed')
+
+    def test_unpacking_phase_keeps_state_contract_and_clears_before_verification(self):
+        manager = self.manager()
+        def unpack(command, **options):
+            progress = manager.status()['progress']
+            self.assertEqual(progress['state'], 'installing')
+            self.assertEqual(progress['phase'], 'unpacking')
+            return self.installer(command, **options)
+        def qualify(*args):
+            self.assertEqual(manager._progress['state'], 'verifying')
+            self.assertNotIn('phase', manager._progress)
+            return {'passed': True}
+        with mock.patch('backend.local_api.conda_runtime.subprocess.run', side_effect=unpack), mock.patch('backend.local_api.conda_runtime._qualify', side_effect=qualify):
+            manager.install('md')
+        self.assertEqual(manager._progress['state'], 'complete')
+        self.assertNotIn('phase', manager._progress)
 
 
 if __name__ == "__main__":
