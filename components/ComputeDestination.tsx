@@ -6,13 +6,14 @@ import { useLocale } from '@/app/locale-provider';
 import { useSession } from '@/app/use-session';
 import { accountRequest, type AccountResponse, type LabAccount } from '@/lib/account-api';
 import { phyniteCompute, type LocalWorkerCapability, type PhyniteComputeStatus } from '@/lib/phynite-api';
-import { computeCapacityChoices, estimateQuanta, hpcProfileSelection, type ComputeSelection } from '@/lib/compute-selection';
+import { computeCapacityChoices, estimateQuanta, hpcProfileSelection, refreshHpcProfileSelection, resolveHpcProfileSelection, type ComputeSelection } from '@/lib/compute-selection';
 import { affordableComputeHours, computeDurationSeconds, computeDurationValue, personalComputeRequest, validPersonalAllocation, type ComputeDurationUnit, type PersonalComputeAllocation, type PersonalComputeLimit, type PersonalComputePreferences } from '@/lib/compute-preferences';
 import { useComputeCatalog } from '@/app/use-compute-catalog';
 import { ComputeResourcePicker } from './ComputeResourcePicker';
 import { startBrowserPoll } from '@/lib/browser-poll';
 import { UiSelect } from './UiSelect';
 import { LocalComputeReadiness } from './LocalComputeReadiness';
+import { LocalPseudopotentials } from './LocalPseudopotentials';
 import type { HpcClusterProfile } from '@/lib/hpc-profile';
 import { localRequest } from '@/lib/local-api';
 import './compute-destination.css';
@@ -108,6 +109,7 @@ export function LabComputeDestination({
   const affordable = affordableComputeHours(available, selected?.hourlyQuanta, catalog?.minimumSeconds ?? 60);
   const [hpcClusters, setHpcClusters] = useState<HpcClusterProfile[]>([]);
   const [hpcLocalAvailable, setHpcLocalAvailable] = useState(false);
+  const [pseudopotentialsOpen, setPseudopotentialsOpen] = useState(false);
   useEffect(() => {
     localRequest<{ clusters?: unknown }>('hpc/clusters')
       .then(data => {
@@ -119,8 +121,8 @@ export function LabComputeDestination({
       })
       .catch(() => { setHpcClusters([]); setHpcLocalAvailable(false); });
   }, []);
-  const selectedCluster = hpcClusters.find(c => c.id === local.hpc?.clusterId) || hpcClusters.find(c => c.isDefault) || hpcClusters[0];
-  const hpcSelection = local.hpc ?? (selectedCluster ? hpcProfileSelection(selectedCluster) : undefined);
+  const { matchedCluster, selectedCluster, hpcSelection, missingClusterProfile, staleClusterProfile } =
+    resolveHpcProfileSelection(local.hpc, hpcClusters, hpcLocalAvailable);
 
   const resolved: ComputeSelection = {
     computeTarget: target,
@@ -175,7 +177,10 @@ export function LabComputeDestination({
   }
   function change(changes: Partial<ComputeSelection>) {
     const next = { ...resolved, ...changes };
-    if (next.computeTarget === 'hpc' && !next.hpc && hpcSelection) next.hpc = hpcSelection;
+    if (changes.computeTarget === 'hpc' && !next.hpc && selectedCluster) {
+      next.hpc = hpcProfileSelection(selectedCluster);
+    }
+    if (next.computeTarget !== 'hpc') delete next.hpc;
     setError(''); setNotice('');
     if (run || draft) { setRunSelection(next); onChange?.(next); }
     else void persist(next);
@@ -208,6 +213,7 @@ export function LabComputeDestination({
             label={t('Cluster', 'Kluster')}
             compact
             value={hpcSelection?.clusterId ?? ''}
+            displayValue={missingClusterProfile ? t('Unavailable cluster — choose cluster', 'Kluster tidak tersedia — pilih kluster') : undefined}
             options={hpcClusters.map(c => ({
               value: c.id,
               label: c.name,
@@ -217,11 +223,26 @@ export function LabComputeDestination({
               const cl = hpcClusters.find(c => c.id === val);
               if (cl) {
                 change({
-                  hpc: hpcProfileSelection(cl),
+                  hpc: refreshHpcProfileSelection(cl, local.hpc),
                 });
               }
             }}
           />
+          {(missingClusterProfile || staleClusterProfile) && selectedCluster && (
+            <p role="alert">
+              {missingClusterProfile
+                ? t('The previously saved cluster profile is unavailable.', 'Profil kluster yang tersimpan sebelumnya tidak tersedia lagi.')
+                : t('This cluster profile changed in Settings.', 'Profil kluster ini diperbarui di Pengaturan.')}{' '}
+              <button
+                type="button"
+                className="lab-button"
+                disabled={busy}
+                onClick={() => change({ hpc: refreshHpcProfileSelection(selectedCluster, local.hpc) })}
+              >
+                {t(`Use ${(matchedCluster ?? selectedCluster).name}`, `Gunakan ${(matchedCluster ?? selectedCluster).name}`)}
+              </button>
+            </p>
+          )}
           <div className="compute-resource-picker">
             <label className="compute-number-field">
               <span>{t('Nodes', 'Jumlah Node')}</span>
@@ -230,7 +251,7 @@ export function LabComputeDestination({
                 min="1"
                 max="4096"
                 value={hpcSelection?.nodes ?? 1}
-                disabled={busy}
+                disabled={busy || missingClusterProfile}
                 onChange={e => change({ hpc: { ...hpcSelection!, clusterId: hpcSelection!.clusterId, nodes: Number(e.target.value) || 1 } })}
               />
             </label>
@@ -241,14 +262,20 @@ export function LabComputeDestination({
                 min="1"
                 max="1024"
                 value={hpcSelection?.ranksPerNode ?? 32}
-                disabled={busy}
+                disabled={busy || missingClusterProfile}
                 onChange={e => change({ hpc: { ...hpcSelection!, clusterId: hpcSelection!.clusterId, ranksPerNode: Number(e.target.value) || 32 } })}
               />
             </label>
           </div>
-          <p className="lab-caption">
+          {hpcSelection && <p className="lab-caption">
             {t('Total MPI ranks', 'Total MPI ranks')}: {((hpcSelection?.nodes ?? 1) * (hpcSelection?.ranksPerNode ?? 32)).toLocaleString(intlLocale)} · {selectedCluster?.scheduler.toUpperCase()}
-          </p>
+          </p>}
+          {desktop && requiredCapability === 'qe' && (
+            <details className="compute-pseudopotential-setup" open={pseudopotentialsOpen} onToggle={event => setPseudopotentialsOpen(event.currentTarget.open)}>
+              <summary>{t('Set up DFT pseudopotentials', 'Siapkan pseudopotential DFT')}</summary>
+              {pseudopotentialsOpen && <LocalPseudopotentials compact />}
+            </details>
+          )}
         </div>
       )}
     </>}

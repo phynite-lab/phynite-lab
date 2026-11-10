@@ -26,6 +26,7 @@ export const settingsControls = [
   { section: 'compute', anchor: 'compute-defaults', query: '?workload=md-simulation', en: 'MD simulation resources', idn: 'Resource simulasi MD', keywords: 'lammps cpu ram local simulasi lokal' },
   { section: 'compute', anchor: 'compute-defaults', query: '?workload=md-analysis', en: 'MD analysis resources', idn: 'Resource analisis MD', keywords: 'ovito analysis cpu ram local analisis lokal' },
   { section: 'compute', anchor: 'your-computer', en: 'Worker connection', idn: 'Koneksi worker', keywords: 'computer connect pair install komputer hubungkan pemasangan' },
+  { section: 'compute', anchor: 'pseudopotentials', localOnly: true, en: 'DFT pseudopotentials', idn: 'Pseudopotential DFT', keywords: 'sssp pbe upf pseudopotential dft qe library pustaka' },
   { section: 'compute', anchor: 'materials-project', localOnly: true, en: 'Materials Project API key', idn: 'API key Materials Project', keywords: 'api key kunci materials project crystal database kristal struktur' },
   { section: 'compute', anchor: 'hpc-clusters', en: 'HPC Clusters', idn: 'Kluster HPC', keywords: 'hpc supercomputer slurm pbs cluster remote ssh brin mahameru node queue partition scratch' },
   { section: 'ai-providers', anchor: 'provider-accounts', en: 'AI usage & reset', idn: 'Pemakaian & reset AI', keywords: 'codex antigravity remaining weekly session limit kuota sisa batas mingguan sesi' },

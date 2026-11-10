@@ -9,12 +9,14 @@ import { useLocale } from '../locale-provider';
 import { useUnsavedSettings } from '../use-unsaved-settings';
 import { SettingsRow, SettingsSection } from '@/components/SettingsPage';
 import { UiSelect } from '@/components/UiSelect';
+import { LocalPseudopotentials } from '@/components/LocalPseudopotentials';
 import { computeCapacityChoices, computeCapacityLabel, type ComputeCatalog, type ComputeProfile } from '@/lib/compute-selection';
 import { localRequest } from '@/lib/local-api';
+import { runtimeProgressDisplay, type RuntimeInstallProgress } from '@/lib/runtime-progress';
 import './settings.css';
 
 type RuntimeState = {
-  runtime: { platform?: string; error?: string; installed: Record<string, { version?: string }>; availableComponents?: string[]; downloadAvailable: boolean; requirements?: Record<string, { downloadBytes?: number; maxInstalledBytes?: number; compatible?: boolean; reason?: string }>; executables?: Record<string, string>; isolation?: { available: boolean; reason?: string }; progress?: { state?: string; component?: string; downloadedBytes?: number; totalBytes?: number; error?: string } };
+  runtime: { platform?: string; error?: string; installed: Record<string, { version?: string }>; availableComponents?: string[]; downloadAvailable: boolean; requirements?: Record<string, { downloadBytes?: number; maxInstalledBytes?: number; compatible?: boolean; reason?: string }>; executables?: Record<string, string>; isolation?: { available: boolean; reason?: string }; progress?: RuntimeInstallProgress };
   capabilities?: { solver?: string[] };
   resources: { vcpus: number; memoryMiB: number; maxParallelJobs: number; cpuCapacity?: number; memoryCapacityMiB?: number; memoryEnforcement?: string } | null;
 };
@@ -71,6 +73,7 @@ export function LocalSettings({ section }: { section: 'compute' | 'account' | 's
   const [busy, setBusy] = useState(false); const [message, setMessage] = useState(''); const [error, setError] = useState('');
   const resourceDirty = section === 'compute' && Boolean(resources && runtime?.resources && (resources.vcpus !== runtime.resources.vcpus || resources.memoryMiB !== runtime.resources.memoryMiB || resources.maxParallelJobs !== runtime.resources.maxParallelJobs));
   useUnsavedSettings(resourceDirty);
+  const progressDisplay = runtime?.runtime.progress ? runtimeProgressDisplay(runtime.runtime.progress) : null;
   const installing = Boolean(runtime?.runtime.progress?.state && !['idle', 'complete', 'failed'].includes(runtime.runtime.progress.state));
   useSettingsAnchor(Boolean(session));
   const refresh = useCallback(async () => {
@@ -233,8 +236,9 @@ export function LocalSettings({ section }: { section: 'compute' | 'account' | 's
       {runtime?.runtime.error && <p className="settings-group-content" role="alert">{runtime.runtime.error}</p>}
       {runtime && !runtime.runtime.downloadAvailable && !Object.keys(runtime.runtime.requirements ?? {}).length && !runtime.runtime.error && <p className="settings-group-content">{t('This build does not include a runtime catalog for this platform. Installed compatible solvers can still be detected.', 'Build ini belum menyertakan katalog runtime untuk platform ini. Solver kompatibel yang terpasang tetap dapat dideteksi.')}</p>}
       <SettingsRow title={t('Manual LAMMPS isolation', 'Isolasi LAMMPS manual')} description={runtime?.runtime.isolation?.reason}><span>{runtime?.runtime.isolation?.available ? t('Verified', 'Terverifikasi') : t('Not available', 'Belum tersedia')}</span></SettingsRow>
-      {runtime?.runtime.progress && <p className="settings-group-content" role={runtime.runtime.progress.error ? 'alert' : 'status'} aria-live="polite">{runtime.runtime.progress.component ? `${runtime.runtime.progress.component} · ` : ''}{runtime.runtime.progress.state}{runtime.runtime.progress.totalBytes && runtime.runtime.progress.totalBytes > 0 && runtime.runtime.progress.downloadedBytes !== undefined ? ` · ${Math.min(100, Math.max(0, runtime.runtime.progress.downloadedBytes / runtime.runtime.progress.totalBytes * 100)).toFixed(0)}%` : ''}{runtime.runtime.progress.error ? ` · ${runtime.runtime.progress.error}` : ''}</p>}
+      {runtime?.runtime.progress && <p className="settings-group-content" role={runtime.runtime.progress.error ? 'alert' : 'status'} aria-live="polite">{runtime.runtime.progress.component ? `${runtime.runtime.progress.component} · ` : ''}{progressDisplay?.stage === 'unpacking' ? t('Unpacking and installing packages. This can take several minutes on slower disks.', 'Mengekstrak dan memasang paket. Proses ini dapat memerlukan beberapa menit pada disk yang lebih lambat.') : runtime.runtime.progress.state}{progressDisplay?.downloadPercent !== undefined ? ` · ${t('Download', 'Unduhan')} ${progressDisplay.downloadPercent}%` : ''}{runtime.runtime.progress.error ? ` · ${runtime.runtime.progress.error}` : ''}</p>}
     </SettingsSection>
+    <SettingsSection id="pseudopotentials" title={t('DFT pseudopotentials', 'Pseudopotential DFT')} description={t('Verified UPF libraries staged for local and HPC Quantum ESPRESSO runs.', 'Pustaka UPF terverifikasi yang disiapkan untuk eksekusi Quantum ESPRESSO lokal maupun HPC.')}><LocalPseudopotentials /></SettingsSection>
     <SettingsSection id="compute-defaults" title={t('Compute budget', 'Anggaran komputasi')} description={t('Defaults apply to new jobs. Memory is monitored across each process tree.', 'Default berlaku untuk job baru. Memori dipantau pada seluruh proses job.')}>
       {runtime?.resources && <p className="settings-group-content">{runtime.resources.cpuCapacity !== undefined ? `${t('Detected', 'Terdeteksi')}: ${runtime.resources.cpuCapacity.toLocaleString(intlLocale)} ${t('logical cores', 'core logis')}` : ''}{runtime.resources.memoryCapacityMiB !== undefined ? ` · ${(runtime.resources.memoryCapacityMiB / 1024).toLocaleString(intlLocale, { maximumFractionDigits: 2 })} GiB RAM` : ''}</p>}
       {runtime?.resources?.memoryEnforcement && <p className="settings-group-content">{t('Memory enforcement', 'Pengawasan memori')}: {runtime.resources.memoryEnforcement}. {t('Phynite observes process-tree RSS and stops jobs that exceed the budget. This watchdog is not an operating-system hard memory limit.', 'Phynite memantau RSS seluruh proses job dan menghentikan job yang melewati anggaran. Pemantauan ini bukan batas memori keras dari sistem operasi.')}</p>}
