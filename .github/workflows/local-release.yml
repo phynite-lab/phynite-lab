@@ -54,6 +54,7 @@ jobs:
       - run: npm ci
       - name: Verify source without deployment
         run: |
+          python .github/scripts/test-native-ci-apt-mirrors.py
           npm run test:structures
           npm run test:native-ai
           npm run lint
@@ -144,6 +145,9 @@ jobs:
       - name: Pack native application with its bundled production dependencies
         working-directory: build/npm/release/phynite-lab-runtime-${{ matrix.target }}
         run: npm pack --pack-destination "$GITHUB_WORKSPACE/build/candidate/tarballs"
+      - name: Configure signed Ubuntu archive failover for ephemeral CI
+        if: runner.os == 'Linux'
+        run: sudo python3 .github/scripts/native-ci-apt-mirrors.py --apt-root /etc/apt --target "$TARGET" --verify-effective
       - name: Install build-only browser test tools
         run: npx playwright install --with-deps chromium
       - name: Clean-prefix offline installation and desktop/mobile persistence acceptance
