@@ -13,7 +13,13 @@ WSL2 uses the Linux x64 package because it reports that platform to Node and npm
 process builds the exact public
 commit, installs the launcher and matching platform tarball in a clean prefix, and requires
 all browser, persistence, scientific reference and sandbox checks to pass.
-`verified-release` contains the source archive, all four native tarballs and checksummed evidence.
+Ephemeral Linux CI retains the Ubuntu archive mirrors and adds kernel.org (x64)
+or MIT's Ubuntu ports mirror (ARM64) as a fallback for archive DNS failures.
+APT retains the image's Ubuntu signing key, suites and components, uses bounded
+transport retries, and requires successful index updates. These CI settings are
+not part of the application installer and waive no qualification check.
+`verified-release` contains the source archive, launcher, all three native runtime
+tarballs and checksummed evidence.
 Publish this same verified bundle using the official npm account after completing
 the account's two-factor/passkey requirements. Never store an npm token in source,
 logs, evidence, or release artifacts.
