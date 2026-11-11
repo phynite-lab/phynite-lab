@@ -26,7 +26,7 @@
 .hpc-cluster-card { border: 1px solid var(--line); border-radius: 8px; padding: 14px; background: var(--surface); display: grid; gap: 10px; }
 .hpc-cluster-card-header { display: flex; justify-content: space-between; align-items: center; }
 .hpc-cluster-actions { display: flex; gap: 8px; align-items: center; }
-.hpc-tag { font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--line); background: var(--surface-subtle); color: var(--muted-ink); margin-left: 8px; }
+.hpc-tag { font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--line); background: var(--surface-subtle); color: var(--ink); margin-left: 8px; }
 .hpc-tag-default { border-color: color-mix(in srgb, var(--quanta-blue) 40%, var(--line)); background: color-mix(in srgb, var(--quanta-blue) 14%, var(--surface)); color: var(--quanta-blue); }
 .hpc-cluster-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; font-size: 12px; color: var(--muted-ink); }
 .hpc-cluster-details span { font-weight: 500; margin-right: 4px; }

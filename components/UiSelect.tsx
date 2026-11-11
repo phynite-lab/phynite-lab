@@ -65,8 +65,8 @@ export function UiSelect({ label, ariaLabel, value, displayValue, options, onCha
       const maxAvailableWidth = Math.max(0, target.clientWidth - 16);
       const width = Math.max(0, Math.min(Math.max(rect.width, compact ? 200 : 220), maxAvailableWidth));
       const triggerLeftInTarget = rect.left - originLeft;
-      const minLeft = 8;
-      const maxLeft = Math.max(minLeft, target.clientWidth - width - 8);
+      const minLeft = target.scrollLeft + 8;
+      const maxLeft = Math.max(minLeft, target.scrollLeft + target.clientWidth - width - 8);
       const left = Math.max(minLeft, Math.min(triggerLeftInTarget, maxLeft));
 
       const top = rect.bottom + 6 - originTop;
