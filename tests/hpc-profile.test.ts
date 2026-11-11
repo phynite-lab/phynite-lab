@@ -295,3 +295,29 @@ test('Slurm runtime accepts mpirun/mpiexec and validates optional pythonExecutab
     HpcProfileError,
   );
 });
+
+const valid = [
+  ['mpirun', '-np', '{ranks}'],
+  ['mpiexec', '-n', '{ranks}'],
+  ['srun', '--mpi=pmi2', '--ntasks={ranks}'],
+  ['/opt/site/bin/mpirun', '-np', '{ranks}'],
+];
+const rejected = [
+  ['mpirun', '--np={ranks}'],
+  ['mpiexec', '-n{ranks}'],
+  ['mpirun', '--oversubscribe', '-np', '{ranks}'],
+  ['mpirun', '--oversubscribe=yes', '-np', '{ranks}'],
+  ['srun', '--ntasks={ranks}', '\x7f'],
+];
+test('profile accepts supported runner launchers unchanged', () => {
+  for (const mpiLauncher of valid) {
+    assert.deepEqual(validateMpiLauncher(mpiLauncher), mpiLauncher);
+    assert.deepEqual(validateHpcRuntime({ environmentModules: [], mpiLauncher }, 'slurm').mpiLauncher, mpiLauncher);
+  }
+});
+test('profile rejects launchers that the scientific runner would reject after scheduling', () => {
+  for (const mpiLauncher of rejected) {
+    assert.throws(() => validateMpiLauncher(mpiLauncher), HpcProfileError, JSON.stringify(mpiLauncher));
+    assert.throws(() => validateHpcRuntime({ environmentModules: [], mpiLauncher }, 'slurm'), HpcProfileError, JSON.stringify(mpiLauncher));
+  }
+});

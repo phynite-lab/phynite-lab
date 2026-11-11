@@ -646,9 +646,7 @@ class ProjectWorkflowApi:
             capability = 'qe' if node['kind'] in DFT_TYPES else 'md-simulation' if node['kind'] == 'md' else 'md-analysis' if node['kind'] in {'md-analysis', 'extract-frame'} else None
             if action == 'run' and not error and capability:
                 runtime = 'DFT (Quantum ESPRESSO)' if capability == 'qe' else 'MD and analysis (LAMMPS/OVITO)'
-                if hpc_compute and not self.services.compute_enabled:
-                    error = 'The local HPC dispatcher is unavailable. Open or restart the local Phynite launcher and inspect the cluster profile in Settings > Compute.'
-                elif not hpc_compute and (not worker.get('tokenHash') or int(worker.get('lastSeenAtEpoch') or 0) < now - 90):
+                if not hpc_compute and (not worker.get('tokenHash') or int(worker.get('lastSeenAtEpoch') or 0) < now - 90):
                     error = 'Your computer is offline. Start or restart phynite-lab and wait for Your computer in Settings > Compute (/local#runtime) to become ready.'
                     if capability not in (worker.get('capabilities') or []):
                         error += f' If the {runtime} runtime is not installed for this workspace, install it there (/local#runtime).'

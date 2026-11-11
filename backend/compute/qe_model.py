@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.metadata
 import json
 import math
 import os
@@ -257,6 +258,16 @@ def software_version(command: list[str]) -> str:
     return "unknown (version probe failed)" if diagnostic_failed else "unknown"
 
 
+def python_package_version(distribution: str) -> str:
+    """Report the package used by this runner, independently of console PATH."""
+    try:
+        return importlib.metadata.version(distribution)
+    except importlib.metadata.PackageNotFoundError:
+        return "not installed"
+    except (OSError, ValueError):
+        return "unknown (package metadata unavailable)"
+
+
 def qe_runtime_identity(pseudo_dir: Path) -> dict[str, Any]:
     def digest(path: Path) -> str:
         sha = hashlib.sha256()
@@ -268,7 +279,7 @@ def qe_runtime_identity(pseudo_dir: Path) -> dict[str, Any]:
         "hpcAllocation": {"scheduler": os.environ.get("PHYNITE_HPC_SCHEDULER"), "launcher": json.loads(os.environ["PHYNITE_MPI_LAUNCHER"]) if os.environ.get("PHYNITE_MPI_LAUNCHER") else None, "maximumRanks": os.environ.get("PHYNITE_HPC_MAX_RANKS"), "profileSha256": os.environ.get("PHYNITE_HPC_PROFILE_SHA256")},
         "pseudopotentials": [{"filename": path.name, "sha256": digest(path), "sizeBytes": path.stat().st_size} for path in sorted(pseudo_dir.glob("*")) if path.is_file()],
         "solverExecutables": [{"name": name, "sha256": digest(Path(executable))} for name in ("neb.x", "pw.x", "bands.x", "dos.x", "projwfc.x", "ph.x", "q2r.x", "matdyn.x") if (executable := shutil.which(name))],
-        "software": {"quantumEspresso": software_version(["pw.x", "--version"]), "boltzTraP2": software_version(["btp2", "--version"])},
+        "software": {"quantumEspresso": software_version(["pw.x", "--version"]), "boltzTraP2": python_package_version("BoltzTraP2")},
     }
 
 

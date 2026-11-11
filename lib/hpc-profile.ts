@@ -96,12 +96,14 @@ export function isValidMpiLauncher(launcher: unknown): launcher is string[] {
   const count = launcher.reduce((acc, arg) => acc + (arg.match(/\{ranks\}/g)?.length ?? 0), 0);
   if (count !== 1) return false;
   if (launcher.some(arg => /\{(?!\/?ranks\})|\}(?<!\{ranks)/.test(arg.replace(/\{ranks\}/g, '')))) return false;
+  if (launcher.some(arg => arg.startsWith('--oversubscribe'))) return false;
+  if (launcher.some(arg => arg.includes('{ranks}') && arg !== '{ranks}' && arg !== '--ntasks={ranks}')) return false;
   return true;
 }
 
 export function validateMpiLauncher(launcher: unknown): string[] {
   if (!isValidMpiLauncher(launcher)) {
-    throw new HpcProfileError('MPI launcher must be a non-empty argv array with exactly one {ranks} placeholder and no control characters.');
+    throw new HpcProfileError('MPI launcher must use a separate {ranks} argument or --ntasks={ranks}, without oversubscription or control characters.');
   }
   return launcher;
 }

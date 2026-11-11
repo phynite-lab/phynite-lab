@@ -6,6 +6,7 @@ and SFTP file transfers with proxyjump/bastion support and strict security bound
 from __future__ import annotations
 
 import hashlib
+import math
 import os
 import re
 import shlex
@@ -149,6 +150,19 @@ class HpcSshError(RuntimeError):
     pass
 
 
+def _deadline(timeout: float) -> float:
+    if not isinstance(timeout, (int, float)) or not math.isfinite(timeout) or timeout <= 0:
+        raise HpcSshError("SSH timeout must be finite and positive")
+    return time.monotonic() + timeout
+
+
+def _remaining(deadline: float) -> float:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise HpcSshError("SSH operation timed out")
+    return remaining
+
+
 class HpcSshConnection:
     """Manages an isolated OpenSSH ControlMaster socket for an HPC login node."""
 
@@ -226,8 +240,13 @@ class HpcSshConnection:
     def target(self) -> str:
         return f"{self.username}@{self.host}"
 
-    def _run_ssh_tool(self, cmd: list[str], *, input: str | None = None, timeout: int | None = None) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(cmd, input=input, capture_output=True, text=True, timeout=timeout, env=host_subprocess_env())
+    def _run_ssh_tool(self, cmd: list[str], *, input: str | None = None, timeout: float = 60) -> subprocess.CompletedProcess[str]:
+        try:
+            return subprocess.run(cmd, input=input, capture_output=True, text=True, timeout=timeout, env=host_subprocess_env())
+        except subprocess.TimeoutExpired as exc:
+            raise HpcSshError("SSH operation timed out") from exc
+        except OSError as exc:
+            raise HpcSshError(f"Could not run {cmd[0]}: {exc.strerror}") from exc
 
     def _base_ssh_args(self, *, sftp: bool = False) -> list[str]:
         args = [
@@ -246,89 +265,103 @@ class HpcSshConnection:
             args.extend(["-o", f"ProxyJump={bastion_target}"])
         return args
 
-    def check_socket(self) -> bool:
-        """Phase 1: Check if the ControlMaster socket is active and responsive."""
+    def check_socket(self, timeout: float = 15) -> bool:
+        """Check the ControlMaster without waiting indefinitely for mux I/O."""
         if not self.socket_path.exists() or self.socket_path.is_symlink():
             return False
         cmd = ["ssh", "-O", "check", "-S", str(self.socket_path), self.target]
-        result = self._run_ssh_tool(cmd)
+        result = self._run_ssh_tool(cmd, timeout=timeout)
         return result.returncode == 0
 
     @contextmanager
-    def _cross_process_lock(self):
-        """Serialize ControlMaster creation across worker processes."""
+    def _thread_lock(self, deadline: float):
+        if not self._lock.acquire(timeout=_remaining(deadline)):
+            raise HpcSshError("Timed out waiting for the SSH connection lock")
+        try:
+            yield
+        finally:
+            self._lock.release()
+
+    @contextmanager
+    def _cross_process_lock(self, timeout: float = 60):
+        """Serialize master creation across workers within the caller's budget."""
+        deadline = _deadline(timeout)
         if self.lock_path.is_symlink():
             raise HpcSshError("Refusing to use a symlink at the SSH control lock path")
         flags = os.O_WRONLY | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
-        descriptor = os.open(self.lock_path, flags, 0o600)
+        try:
+            descriptor = os.open(self.lock_path, flags, 0o600)
+        except OSError as exc:
+            raise HpcSshError("Could not open the SSH control lock") from exc
+        acquired = False
         try:
             os.fchmod(descriptor, 0o600)
-        except OSError:
-            os.close(descriptor)
-            raise HpcSshError("SSH control lock permissions could not be restricted")
-        try:
             try:
                 import fcntl
-                fcntl.flock(descriptor, fcntl.LOCK_EX)
-            except (ImportError, OSError):
-                # The per-process RLock still protects supported platforms that
-                # do not expose POSIX flock; SSH itself remains the authority.
-                pass
+            except ImportError:
+                # SSH remains the authority on platforms without POSIX flock.
+                fcntl = None
+            if fcntl is not None:
+                while True:
+                    try:
+                        fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        acquired = True
+                        break
+                    except BlockingIOError:
+                        time.sleep(min(0.05, _remaining(deadline)))
             yield
+        except OSError as exc:
+            raise HpcSshError("Could not acquire the SSH control lock") from exc
         finally:
-            try:
-                import fcntl
+            if acquired:
                 fcntl.flock(descriptor, fcntl.LOCK_UN)
-            except (ImportError, OSError):
-                pass
             os.close(descriptor)
 
-    def _exit_socket_unlocked(self) -> None:
+    def _exit_socket_unlocked(self, deadline: float) -> None:
         if self.socket_path.is_symlink():
             raise HpcSshError("Refusing to remove a symlink at the SSH control socket path")
         if self.socket_path.exists():
-            self._run_ssh_tool(["ssh", "-O", "exit", "-S", str(self.socket_path), self.target])
+            self._run_ssh_tool(["ssh", "-O", "exit", "-S", str(self.socket_path), self.target], timeout=_remaining(deadline))
             try:
-                if self.socket_path.exists():
-                    self.socket_path.unlink(missing_ok=True)
+                self.socket_path.unlink(missing_ok=True)
             except OSError:
                 pass
 
-    def exit_socket(self) -> None:
-        """Phase 2 & 5: Gracefully instruct the ControlMaster to exit and remove socket."""
-        with self._lock, self._cross_process_lock():
-            self._exit_socket_unlocked()
+    def exit_socket(self, timeout: float = 15) -> None:
+        """Gracefully close a master within a finite lock and subprocess budget."""
+        deadline = _deadline(timeout)
+        with self._thread_lock(deadline), self._cross_process_lock(timeout=_remaining(deadline)):
+            self._exit_socket_unlocked(deadline)
 
-    def ensure_master(self) -> None:
-        """Phase 3: Ensure an active ControlMaster socket is established."""
-        with self._lock, self._cross_process_lock():
-            if self.check_socket():
+    def ensure_master(self, timeout: float = 60) -> None:
+        """Establish the master; the budget includes both locks and all probes."""
+        deadline = _deadline(timeout)
+        with self._thread_lock(deadline), self._cross_process_lock(timeout=_remaining(deadline)):
+            if self.check_socket(timeout=_remaining(deadline)):
                 return
-
-            # Clean up a stale socket file while holding the per-signature lock.
-            self._exit_socket_unlocked()
+            self._exit_socket_unlocked(deadline)
             cmd = ["ssh", "-N", "-f", "-M", *self._base_ssh_args(), self.target]
-            result = self._run_ssh_tool(cmd)
+            result = self._run_ssh_tool(cmd, timeout=_remaining(deadline))
             if result.returncode != 0:
                 raise HpcSshError(f"Failed to establish SSH ControlMaster connection to {self.target}: {result.stderr.strip()}")
             for _ in range(20):
-                if self.socket_path.exists() and self.check_socket():
+                if self.socket_path.exists() and self.check_socket(timeout=_remaining(deadline)):
                     return
-                time.sleep(0.1)
+                time.sleep(min(0.1, _remaining(deadline)))
             raise HpcSshError(f"ControlMaster socket was not established within timeout at {self.socket_path}")
 
-    def run_command(self, argv: list[str], timeout: int = 60) -> tuple[int, str, str]:
-        """Phase 4: Run a command on the remote host multiplexed over the ControlMaster socket."""
+    def run_command(self, argv: list[str], timeout: float = 60) -> tuple[int, str, str]:
+        """Run a remote command with a deadline covering bootstrap and execution."""
         if not isinstance(argv, list) or not argv or any(not isinstance(value, str) or not value or any(ord(char) < 32 or ord(char) == 127 for char in value) for value in argv):
             raise HpcSshError("Remote command argv is invalid")
-        self.ensure_master()
-        remote_cmd = shlex.join(argv)
-        ssh_cmd = ["ssh", *self._base_ssh_args(), self.target, remote_cmd]
+        deadline = _deadline(timeout)
         try:
-            res = self._run_ssh_tool(ssh_cmd, timeout=timeout)
+            self.ensure_master(timeout=_remaining(deadline))
+            ssh_cmd = ["ssh", *self._base_ssh_args(), self.target, shlex.join(argv)]
+            res = self._run_ssh_tool(ssh_cmd, timeout=_remaining(deadline))
             return res.returncode, res.stdout, res.stderr
         except subprocess.TimeoutExpired as exc:
-            raise HpcSshError(f"Remote command timed out after {timeout}s: {remote_cmd}") from exc
+            raise HpcSshError("SSH operation timed out") from exc
 
     def probe_connection(self, modules: list[str] | None = None, *, python_executable: str | None = None) -> dict[str, Any]:
         """Probe connection latency, SSH banner, and solver/scheduler/runtime availability."""
@@ -532,26 +565,31 @@ class HpcSshConnection:
         records = _extract_framed_records(out, begin, end, {"writable"})
         return bool(records and records.get("writable") == "1")
 
-    def _run_sftp_batch(self, batch: str, action: str) -> None:
+    def _run_sftp_batch(self, batch: str, action: str, *, deadline: float) -> None:
         cmd = ["sftp", "-b", "-", *self._base_ssh_args(sftp=True), self.target]
-        res = self._run_ssh_tool(cmd, input=batch)
+        try:
+            res = self._run_ssh_tool(cmd, input=batch, timeout=_remaining(deadline))
+        except subprocess.TimeoutExpired as exc:
+            raise HpcSshError(f"SFTP {action} timed out") from exc
         if res.returncode != 0:
             raise HpcSshError(f"SFTP {action} failed: {res.stderr.strip()}")
 
-    def sftp_upload(self, local_path: Path, remote_path: str) -> None:
-        """Upload a local file to remote host via sftp batch."""
+    def sftp_upload(self, local_path: Path, remote_path: str, timeout: float = 300) -> None:
+        """Upload with a finite deadline including connection bootstrap."""
         self._validate_remote_path(remote_path)
-        self.ensure_master()
+        deadline = _deadline(timeout)
+        self.ensure_master(timeout=_remaining(deadline))
         if not local_path.is_file():
             raise HpcSshError(f"Local file does not exist: {local_path}")
-        self._run_sftp_batch(f"put {shlex.quote(str(local_path))} {shlex.quote(remote_path)}\n", "upload")
+        self._run_sftp_batch(f"put {shlex.quote(str(local_path))} {shlex.quote(remote_path)}\n", "upload", deadline=deadline)
 
-    def sftp_download(self, remote_path: str, local_path: Path) -> None:
-        """Download a remote file to local host via sftp batch."""
+    def sftp_download(self, remote_path: str, local_path: Path, timeout: float = 300) -> None:
+        """Download with a finite deadline including connection bootstrap."""
         self._validate_remote_path(remote_path)
-        self.ensure_master()
+        deadline = _deadline(timeout)
+        self.ensure_master(timeout=_remaining(deadline))
         local_path.parent.mkdir(parents=True, exist_ok=True)
-        self._run_sftp_batch(f"get {shlex.quote(remote_path)} {shlex.quote(str(local_path))}\n", "download")
+        self._run_sftp_batch(f"get {shlex.quote(remote_path)} {shlex.quote(str(local_path))}\n", "download", deadline=deadline)
     _locks: dict[str, threading.RLock] = {}
     _locks_guard = threading.Lock()
 

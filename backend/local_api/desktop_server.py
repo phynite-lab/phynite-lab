@@ -236,7 +236,7 @@ class DesktopApplication:
                 continue
             work_dir = self.data_dir / "work" / "hpc" / f"{identifier}-{checksum[:12]}"
             log_path = log_dir / f"hpc-{identifier}-{checksum[:12]}.log"
-            command = [*base_command, "--runtime", "native", "--api-url", self.origin, "--work-dir", str(work_dir), "--pseudo-root", str(self.data_dir / "pseudopotentials"), "--poll-seconds", "10", "--timeout-seconds", str(max(300, int(profile["defaults"].get("wallSeconds", 14400)) + 600)), "--hpc-cluster-id", identifier, "--hpc-profile-sha256", checksum]
+            command = [*base_command, "--runtime", "native", "--api-url", self.origin, "--work-dir", str(work_dir), "--pseudo-root", str(self.data_dir / "pseudopotentials"), "--poll-seconds", "10", "--timeout-seconds", "86400", "--hpc-cluster-id", identifier, "--hpc-profile-sha256", checksum]
             env = {key: value for key, value in os.environ.items() if not key.startswith("PHYNITE_HPC_")}
             env.update({"PHYNITE_APP_MODE": "local", "PHYNITE_DATA_DIR": str(self.data_dir), "PHYNITE_API_URL": self.origin, "PHYNITE_LOCAL_WORKER_TOKEN": self.services.worker_token})
             with log_path.open("ab") as output:
@@ -268,7 +268,7 @@ class DesktopApplication:
             self.worker_failures += 1
             self.worker_retry_at = now + min(60, 2 ** min(self.worker_failures, 6))
             if not self.workers:
-                self.services.compute_enabled = False
+                self.services.compute_enabled = any(process.poll() is None for process in self.hpc_workers.values())
                 self.services.update_item(self.services.owner, 'PERSONAL_WORKER', 'primary', {'lastSeenAtEpoch': 0})
         signature = json.dumps(environment, sort_keys=True)
         changed = self.worker_environment != signature

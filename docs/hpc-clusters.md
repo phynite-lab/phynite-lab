@@ -23,14 +23,18 @@ mkl
 materials/qe/7.2-impi
 ```
 
-Phynite validates these as module names and renders `module load <name>` on the
-remote job script. Do not enter shell commands in this field. Match the site's
-MPI launcher and QE build.
+Phynite validates these as module names and loads them in login Bash shells for
+the probe, scheduler submission/status commands, and remote job script. Do not
+enter shell commands in this field. Match the site's MPI launcher and QE build.
 
 The probe imports the required scientific packages, so an installed package with
 broken native dependencies is reported as unavailable. Set **Python Executable**
 to a compatible absolute path or load a scientific Python/Conda module, then probe
-again. Login-node discovery does not establish compute-node availability.
+again. Automatic Python discovery invokes the chosen interpreter by absolute
+path and preserves the module-selected MPI/QE search path. Both BoltzTraP2
+stages and its reported package version use that same Python environment.
+MPI ranks must use a separate `{ranks}` argument or `--ntasks={ranks}`; oversubscription is unsupported.
+Login-node discovery does not establish compute-node availability.
 Automatic band/phonon paths require working SeeK-path and spglib for the actual
 structure; missing dependencies fail with an actionable error. An explicitly
 selected manual path remains manual.
@@ -50,8 +54,16 @@ updates retain workers for active jobs using older immutable snapshots.
 
 After a local restart, a valid submitted receipt permits polling the existing
 scheduler job after the old local lease expires, without submitting again.
-Uncertain scheduler submission, failed connections, timeouts and incomplete
-results still require manual reconciliation. Inspect the
+A temporary heartbeat/status connection failure gets bounded read retries. If
+monitoring is still unavailable, Phynite retains the active job and receipt and
+resumes polling after reclaiming the local lease; it does not upload a failed
+scientific result. SSH bootstrap, locks and transfers have finite deadlines.
+Queue wait and monitoring slices do not consume the solver's scheduler walltime.
+A valid saved HPC profile can queue work while its dispatcher starts, without
+requiring the personal QE runtime to be ready.
+
+Uncertain scheduler submission, invalid scientific results and cancellation
+still require manual reconciliation. Inspect the
 receipt in the local workspace's `work/hpc` directory, the scheduler job and
 remote scratch before explicitly starting another run. Phynite never resubmits
 an uncertain job or automatically restarts the solver.

@@ -1217,10 +1217,12 @@ def remote_result(job_dir: Path, job: dict[str, Any], outcome: dict[str, Any]) -
 
     Remote files are already sparse-harvested into ``results``.  The local
     broker still receives the same immutable result envelope as personal QE;
-    a scheduler failure, timeout, uncertain receipt, or bad manifest is
+    a scheduler failure, uncertain receipt, or bad manifest is
     deliberately terminal with an explicit manual-resume-required message.
     """
     state = str(outcome.get("state") or "manual-resume-required")
+    if state in {"monitoring-deferred", "lease-lost"}:
+        raise WorkerError("An active or unowned remote job cannot be finalized as a scientific result.")
     completed = state == "completed" and outcome.get("manifestValidated") is True
     results = job_dir / "results"
     results.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -2087,6 +2089,14 @@ def main(argv: list[str] | None = None) -> int:
                     if args.once:
                         return 0
                     time.sleep(max(2, args.poll_seconds))
+                    continue
+                if result.get("state") in {"monitoring-deferred", "lease-lost"}:
+                    # An unobserved allocation is still active. Do not fabricate
+                    # a FAILED scientific result or upload under a rejected lease.
+                    print(json.dumps({"state": result["state"], "reason": result.get("reason")}), flush=True)
+                    if args.once or args.calculation_id:
+                        return 3
+                    time.sleep(max(5, args.poll_seconds))
                     continue
                 job = result.get("job")
                 if not isinstance(job, dict):

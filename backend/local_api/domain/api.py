@@ -2783,7 +2783,7 @@ class PhyniteApi:
         if 'plotYMin' in plot_limits and 'plotYMax' in plot_limits and (plot_limits['plotYMin'] >= plot_limits['plotYMax']):
             raise ApiError(400, 'Plot Y min must be lower than Plot Y max.', 'INVALID_PLOT_RANGE')
         run_now = payload.get('run', True) is not False
-        if run_now and (not self.services.compute_enabled):
+        if run_now and affinity is None and (not self.services.compute_enabled):
             raise ApiError(409, 'Install and start the DFT runtime from local setup, or save this calculation as a draft.', 'COMPUTE_DISABLED')
         if run_now and False and (not getattr(self.services, 'cloud_compute_allowed', lambda _kind: True)('dft')):
             raise ApiError(409, 'Cloud compute is being disabled. Save a draft instead.', 'COMPUTE_DISABLED')

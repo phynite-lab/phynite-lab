@@ -791,7 +791,8 @@ def run_transport(input_files: dict[str, str], settings: dict[str, Any], vcpus: 
         recorded_process(
             "boltztrap2-integrate",
             [
-                "btp2",
+                sys.executable,
+                str(adapter),
                 "integrate",
                 str(transport_bt2),
                 f"{temperature_min}:{temperature_max + 1}:{temperature_step}",

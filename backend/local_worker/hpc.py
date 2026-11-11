@@ -34,10 +34,14 @@ def allowed_launchers(scheduler: str) -> set[str]:
 
 
 def launcher_template(value: Any) -> list[str]:
-    if not isinstance(value, list) or not value or len(value) > 32 or any(not isinstance(item, str) or not item or "\x00" in item or "\n" in item for item in value):
+    if not isinstance(value, list) or not value or len(value) > 32 or any(not isinstance(item, str) or not item or any(ord(char) < 32 or ord(char) == 127 for char in item) for item in value):
         raise HpcError("MPI launcher must be a nonempty JSON argv list.")
     if sum(item.count("{ranks}") for item in value) != 1 or any("{" in item.replace("{ranks}", "") or "}" in item.replace("{ranks}", "") for item in value):
         raise HpcError("MPI launcher must contain exactly one {ranks} placeholder.")
+    if any(item.startswith("--oversubscribe") for item in value):
+        raise HpcError("MPI oversubscription is not supported by the scientific runner.")
+    if any("{ranks}" in item and item not in {"{ranks}", "--ntasks={ranks}"} for item in value):
+        raise HpcError("MPI ranks must use a separate {ranks} argument or --ntasks={ranks}.")
     return value
 
 

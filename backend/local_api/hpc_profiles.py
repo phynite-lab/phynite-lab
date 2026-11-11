@@ -149,6 +149,10 @@ def validate_profile(raw: Any, owner_id: str, *, profile_id: str | None = None, 
         raise ApiError(400, "MPI launcher must be an argv list with exactly one {ranks} placeholder.", "INVALID_HPC_PROFILE")
     if any("{" in arg.replace("{ranks}", "") or "}" in arg.replace("{ranks}", "") for arg in launcher):
         raise ApiError(400, "MPI launcher contains an unsupported placeholder.", "INVALID_HPC_PROFILE")
+    if any(arg.startswith("--oversubscribe") for arg in launcher):
+        raise ApiError(400, "MPI oversubscription is not supported by the scientific runner.", "INVALID_HPC_PROFILE")
+    if any("{ranks}" in arg and arg not in {"{ranks}", "--ntasks={ranks}"} for arg in launcher):
+        raise ApiError(400, "MPI ranks must use a separate {ranks} argument or --ntasks={ranks}.", "INVALID_HPC_PROFILE")
     expected_launchers = {"srun", "mpiexec", "mpirun"} if scheduler == "slurm" else {"mpiexec", "mpirun"}
     if Path(launcher[0]).name not in expected_launchers:
         allowed_text = ", ".join(sorted(expected_launchers))

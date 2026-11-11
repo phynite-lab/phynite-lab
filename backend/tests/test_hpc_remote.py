@@ -167,9 +167,9 @@ class TestHpcRemoteJobManager(unittest.TestCase):
         self.assertIn("#SBATCH --partition=standard", script)
         self.assertIn("#SBATCH --account=proj_mat", script)
         self.assertIn("module load qe/7.2", script)
-        self.assertIn("python3 runners/local_runner.py", script)
+        self.assertIn("\"$PHYNITE_PYTHON\" runners/local_runner.py", script)
         self.assertIn('export PHYNITE_MPI_LAUNCHER=\'["srun", "--mpi=pmix", "--ntasks={ranks}"]\'', script)
-        self.assertIn("python3 runners/hpc_manifest.py", script)
+        self.assertIn("\"$PHYNITE_PYTHON\" runners/hpc_manifest.py", script)
 
     def test_pbs_script_rendering(self):
         pbs_profile = {
@@ -189,12 +189,8 @@ class TestHpcRemoteJobManager(unittest.TestCase):
         self.assertIn("export PHYNITE_HPC_SCHEDULER=pbs", script)
 
     def test_poll_job_slurm_parsing(self):
-        self.mock_conn.run_command.return_value = (
-            0,
-            "123456|COMPLETED|0:0\n",
-            "",
-        )
         mgr = HpcRemoteJobManager(self.mock_conn, self.slurm_profile)
+        mgr._scheduler_command = MagicMock(return_value=(0, "123456|COMPLETED|0:0\n", ""))
         status = mgr.poll_job("123456")
         self.assertEqual(status["schedulerJobId"], "123456")
         self.assertEqual(status["state"], "COMPLETED")
@@ -241,6 +237,7 @@ class TestHpcRemoteHardening(unittest.TestCase):
             connection.run_command.side_effect = command
             connection.sftp_download.side_effect = lambda source, destination: shutil.copyfile(source, destination)
             manager = HpcRemoteJobManager(connection, {'scheduler': 'slurm'})
+            manager._scheduler_command = MagicMock(return_value=(0, "123|COMPLETED|0:0\n", ""))
             destination = Path(folder) / 'harvest'
             outcome = manager.harvest_completed('123', str(remote), destination)
             self.assertEqual(outcome['state'], 'completed')
@@ -258,9 +255,9 @@ class TestHpcRemoteHardening(unittest.TestCase):
             }
             connection = MagicMock(spec=HpcSshConnection)
             connection.run_command.return_value = (0, "", "")
-            connection.run_command.side_effect = lambda argv: (1, "", "scheduler unavailable") if argv[0] == "sbatch" else (0, "", "")
             connection.sftp_upload.return_value = None
             manager = HpcRemoteJobManager(connection, profile)
+            manager._scheduler_command = MagicMock(return_value=(1, "", "scheduler unavailable"))
             self.assertIn("module load qe/7.2", manager.render_remote_script("calc-1", "/scratch/owner-a/calc-1"))
             with self.assertRaisesRegex(Exception, "uncertain"):
                 manager.submit_job("calc-1", {"pw.in": "&CONTROL /"}, Path(folder) / "receipts")
@@ -474,9 +471,10 @@ class TestHpcRemoteHardening(unittest.TestCase):
         script_auto_py = HpcRemoteJobManager(MagicMock(spec=HpcSshConnection), profile_auto_py).render_remote_script(
             "calc-mpirun-2", "/mgpfs/home/user/phynite-work/usr-123/calc-mpirun-2"
         )
-        self.assertNotIn("export PHYNITE_PYTHON=", script_auto_py)
-        self.assertIn("python3 runners/local_runner.py", script_auto_py)
-        self.assertIn("python3 runners/hpc_manifest.py", script_auto_py)
+        self.assertIn('export PHYNITE_PYTHON="$(command -v python3 || :)"', script_auto_py)
+        self.assertNotIn('export PATH=', script_auto_py)
+        self.assertIn("\"$PHYNITE_PYTHON\" runners/local_runner.py", script_auto_py)
+        self.assertIn("\"$PHYNITE_PYTHON\" runners/hpc_manifest.py", script_auto_py)
         self.assertLess(script_auto_py.index("/mgpfs/apps/*/apps/miniconda*/*/bin/python3"), script_auto_py.index('"${HOME:-}"/miniconda3/envs/*/bin/python3'))
         subprocess.run(["bash", "-n"], input=script_auto_py, text=True, check=True)
 
@@ -644,3 +642,68 @@ class TestHpcRemoteHardening(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestHpcDeferredWorkerLoop(unittest.TestCase):
+    def test_remote_worker_once_defers_without_writing_or_uploading_terminal_results(self):
+        import importlib
+        from backend.local_worker import worker as worker_module
+        remote_module = importlib.import_module('hpc_remote')
+        ssh_module = importlib.import_module('hpc_ssh')
+        profile = {'connection': {'host': 'login.example', 'username': 'researcher', 'authKind': 'agent'}}
+        for state in ('monitoring-deferred', 'lease-lost'):
+            with self.subTest(state=state), tempfile.TemporaryDirectory() as folder:
+                with patch.object(worker_module, 'ApiClient'), \
+                        patch.object(remote_module, 'fetch_profile_snapshot', return_value=profile), \
+                        patch.object(remote_module, 'HpcRemoteWorker') as remote, \
+                        patch.object(ssh_module, 'HpcSshConnection'), \
+                        patch.object(worker_module, 'remote_result') as write_terminal, \
+                        patch.object(worker_module, 'upload_results') as upload, \
+                        patch('builtins.print'):
+                    remote.return_value.run_once.return_value = {
+                        'state': state, 'reason': 'Transport unavailable; retained receipt',
+                        'job': {'calculationId': 'calc-retained'},
+                    }
+                    exit_code = worker_module.main([
+                        '--runtime', 'native', '--api-url', 'http://127.0.0.1:8792',
+                        '--token', 'x' * 64, '--work-dir', folder,
+                        '--pseudo-root', str(Path(folder) / 'pseudo'),
+                        '--hpc-cluster-id', 'cluster-retained',
+                        '--hpc-profile-sha256', 'a' * 64, '--once',
+                    ])
+                    self.assertEqual(exit_code, 3)
+                    write_terminal.assert_not_called()
+                    upload.assert_not_called()
+                    remote.return_value.run_once.assert_called_once()
+                    self.assertFalse(list(Path(folder).rglob('result.json')))
+
+    def test_supervised_remote_worker_keeps_running_after_monitoring_is_deferred(self):
+        import importlib
+        from backend.local_worker import worker as worker_module
+        remote_module = importlib.import_module('hpc_remote')
+        ssh_module = importlib.import_module('hpc_ssh')
+        profile = {'connection': {'host': 'login.example', 'username': 'researcher', 'authKind': 'agent'}}
+        with tempfile.TemporaryDirectory() as folder:
+            with patch.object(worker_module, 'ApiClient'), \
+                    patch.object(remote_module, 'fetch_profile_snapshot', return_value=profile), \
+                    patch.object(remote_module, 'HpcRemoteWorker') as remote, \
+                    patch.object(ssh_module, 'HpcSshConnection'), \
+                    patch.object(worker_module, 'remote_result') as write_terminal, \
+                    patch.object(worker_module, 'upload_results') as upload, \
+                    patch.object(worker_module.time, 'sleep', side_effect=[None, KeyboardInterrupt]), \
+                    patch('builtins.print'):
+                remote.return_value.run_once.side_effect = [
+                    {'state': 'monitoring-deferred', 'reason': 'Read temporarily unavailable'},
+                    {'state': 'no-job'},
+                ]
+                with self.assertRaises(KeyboardInterrupt):
+                    worker_module.main([
+                        '--runtime', 'native', '--api-url', 'http://127.0.0.1:8792',
+                        '--token', 'x' * 64, '--work-dir', folder,
+                        '--pseudo-root', str(Path(folder) / 'pseudo'),
+                        '--hpc-cluster-id', 'cluster-retained',
+                        '--hpc-profile-sha256', 'a' * 64,
+                    ])
+                self.assertEqual(remote.return_value.run_once.call_count, 2)
+                write_terminal.assert_not_called()
+                upload.assert_not_called()

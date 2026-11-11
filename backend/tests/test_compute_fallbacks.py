@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import types
 import unittest
 from pathlib import Path
@@ -162,6 +163,64 @@ K_POINTS automatic
              patch.object(self.qe_model.shutil, "which", return_value="/opt/qe/bin/pw.x"), \
              patch.object(self.qe_model.subprocess, "run", side_effect=[subprocess.TimeoutExpired(["pw.x"], 30), mpi_ok]):
             self.assertEqual(self.qe_model.software_version(["pw.x", "--version"]), "Quantum ESPRESSO PWSCF 7.2")
+
+    def test_interpolate_and_integrate_use_selected_scientific_python(self):
+        scientific_runner = self.scientific_runner
+        for mismatched_console_script in (False, True):
+            with self.subTest(mismatched_console_script=mismatched_console_script), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                # This subprocess fixture validates CLI dispatch, not numerics.
+                (root / 'numpy.py').write_text('inf = float("inf")\n')
+                package = root / 'BoltzTraP2'
+                package.mkdir()
+                (package / '__init__.py').write_text('')
+                (package / 'io.py').write_text('def _parse_ESPRESSO_bands(value): return value\n')
+                (package / 'dft.py').write_text('class DFTData:\n def bandana(self, *args, **kwargs): return [True]\n')
+                (package / 'interface.py').write_text(
+                    'import json, os, sys\n'
+                    'def btp2_main():\n'
+                    ' with open(os.environ["BTP2_CALLS"], "a") as output:\n'
+                    '  output.write(json.dumps({"executable": sys.executable, "args": sys.argv[1:]}) + "\\n")\n'
+                    ' return 0\n')
+                binary = root / 'bin'
+                binary.mkdir()
+                if mismatched_console_script:
+                    console = binary / 'btp2'
+                    console.write_text('#!/bin/sh\nprintf "%s\\n" "WRONG BTP2 ENVIRONMENT" >&2\nexit 42\n')
+                    console.chmod(0o755)
+                qe_save = root / 'tmp' / 'qe.save'
+                qe_save.mkdir(parents=True)
+                xml = qe_save / 'data-file-schema.xml'
+                xml.write_text('<synthetic-fixture/>')
+                calls = root / 'btp2-calls.jsonl'
+                environment = {'PATH': str(binary), 'PYTHONPATH': str(root), 'BTP2_CALLS': str(calls)}
+                def execute(name, command):
+                    outcome = subprocess.run(command, cwd=root, capture_output=True, text=True, check=True, timeout=10)
+                    return {'name': name, 'status': 'completed', 'stdout': outcome.stdout}
+                with patch.dict(os.environ, environment), \
+                    patch.object(scientific_runner, 'DATA', root / 'data'), \
+                    patch.object(scientific_runner, 'qe_stage_xml_path', return_value=xml), \
+                    patch.object(scientific_runner, 'run_qe_step', return_value={'status': 'completed'}), \
+                    patch.object(scientific_runner, '_run_process', side_effect=execute):
+                    steps = scientific_runner.run_transport({'scf.in': '', 'nscftransport.in': ''}, {}, 2)
+                self.assertEqual(len(steps), 4)
+                actual = [json.loads(line) for line in calls.read_text().splitlines()]
+                self.assertEqual([entry['args'][0] for entry in actual], ['interpolate', 'integrate'])
+                self.assertEqual([entry['executable'] for entry in actual], [sys.executable, sys.executable])
+                self.assertEqual(actual[1]['args'], ['integrate', str(root / 'data' / 'transport.bt2'), '100:901:50', '-b', '5000', '-t'])
+
+    def test_runtime_reports_boltztrap_version_from_the_selected_python_package(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            metadata = root / 'BoltzTraP2-99.0.dist-info'
+            metadata.mkdir()
+            (metadata / 'METADATA').write_text('Metadata-Version: 2.1\nName: BoltzTraP2\nVersion: 99.0\n')
+            with patch.object(sys, 'path', [str(root), *sys.path]), \
+                    patch.object(self.qe_model, 'software_version', return_value='fixture QE version') as console_probe, \
+                    patch.object(self.qe_model.shutil, 'which', return_value=None):
+                identity = self.qe_model.qe_runtime_identity(root / 'pseudopotentials')
+            self.assertEqual(identity['software']['boltzTraP2'], '99.0')
+            console_probe.assert_called_once_with(['pw.x', '--version'])
 
 if __name__ == "__main__":
     unittest.main()
