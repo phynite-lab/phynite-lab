@@ -79,6 +79,37 @@ def _safe_module(value: str) -> str | None:
     return value
 
 
+def validate_connection(connection_raw: Any) -> dict[str, Any]:
+    """Validate an SSH cluster connection payload before storing or probing it."""
+    raw = connection_raw if isinstance(connection_raw, dict) else {}
+    host = _text(raw.get("host"), "SSH host", 254)
+    if not HOST_RE.fullmatch(host):
+        raise ApiError(400, "SSH host is invalid.", "INVALID_HPC_PROFILE")
+    username = _text(raw.get("username"), "SSH username", 64)
+    if not USER_RE.fullmatch(username):
+        raise ApiError(400, "SSH username is invalid.", "INVALID_HPC_PROFILE")
+    port = _integer(raw.get("port", 22), "SSH port", 1, 65535)
+    auth_kind = raw.get("authKind", "key")
+    if auth_kind not in {"key", "agent"}:
+        raise ApiError(400, "SSH authentication must be key or agent.", "INVALID_HPC_PROFILE")
+    connection: dict[str, Any] = {"host": host, "port": port, "username": username, "authKind": auth_kind}
+    if auth_kind == "key":
+        connection["privateKeyPath"] = _path(raw.get("privateKeyPath"), "Private key path")
+    for host_key, user_key, port_key in (("bastionHost", "bastionUser", "bastionPort"),):
+        if raw.get(host_key) is not None:
+            bastion = _text(raw.get(host_key), "Bastion host", 254)
+            if not HOST_RE.fullmatch(bastion):
+                raise ApiError(400, "Bastion host is invalid.", "INVALID_HPC_PROFILE")
+            connection[host_key] = bastion
+            connection[port_key] = _integer(raw.get(port_key, 22), "Bastion port", 1, 65535)
+            if raw.get(user_key) is not None:
+                user = _text(raw.get(user_key), "Bastion username", 64)
+                if not USER_RE.fullmatch(user):
+                    raise ApiError(400, "Bastion username is invalid.", "INVALID_HPC_PROFILE")
+                connection[user_key] = user
+    return connection
+
+
 def validate_profile(raw: Any, owner_id: str, *, profile_id: str | None = None, now: str | None = None, created_at: str | None = None) -> dict[str, Any]:
     if not isinstance(raw, dict):
         raise ApiError(400, "HPC profile must be an object.", "INVALID_HPC_PROFILE")
@@ -90,32 +121,7 @@ def validate_profile(raw: Any, owner_id: str, *, profile_id: str | None = None, 
         raise ApiError(400, "Profile ID is invalid.", "INVALID_HPC_PROFILE")
     identifier = identifier.strip()
     name = _text(raw.get("name"), "Profile name", 100)
-    connection_raw = raw.get("connection") if isinstance(raw.get("connection"), dict) else {}
-    host = _text(connection_raw.get("host"), "SSH host", 254)
-    if not HOST_RE.fullmatch(host):
-        raise ApiError(400, "SSH host is invalid.", "INVALID_HPC_PROFILE")
-    username = _text(connection_raw.get("username"), "SSH username", 64)
-    if not USER_RE.fullmatch(username):
-        raise ApiError(400, "SSH username is invalid.", "INVALID_HPC_PROFILE")
-    port = _integer(connection_raw.get("port", 22), "SSH port", 1, 65535)
-    auth_kind = connection_raw.get("authKind", "key")
-    if auth_kind not in {"key", "agent"}:
-        raise ApiError(400, "SSH authentication must be key or agent.", "INVALID_HPC_PROFILE")
-    connection: dict[str, Any] = {"host": host, "port": port, "username": username, "authKind": auth_kind}
-    if auth_kind == "key":
-        connection["privateKeyPath"] = _path(connection_raw.get("privateKeyPath"), "Private key path")
-    for host_key, user_key, port_key in (("bastionHost", "bastionUser", "bastionPort"),):
-        if connection_raw.get(host_key) is not None:
-            bastion = _text(connection_raw.get(host_key), "Bastion host", 254)
-            if not HOST_RE.fullmatch(bastion):
-                raise ApiError(400, "Bastion host is invalid.", "INVALID_HPC_PROFILE")
-            connection[host_key] = bastion
-            connection[port_key] = _integer(connection_raw.get(port_key, 22), "Bastion port", 1, 65535)
-            if connection_raw.get(user_key) is not None:
-                user = _text(connection_raw.get(user_key), "Bastion username", 64)
-                if not USER_RE.fullmatch(user):
-                    raise ApiError(400, "Bastion username is invalid.", "INVALID_HPC_PROFILE")
-                connection[user_key] = user
+    connection = validate_connection(raw.get("connection"))
 
     storage_raw = raw.get("storage") if isinstance(raw.get("storage"), dict) else {}
     storage = {
@@ -143,10 +149,23 @@ def validate_profile(raw: Any, owner_id: str, *, profile_id: str | None = None, 
         raise ApiError(400, "MPI launcher must be an argv list with exactly one {ranks} placeholder.", "INVALID_HPC_PROFILE")
     if any("{" in arg.replace("{ranks}", "") or "}" in arg.replace("{ranks}", "") for arg in launcher):
         raise ApiError(400, "MPI launcher contains an unsupported placeholder.", "INVALID_HPC_PROFILE")
-    expected_launcher = "srun" if scheduler == "slurm" else "mpiexec"
-    if Path(launcher[0]).name != expected_launcher:
-        raise ApiError(400, f"{scheduler} profiles require an {expected_launcher} MPI launcher.", "INVALID_HPC_PROFILE")
-    runtime = {"environmentModules": modules, "mpiLauncher": launcher}
+    if any(arg.startswith("--oversubscribe") for arg in launcher):
+        raise ApiError(400, "MPI oversubscription is not supported by the scientific runner.", "INVALID_HPC_PROFILE")
+    if any("{ranks}" in arg and arg not in {"{ranks}", "--ntasks={ranks}"} for arg in launcher):
+        raise ApiError(400, "MPI ranks must use a separate {ranks} argument or --ntasks={ranks}.", "INVALID_HPC_PROFILE")
+    expected_launchers = {"srun", "mpiexec", "mpirun"} if scheduler == "slurm" else {"mpiexec", "mpirun"}
+    if Path(launcher[0]).name not in expected_launchers:
+        allowed_text = ", ".join(sorted(expected_launchers))
+        raise ApiError(400, f"{scheduler} profiles require {allowed_text} as the MPI launcher.", "INVALID_HPC_PROFILE")
+    runtime: dict[str, Any] = {"environmentModules": modules, "mpiLauncher": launcher}
+    raw_python = runtime_raw.get("pythonExecutable")
+    if isinstance(raw_python, str) and raw_python.strip():
+        py_path = _path(raw_python.strip(), "Python executable")
+        if any(char.isspace() or char in "\"'\\$`;&|()<>{}" for char in py_path):
+            raise ApiError(400, "Python executable contains unsupported characters.", "INVALID_HPC_PROFILE")
+        runtime["pythonExecutable"] = py_path
+    elif raw_python not in (None, ""):
+        raise ApiError(400, "Python executable must be an absolute path.", "INVALID_HPC_PROFILE")
 
     defaults_raw = raw.get("defaults") if isinstance(raw.get("defaults"), dict) else {}
     defaults: dict[str, Any] = {
@@ -308,21 +327,118 @@ class HpcProfileStore:
         return payload
 
 
-def probe_profile(profile: dict[str, Any]) -> dict[str, Any]:
-    from backend.local_worker.hpc_ssh import HpcSshConnection, HpcSshError
-    connection = profile["connection"]
+def _ssh_client(connection: dict[str, Any]):
+    from backend.local_worker.hpc_ssh import HpcSshConnection
+    return HpcSshConnection(
+        host=connection["host"],
+        username=connection["username"],
+        port=int(connection.get("port", 22)),
+        private_key_path=connection.get("privateKeyPath") if connection.get("authKind") == "key" else None,
+        bastion_host=connection.get("bastionHost"),
+        bastion_port=int(connection.get("bastionPort", 22)),
+        bastion_user=connection.get("bastionUser"),
+    )
+
+
+def detect_scratch_root(connection_raw: Any) -> str:
+    """Validate SSH settings and auto-detect a writable remote work directory."""
+    from backend.local_worker.hpc_ssh import HpcSshError
+    connection = validate_connection(connection_raw)
     try:
-        client = HpcSshConnection(
-            host=connection["host"], username=connection["username"], port=int(connection.get("port", 22)),
-            private_key_path=connection.get("privateKeyPath") if connection.get("authKind") == "key" else None,
-            bastion_host=connection.get("bastionHost"), bastion_port=int(connection.get("bastionPort", 22)), bastion_user=connection.get("bastionUser"),
-        )
+        detected = _ssh_client(connection).detect_scratch_root()
+        return _path(detected, "Scratch root")
+    except (HpcSshError, OSError, ValueError) as exc:
+        raise ApiError(422, f"Could not auto-detect Remote Scratch Root over SSH: {exc}", "HPC_SCRATCH_DETECT_FAILED") from exc
+
+
+def resolve_scratch_root(payload: dict[str, Any], existing: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Fill a blank Remote Scratch Root via SSH auto-detection without overriding explicit values."""
+    storage = payload.get("storage")
+    raw_scratch = storage.get("scratchRoot") if isinstance(storage, dict) else None
+    if isinstance(raw_scratch, str) and raw_scratch.strip():
+        return payload
+    if raw_scratch is not None and not isinstance(raw_scratch, str):
+        return payload
+    connection = payload.get("connection") if isinstance(payload.get("connection"), dict) else (existing or {}).get("connection")
+    detected = detect_scratch_root(connection)
+    next_storage = {**(storage if isinstance(storage, dict) else {}), "scratchRoot": detected}
+    return {**payload, "storage": next_storage}
+
+
+def _selected_mpi_plugin(launcher: list[str]) -> str | None:
+    for index, token in enumerate(launcher):
+        if token.startswith("--mpi="):
+            return token.split("=", 1)[1].strip() or None
+        if token == "--mpi" and index + 1 < len(launcher):
+            return launcher[index + 1].strip() or None
+    return None
+
+
+def _runtime_probe_diagnostics(profile: dict[str, Any], probe: dict[str, Any]) -> dict[str, Any]:
+    warnings: list[str] = []
+    suggested_launcher: list[str] | None = None
+    suggested_python: str | None = None
+    scheduler = profile.get("scheduler")
+    runtime = profile.get("runtime") if isinstance(profile.get("runtime"), dict) else {}
+    launcher = runtime.get("mpiLauncher") if isinstance(runtime.get("mpiLauncher"), list) else []
+    mpi_info = probe.get("mpi") if isinstance(probe.get("mpi"), dict) else {}
+    srun_plugins = mpi_info.get("srunPlugins") if isinstance(mpi_info.get("srunPlugins"), list) else []
+    has_mpirun = bool(mpi_info.get("mpirun"))
+
+    if scheduler == "slurm" and launcher and Path(str(launcher[0])).name == "srun":
+        requested_plugin = _selected_mpi_plugin([str(item) for item in launcher])
+        if requested_plugin and srun_plugins and requested_plugin not in srun_plugins:
+            warnings.append(
+                f"Configured launcher requests srun --mpi={requested_plugin}, "
+                f"but Slurm on this cluster only advertises: {', '.join(srun_plugins)}."
+            )
+            if has_mpirun:
+                suggested_launcher = ["mpirun", "-np", "{ranks}"]
+
+    python_info = probe.get("python") if isinstance(probe.get("python"), dict) else None
+    if python_info:
+        if not python_info.get("packagesOk"):
+            ver = python_info.get("version") or "missing"
+            missing = [pkg for pkg in (python_info.get("missingPackages") or []) if pkg in {"numpy", "scipy", "matplotlib", "seekpath", "spglib"}]
+            detail = f"Python {ver}" + (f" (missing {', '.join(missing)})" if missing else "")
+            if python_info.get("suggestedExecutable"):
+                suggested_python = str(python_info["suggestedExecutable"])
+                sug_ver = python_info.get("suggestedVersion") or "3.x"
+                warnings.append(
+                    f"Remote default {detail} cannot run Phynite runners; detected working Python {sug_ver} at {suggested_python}."
+                )
+            else:
+                warnings.append(
+                    f"Remote {detail} requires Python >= 3.10 with working numpy, scipy, matplotlib, seekpath, and spglib. Add a Python/Conda module or set Python Executable."
+                )
+
+    return {
+        **({"runtimeWarnings": warnings} if warnings else {}),
+        **({"suggestedMpiLauncher": suggested_launcher} if suggested_launcher else {}),
+        **({"suggestedPythonExecutable": suggested_python} if suggested_python else {}),
+    }
+
+
+def probe_profile(profile: dict[str, Any]) -> dict[str, Any]:
+    from backend.local_worker.hpc_ssh import HpcSshError
+    try:
+        client = _ssh_client(profile["connection"])
         runtime = profile.get("runtime", {})
         if not isinstance(runtime, dict):
             raise HpcSshError("HPC runtime configuration is invalid.")
         modules = runtime.get("environmentModules", [])
         if not isinstance(modules, list):
             raise HpcSshError("Environment modules are invalid; expected a list of module names.")
-        return client.probe_connection(modules=modules)
+        python_executable = runtime.get("pythonExecutable")
+        if python_executable:
+            result = client.probe_connection(modules=modules, python_executable=str(python_executable))
+        else:
+            result = client.probe_connection(modules=modules)
+        if isinstance(result, dict) and result.get("ok") is True:
+            scratch_root = (profile.get("storage") or {}).get("scratchRoot")
+            if isinstance(scratch_root, str) and scratch_root:
+                result = {**result, "scratchWritable": client.check_writable_path(scratch_root)}
+            result = {**result, **_runtime_probe_diagnostics(profile, result)}
+        return result
     except (HpcSshError, OSError, ValueError) as exc:
         return {"ok": False, "latencyMs": 0, "error": str(exc), "solvers": {}, "schedulers": {}}

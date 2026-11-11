@@ -119,13 +119,93 @@ class LocalAiHpcTests(unittest.TestCase):
     def test_profile_delete_after_review_never_submits(self):
         self.assert_changed_profile_blocks(delete=True)
 
-    def test_hpc_uses_local_dispatcher_readiness_without_a_personal_solver_heartbeat(self):
+    def compiled_hpc_submission(self):
+        _, graph = self.workflow.plan(self.owner, self.project, {'revision': 1, 'targets': ['scf']})
+        execution = copy.deepcopy(graph['nodes'][-1]['configuration']['execution'])
+        compute = resolve_hpc_compute(self.services, self.owner, self.selection)
+        return {
+            **execution,
+            **compute,
+            'settings': {**execution['settings'], **compute['settings']},
+            'run': True,
+        }
+
+    def test_hpc_queues_without_native_runtime_or_dispatcher_startup_flag(self):
         self.services.compute_enabled = False
         plan, _ = self.workflow.plan(self.owner, self.project, {'revision': 1, 'targets': ['scf']})
-        self.assertIn('HPC dispatcher', plan['errors'][0]['message'])
-        self.services.compute_enabled = True
+        self.assertFalse(plan['errors'], plan['errors'])
+
+        payload = self.compiled_hpc_submission()
+        result = self.api.create_calculation(self.owner, self.project, payload, workflow_protocol=1)
+        self.assertEqual(result['statusCode'], 202)
+        calculation = json.loads(result['body'])['calculation']
+        self.assertEqual(calculation['status'], 'QUEUED')
+        self.assertEqual(calculation['executionAffinity'], payload['executionAffinity'])
+        self.assertEqual((calculation['vcpus'], calculation['memoryMiB']), (8, 4096))
+
+        # The exact owner/profile worker can claim it after dispatcher startup.
+        self.api.require_local_worker({'headers': {'X-Phynite-Worker-Token': self.services.worker_token}})
+        claimed = json.loads(self.api.claim_local_job({
+            'workerId': 'hpc-no-native-runtime',
+            'capabilities': ['qe'],
+            'workflowVersion': 1,
+            'executionAffinity': payload['executionAffinity'],
+        })['body'])['job']
+        self.assertEqual(claimed['calculationId'], calculation['id'])
+        self.assertEqual(claimed['input']['settings']['hpcAllocation'], payload['settings']['hpcAllocation'])
+        worker = self.services.get_item(self.owner, 'PERSONAL_WORKER', 'primary')
+        self.assertEqual(worker['capabilities'], [])
+        self.assertEqual(int(worker['lastSeenAtEpoch']), 0)
+
+    def test_personal_compute_remains_blocked_without_native_runtime(self):
+        payload = self.compiled_hpc_submission()
+        payload.pop('executionAffinity')
+        payload['settings'].pop('hpcAllocation')
+        payload.update({'vcpus': 1, 'memoryMiB': 1024})
+        self.services.compute_enabled = False
+        with self.assertRaises(ApiError) as denied:
+            self.api.create_calculation(self.owner, self.project, payload, workflow_protocol=1)
+        self.assertEqual(denied.exception.code, 'COMPUTE_DISABLED')
+
+        personal = copy.deepcopy(self.graph)
+        personal['nodes'][-1]['configuration']['computeTarget'] = 'personal'
+        personal['nodes'][-1]['configuration'].pop('hpc')
+        self.workflow.save(self.owner, self.project, {'workflow': personal, 'baseRevision': 1})
+        plan, _ = self.workflow.plan(self.owner, self.project, {'revision': 2, 'targets': ['scf']})
+        self.assertTrue(plan['errors'])
+        self.assertIn('Your computer is offline', plan['errors'][0]['message'])
+        self.assertFalse(self.services.list_owner_items(self.owner, 'CALCULATION'))
+
+    def test_hpc_without_a_saved_profile_or_snapshot_stays_rejected(self):
+        payload = self.compiled_hpc_submission()
+        self.services.compute_enabled = False
+        self.store.delete(self.cluster['id'])
+        self.services.table.delete_item(Key={
+            'PK': self.store.pk,
+            'SK': f"HPC_PROFILE_SNAPSHOT#{self.cluster['id']}#{self.cluster['profileSha256']}",
+        })
         plan, _ = self.workflow.plan(self.owner, self.project, {'revision': 1, 'targets': ['scf']})
-        self.assertFalse(plan['errors'])
+        self.assertTrue(plan['errors'])
+        self.assertIn('selected HPC cluster is unavailable', plan['errors'][0]['message'])
+        with self.assertRaises(ApiError) as denied:
+            self.api.create_calculation(self.owner, self.project, payload, workflow_protocol=1)
+        self.assertEqual(denied.exception.code, 'HPC_PROFILE_SNAPSHOT_NOT_FOUND')
+        self.assertFalse(self.services.list_owner_items(self.owner, 'CALCULATION'))
+
+    def test_hpc_forged_affinity_cannot_bypass_native_runtime_gate(self):
+        payload = self.compiled_hpc_submission()
+        self.services.compute_enabled = False
+        for affinity, error_code in (
+            ({'scheduler': 'slurm', 'profileSha256': 'f' * 64}, 'HPC_PROFILE_SNAPSHOT_NOT_FOUND'),
+            ({'scheduler': 'pbs', 'profileSha256': self.cluster['profileSha256']}, 'HPC_PROFILE_SNAPSHOT_NOT_FOUND'),
+            ({'scheduler': 'slurm', 'profileSha256': 'invalid'}, 'INVALID_EXECUTION_AFFINITY'),
+        ):
+            with self.subTest(affinity=affinity), self.assertRaises(ApiError) as denied:
+                self.api.create_calculation(self.owner, self.project, {
+                    **copy.deepcopy(payload), 'executionAffinity': affinity,
+                }, workflow_protocol=1)
+            self.assertEqual(denied.exception.code, error_code)
+        self.assertFalse(self.services.list_owner_items(self.owner, 'CALCULATION'))
 
     def test_run_snapshot_retains_approved_profile_when_cluster_changes_after_start(self):
         action = self.prepare_run()
@@ -163,7 +243,7 @@ class LocalAiHpcTests(unittest.TestCase):
 
     def test_scheduler_observations_and_incomplete_harvest_remain_manual_not_scientific_success(self):
         from backend.local_worker.hpc_remote import HpcRemoteWorker
-        manager = SimpleNamespace(submit_job=lambda *_: {'scheduler': 'slurm', 'schedulerJobId': '42', 'remoteWorkDir': '/private/scratch'},
+        manager = SimpleNamespace(submit_job=lambda *_, **__: {'scheduler': 'slurm', 'schedulerJobId': '42', 'remoteWorkDir': '/private/scratch'},
                                   poll_job=lambda *_: {'state': 'COMPLETED', 'exitCode': '0', 'terminal': True},
                                   harvest_completed=lambda *_: {'state': 'manual-resume-required', 'reason': 'Manifest checksum failed; checkpoints retained.'})
         job = {'kind': 'qe', 'ownerId': self.owner, 'calculationId': 'calc1', 'vcpus': 8, 'memoryMiB': 4096, 'input': {'calculationType': 'Total energy', 'settings': {'hpcAllocation': resolve_hpc_compute(self.services, self.owner, self.selection)['settings']['hpcAllocation']}}}

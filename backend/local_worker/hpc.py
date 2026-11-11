@@ -29,11 +29,19 @@ def positive(value: Any, label: str, maximum: int = 1_000_000_000) -> int:
     return value
 
 
+def allowed_launchers(scheduler: str) -> set[str]:
+    return {"srun", "mpiexec", "mpirun"} if scheduler == "slurm" else {"mpiexec", "mpirun"}
+
+
 def launcher_template(value: Any) -> list[str]:
-    if not isinstance(value, list) or not value or len(value) > 32 or any(not isinstance(item, str) or not item or "\x00" in item or "\n" in item for item in value):
+    if not isinstance(value, list) or not value or len(value) > 32 or any(not isinstance(item, str) or not item or any(ord(char) < 32 or ord(char) == 127 for char in item) for item in value):
         raise HpcError("MPI launcher must be a nonempty JSON argv list.")
     if sum(item.count("{ranks}") for item in value) != 1 or any("{" in item.replace("{ranks}", "") or "}" in item.replace("{ranks}", "") for item in value):
         raise HpcError("MPI launcher must contain exactly one {ranks} placeholder.")
+    if any(item.startswith("--oversubscribe") for item in value):
+        raise HpcError("MPI oversubscription is not supported by the scientific runner.")
+    if any("{ranks}" in item and item not in {"{ranks}", "--ntasks={ranks}"} for item in value):
+        raise HpcError("MPI ranks must use a separate {ranks} argument or --ntasks={ranks}.")
     return value
 
 
@@ -67,9 +75,9 @@ def load_profile(path: Path) -> dict[str, Any]:
         raise HpcError("Profile environment accepts only PATH and dynamic-library paths.")
     template = profile.get("mpiLauncher", ["srun", "--mpi=pmix", "--ntasks={ranks}"] if profile["scheduler"] == "slurm" else ["mpiexec", "-n", "{ranks}"])
     profile["mpiLauncher"] = launcher_template(template)
-    expected = "srun" if profile["scheduler"] == "slurm" else "mpiexec"
-    if Path(template[0]).name != expected:
-        raise HpcError(f"This scheduler profile requires {expected}; configure cluster MPI compatibility explicitly in its arguments.")
+    allowed = allowed_launchers(profile["scheduler"])
+    if Path(template[0]).name not in allowed:
+        raise HpcError(f"This scheduler profile requires {', '.join(sorted(allowed))}; configure cluster MPI compatibility explicitly in its arguments.")
     return profile
 
 
@@ -134,7 +142,8 @@ def current_allocation(scheduler: str) -> dict[str, Any]:
         template = launcher_template(json.loads(os.environ.get("PHYNITE_MPI_LAUNCHER", "[]")))
     except ValueError as exc:
         raise HpcError("MPI launcher must be valid JSON.") from exc
-    if Path(template[0]).name != ("srun" if scheduler == "slurm" else "mpiexec"):
+    allowed = allowed_launchers(scheduler)
+    if Path(template[0]).name not in allowed:
         raise HpcError("MPI launcher does not match the active scheduler.")
     declared = os.environ.get("PHYNITE_HPC_MAX_RANKS")
     if declared is not None:

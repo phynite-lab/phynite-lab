@@ -13,25 +13,59 @@ import re
 import shlex
 import tempfile
 import threading
+import time
+import urllib.error
+import uuid
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 try:
     from .hpc import HpcError, job_id, launcher_template
-    from .hpc_ssh import HpcSshConnection, HpcSshError
+    from .hpc_ssh import HpcSshConnection, HpcSshError, PYTHON_CANDIDATE_GLOBS
     from .recovery import atomic_json, canonical_digest
 except ImportError:
     from hpc import HpcError, job_id, launcher_template
-    from hpc_ssh import HpcSshConnection, HpcSshError
+    from hpc_ssh import HpcSshConnection, HpcSshError, PYTHON_CANDIDATE_GLOBS
     from recovery import atomic_json, canonical_digest
 
-SPARSE_HARVEST_EXTENSIONS = {".xml", ".out", ".err", ".log", ".json", ".dat", ".png", ".svg", ".csv", ".gz", ".txt"}
+SPARSE_HARVEST_EXTENSIONS = {
+    ".xml", ".out", ".err", ".log", ".json", ".dat", ".png", ".svg", ".pdf",
+    ".csv", ".gz", ".txt", ".in", ".gnu", ".gp", ".freq", ".trace",
+    ".condtens", ".halltens", ".bt2", ".btj",
+}
 DISALLOWED_HARVEST_PATTERNS = [r"^wfc.*\.dat$", r"^charge-density.*\.dat$", r"^atomic_occupations.*\.dat$", r".*\.save/K[0-9]+/.*\.dat$"]
 SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.@-]{0,95}$")
 SAFE_MODULE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.+@:/-]{0,127}$")
 SAFE_SHA = re.compile(r"^[a-f0-9]{64}$")
 TERMINAL_STATES = {"COMPLETED", "FAILED", "TIMEOUT", "CANCELLED", "NODE_FAIL", "PREEMPTED", "OUT_OF_MEMORY", "BOOT_FAIL", "DEADLINE", "REVOKED", "C", "F", "E", "X"}
 MAX_HARVEST_BYTES = 64 * 1024 * 1024
+
+
+class MonitoringDeferred(HpcError):
+    """Temporary transport loss; preserve the active job for receipt resumption."""
+
+
+class LeaseLost(HpcError):
+    """The control plane explicitly rejected this worker's ownership."""
+
+
+@dataclass
+class _HeartbeatLease:
+    deadline: float
+    stopped: threading.Event = field(default_factory=threading.Event)
+    lock: Any = field(default_factory=threading.Lock)
+
+
+def _transient_api_error(exc: Exception) -> bool:
+    cause = exc
+    while cause is not None:
+        if isinstance(cause, urllib.error.HTTPError):
+            return cause.code in {408, 429} or 500 <= cause.code < 600
+        if isinstance(cause, (TimeoutError, ConnectionError, urllib.error.URLError)):
+            return True
+        cause = cause.__cause__
+    return False
 
 
 def profile_sha256(profile: dict[str, Any]) -> str:
@@ -75,7 +109,11 @@ def is_sparse_harvest_target(filename: str, retain_wavefunctions: bool = False) 
     normalized = filename.replace("\\", "/")
     if not retain_wavefunctions and any(re.fullmatch(pattern, candidate) for pattern in DISALLOWED_HARVEST_PATTERNS for candidate in (base, normalized)):
         return False
-    return Path(filename).suffix.lower() in SPARSE_HARVEST_EXTENSIONS or base in {"total-energy.dat", "manifest.sha256"}
+    return (
+        Path(filename).suffix.lower() in SPARSE_HARVEST_EXTENSIONS
+        or base in {"total-energy.dat", "manifest.sha256"}
+        or ".pdos" in base
+    )
 
 
 class HpcRemoteJobManager:
@@ -108,6 +146,26 @@ class HpcRemoteJobManager:
                 result.append(name)
         return result
 
+    def _scheduler_command(self, argv: list[str]) -> tuple[int, str, str]:
+        """Use the probed module environment; exclude login/module banners."""
+        modules = self._modules()
+        marker = "PHYNITE_SCHEDULER_" + uuid.uuid4().hex
+        begin, end = marker + "_BEGIN", marker + "_END"
+        commands = [f"module load {shlex.quote(name)} >&2 || exit $?" for name in modules]
+        commands.extend([
+            f"printf '\\n%s\\n' {shlex.quote(begin)}",
+            f"if {shlex.join(argv)}; then _ph_status=0; else _ph_status=$?; fi",
+            f"printf '\\n%s\\n' {shlex.quote(end)}",
+            'exit "$_ph_status"',
+        ])
+        code, stdout, stderr = self.connection.run_command(["bash" if modules else "sh", "-lc" if modules else "-c", "; ".join(commands)])
+        lines = stdout.splitlines()
+        if begin not in lines or end not in lines or lines.index(end) <= lines.index(begin):
+            if code != 0:
+                return code, "", stderr
+            raise HpcError("Remote scheduler returned incomplete framed output.")
+        return code, "\n".join(lines[lines.index(begin) + 1:lines.index(end)]).strip(), stderr
+
     def render_remote_script(self, calculation_id: str, remote_work_dir: str) -> str:
         calculation_id = _safe_calculation_id(calculation_id)
         self.calculation_id = calculation_id
@@ -133,28 +191,78 @@ class HpcRemoteJobManager:
             if account: directives.append(f"#PBS -A {account}")
         runtime = self.profile.get("runtime", {})
         launcher = launcher_template(runtime.get("mpiLauncher", ["srun", "--mpi=pmix", "--ntasks={ranks}"] if self.scheduler == "slurm" else ["mpiexec", "-n", "{ranks}"]))
-        if (Path(launcher[0]).name != ("srun" if self.scheduler == "slurm" else "mpiexec")):
+        allowed_launchers = {"srun", "mpiexec", "mpirun"} if self.scheduler == "slurm" else {"mpiexec", "mpirun"}
+        if Path(launcher[0]).name not in allowed_launchers:
             raise HpcError("MPI launcher does not match the scheduler.")
+        raw_python = runtime.get("pythonExecutable")
+        python_executable: str | None = None
+        if isinstance(raw_python, str) and raw_python.strip():
+            python_executable = _safe_remote_path(raw_python.strip())
+            if any(char.isspace() or char in "\"'\\$`;&|()<>{}" for char in python_executable):
+                raise HpcError("Python executable contains unsupported characters.")
+        elif raw_python not in (None, ""):
+            raise HpcError("Python executable path is invalid.")
         environment = {
             "PHYNITE_WORK_DIR": remote_work_dir,
             "PHYNITE_CALCULATION_ID": calculation_id,
             "PHYNITE_VCPUS": str(total_ranks),
             "PHYNITE_MEMORY_MIB": str(memory_mib * nodes),
             "PHYNITE_HPC_SCHEDULER": self.scheduler,
+            "PHYNITE_HPC_PROFILE_SHA256": profile_sha256(self.profile),
             "PHYNITE_HPC_MAX_RANKS": str(total_ranks),
             "PHYNITE_MPI_LAUNCHER": json.dumps(launcher),
             "PHYNITE_EXECUTION_MODE": "remote-hpc",
             "OMP_NUM_THREADS": "1",
             "OPENBLAS_NUM_THREADS": "1",
         }
+        py_cmd = '"$PHYNITE_PYTHON"'
+        python_setup: list[str]
+        if python_executable:
+            python_setup = [f"export PHYNITE_PYTHON={shlex.quote(python_executable)}"]
+        else:
+            python_setup = [
+                'export PHYNITE_PYTHON="$(command -v python3 || :)"',
+                'if ! "$PHYNITE_PYTHON" -c \'import sys, numpy, scipy, matplotlib, seekpath, spglib; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)\' >/dev/null 2>&1; then',
+                f'  for _ph_py in {" ".join(PYTHON_CANDIDATE_GLOBS)}; do',
+                '    if [ -x "$_ph_py" ] && "$_ph_py" -c \'import sys, numpy, scipy, matplotlib, seekpath, spglib; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)\' >/dev/null 2>&1; then',
+                '      export PHYNITE_PYTHON="$_ph_py"',
+                '      break',
+                '    fi',
+                '  done',
+                'fi',
+            ]
+        python_setup.extend([
+            f"if ! {py_cmd} -c 'import sys, numpy, scipy, matplotlib, seekpath, spglib; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1; then",
+            "  printf '%s\\n' 'Phynite requires Python >= 3.10 with working numpy, scipy, matplotlib, seekpath, and spglib. Check the HPC runtime profile.' >&2",
+            "  exit 1",
+            "fi",
+        ])
         # The same source-bound scientific runner used by personal QE creates
         # result.json and validates the exact input/pseudopotential identity.
-        return "\n".join(["#!/bin/bash", *directives, "set -euo pipefail", "umask 077", f"cd {shlex.quote(remote_work_dir)}", "", "# Load verified module names", *[f"module load {shlex.quote(name)}" for name in self._modules()], *[f"export {key}={shlex.quote(value)}" for key, value in environment.items()], "python3 runners/local_runner.py > runner.out 2>&1 || STATUS=$?", "STATUS=${STATUS:-0}", "mkdir -p results", "cp runner.out results/runner.out", "python3 runners/hpc_manifest.py", "exit $STATUS", ""])
+        return "\n".join([
+            "#!/bin/bash -l" if self._modules() else "#!/bin/bash",
+            *directives,
+            "set -euo pipefail",
+            "umask 077",
+            f"cd {shlex.quote(remote_work_dir)}",
+            "",
+            "# Load verified module names",
+            *[f"module load {shlex.quote(name)}" for name in self._modules()],
+            *[f"export {key}={shlex.quote(value)}" for key, value in environment.items()],
+            *python_setup,
+            f"{py_cmd} runners/local_runner.py > runner.out 2>&1 || STATUS=$?",
+            "STATUS=${STATUS:-0}",
+            "mkdir -p results",
+            "cp runner.out results/runner.out",
+            f"{py_cmd} runners/hpc_manifest.py",
+            "exit $STATUS",
+            "",
+        ])
 
     def _receipt(self, receipt_path: Path, value: dict[str, Any], *, overwrite: bool = True) -> None:
         atomic_json(receipt_path, value, overwrite=overwrite)
 
-    def submit_job(self, calculation_id: str, input_files: dict[str, str | bytes | Path], receipt_dir: Path | None = None) -> dict[str, Any]:
+    def submit_job(self, calculation_id: str, input_files: dict[str, str | bytes | Path], receipt_dir: Path | None = None, *, before_submit: Callable[[], None] | None = None) -> dict[str, Any]:
         calculation_id = _safe_calculation_id(calculation_id)
         if not isinstance(input_files, dict) or not input_files:
             raise HpcError("Remote input files are required.")
@@ -174,6 +282,8 @@ class HpcRemoteJobManager:
         if receipt_path.exists():
             raise HpcError("Submission receipt already exists; reconcile it before retrying.")
         code, _, stderr = self.connection.run_command(["mkdir", "-p", remote_work_dir])
+        if code == 255:
+            raise HpcSshError("SSH connection failed while creating remote scratch.")
         if code != 0:
             raise HpcError(f"Could not create remote scratch directory: {stderr.strip()}")
         script_content = self.render_remote_script(calculation_id, remote_work_dir)
@@ -189,15 +299,19 @@ class HpcRemoteJobManager:
                 else:
                     path.write_bytes(data)
                 code, _, _ = self.connection.run_command(["mkdir", "-p", str(Path(f"{remote_work_dir}/{filename}").parent)])
+                if code == 255:
+                    raise HpcSshError("SSH connection failed while creating a remote input directory.")
                 if code != 0:
                     raise HpcError("Could not create a remote input directory.")
                 self.connection.sftp_upload(path, f"{remote_work_dir}/{filename}")
+        if before_submit is not None:
+            before_submit()
         content = self.render_remote_script(calculation_id, remote_work_dir)
         receipt = {"version": 1, "calculationId": calculation_id, "scheduler": self.scheduler, "profileSha256": profile_sha256(self.profile), "allocation": self.allocation, "scriptSha256": hashlib.sha256(content.encode()).hexdigest(), "remoteWorkDir": remote_work_dir, "state": "submission-uncertain"}
         self._receipt(receipt_path, receipt, overwrite=False)
         submit_cmd = ["sbatch", "--parsable", f"{remote_work_dir}/submit.sh"] if self.scheduler == "slurm" else ["qsub", f"{remote_work_dir}/submit.sh"]
         try:
-            code, stdout, stderr = self.connection.run_command(submit_cmd)
+            code, stdout, stderr = self._scheduler_command(submit_cmd)
             if code != 0:
                 raise HpcError(f"Remote scheduler submission failed: {stderr.strip()}")
             raw_id = stdout.strip().splitlines()[-1].split(";", 1)[0]
@@ -213,16 +327,19 @@ class HpcRemoteJobManager:
     def poll_job(self, scheduler_job_id: str) -> dict[str, Any]:
         identifier = job_id(scheduler_job_id, self.scheduler)
         if self.scheduler == "slurm":
-            code, stdout, stderr = self.connection.run_command(["sacct", "--noheader", "--parsable2", "--allocations", "--jobs", identifier, "--format", "JobIDRaw,State,ExitCode"])
-            if code != 0: raise HpcError(f"Remote sacct command failed: {stderr.strip()}")
-            entries = [row.split("|") for row in stdout.splitlines() if row.split("|", 1)[0] == identifier]
+            code, stdout, stderr = self._scheduler_command(["sacct", "--noheader", "--parsable2", "--allocations", "--jobs", identifier, "--format", "JobIDRaw,State,ExitCode"])
+            entries = [row.split("|") for row in stdout.splitlines() if row.split("|", 1)[0] == identifier] if code == 0 else []
             if not entries:
-                q_code, q_out, _ = self.connection.run_command(["squeue", "--noheader", "--format=%T", "--jobs", identifier])
-                return {"schedulerJobId": identifier, "state": q_out.strip() if q_code == 0 and q_out.strip() else "UNKNOWN", "exitCode": "", "terminal": False}
+                q_code, q_out, q_err = self._scheduler_command(["squeue", "--noheader", "--format=%T", "--jobs", identifier])
+                if q_code != 0:
+                    raise HpcSshError(f"Remote scheduler status is unavailable: {q_err.strip() or stderr.strip()}")
+                # squeue has no verified allocation exit code; even a terminal
+                # state here must be reconciled through accounting before harvest.
+                return {"schedulerJobId": identifier, "state": q_out.strip() or "UNKNOWN", "exitCode": "", "terminal": False}
             if len(entries[-1]) < 3: raise HpcError("Slurm returned an invalid status response.")
             raw_state, raw_exit = entries[-1][1:3]; state = raw_state.split()[0].rstrip("+"); exit_code = raw_exit.split(":", 1)[0]
         else:
-            code, stdout, _ = self.connection.run_command(["qstat", "-x", "-f", "-F", "json", identifier])
+            code, stdout, _ = self._scheduler_command(["qstat", "-x", "-f", "-F", "json", identifier])
             if code != 0: return {"schedulerJobId": identifier, "state": "UNKNOWN", "exitCode": "", "terminal": False}
             try:
                 data = json.loads(stdout)["Jobs"][identifier]; state = str(data.get("job_state", "UNKNOWN")); exit_code = str(data.get("Exit_status", ""))
@@ -232,7 +349,8 @@ class HpcRemoteJobManager:
     def sparse_harvest(self, remote_work_dir: str, local_destination: Path, retain_wavefunctions: bool = False) -> list[str]:
         remote_work_dir = self._remote_dir(remote_work_dir); local_destination.mkdir(mode=0o700, parents=True, exist_ok=True)
         results_dir = remote_work_dir + "/results"
-        code, stdout, _ = self.connection.run_command(["find", results_dir, "-type", "f", "-printf", "%P\n"])
+        code, stdout, _ = self.connection.run_command(["find", results_dir, "-type", "f", "-printf", r"%P\n"])
+        if code == 255: raise HpcSshError("SSH connection failed while listing remote results.")
         if code != 0: return []
         harvested: list[str] = []
         total = 0
@@ -241,6 +359,8 @@ class HpcRemoteJobManager:
             except HpcError: continue
             if not is_sparse_harvest_target(filename, retain_wavefunctions): continue
             size_code, size_out, _ = self.connection.run_command(["stat", "-c", "%s", f"{results_dir}/{filename}"])
+            if size_code == 255:
+                raise HpcSshError("SSH connection failed while inspecting remote results.")
             if size_code != 0:
                 continue
             if size_code == 0:
@@ -252,9 +372,9 @@ class HpcRemoteJobManager:
                     continue
             destination = local_destination / filename
             destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-            try:
-                self.connection.sftp_download(f"{results_dir}/{filename}", destination); harvested.append(filename); total += size
-            except HpcSshError: continue
+            self.connection.sftp_download(f"{results_dir}/{filename}", destination)
+            harvested.append(filename)
+            total += size
         self.last_harvest_manifest_validated = self.validate_manifest(local_destination)
         return harvested
 
@@ -351,25 +471,60 @@ class HpcRemoteWorker:
         job = reply.get("job") if isinstance(reply, dict) else None
         return job if isinstance(job, dict) else None
 
-    def _heartbeat(self, job: dict[str, Any], progress: int, stage: str) -> None:
-        """Keep the owner job lease alive while the remote scheduler runs."""
-        try:
-            reply = self.client.post(
-                f"/worker/v1/jobs/{job['calculationId']}/heartbeat",
-                {
-                    "workerId": self.worker_id,
-                    "ownerId": job["ownerId"],
-                    "kind": job.get("kind", "qe"),
-                    "progress": max(12, min(99, int(progress))),
-                    "computePhase": "COMPUTING",
-                    "stage": stage,
-                    "logTail": getattr(self, 'scheduler_observation', 'Remote scheduler execution is being polled.'),
-                },
-            )
-            if reply.get("cancelRequested"):
-                raise HpcError("Cancellation requested. Reconcile or cancel the remote allocation explicitly; scratch/checkpoints were retained.")
-        except Exception as exc:
-            raise HpcError("The local worker lost its job lease while polling the remote scheduler.") from exc
+    def _heartbeat(self, job: dict[str, Any], progress: int, stage: str, lease: _HeartbeatLease) -> None:
+        """Retry transient API failures within the lease, preserving cancellation."""
+        with lease.lock:
+            for attempt in range(4):
+                if lease.stopped.is_set():
+                    return
+                try:
+                    reply = self.client.post(
+                        f"/worker/v1/jobs/{job['calculationId']}/heartbeat",
+                        {
+                            "workerId": self.worker_id,
+                            "ownerId": job["ownerId"],
+                            "kind": job.get("kind", "qe"),
+                            "progress": max(12, min(99, int(progress))),
+                            "computePhase": "COMPUTING",
+                            "stage": stage,
+                            "logTail": getattr(self, 'scheduler_observation', 'Remote scheduler execution is being polled.'),
+                        },
+                    )
+                except Exception as exc:
+                    if lease.stopped.is_set():
+                        return
+                    if not _transient_api_error(exc):
+                        cause = exc
+                        while cause is not None:
+                            if isinstance(cause, urllib.error.HTTPError) and cause.code in {401, 403, 409}:
+                                raise LeaseLost("The control plane rejected the remote worker lease; scheduler scratch was retained.") from exc
+                            cause = cause.__cause__
+                        raise HpcError(f"Remote worker heartbeat failed: {exc}") from exc
+                    request_timeout = getattr(self.client, "timeout", 30)
+                    if not isinstance(request_timeout, (int, float)):
+                        request_timeout = 30
+                    if attempt == 3 or time.monotonic() + 2 + request_timeout >= lease.deadline:
+                        raise MonitoringDeferred("Local API heartbeat is temporarily unavailable; remote job and receipt were retained for monitoring to resume.") from exc
+                    time.sleep(2)
+                    continue
+                if lease.stopped.is_set():
+                    return
+                lease.deadline = time.monotonic() + 90
+                if reply.get("cancelRequested"):
+                    raise HpcError("Cancellation requested. Reconcile or cancel the remote allocation explicitly; scratch/checkpoints were retained.")
+                return
+
+    def _poll_with_retry(self, manager: HpcRemoteJobManager, receipt: dict[str, Any], job: dict[str, Any], progress: int, lease: _HeartbeatLease) -> dict[str, Any]:
+        for attempt in range(4):
+            try:
+                return manager.poll_job(receipt["schedulerJobId"])
+            except HpcSshError as exc:
+                self.scheduler_observation = f"{self.scheduler} job {receipt['schedulerJobId']}: status temporarily unavailable; retrying the read without resubmitting."
+                self._heartbeat(job, progress, "REMOTE_SCHEDULER_RECONNECTING", lease)
+                if attempt == 3:
+                    raise MonitoringDeferred("Remote scheduler connection is unavailable; monitoring will resume from the retained receipt.") from exc
+                time.sleep(2 * (attempt + 1))
+        raise AssertionError("unreachable")
 
     def run_once(self, calculation_id: str | None, connection: HpcSshConnection, destination: Path, *, poll_seconds: float = 10, max_polls: int = 720) -> dict[str, Any]:
         profile = fetch_profile_snapshot(self.client, self.cluster_id, self.profile_sha256)
@@ -384,54 +539,102 @@ class HpcRemoteWorker:
         self.scheduler_observation = 'Remote scheduler submission is being prepared; scientific results are not available.'
         payload = job.get("input") if isinstance(job.get("input"), dict) else {}
         job_destination = destination if destination.name == job["calculationId"] else destination / job["calculationId"]
-        stopped = threading.Event()
+        lease = _HeartbeatLease(time.monotonic() + min(90, max(0, float(job.get("leaseExpiresAtEpoch") or time.time() + 90) - time.time())))
+        stopped = lease.stopped
         heartbeat_failure: list[Exception] = []
         def heartbeat_loop():
             while not stopped.wait(15):
                 try:
-                    self._heartbeat(job, 15, "REMOTE_SCHEDULER")
+                    self._heartbeat(job, 15, "REMOTE_SCHEDULER", lease)
                 except Exception as exc:
                     heartbeat_failure.append(exc)
                     return
         heartbeat = threading.Thread(target=heartbeat_loop, daemon=True)
         heartbeat.start()
+        receipt: dict[str, Any] | None = None
         try:
             allocation = (payload.get("settings") or {}).get("hpcAllocation") or profile.get("defaults", {})
             if (int(allocation["nodes"]) * int(allocation["ranksPerNode"]) != int(job["vcpus"])
                     or int(allocation["nodes"]) * int(allocation["memoryMiBPerNode"]) != int(job["memoryMiB"])):
                 raise HpcError("The frozen HPC allocation differs from the accepted job resources.")
             manager = self.manager_factory(connection, profile, allocation)
+            manager.calculation_id = _safe_calculation_id(job["calculationId"])
             manager.calculation_type = str(payload.get("calculationType", ""))
             if self.workspace_builder is None:
                 raise HpcError("Remote QE requires the source-bound scientific runner and verified pseudopotentials.")
-            if (job_destination / "receipts" / f"{job['calculationId']}.json").exists():
-                raise HpcError("Submission receipt already exists; reconcile it before retrying.")
-            files = self.workspace_builder(job, job_destination / "inputs")
-            if heartbeat_failure:
-                raise heartbeat_failure[0]
-            receipt = manager.submit_job(job["calculationId"], files, job_destination / "receipts")
-            self.scheduler_observation = f"{self.scheduler} job {receipt['schedulerJobId']}: submitted; scientific results pending validation."
-            max_polls = max(max_polls, int((int(allocation["wallSeconds"]) + 600) / max(1, poll_seconds)))
+            receipt_path = job_destination / "receipts" / f"{job['calculationId']}.json"
+            if receipt_path.exists():
+                try:
+                    existing_receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+                except (OSError, ValueError):
+                    existing_receipt = None
+                if (
+                    isinstance(existing_receipt, dict)
+                    and existing_receipt.get("state") == "submitted"
+                    and existing_receipt.get("calculationId") == job["calculationId"]
+                    and existing_receipt.get("profileSha256") == self.profile_sha256
+                    and existing_receipt.get("scheduler") == self.scheduler
+                    and existing_receipt.get("schedulerJobId")
+                    and existing_receipt.get("remoteWorkDir")
+                ):
+                    job_id(str(existing_receipt["schedulerJobId"]), self.scheduler)
+                    _safe_remote_path(str(existing_receipt["remoteWorkDir"]))
+                    receipt = existing_receipt
+                else:
+                    raise HpcError("Submission receipt already exists; reconcile it before retrying.")
+            self._heartbeat(job, 12, "REMOTE_PREPARING", lease)
+            if receipt is None:
+                files = self.workspace_builder(job, job_destination / "inputs")
+                if heartbeat_failure:
+                    raise heartbeat_failure[0]
+                def before_submit():
+                    if heartbeat_failure:
+                        raise heartbeat_failure[0]
+                    self._heartbeat(job, 12, "REMOTE_SUBMITTING", lease)
+                for attempt in range(4):
+                    try:
+                        receipt = manager.submit_job(job["calculationId"], files, job_destination / "receipts", before_submit=before_submit)
+                        break
+                    except HpcSshError:
+                        # No scheduler request can precede the durable receipt.
+                        # submit_job wraps every uncertain scheduler reply as
+                        # HpcError, so only pre-submission staging is retried.
+                        if attempt == 3:
+                            raise
+                        self._heartbeat(job, 12, "REMOTE_STAGING_RETRY", lease)
+                        if heartbeat_failure:
+                            raise heartbeat_failure[0]
+                        time.sleep(2 * (attempt + 1))
+                self.scheduler_observation = f"{self.scheduler} job {receipt['schedulerJobId']}: submitted; scientific results pending validation."
+            else:
+                self.scheduler_observation = f"{self.scheduler} job {receipt['schedulerJobId']}: resumed polling; scientific results pending validation."
+            # Scheduler walltime begins when the allocation starts. This is a
+            # monitoring slice, including queue wait, never a solver deadline.
             for poll_index in range(max(1, max_polls)):
                 if heartbeat_failure:
                     raise heartbeat_failure[0]
-                self._heartbeat(job, min(95, 15 + round(75 * poll_index / max(1, max_polls))), "REMOTE_SCHEDULER")
-                status = manager.poll_job(receipt["schedulerJobId"])
+                self._heartbeat(job, min(95, 15 + round(75 * poll_index / max(1, max_polls))), "REMOTE_SCHEDULER", lease)
+                status = self._poll_with_retry(manager, receipt, job, min(95, 15 + round(75 * poll_index / max(1, max_polls))), lease)
                 self.scheduler_observation = f"{self.scheduler} job {receipt['schedulerJobId']}: {status.get('state', 'UNKNOWN')}; exit code {status.get('exitCode') or 'unavailable'}; scientific results pending validation."
-                self._heartbeat(job, min(95, 15 + round(75 * poll_index / max(1, max_polls))), "REMOTE_SCHEDULER")
+                self._heartbeat(job, min(95, 15 + round(75 * poll_index / max(1, max_polls))), "REMOTE_SCHEDULER", lease)
                 if status.get("terminal"):
                     result = manager.harvest_completed(receipt["schedulerJobId"], receipt["remoteWorkDir"], job_destination / "results")
                     result["receipt"] = receipt
                     result["job"] = job
                     return result
-                import time
                 time.sleep(max(0.1, poll_seconds))
-            return {"state": "manual-resume-required", "job": job, "receipt": receipt, "reason": "Scheduler polling timed out; scratch/checkpoints were retained."}
+            return {"state": "monitoring-deferred", "job": job, "receipt": receipt, "reason": "Monitoring slice ended; the scheduler job remains active and polling will resume from its receipt."}
+        except LeaseLost as exc:
+            return {"state": "lease-lost", "job": job, "receipt": receipt, "reason": str(exc), "scratchRetained": True}
+        except (MonitoringDeferred, HpcSshError) as exc:
+            # Without a submitted receipt the broker cannot safely reclaim a
+            # remote allocation. Startup retries exhausted: report that clearly.
+            state = "monitoring-deferred" if receipt is not None else "manual-resume-required"
+            return {"state": state, "job": job, "receipt": receipt, "reason": str(exc), "scratchRetained": True}
         except Exception as exc:
-            # A receipt is durable before sbatch/qsub is called. Keep the job
-            # terminal in Phynite only after recording this explicit manual
-            # reconciliation state; a retry must never submit automatically.
-            return {"state": "manual-resume-required", "job": job, "reason": str(exc), "scratchRetained": True}
+            # Uncertain submissions, invalid profiles/results and cancellation
+            # require explicit reconciliation; never auto-submit another job.
+            return {"state": "manual-resume-required", "job": job, "receipt": receipt, "reason": str(exc), "scratchRetained": True}
         finally:
             stopped.set()
             heartbeat.join(timeout=1)

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Server, Plus, Trash2, RefreshCw, CheckCircle2, XCircle, Pencil, Star } from 'lucide-react';
 import { useLocale } from '../locale-provider';
 import type { HpcAuthKind, HpcClusterProfile, HpcScheduler } from '@/lib/hpc-profile';
@@ -13,6 +13,26 @@ type ProbeResult = {
   error?: string;
   schedulers: Record<string, boolean>;
   solvers: Record<string, string | null>;
+  scratchWritable?: boolean;
+  suggestedScratchRoot?: string;
+  mpi?: {
+    mpirun?: string | null;
+    mpiexec?: string | null;
+    srunPlugins?: string[];
+    qeMpi?: string | null;
+  };
+  python?: {
+    executable?: string | null;
+    version?: string | null;
+    versionOk?: boolean;
+    packagesOk?: boolean;
+    missingPackages?: string[];
+    suggestedExecutable?: string | null;
+    suggestedVersion?: string | null;
+  };
+  runtimeWarnings?: string[];
+  suggestedMpiLauncher?: string[];
+  suggestedPythonExecutable?: string;
 };
 
 export function HpcClustersSection({ localMode = false }: { localMode?: boolean }) {
@@ -41,7 +61,11 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
   const [modulesText, setModulesText] = useState('');
   const [mpiLauncherText, setMpiLauncherText] = useState('srun --mpi=pmix --ntasks={ranks}');
   const [launcherEdited, setLauncherEdited] = useState(false);
+  const [pythonExecutable, setPythonExecutable] = useState('');
   const [saving, setSaving] = useState(false);
+  const [detectingScratch, setDetectingScratch] = useState(false);
+  const scratchRequest = useRef(0);
+  const [detectMessage, setDetectMessage] = useState('');
   const [formError, setFormError] = useState('');
 
   const fetchClusters = useCallback(async () => {
@@ -88,10 +112,78 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
     }
   };
 
+  const buildConnectionPayload = (existing?: HpcClusterProfile) => ({
+    ...existing?.connection,
+    host,
+    port: Number(port) || 22,
+    username,
+    authKind,
+    ...(authKind === 'key' ? { privateKeyPath: privateKeyPath.trim() || undefined } : {}),
+  });
+
+  const handleDetectScratch = async () => {
+    const requestId = ++scratchRequest.current;
+    const existing = editingId ? clusters.find(cluster => cluster.id === editingId) : undefined;
+    setDetectingScratch(true);
+    setFormError('');
+    setDetectMessage('');
+    try {
+      const data = await localRequest<{ scratchRoot?: string }>('hpc/clusters/detect-scratch', 'POST', {
+        connection: buildConnectionPayload(existing),
+      });
+      if (requestId !== scratchRequest.current) return;
+      if (!data.scratchRoot) {
+        throw new Error(t('Could not detect a writable scratch path.', 'Tidak dapat mendeteksi path scratch yang bisa ditulisi.'));
+      }
+      setScratchRoot(data.scratchRoot);
+      setDetectMessage(t(`Detected writable path: ${data.scratchRoot}`, `Terdeteksi path writable: ${data.scratchRoot}`));
+    } catch (err) {
+      if (requestId === scratchRequest.current) {
+        setFormError(err instanceof Error ? err.message : t('Failed to auto-detect remote scratch root.', 'Gagal mendeteksi direktori scratch remote secara otomatis.'));
+      }
+    } finally {
+      if (requestId === scratchRequest.current) setDetectingScratch(false);
+    }
+  };
+
+  const applySuggestedScratch = async (cluster: HpcClusterProfile, suggested: string) => {
+    try {
+      setError('');
+      await localRequest(`hpc/clusters/${encodeURIComponent(cluster.id)}`, 'PUT', {
+        ...cluster,
+        storage: { ...cluster.storage, scratchRoot: suggested },
+      });
+      await fetchClusters();
+      await handleTestProbe(cluster.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('Could not update scratch root.', 'Gagal memperbarui direktori scratch.'));
+    }
+  };
+
+  const applyRecommendedRuntime = async (cluster: HpcClusterProfile, probe: ProbeResult) => {
+    try {
+      setError('');
+      const nextRuntime = {
+        ...cluster.runtime,
+        ...(probe.suggestedMpiLauncher?.length ? { mpiLauncher: probe.suggestedMpiLauncher } : {}),
+        ...(probe.suggestedPythonExecutable ? { pythonExecutable: probe.suggestedPythonExecutable } : {}),
+      };
+      await localRequest(`hpc/clusters/${encodeURIComponent(cluster.id)}`, 'PUT', {
+        ...cluster,
+        runtime: nextRuntime,
+      });
+      await fetchClusters();
+      await handleTestProbe(cluster.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('Could not update runtime settings.', 'Gagal memperbarui pengaturan runtime.'));
+    }
+  };
+
   const handleSaveCluster = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setFormError('');
+    setDetectMessage('');
 
     const rawModules = modulesText.split('\n').map(module => module.trim()).filter(Boolean);
     const existing = editingId ? clusters.find(cluster => cluster.id === editingId) : undefined;
@@ -99,26 +191,21 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
       ? mpiLauncherText.trim().split(/\s+/)
       : (scheduler === 'slurm' ? ['srun', '--mpi=pmix', '--ntasks={ranks}'] : ['mpiexec', '-n', '{ranks}']);
 
+    const trimmedScratch = scratchRoot.trim();
     const payload = {
       name,
       scheduler,
       isDefault: editingId ? Boolean(clusters.find(cluster => cluster.id === editingId)?.isDefault) : clusters.length === 0,
-      connection: {
-        ...existing?.connection,
-        host,
-        port: Number(port) || 22,
-        username,
-        authKind,
-        ...(authKind === 'key' ? { privateKeyPath: privateKeyPath.trim() || undefined } : {}),
-      },
+      connection: buildConnectionPayload(existing),
       storage: {
         ...existing?.storage,
-        scratchRoot: scratchRoot.trim() || '/scratch',
+        scratchRoot: trimmedScratch,
         purgeWavefunctions: existing?.storage.purgeWavefunctions ?? true,
       },
       runtime: {
         environmentModules: rawModules,
         mpiLauncher: !launcherEdited && existing ? existing.runtime.mpiLauncher : launcherArgs,
+        ...(pythonExecutable.trim() ? { pythonExecutable: pythonExecutable.trim() } : {}),
       },
       defaults: {
         ...existing?.defaults,
@@ -143,6 +230,8 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
   };
 
   const resetForm = () => {
+    scratchRequest.current += 1;
+    setDetectingScratch(false);
     setEditingId(null);
     setScheduler('slurm');
     setName('');
@@ -159,6 +248,8 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
     setModulesText('');
     setMpiLauncherText('srun --mpi=pmix --ntasks={ranks}');
     setLauncherEdited(false);
+    setPythonExecutable('');
+    setDetectMessage('');
     setFormError('');
   };
 
@@ -179,6 +270,8 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
     setModulesText((cluster.runtime?.environmentModules ?? []).join('\n'));
     setMpiLauncherText((cluster.runtime?.mpiLauncher ?? []).join(' '));
     setLauncherEdited(false);
+    setPythonExecutable(cluster.runtime?.pythonExecutable ?? '');
+    setDetectMessage('');
     setFormError('');
     setShowModal(true);
   };
@@ -279,24 +372,59 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
                 <div><span>{t('Allocation', 'Alokasi')}:</span> {c.defaults.nodes} node(s) · {c.defaults.ranksPerNode} ranks/node · {Math.round(c.defaults.wallSeconds / 3600)}h max</div>
                 {c.defaults.queue && <div><span>{t('Partition', 'Partisi')}:</span> <code>{c.defaults.queue}</code></div>}
                 {c.runtime.environmentModules.length > 0 && <div><span>{t('Environment Modules', 'Environment Modules')}:</span> <code>{c.runtime.environmentModules.join(' · ')}</code></div>}
+                {c.runtime.mpiLauncher.length > 0 && <div><span>{t('MPI Launcher', 'MPI Launcher')}:</span> <code>{c.runtime.mpiLauncher.join(' ')}</code></div>}
+                {c.runtime.pythonExecutable && <div><span>{t('Python', 'Python')}:</span> <code>{c.runtime.pythonExecutable}</code></div>}
                 {c.profileSha256 && <div><span>{t('Profile checksum', 'Checksum profil')}:</span> <code className="hpc-checksum">{c.profileSha256}</code></div>}
               </div>
 
               {probe && (
-                <div className={`hpc-probe-result ${probe.ok ? 'hpc-probe-ok' : 'hpc-probe-fail'}`}>
-                  {probe.ok ? (
-                    <>
-                      <CheckCircle2 size={15} />
-                      <span>{t('Connected', 'Terhubung')} ({probe.latencyMs}ms) · {probe.system}</span>
-                      {probe.solvers?.qe && <small>· pw.x: {probe.solvers.qe}</small>}
-                    </>
-                  ) : (
-                    <>
-                      <XCircle size={15} />
-                      <span>{t('Probe failed', 'Uji koneksi gagal')}: {probe.error}</span>
-                    </>
+                <>
+                  <div className={`hpc-probe-result ${probe.ok ? 'hpc-probe-ok' : 'hpc-probe-fail'}`}>
+                    {probe.ok ? (
+                      <>
+                        <CheckCircle2 size={15} />
+                        <span>{t('Connected', 'Terhubung')} ({probe.latencyMs}ms) · {probe.system}</span>
+                        {probe.solvers?.qe && <small>· pw.x: {probe.solvers.qe}</small>}
+                        {probe.python?.version && <small>· python: {probe.python.version}</small>}
+                      </>
+                    ) : (
+                      <>
+                        <XCircle size={15} />
+                        <span>{t('Probe failed', 'Uji koneksi gagal')}: {probe.error}</span>
+                      </>
+                    )}
+                  </div>
+                  {probe.ok && probe.runtimeWarnings && probe.runtimeWarnings.length > 0 && (
+                    <div className="hpc-probe-result hpc-probe-fail" role="alert" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+                      <span>{probe.runtimeWarnings.join(' ')}</span>
+                      {(probe.suggestedMpiLauncher?.length || probe.suggestedPythonExecutable) && (
+                        <button type="button" className="lab-button" onClick={() => void applyRecommendedRuntime(c, probe)}>
+                          {t('Apply recommended runtime', 'Terapkan pengaturan runtime')}
+                        </button>
+                      )}
+                    </div>
                   )}
-                </div>
+                  {probe.ok && probe.scratchWritable === false && (
+                    <div className="hpc-probe-result hpc-probe-fail" role="alert" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                      <span>
+                        {t(
+                          `Scratch root '${c.storage.scratchRoot}' is not writable on this cluster.`,
+                          `Direktori scratch '${c.storage.scratchRoot}' tidak bisa ditulisi di kluster ini.`,
+                        )}
+                        {probe.suggestedScratchRoot ? ` ${t('Detected:', 'Terdeteksi:')} ${probe.suggestedScratchRoot}` : ''}
+                      </span>
+                      {probe.suggestedScratchRoot && (
+                        <button
+                          type="button"
+                          className="lab-button"
+                          onClick={() => void applySuggestedScratch(c, probe.suggestedScratchRoot!)}
+                        >
+                          {t('Use detected path', 'Gunakan path terdeteksi')}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           );
@@ -336,38 +464,61 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
               <div className="lab-field-grid">
                 <label>
                   <span>{t('Login Host', 'Host Login Node')}</span>
-                  <input type="text" required placeholder="login2.hpc.brin.go.id" value={host} onChange={e => setHost(e.target.value)} />
+                  <input type="text" required disabled={detectingScratch || saving} placeholder="login2.hpc.brin.go.id" value={host} onChange={e => setHost(e.target.value)} />
                 </label>
                 <label>
                   <span>{t('Port', 'Port')}</span>
-                  <input type="number" required value={port} onChange={e => setPort(e.target.value)} />
+                  <input type="number" required disabled={detectingScratch || saving} value={port} onChange={e => setPort(e.target.value)} />
                 </label>
               </div>
 
               <div className="lab-field-grid">
                 <label>
                   <span>{t('SSH Username', 'Username SSH')}</span>
-                  <input type="text" required placeholder="user" value={username} onChange={e => setUsername(e.target.value)} />
+                  <input type="text" required disabled={detectingScratch || saving} placeholder="user" value={username} onChange={e => setUsername(e.target.value)} />
                 </label>
                 <label>
                   <span>{t('Authentication', 'Autentikasi')}</span>
-                  <select value={authKind} onChange={e => setAuthKind(e.target.value as HpcAuthKind)}>
+                  <select disabled={detectingScratch || saving} value={authKind} onChange={e => setAuthKind(e.target.value as HpcAuthKind)}>
                     <option value="key">Private key</option>
                     <option value="agent">SSH agent</option>
                   </select>
                 </label>
                 <label>
                   <span>{t('Private Key Path (Local)', 'Path Kunci Privat (Lokal)')}</span>
-                  <input type="text" disabled={authKind !== 'key'} placeholder="/Users/name/.ssh/id_ed25519" value={privateKeyPath} onChange={e => setPrivateKeyPath(e.target.value)} />
+                  <input type="text" disabled={authKind !== 'key' || detectingScratch || saving} placeholder="/Users/name/.ssh/id_ed25519" value={privateKeyPath} onChange={e => setPrivateKeyPath(e.target.value)} />
                 </label>
               </div>
 
               <div className="lab-field-grid">
-                <label>
-                  <span>{t('Remote Scratch Root', 'Direktori Scratch Remote')}</span>
-                  <input type="text" required placeholder="/scratch/users/user/phynite-work" value={scratchRoot} onChange={e => setScratchRoot(e.target.value)} />
+                <label style={{ gridColumn: '1 / -1' }}>
+                  <span>{t('Remote Scratch Root (optional)', 'Direktori Scratch Remote (opsional)')}</span>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      disabled={detectingScratch || saving}
+                      style={{ flex: 1 }}
+                      placeholder={t('Leave blank to auto-detect via SSH', 'Kosongkan untuk deteksi otomatis via SSH')}
+                      value={scratchRoot}
+                      onChange={e => { setScratchRoot(e.target.value); setDetectMessage(''); }}
+                    />
+                    <button
+                      type="button"
+                      className="lab-button"
+                      disabled={detectingScratch || saving || !host.trim() || !username.trim() || (authKind === 'key' && !privateKeyPath.trim())}
+                      onClick={() => void handleDetectScratch()}
+                    >
+                      {detectingScratch ? t('Detecting…', 'Mendeteksi…') : t('Auto-detect', 'Deteksi otomatis')}
+                    </button>
+                  </div>
+                  <small style={{ color: 'var(--muted, #666)', fontSize: '11px', marginTop: '2px' }}>
+                    {detectMessage || t(
+                      'Leave blank to detect $SCRATCH or $HOME/phynite-work automatically over SSH when saving.',
+                      'Kosongkan agar otomatis mendeteksi $SCRATCH atau $HOME/phynite-work lewat SSH saat disimpan.',
+                    )}
+                  </small>
                 </label>
-                <label>
+                <label style={{ gridColumn: '1 / -1' }}>
                   <span>{t('Default Partition/Queue', 'Partisi / Antrean Default')}</span>
                   <input type="text" placeholder="misal: cpu, normal" value={partition} onChange={e => setPartition(e.target.value)} />
                 </label>
@@ -415,15 +566,34 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
                     aria-label={t('MPI Launcher Command', 'Perintah MPI Launcher')}
                   />
                   <small style={{ color: 'var(--muted, #666)', fontSize: '11px', marginTop: '2px' }}>
-                    {t('Use {ranks} where the total MPI rank count belongs.', 'Gunakan {ranks} pada posisi jumlah total MPI rank.')}
+                    {t('Use {ranks} for total MPI ranks. Use mpirun -np {ranks} on Slurm clusters without PMIx.', 'Gunakan {ranks} untuk jumlah total MPI rank. Gunakan mpirun -np {ranks} pada kluster Slurm tanpa PMIx.')}
+                  </small>
+                </label>
+                <label style={{ gridColumn: '1 / -1' }}>
+                  <span>{t('Python Executable (optional)', 'Python Executable (opsional)')}</span>
+                  <input
+                    type="text"
+                    placeholder="/path/to/conda/envs/science/bin/python3"
+                    value={pythonExecutable}
+                    onChange={event => setPythonExecutable(event.target.value)}
+                    aria-label={t('Python Executable (optional)', 'Python Executable (opsional)')}
+                  />
+                  <small style={{ color: 'var(--muted, #666)', fontSize: '11px', marginTop: '2px' }}>
+                    {t('Requires Python 3.10+ with numpy, scipy, matplotlib, seekpath, and spglib. Leave empty to auto-detect from modules or Conda.', 'Memerlukan Python 3.10+ dengan numpy, scipy, matplotlib, seekpath, dan spglib. Kosongkan untuk deteksi otomatis dari modul atau Conda.')}
                   </small>
                 </label>
               </div>
 
               <div className="lab-modal-footer">
                 <button type="button" className="lab-button" onClick={() => { resetForm(); setShowModal(false); }}>{t('Cancel', 'Batal')}</button>
-                <button type="submit" className="lab-button lab-button-primary" disabled={saving}>
-                  {saving ? t('Saving…', 'Menyimpan…') : editingId ? t('Update Cluster Profile', 'Perbarui Profil Kluster') : t('Save Cluster Profile', 'Simpan Profil Kluster')}
+                <button type="submit" className="lab-button lab-button-primary" disabled={saving || detectingScratch}>
+                  {saving
+                    ? (!scratchRoot.trim()
+                        ? t('Detecting scratch & saving…', 'Mendeteksi scratch & menyimpan…')
+                        : t('Saving…', 'Menyimpan…'))
+                    : editingId
+                      ? t('Update Cluster Profile', 'Perbarui Profil Kluster')
+                      : t('Save Cluster Profile', 'Simpan Profil Kluster')}
                 </button>
               </div>
             </form>

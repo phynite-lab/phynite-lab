@@ -96,17 +96,27 @@ class DesktopApplication:
     def hpc_request(self, method: str, path: str, raw: bytes, headers, query: dict) -> dict:
         """Serve owner-scoped HPC profiles and immutable worker snapshots."""
         import re
-        from backend.local_api.hpc_profiles import HpcProfileStore, probe_profile
+        from backend.local_api.hpc_profiles import HpcProfileStore, detect_scratch_root, probe_profile, resolve_scratch_root
 
         store = HpcProfileStore(self.services)
-        snapshot = re.fullmatch(r"/__local/hpc/clusters/([A-Za-z0-9][A-Za-z0-9_.@-]{0,95})/(?:snapshot|snapshots)/([a-f0-9]{64})", path)
+        detect_scratch = path == "/__local/hpc/clusters/detect-scratch"
+        snapshot = None if detect_scratch else re.fullmatch(r"/__local/hpc/clusters/([A-Za-z0-9][A-Za-z0-9_.@-]{0,95})/(?:snapshot|snapshots)/([a-f0-9]{64})", path)
         if snapshot and method == "GET":
             return response(200, {"profile": store.worker_snapshot(headers, snapshot[1], snapshot[2])})
-        member = re.fullmatch(r"/__local/hpc/clusters/([A-Za-z0-9][A-Za-z0-9_.@-]{0,95})", path)
+        member = None if detect_scratch else re.fullmatch(r"/__local/hpc/clusters/([A-Za-z0-9][A-Za-z0-9_.@-]{0,95})", path)
         if member and method == "GET" and query.get("profileSha256"):
             return response(200, {"profile": store.worker_snapshot(headers, member[1], str(query["profileSha256"]))})
         if not self.authorized(headers):
             raise ApiError(401, "Open this workspace through the Phynite Lab launcher.", "LOCAL_SESSION_REQUIRED")
+
+        if detect_scratch:
+            if method != "POST":
+                raise ApiError(405, "HPC method is not supported.", "METHOD_NOT_ALLOWED")
+            payload = json.loads(raw or b"{}")
+            if not isinstance(payload, dict):
+                raise ApiError(400, "Invalid HPC connection payload.", "INVALID_HPC_PROFILE")
+            connection_raw = payload.get("connection") if "connection" in payload else payload
+            return response(200, {"scratchRoot": detect_scratch_root(connection_raw)})
 
         collection = path == "/__local/hpc/clusters"
         probe = re.fullmatch(r"/__local/hpc/clusters/([A-Za-z0-9][A-Za-z0-9_.@-]{0,95})/probe", path)
@@ -116,7 +126,7 @@ class DesktopApplication:
             payload = json.loads(raw or b"{}")
             if not isinstance(payload, dict):
                 raise ApiError(400, "Invalid HPC profile payload.", "INVALID_HPC_PROFILE")
-            profile = store.save(payload, "cl-" + secrets.token_hex(12))
+            profile = store.save(resolve_scratch_root(payload), "cl-" + secrets.token_hex(12))
             return response(201, {"cluster": profile})
         if probe and method == "POST":
             profile = store.get(probe[1])
@@ -132,12 +142,13 @@ class DesktopApplication:
                 raise ApiError(404, "HPC profile was not found.", "HPC_PROFILE_NOT_FOUND")
             return response(200, {"cluster": profile})
         if method == "PUT":
-            if not store.get(identifier):
+            existing = store.get(identifier)
+            if not existing:
                 raise ApiError(404, "HPC profile was not found.", "HPC_PROFILE_NOT_FOUND")
             payload = json.loads(raw or b"{}")
             if not isinstance(payload, dict):
                 raise ApiError(400, "Invalid HPC profile payload.", "INVALID_HPC_PROFILE")
-            return response(200, {"cluster": store.save(payload, identifier)})
+            return response(200, {"cluster": store.save(resolve_scratch_root(payload, existing), identifier)})
         if method == "DELETE":
             if not store.delete(identifier):
                 raise ApiError(404, "HPC profile was not found.", "HPC_PROFILE_NOT_FOUND")
@@ -225,7 +236,7 @@ class DesktopApplication:
                 continue
             work_dir = self.data_dir / "work" / "hpc" / f"{identifier}-{checksum[:12]}"
             log_path = log_dir / f"hpc-{identifier}-{checksum[:12]}.log"
-            command = [*base_command, "--runtime", "native", "--api-url", self.origin, "--work-dir", str(work_dir), "--pseudo-root", str(self.data_dir / "pseudopotentials"), "--poll-seconds", "10", "--timeout-seconds", str(max(300, int(profile["defaults"].get("wallSeconds", 14400)) + 600)), "--hpc-cluster-id", identifier, "--hpc-profile-sha256", checksum]
+            command = [*base_command, "--runtime", "native", "--api-url", self.origin, "--work-dir", str(work_dir), "--pseudo-root", str(self.data_dir / "pseudopotentials"), "--poll-seconds", "10", "--timeout-seconds", "86400", "--hpc-cluster-id", identifier, "--hpc-profile-sha256", checksum]
             env = {key: value for key, value in os.environ.items() if not key.startswith("PHYNITE_HPC_")}
             env.update({"PHYNITE_APP_MODE": "local", "PHYNITE_DATA_DIR": str(self.data_dir), "PHYNITE_API_URL": self.origin, "PHYNITE_LOCAL_WORKER_TOKEN": self.services.worker_token})
             with log_path.open("ab") as output:
@@ -257,7 +268,7 @@ class DesktopApplication:
             self.worker_failures += 1
             self.worker_retry_at = now + min(60, 2 ** min(self.worker_failures, 6))
             if not self.workers:
-                self.services.compute_enabled = False
+                self.services.compute_enabled = any(process.poll() is None for process in self.hpc_workers.values())
                 self.services.update_item(self.services.owner, 'PERSONAL_WORKER', 'primary', {'lastSeenAtEpoch': 0})
         signature = json.dumps(environment, sort_keys=True)
         changed = self.worker_environment != signature

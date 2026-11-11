@@ -306,6 +306,40 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
+def host_subprocess_env(base_env: dict[str, str] | None = None) -> dict[str, str] | None:
+    """Restore original dynamic-linker paths when spawning host tools from a frozen binary."""
+    source = os.environ if base_env is None else base_env
+    meipass = getattr(sys, "_MEIPASS", None)
+    if not getattr(sys, "frozen", False) and not meipass:
+        return None if base_env is None else dict(base_env)
+    env = dict(source)
+    meipass_root = Path(meipass).resolve() if meipass else None
+    for variable in ("LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH"):
+        original = f"{variable}_ORIG"
+        if original in env:
+            if env[original]:
+                env[variable] = env[original]
+            else:
+                env.pop(variable, None)
+        elif variable in env:
+            kept = []
+            for entry in env[variable].split(os.pathsep):
+                if not entry:
+                    continue
+                if meipass_root is not None:
+                    try:
+                        if Path(entry).resolve().is_relative_to(meipass_root):
+                            continue
+                    except OSError:
+                        pass
+                kept.append(entry)
+            if kept:
+                env[variable] = os.pathsep.join(kept)
+            else:
+                env.pop(variable, None)
+    return env
+
+
 if __name__ == "__main__":
     try:
         raise SystemExit(main())

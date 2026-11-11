@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.metadata
 import json
 import math
 import os
@@ -227,14 +228,44 @@ def validate_transport_settings(settings: dict[str, Any]) -> None:
 def software_version(command: list[str]) -> str:
     if not shutil.which(command[0]):
         return "not installed"
+    attempts = [(command, 30)]
+    raw_launcher = os.environ.get("PHYNITE_MPI_LAUNCHER", "").strip()
+    if Path(command[0]).name == "pw.x" and raw_launcher:
+        try:
+            launcher_args = json.loads(raw_launcher)
+        except (ValueError, TypeError):
+            launcher_args = None
+        if isinstance(launcher_args, list) and launcher_args and all(isinstance(arg, str) and arg for arg in launcher_args):
+            single_rank = [arg.replace("{ranks}", "1") for arg in launcher_args] + command
+            if shutil.which(single_rank[0]):
+                attempts.append((single_rank, 15))
+    diagnostic_failed = False
     with tempfile.TemporaryDirectory(prefix="phynite-version-") as temporary_directory:
-        completed = subprocess.run(command, cwd=temporary_directory, capture_output=True,
-                                   text=True, check=False, timeout=30)
-    output = "\n".join(part.strip() for part in (completed.stdout, completed.stderr) if part.strip())
-    version = re.search(r"Program\s+(\S+)\s+v\.([^\s]+)", output)
-    if version:
-        return f"Quantum ESPRESSO {version.group(1)} {version.group(2)}"
-    return output.splitlines()[0] if output else "unknown"
+        for probe_command, timeout in attempts:
+            try:
+                completed = subprocess.run(probe_command, cwd=temporary_directory, stdin=subprocess.DEVNULL,
+                                           capture_output=True, text=True, check=False, timeout=timeout)
+            except (subprocess.TimeoutExpired, OSError):
+                diagnostic_failed = True
+                continue
+            output = "\n".join(part.strip() for part in (completed.stdout, completed.stderr) if part.strip())
+            version = re.search(r"Program\s+(\S+)\s+v\.([^\s]+)", output)
+            if version:
+                return f"Quantum ESPRESSO {version.group(1)} {version.group(2)}"
+            if completed.returncode == 0 and output:
+                return output.splitlines()[0]
+            diagnostic_failed = diagnostic_failed or completed.returncode != 0
+    return "unknown (version probe failed)" if diagnostic_failed else "unknown"
+
+
+def python_package_version(distribution: str) -> str:
+    """Report the package used by this runner, independently of console PATH."""
+    try:
+        return importlib.metadata.version(distribution)
+    except importlib.metadata.PackageNotFoundError:
+        return "not installed"
+    except (OSError, ValueError):
+        return "unknown (package metadata unavailable)"
 
 
 def qe_runtime_identity(pseudo_dir: Path) -> dict[str, Any]:
@@ -248,7 +279,7 @@ def qe_runtime_identity(pseudo_dir: Path) -> dict[str, Any]:
         "hpcAllocation": {"scheduler": os.environ.get("PHYNITE_HPC_SCHEDULER"), "launcher": json.loads(os.environ["PHYNITE_MPI_LAUNCHER"]) if os.environ.get("PHYNITE_MPI_LAUNCHER") else None, "maximumRanks": os.environ.get("PHYNITE_HPC_MAX_RANKS"), "profileSha256": os.environ.get("PHYNITE_HPC_PROFILE_SHA256")},
         "pseudopotentials": [{"filename": path.name, "sha256": digest(path), "sizeBytes": path.stat().st_size} for path in sorted(pseudo_dir.glob("*")) if path.is_file()],
         "solverExecutables": [{"name": name, "sha256": digest(Path(executable))} for name in ("neb.x", "pw.x", "bands.x", "dos.x", "projwfc.x", "ph.x", "q2r.x", "matdyn.x") if (executable := shutil.which(name))],
-        "software": {"quantumEspresso": software_version(["pw.x", "--version"]), "boltzTraP2": software_version(["btp2", "--version"])},
+        "software": {"quantumEspresso": software_version(["pw.x", "--version"]), "boltzTraP2": python_package_version("BoltzTraP2")},
     }
 
 

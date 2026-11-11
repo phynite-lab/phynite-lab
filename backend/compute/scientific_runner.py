@@ -791,7 +791,8 @@ def run_transport(input_files: dict[str, str], settings: dict[str, Any], vcpus: 
         recorded_process(
             "boltztrap2-integrate",
             [
-                "btp2",
+                sys.executable,
+                str(adapter),
                 "integrate",
                 str(transport_bt2),
                 f"{temperature_min}:{temperature_max + 1}:{temperature_step}",
@@ -890,7 +891,14 @@ def prepare_automatic_k_path(calculation_type: str, input_files: dict[str, str],
     scf_input = input_files.get("scf.in")
     if not scf_input:
         raise RuntimeError("Automatic reciprocal-space path requires scf.in")
-    path_result = seek_path_for_qe(scf_input)
+    try:
+        path_result = seek_path_for_qe(scf_input)
+    except ImportError as exc:
+        raise RuntimeError(
+            "Automatic reciprocal-space paths require working seekpath and spglib packages in the selected Python runtime. "
+            "Load a compatible scientific Python module or configure Python Executable, then probe the HPC profile again. "
+            "The unverified input path was not used."
+        ) from exc
     mode = "seekpath-original-cell"
     if requested_path:
         segments, requested_labels = requested_path_segments(path_result, requested_path)

@@ -165,5 +165,175 @@ class HpcDesktopProtocolTests(unittest.TestCase):
             self.assertEqual(claimed['calculationId'], 'hpc-fixture')
             self.assertEqual(claimed['executionAffinity'], affinity)
 
+    def test_detect_scratch_endpoint_and_blank_scratch_autodetection_on_save(self):
+        from backend.local_api.desktop_server import DesktopApplication
+        from backend.local_api.domain.phynite_core import ApiError
+        with tempfile.TemporaryDirectory() as directory:
+            app = DesktopApplication(Path(directory), 8792, 'http://127.0.0.1:3000')
+            try:
+                headers = {'Authorization': 'Bearer ' + app.token}
+                with self.assertRaises(ApiError) as denied:
+                    app.dispatch('POST', '/__local/hpc/clusters/detect-scratch', b'{}', {}, {})
+                self.assertEqual(denied.exception.code, 'LOCAL_SESSION_REQUIRED')
+
+                with patch('backend.local_worker.hpc_ssh.HpcSshConnection') as connection:
+                    connection.return_value.detect_scratch_root.return_value = '/mgpfs/home/researcher/phynite-work'
+                    connection.return_value.probe_connection.return_value = {
+                        'ok': True, 'latencyMs': 5.0, 'system': 'Linux x86_64',
+                        'schedulers': {'slurm': True, 'pbs': False},
+                        'solvers': {'qe': '/usr/bin/pw.x', 'lammps': None},
+                        'suggestedScratchRoot': '/mgpfs/home/researcher/phynite-work',
+                    }
+                    connection.return_value.check_writable_path.return_value = False
+
+                    detected = app.dispatch(
+                        'POST',
+                        '/__local/hpc/clusters/detect-scratch',
+                        json.dumps({'connection': profile()['connection']}).encode(),
+                        headers,
+                        {},
+                    )
+                    self.assertEqual(json.loads(detected['body'])['scratchRoot'], '/mgpfs/home/researcher/phynite-work')
+
+                    blank_payload = {
+                        **profile(),
+                        'storage': {'purgeWavefunctions': True},
+                    }
+                    created = app.dispatch('POST', '/__local/hpc/clusters', json.dumps(blank_payload).encode(), headers, {})
+                    cluster = json.loads(created['body'])['cluster']
+                    self.assertEqual(cluster['storage']['scratchRoot'], '/mgpfs/home/researcher/phynite-work')
+
+                    probe_result = probe_profile({**cluster, 'storage': {'scratchRoot': '/scratch', 'purgeWavefunctions': True}})
+                    self.assertFalse(probe_result['scratchWritable'])
+                    self.assertEqual(probe_result['suggestedScratchRoot'], '/mgpfs/home/researcher/phynite-work')
+            finally:
+                app.close()
+
+    def test_probe_profile_emits_runtime_warnings_and_recommendations(self):
+        with patch('backend.local_worker.hpc_ssh.HpcSshConnection') as connection:
+            connection.return_value.check_writable_path.return_value = True
+            connection.return_value.probe_connection.return_value = {
+                'ok': True,
+                'latencyMs': 8.0,
+                'system': 'Linux x86_64',
+                'schedulers': {'slurm': True, 'pbs': False},
+                'solvers': {'qe': '/opt/qe/bin/pw.x', 'lammps': None},
+                'mpi': {
+                    'mpirun': '/opt/impi/bin/mpirun',
+                    'mpiexec': '/opt/impi/bin/mpiexec',
+                    'srunPlugins': ['cray_shasta', 'none', 'pmi2'],
+                    'qeMpi': 'intelmpi',
+                },
+                'python': {
+                    'executable': '/usr/bin/python3',
+                    'version': '3.6.8',
+                    'versionOk': False,
+                    'packagesOk': False,
+                    'missingPackages': ['numpy', 'scipy', 'matplotlib'],
+                    'suggestedExecutable': '/home/researcher/miniconda3/envs/science/bin/python3',
+                    'suggestedVersion': '3.10.20',
+                },
+            }
+            prof = profile()
+            prof['runtime']['mpiLauncher'] = ['srun', '--mpi=pmix', '--ntasks={ranks}']
+            res = probe_profile(prof)
+            self.assertEqual(res['suggestedMpiLauncher'], ['mpirun', '-np', '{ranks}'])
+            self.assertEqual(res['suggestedPythonExecutable'], '/home/researcher/miniconda3/envs/science/bin/python3')
+            self.assertTrue(res.get('runtimeWarnings'))
+            self.assertGreaterEqual(len(res['runtimeWarnings']), 2)
+            connection.return_value.probe_connection.assert_called_once_with(modules=prof['runtime']['environmentModules'])
+
+            connection.reset_mock()
+            connection.return_value.check_writable_path.return_value = True
+            connection.return_value.probe_connection.return_value = {
+                'ok': True,
+                'latencyMs': 7.0,
+                'system': 'Linux x86_64',
+                'schedulers': {'slurm': True, 'pbs': False},
+                'solvers': {'qe': '/opt/qe/bin/pw.x', 'lammps': None},
+                'mpi': {'mpirun': '/opt/impi/bin/mpirun', 'mpiexec': '/opt/impi/bin/mpiexec', 'srunPlugins': ['pmi2'], 'qeMpi': 'intelmpi'},
+                'python': {'executable': '/home/researcher/miniconda3/envs/science/bin/python3', 'version': '3.10.20', 'versionOk': True, 'packagesOk': True, 'missingPackages': []},
+            }
+            fixed = copy.deepcopy(prof)
+            fixed['runtime']['mpiLauncher'] = ['mpirun', '-np', '{ranks}']
+            fixed['runtime']['pythonExecutable'] = '/home/researcher/miniconda3/envs/science/bin/python3'
+            res_fixed = probe_profile(fixed)
+            self.assertNotIn('suggestedMpiLauncher', res_fixed)
+            self.assertNotIn('suggestedPythonExecutable', res_fixed)
+            self.assertFalse(res_fixed.get('runtimeWarnings'))
+            connection.return_value.probe_connection.assert_called_once_with(
+                modules=fixed['runtime']['environmentModules'],
+                python_executable='/home/researcher/miniconda3/envs/science/bin/python3',
+            )
+
+    def test_reconcile_interrupted_jobs_spares_submitted_hpc_jobs_only(self):
+        from backend.local_api.domain.phynite_core import owner_partition
+        from backend.local_api.services import LocalServices
+        with tempfile.TemporaryDirectory() as directory:
+            services = LocalServices(Path(directory), 'http://127.0.0.1:49160', 'http://127.0.0.1:3000')
+            owner = services.owner
+            sha = 'c' * 64
+            services.put_item({
+                'PK': owner_partition(owner), 'SK': 'CALCULATION#hpc-calc', 'id': 'hpc-calc',
+                'ownerId': owner, 'projectId': 'p', 'entityType': 'CALCULATION', 'status': 'RUNNING',
+                'computeBackend': 'LOCAL_MAC', 'leaseExpiresAtEpoch': 1,
+                'executionAffinity': {'scheduler': 'slurm', 'profileSha256': sha},
+            })
+            services.put_item({
+                'PK': owner_partition(owner), 'SK': 'CALCULATION#local-calc', 'id': 'local-calc',
+                'ownerId': owner, 'projectId': 'p', 'entityType': 'CALCULATION', 'status': 'RUNNING',
+                'computeBackend': 'LOCAL_MAC', 'leaseExpiresAtEpoch': 1,
+            })
+            services.put_item({
+                'PK': owner_partition(owner), 'SK': 'CALCULATION#uncertain-calc', 'id': 'uncertain-calc',
+                'ownerId': owner, 'projectId': 'p', 'entityType': 'CALCULATION', 'status': 'RUNNING',
+                'computeBackend': 'LOCAL_MAC', 'leaseExpiresAtEpoch': 1,
+                'executionAffinity': {'scheduler': 'slurm', 'profileSha256': sha},
+            })
+            submitted_receipt = Path(directory) / 'work' / 'hpc' / f'brin-{sha[:12]}' / 'hpc-calc' / 'receipts' / 'hpc-calc.json'
+            submitted_receipt.parent.mkdir(parents=True)
+            submitted_receipt.write_text(json.dumps({
+                'state': 'submitted', 'calculationId': 'hpc-calc', 'profileSha256': sha,
+                'scheduler': 'slurm', 'schedulerJobId': '571085',
+            }), encoding='utf-8')
+            uncertain_receipt = Path(directory) / 'work' / 'hpc' / f'brin-{sha[:12]}' / 'uncertain-calc' / 'receipts' / 'uncertain-calc.json'
+            uncertain_receipt.parent.mkdir(parents=True)
+            uncertain_receipt.write_text(json.dumps({
+                'state': 'submission-uncertain', 'calculationId': 'uncertain-calc', 'profileSha256': sha,
+                'scheduler': 'slurm',
+            }), encoding='utf-8')
+
+            services.reconcile_interrupted_jobs(restart=True)
+            self.assertEqual(services.get_item(owner, 'CALCULATION', 'hpc-calc')['status'], 'RUNNING')
+            self.assertEqual(services.get_item(owner, 'CALCULATION', 'local-calc')['status'], 'FAILED')
+            self.assertTrue(services.get_item(owner, 'CALCULATION', 'local-calc')['interrupted'])
+            self.assertEqual(services.get_item(owner, 'CALCULATION', 'uncertain-calc')['status'], 'FAILED')
+
+            # After restart and lease expiry, only the RUNNING HPC job with a submitted receipt can be re-claimed to resume polling.
+            resumed = services.claim_local_calculation(
+                services.get_item(owner, 'CALCULATION', 'hpc-calc'),
+                'worker-resumed',
+                2000,
+                1000,
+                '2026-11-11T09:30:00Z',
+            )
+            self.assertIsNotNone(resumed)
+            self.assertEqual(resumed['localWorkerId'], 'worker-resumed')
+            self.assertEqual(int(resumed['leaseExpiresAtEpoch']), 2000)
+
+            # Without a valid submitted receipt, an expired RUNNING local job must still never be re-claimed.
+            services.put_item({
+                'PK': owner_partition(owner), 'SK': 'CALCULATION#no-receipt-running', 'id': 'no-receipt-running',
+                'ownerId': owner, 'projectId': 'p', 'entityType': 'CALCULATION', 'status': 'RUNNING',
+                'computeBackend': 'LOCAL_MAC', 'leaseExpiresAtEpoch': 1,
+            })
+            self.assertIsNone(services.claim_local_calculation(
+                services.get_item(owner, 'CALCULATION', 'no-receipt-running'),
+                'worker-resumed',
+                2000,
+                1000,
+                '2026-11-11T09:30:00Z',
+            ))
+
 
 if __name__ == '__main__': unittest.main()

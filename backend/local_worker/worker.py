@@ -202,7 +202,9 @@ class ApiClient:
             if retention_tag not in {"phynite-retention=calculation-output", "phynite-retention=research-data"}:
                 raise WorkerError("Backend returned an invalid retention policy")
             headers.extend(["x-amz-tagging", retention_tag])
-        if shutil.which("curl") is not None:
+        file_size = source.stat().st_size
+        use_curl = shutil.which("curl") is not None and (file_size > 100_000_000 or os.environ.get("PHYNITE_APP_MODE") != "local")
+        if use_curl:
             header_arguments = [
                 argument
                 for index in range(0, len(headers), 2)
@@ -224,11 +226,12 @@ class ApiClient:
                     ],
                     check=True,
                     timeout=1800,
+                    env=recovery.host_subprocess_env(),
                 )
                 return
             except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
                 raise WorkerError(f"Artifact upload failed: {source.name}") from exc
-        if source.stat().st_size > 100_000_000:
+        if file_size > 100_000_000:
             raise WorkerError("curl is required to stream artifacts larger than 100 MB")
         request = urllib.request.Request(
             url,
@@ -367,6 +370,7 @@ def docker_command(*arguments: str, check: bool = True) -> subprocess.CompletedP
         text=True,
         check=check,
         timeout=60,
+        env=recovery.host_subprocess_env(),
     )
 
 
@@ -527,7 +531,8 @@ def md_runtime_manifest(runtime: str, image: str | None) -> dict[str, Any]:
         else:
             executable = shutil.which("lmp") or shutil.which("lammps")
             result = subprocess.run(
-                [str(executable), "-h"], capture_output=True, text=True, check=False, timeout=60
+                [str(executable), "-h"], capture_output=True, text=True, check=False, timeout=60,
+                env=recovery.host_subprocess_env(),
             ) if executable else None
         if result is not None:
             output = (result.stdout or "") + "\n" + (result.stderr or "")
@@ -585,7 +590,7 @@ def native_md_analysis_available() -> bool:
     if not python:
         return False
     command = [python, "-c", "import ovito"]
-    check = subprocess.run(command, capture_output=True, text=True, timeout=30)
+    check = subprocess.run(command, capture_output=True, text=True, timeout=30, env=recovery.host_subprocess_env())
     return check.returncode == 0
 
 
@@ -596,7 +601,8 @@ def native_md_runtime_available() -> bool:
 
 
 def native_environment(job_dir: Path, calculation_id: str, vcpus: int, memory_mib: int, timeout_seconds: float = 86400) -> dict[str, str]:
-    env = {key: os.environ[key] for key in ("PATH", "LANG", "LC_ALL", "TMPDIR", "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH") if key in os.environ}
+    base_env = recovery.host_subprocess_env() or os.environ
+    env = {key: base_env[key] for key in ("PATH", "LANG", "LC_ALL", "TMPDIR", "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH") if key in base_env}
     env.update({
         "HOME": str(job_dir), "PHYNITE_WORK_DIR": str(job_dir),
         "PHYNITE_CALCULATION_ID": calculation_id, "PHYNITE_VCPUS": str(vcpus),
@@ -641,7 +647,7 @@ def validate_native_runtime() -> None:
     if missing:
         raise WorkerError("Native executables missing from PATH: " + ", ".join(missing))
     if scheduler is None:
-        mpi = subprocess.run(["mpirun", "--version"], capture_output=True, text=True, timeout=15)
+        mpi = subprocess.run(["mpirun", "--version"], capture_output=True, text=True, timeout=15, env=recovery.host_subprocess_env())
         if mpi.returncode or not any(name in mpi.stdout + mpi.stderr for name in ("Open MPI", "OpenRTE")):
             raise WorkerError("Use Quantum ESPRESSO and mpirun built against the same Open MPI installation.")
     if psutil is None:
@@ -650,7 +656,7 @@ def validate_native_runtime() -> None:
     if not python:
         raise WorkerError("The DFT runtime's scientific Python is not installed. Complete DFT setup in the web application.")
     command = [python, "-c", "import numpy, scipy, seekpath, matplotlib"]
-    check = subprocess.run(command, capture_output=True, text=True, timeout=30)
+    check = subprocess.run(command, capture_output=True, text=True, timeout=30, env=recovery.host_subprocess_env())
     if check.returncode:
         raise WorkerError("Native Python dependencies are missing. Install backend/local_worker/requirements-native.txt in your virtual environment.")
     if not shutil.which("neb.x"):
@@ -1211,10 +1217,12 @@ def remote_result(job_dir: Path, job: dict[str, Any], outcome: dict[str, Any]) -
 
     Remote files are already sparse-harvested into ``results``.  The local
     broker still receives the same immutable result envelope as personal QE;
-    a scheduler failure, timeout, uncertain receipt, or bad manifest is
+    a scheduler failure, uncertain receipt, or bad manifest is
     deliberately terminal with an explicit manual-resume-required message.
     """
     state = str(outcome.get("state") or "manual-resume-required")
+    if state in {"monitoring-deferred", "lease-lost"}:
+        raise WorkerError("An active or unowned remote job cannot be finalized as a scientific result.")
     completed = state == "completed" and outcome.get("manifestValidated") is True
     results = job_dir / "results"
     results.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -2064,7 +2072,6 @@ def main(argv: list[str] | None = None) -> int:
                 host=profile["connection"]["host"], username=profile["connection"]["username"], port=int(profile["connection"].get("port", 22)),
                 private_key_path=profile["connection"].get("privateKeyPath") if profile["connection"].get("authKind") == "key" else None,
                 bastion_host=profile["connection"].get("bastionHost"), bastion_port=int(profile["connection"].get("bastionPort", 22)), bastion_user=profile["connection"].get("bastionUser"),
-                control_dir=args.work_dir / "ssh-sockets",
             )
             remote = HpcRemoteWorker(client, worker_id(args.work_dir), args.hpc_cluster_id, args.hpc_profile_sha256,
                                      workspace_builder=lambda job, directory: prepare_remote_workspace(client, job, directory, args.pseudo_root))
@@ -2082,6 +2089,14 @@ def main(argv: list[str] | None = None) -> int:
                     if args.once:
                         return 0
                     time.sleep(max(2, args.poll_seconds))
+                    continue
+                if result.get("state") in {"monitoring-deferred", "lease-lost"}:
+                    # An unobserved allocation is still active. Do not fabricate
+                    # a FAILED scientific result or upload under a rejected lease.
+                    print(json.dumps({"state": result["state"], "reason": result.get("reason")}), flush=True)
+                    if args.once or args.calculation_id:
+                        return 3
+                    time.sleep(max(5, args.poll_seconds))
                     continue
                 job = result.get("job")
                 if not isinstance(job, dict):
