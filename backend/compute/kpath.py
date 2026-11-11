@@ -155,6 +155,68 @@ def requested_path_segments(path_result: dict[str, Any], requested_path: str) ->
     return segments, labels
 
 
+def crystal_b_path_metadata(input_text: str) -> dict[str, Any] | None:
+    """Build tick and branch-break metadata from a pre-compiled K_POINTS crystal_b block."""
+    if not input_text:
+        return None
+    try:
+        unit, lines = _block(
+            input_text,
+            "K_POINTS",
+            ("ATOMIC_SPECIES", "ATOMIC_POSITIONS", "CELL_PARAMETERS", "ATOMIC_FORCES", "CONSTRAINTS", "OCCUPATIONS", "HUBBARD"),
+        )
+    except ValueError:
+        return None
+    if not unit.split() or unit.split()[0] != "crystal_b" or not lines:
+        return None
+    try:
+        count = int(lines[0].split()[0])
+    except ValueError:
+        return None
+    if count < 2 or len(lines) < count + 1:
+        return None
+
+    labels: list[str] = []
+    point_coords: dict[str, list[float]] = {}
+    tick_indices: list[int] = []
+    break_indices: list[int] = []
+    cursor = 0
+    prev_weight: int | None = None
+
+    for idx, raw_line in enumerate(lines[1 : count + 1]):
+        body, _, comment = raw_line.partition("!")
+        fields = body.split()
+        if len(fields) < 4:
+            return None
+        try:
+            coords = [float(fields[0]), float(fields[1]), float(fields[2])]
+            weight = int(round(float(fields[3])))
+        except ValueError:
+            return None
+        label = comment.strip() or f"K{idx + 1}"
+        if idx > 0 and prev_weight is not None and prev_weight <= 1:
+            break_indices.append(cursor)
+        labels.append(label)
+        point_coords.setdefault(label, coords)
+        tick_indices.append(cursor)
+        cursor += 1 if weight <= 0 else weight
+        prev_weight = weight
+
+    break_set = set(break_indices)
+    segments = [
+        [labels[i], labels[i + 1]]
+        for i in range(len(labels) - 1)
+        if tick_indices[i + 1] not in break_set
+    ]
+    return {
+        "labels": labels,
+        "pointCoords": point_coords,
+        "segments": segments,
+        "tickIndices": tick_indices,
+        "breakIndices": break_indices,
+    }
+
+
 def replace_pw_k_path(input_text: str, path_lines: str) -> str:
     replacement = f"K_POINTS crystal_b\n{path_lines.rstrip()}\n"
     match = re.search(r"^\s*K_POINTS\b", input_text, re.IGNORECASE | re.MULTILINE)

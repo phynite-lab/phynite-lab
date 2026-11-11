@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import hashlib
 import base64
+import json
 import os
+import re
 import secrets
 import time
 from pathlib import Path
@@ -48,6 +50,30 @@ class LocalServices(MetadataServices):
         self.put_item({'PK': owner_partition(self.owner), 'SK': 'PERSONAL_WORKER#primary', 'id': 'primary', 'entityType': 'PERSONAL_WORKER', 'ownerId': self.owner, 'tokenHash': self.worker_token_sha256, 'credentialVersion': secrets.token_hex(16), 'credentialCreatedAt': utc_now(), 'lastSeenAtEpoch': 0, 'capabilities': []})
         self.reconcile_interrupted_jobs(restart=True)
 
+    def _has_submitted_hpc_receipt(self, item: dict[str, Any]) -> bool:
+        affinity = item.get('executionAffinity')
+        if not isinstance(affinity, dict):
+            return False
+        profile_sha = str(affinity.get('profileSha256') or '')
+        calc_id = str(item.get('id') or '')
+        if not re.fullmatch(r'[a-f0-9]{64}', profile_sha) or not re.fullmatch(r'[A-Za-z0-9_-]{1,96}', calc_id):
+            return False
+        hpc_root = self.data_dir / 'work' / 'hpc'
+        if not hpc_root.is_dir():
+            return False
+        for receipt_path in hpc_root.glob(f'*-{profile_sha[:12]}/{calc_id}/receipts/{calc_id}.json'):
+            try:
+                data = json.loads(receipt_path.read_text(encoding='utf-8'))
+            except (OSError, ValueError):
+                continue
+            if (isinstance(data, dict)
+                    and data.get('state') == 'submitted'
+                    and data.get('calculationId') == calc_id
+                    and data.get('profileSha256') == profile_sha
+                    and data.get('schedulerJobId')):
+                return True
+        return False
+
     def reconcile_interrupted_jobs(self, *, restart: bool = False) -> None:
         """An expired desktop lease is an interruption, never a replay request."""
         now = int(time.time())
@@ -56,19 +82,24 @@ class LocalServices(MetadataServices):
                 for item in self.list_owner_items(self.owner, kind):
                     if item.get('computeBackend') != 'LOCAL_MAC' or item.get('status') not in {'RUNNING', 'CANCEL_REQUESTED'}:
                         continue
+                    if item.get('status') == 'RUNNING' and self._has_submitted_hpc_receipt(item):
+                        continue
                     if not restart and int(item.get('leaseExpiresAtEpoch') or 0) >= now:
                         continue
                     self.update_item(self.owner, kind, item['id'], {'status': 'CANCELLED' if item['status'] == 'CANCEL_REQUESTED' else 'FAILED', 'statusMessage': INTERRUPTED_REASON, 'failureReason': INTERRUPTED_REASON, 'interrupted': True, 'completedAt': utc_now(), 'updatedAt': utc_now()})
 
     def claim_local_calculation(self, item, worker_id, lease_expires_at, now_epoch, timestamp):
-        if item.get('status') != 'QUEUED':
+        can_resume_submitted_hpc = item.get('status') == 'RUNNING' and self._has_submitted_hpc_receipt(item)
+        if item.get('status') != 'QUEUED' and not can_resume_submitted_hpc:
             self.reconcile_interrupted_jobs()
             return None
         # Keep the check and the inherited conditional claim in one SQLite
         # transaction, so another thread cannot turn this into a stale replay.
         with self.table.atomic():
             current = self.table.get_item(Key=item).get('Item', {})
-            if current.get('status') != 'QUEUED':
+            if current.get('status') != 'QUEUED' and not (
+                current.get('status') == 'RUNNING' and self._has_submitted_hpc_receipt(current)
+            ):
                 return None
             return super().claim_local_calculation(item, worker_id, lease_expires_at, now_epoch, timestamp)
 

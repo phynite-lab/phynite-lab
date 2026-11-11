@@ -9,10 +9,13 @@ import argparse
 import ctypes
 import fcntl
 import hashlib
+import http.client
 import json
 import os
 from pathlib import Path, PurePosixPath
+import re
 import shutil
+import ssl
 import sys
 import tarfile
 import tempfile
@@ -57,34 +60,174 @@ def _open(request):
     return opener.open(request, timeout=30)
 
 
-def download(name: str, destination: Path, checksum: str, limit: int, *, sha256: str | None = None, progress: Callable[[int], None] | None = None) -> None:
+class _RestartDownload(Exception):
+    """Signal that a partial download must restart cleanly from byte zero."""
+
+
+def _header(source, name: str) -> str | None:
+    headers = getattr(source, 'headers', None)
+    if not headers:
+        return None
+    value = headers.get(name)
+    if value is not None:
+        return value
+    target = name.lower()
+    for key, item in headers.items():
+        if key.lower() == target:
+            return item
+    return None
+
+
+def _parse_content_range(header: str | None) -> tuple[int, int, int | None] | None:
+    if not header:
+        return None
+    match = re.fullmatch(r'bytes (\d+)-(\d+)/(\d+|\*)', header.strip(), flags=re.IGNORECASE)
+    if not match:
+        return None
+    start, end, total = int(match.group(1)), int(match.group(2)), match.group(3)
+    if end < start:
+        return None
+    return start, end, (None if total == '*' else int(total))
+
+
+def _response_contract(
+    name: str,
+    source,
+    offset: int,
+    limit: int,
+    expected_etag: str | None,
+) -> tuple[int, int | None, int | None, str | None]:
+    """Validate response framing and return `(write_offset, segment_bytes, total_bytes, etag)`."""
+    status = getattr(source, 'status', 200)
+    raw_etag = _header(source, 'ETag')
+    etag = raw_etag.strip() if isinstance(raw_etag, str) and raw_etag.strip() else None
+    encoding = _header(source, 'Content-Encoding')
+    raw_length = None if encoding else _header(source, 'Content-Length')
+    content_length = int(raw_length.strip()) if isinstance(raw_length, str) and raw_length.strip().isdigit() else None
+    if offset > 0 and status == 206:
+        parsed = _parse_content_range(_header(source, 'Content-Range'))
+        if parsed is None:
+            raise http.client.HTTPException('Invalid Content-Range in partial SSSP response')
+        start, end, total_expected = parsed
+        if start != offset:
+            raise http.client.HTTPException('Mismatched Content-Range start in partial SSSP response')
+        if total_expected is not None and total_expected > limit:
+            raise RuntimeError(f'{name} exceeds its reviewed download size or time budget')
+        segment_expected = end - start + 1
+        if content_length is not None and content_length != segment_expected:
+            raise http.client.HTTPException('Mismatched Content-Length in partial SSSP response')
+        if expected_etag and etag and etag != expected_etag:
+            raise _RestartDownload('Upstream SSSP archive ETag changed during resume')
+        return offset, segment_expected, total_expected, expected_etag or etag
+    if status in {200, None}:
+        if content_length is not None and content_length > limit:
+            raise RuntimeError(f'{name} exceeds its reviewed download size or time budget')
+        return 0, content_length, content_length, etag
+    raise http.client.HTTPException(f'Unexpected HTTP status {status} while downloading {name}')
+
+
+def _raise_download_error(name: str, exc: BaseException) -> None:
+    if isinstance(exc, (OSError, RuntimeError)):
+        raise exc
+    raise RuntimeError(f'Download interrupted for {name}; no library was installed') from exc
+
+
+def download(
+    name: str,
+    destination: Path,
+    checksum: str,
+    limit: int,
+    *,
+    sha256: str | None = None,
+    size: int | None = None,
+    progress: Callable[[int], None] | None = None,
+) -> None:
+    """Download a verified SSSP file with HTTP Range resume and complete-stream checks."""
     if destination.is_symlink():
         raise RuntimeError('SSSP download destination cannot be a symbolic link')
     if destination.is_file() and digest(destination) == checksum and (not sha256 or digest(destination, 'sha256') == sha256):
         return
-    request = urllib.request.Request(f'{SOURCE}/{name}/content', headers={'User-Agent': 'PhyniteLocalSetup/1.0'})
+    if size is not None and size > limit:
+        raise RuntimeError(f'{name} exceeds its reviewed download size or time budget')
+    url = f'{SOURCE}/{name}/content'
     temporary = destination.with_suffix(destination.suffix + '.part')
-    deadline = time.monotonic() + 600
+    deadline = time.monotonic() + 1800
+    offset = 0
+    expected_etag: str | None = None
+    expected_total = size
+    stalls = 0
     try:
-        for attempt in range(4):
+        temporary.write_bytes(b'')
+        for _ in range(256):
+            before = offset
+            headers = {'User-Agent': 'PhyniteLocalSetup/1.0'}
+            if offset > 0:
+                headers['Range'] = f'bytes={offset}-'
+            request = urllib.request.Request(url, headers=headers)
             try:
-                with _open(request) as source, temporary.open('wb') as target:
-                    total = 0
-                    while chunk := source.read(1024 * 1024):
-                        total += len(chunk)
-                        if total > limit or time.monotonic() > deadline:
+                with _open(request) as source:
+                    write_offset, segment_expected, header_total, expected_etag = _response_contract(
+                        name, source, offset, limit, expected_etag
+                    )
+                    if header_total is not None:
+                        if header_total > limit:
                             raise RuntimeError(f'{name} exceeds its reviewed download size or time budget')
-                        target.write(chunk)
-                        if progress:
-                            progress(total)
-                    target.flush(); os.fsync(target.fileno())
+                        if expected_total is not None and header_total != expected_total:
+                            raise RuntimeError(f'Unexpected download size for {name}; no library was installed')
+                        expected_total = header_total
+                    offset = write_offset
+                    received = 0
+                    with temporary.open('r+b') as target:
+                        target.seek(offset)
+                        target.truncate(offset)
+                        while chunk := source.read(64 * 1024):
+                            if offset + len(chunk) > limit or time.monotonic() > deadline:
+                                raise RuntimeError(f'{name} exceeds its reviewed download size or time budget')
+                            target.write(chunk)
+                            offset += len(chunk)
+                            received += len(chunk)
+                            if progress:
+                                progress(offset)
+                        target.flush()
+                        os.fsync(target.fileno())
+                if segment_expected is not None and received < segment_expected:
+                    raise http.client.IncompleteRead(b'', segment_expected - received)
+                if expected_total is not None and offset < expected_total:
+                    raise http.client.IncompleteRead(b'', expected_total - offset)
                 break
-            except (urllib.error.URLError, TimeoutError) as exc:
-                if isinstance(exc, urllib.error.HTTPError) and exc.code not in {429, 500, 502, 503, 504}:
-                    raise
-                if attempt == 3 or time.monotonic() > deadline:
-                    raise
-                time.sleep(2 ** (attempt + 1))
+            except (
+                _RestartDownload,
+                urllib.error.URLError,
+                TimeoutError,
+                http.client.HTTPException,
+                OSError,
+                ssl.SSLError,
+                EOFError,
+            ) as exc:
+                if isinstance(exc, _RestartDownload) or (isinstance(exc, urllib.error.HTTPError) and exc.code == 416 and offset > 0):
+                    if isinstance(exc, urllib.error.HTTPError):
+                        exc.close()
+                    offset = 0
+                    expected_etag = None
+                    expected_total = size
+                    temporary.write_bytes(b'')
+                elif isinstance(exc, urllib.error.HTTPError):
+                    retryable_http = exc.code in {408, 429, 500, 502, 503, 504}
+                    if not retryable_http:
+                        raise
+                    exc.close()
+                if offset > before:
+                    stalls = 0
+                    if time.monotonic() > deadline:
+                        raise RuntimeError(f'{name} exceeds its reviewed download size or time budget') from exc
+                    time.sleep(1)
+                else:
+                    stalls += 1
+                    if stalls >= 5 or time.monotonic() > deadline:
+                        _raise_download_error(name, exc)
+                    time.sleep(min(16, 2 ** stalls))
+        else:
+            raise RuntimeError(f'{name} exceeded maximum resume attempts; no library was installed')
         if digest(temporary) != checksum or (sha256 and digest(temporary, 'sha256') != sha256):
             raise RuntimeError(f'Checksum mismatch for {name}; no library was installed')
         temporary.replace(destination)
@@ -175,7 +318,7 @@ def install_library(root: Path, library: str, check: bool = False, *, progress: 
             archive_path = staging / 'library.tar.gz'
             checksum, size = ARCHIVES[library]
             report('downloading', downloadedBytes=0, totalBytes=size)
-            download(f'SSSP_1.3.0_PBE_{library}.tar.gz', archive_path, checksum, size, sha256=ARCHIVE_SHA256[library], progress=lambda amount: report('downloading', downloadedBytes=amount, totalBytes=size))
+            download(f'SSSP_1.3.0_PBE_{library}.tar.gz', archive_path, checksum, size, sha256=ARCHIVE_SHA256[library], size=size, progress=lambda amount: report('downloading', downloadedBytes=amount, totalBytes=size))
             license_file = staging / 'SSSP-LICENSE.txt'
             download('LICENSE.txt', license_file, LICENSE_MD5, 10_000, sha256=LICENSE_SHA256)
             files = staging / 'library'; files.mkdir()

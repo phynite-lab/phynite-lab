@@ -172,6 +172,98 @@ class LocalPseudopotentialTests(unittest.TestCase):
             with self.subTest(url=url), self.assertRaises(RuntimeError):
                 redirect.redirect_request(request, None, 302, 'Found', {}, url)
 
+    class _FakeResponse(io.BytesIO):
+        def __init__(self, payload: bytes, *, status: int = 200, headers: dict[str, str] | None = None):
+            super().__init__(payload)
+            self.status = status
+            self.headers = headers or {}
+
+    def test_download_resumes_after_truncated_reads_across_many_segments(self):
+        archive = self.archive
+        slice_size = max(1, len(archive) // 6)
+        ranges_seen: list[str | None] = []
+        progress_updates: list[int] = []
+
+        def fake_open(request):
+            if request.full_url.endswith('/LICENSE.txt/content'):
+                return self._FakeResponse(self.license, headers={'Content-Length': str(len(self.license))})
+            byte_range = request.headers.get('Range')
+            ranges_seen.append(byte_range)
+            start = 0 if not byte_range else int(byte_range.removeprefix('bytes=').removesuffix('-'))
+            end = min(len(archive), start + slice_size)
+            if start == 0:
+                headers = {'Content-Length': str(len(archive)), 'ETag': '"v1"'}
+                status = 200
+            else:
+                headers = {
+                    'Content-Length': str(len(archive) - start),
+                    'Content-Range': f'bytes {start}-{len(archive) - 1}/{len(archive)}',
+                    'ETag': '"v1"',
+                }
+                status = 206
+            return self._FakeResponse(archive[start:end], status=status, headers=headers)
+
+        with patch.object(installer, '_open', side_effect=fake_open), patch.object(installer.time, 'sleep'):
+            installer.install_library(
+                self.root / 'pseudopotentials',
+                'precision',
+                progress=lambda update: progress_updates.append(update.get('downloadedBytes', 0)),
+            )
+
+        self.assertGreater(len(ranges_seen), 5)
+        self.assertIsNone(ranges_seen[0])
+        self.assertTrue(all(item and item.startswith('bytes=') for item in ranges_seen[1:]))
+        self.assertEqual(progress_updates, sorted(progress_updates))
+        self.assertEqual((self.root / 'pseudopotentials/sssp-pbe-precision/Si.fixture.UPF').read_bytes(), self.content)
+
+    def test_download_restarts_cleanly_on_200_fallback_etag_change_and_416(self):
+        archive = self.archive
+        half = len(archive) // 2
+        for scenario in ('no-range-200', 'etag-changed', 'range-416'):
+            calls = {'count': 0}
+
+            def fake_open(request, mode=scenario, state=calls):
+                if request.full_url.endswith('/LICENSE.txt/content'):
+                    return self._FakeResponse(self.license, headers={'Content-Length': str(len(self.license))})
+                state['count'] += 1
+                if state['count'] == 1:
+                    return self._FakeResponse(archive[:half], status=200, headers={'Content-Length': str(len(archive)), 'ETag': '"v1"'})
+                if mode == 'etag-changed' and state['count'] == 2:
+                    return self._FakeResponse(archive[half:], status=206, headers={
+                        'Content-Length': str(len(archive) - half),
+                        'Content-Range': f'bytes {half}-{len(archive) - 1}/{len(archive)}',
+                        'ETag': '"v2"',
+                    })
+                if mode == 'range-416' and state['count'] == 2:
+                    raise installer.urllib.error.HTTPError(request.full_url, 416, 'Range Not Satisfiable', {}, None)
+                return self._FakeResponse(archive, status=200, headers={'Content-Length': str(len(archive)), 'ETag': '"v2"'})
+
+            with self.subTest(scenario=scenario), patch.object(installer, '_open', side_effect=fake_open), patch.object(installer.time, 'sleep'):
+                dest = self.root / f'{scenario}.tar.gz'
+                installer.download(
+                    'SSSP_1.3.0_PBE_precision.tar.gz',
+                    dest,
+                    hashlib.md5(archive).hexdigest(),
+                    len(archive),
+                    sha256=hashlib.sha256(archive).hexdigest(),
+                    size=len(archive),
+                )
+                self.assertEqual(dest.read_bytes(), archive)
+
+    def test_download_fails_after_stalled_truncations_without_installing(self):
+        calls = {'count': 0}
+
+        def stalled_open(request):
+            calls['count'] += 1
+            return self._FakeResponse(b'', status=200, headers={'Content-Length': str(len(self.archive))})
+
+        with patch.object(installer, '_open', side_effect=stalled_open), patch.object(installer.time, 'sleep'):
+            with self.assertRaises(RuntimeError):
+                self.install()
+        self.assertEqual(calls['count'], 5)
+        self.assertFalse((self.root / 'pseudopotentials/sssp-pbe-precision').exists())
+        self.assertFalse(list((self.root / 'pseudopotentials').glob('.sssp-install-*')))
+
 
 if __name__ == '__main__':
     unittest.main()

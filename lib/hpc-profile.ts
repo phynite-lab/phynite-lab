@@ -37,6 +37,7 @@ export interface HpcStorageConfig {
 export interface HpcRuntimeConfig {
   environmentModules: string[];
   mpiLauncher: string[];
+  pythonExecutable?: string;
 }
 
 export interface HpcAllocationDefaults {
@@ -103,6 +104,12 @@ export function validateMpiLauncher(launcher: unknown): string[] {
     throw new HpcProfileError('MPI launcher must be a non-empty argv array with exactly one {ranks} placeholder and no control characters.');
   }
   return launcher;
+}
+
+export function allowedMpiLaunchers(scheduler: HpcScheduler): readonly string[] {
+  return scheduler === 'slurm'
+    ? ['srun', 'mpiexec', 'mpirun']
+    : ['mpiexec', 'mpirun'];
 }
 
 export function defaultMpiLauncher(scheduler: HpcScheduler): string[] {
@@ -203,14 +210,27 @@ export function validateHpcRuntime(raw: unknown, scheduler: HpcScheduler): HpcRu
   }
 
   const mpiLauncher = data.mpiLauncher ? validateMpiLauncher(data.mpiLauncher) : defaultMpiLauncher(scheduler);
-  const expectedLauncher = scheduler === 'slurm' ? 'srun' : 'mpiexec';
-  if (mpiLauncher[0] !== expectedLauncher) {
-    throw new HpcProfileError(`${scheduler} profiles require an ${expectedLauncher} MPI launcher.`);
+  const allowed = allowedMpiLaunchers(scheduler);
+  const launcherExecutable = mpiLauncher[0].split('/').pop() ?? '';
+  if (!allowed.includes(launcherExecutable)) {
+    throw new HpcProfileError(`${scheduler.toUpperCase()} profiles require ${allowed.join(', ')} as the MPI launcher.`);
+  }
+
+  let pythonExecutable: string | undefined;
+  if (typeof data.pythonExecutable === 'string' && data.pythonExecutable.trim()) {
+    const candidate = assertAbsolutePath(data.pythonExecutable.trim(), 'pythonExecutable');
+    if (/\s|['"\\]/.test(candidate)) {
+      throw new HpcProfileError('pythonExecutable cannot contain whitespace or quotes.');
+    }
+    pythonExecutable = candidate;
+  } else if (data.pythonExecutable !== undefined && data.pythonExecutable !== null && data.pythonExecutable !== '') {
+    throw new HpcProfileError('pythonExecutable must be an absolute path.');
   }
 
   return {
     environmentModules,
     mpiLauncher,
+    ...(pythonExecutable ? { pythonExecutable } : {}),
   };
 }
 

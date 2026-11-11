@@ -4,6 +4,8 @@ import {
   validateHpcProfile,
   validateMpiLauncher,
   defaultMpiLauncher,
+  allowedMpiLaunchers,
+  validateHpcRuntime,
   HpcProfileError,
 } from '../lib/hpc-profile.ts';
 import { searchSettingsControls } from '../app/account-navigation.ts';
@@ -249,4 +251,47 @@ test('hosted HPC submission is rejected with a local-workspace instruction', asy
     if (originalWindow === undefined) delete (globalThis as { window?: unknown }).window;
     else (globalThis as { window?: unknown }).window = originalWindow;
   }
+});
+
+test('Slurm runtime accepts mpirun/mpiexec and validates optional pythonExecutable paths', () => {
+  assert.deepEqual([...allowedMpiLaunchers('slurm')], ['srun', 'mpiexec', 'mpirun']);
+  assert.deepEqual([...allowedMpiLaunchers('pbs')], ['mpiexec', 'mpirun']);
+
+  const slurmMpirun = validateHpcRuntime(
+    {
+      environmentModules: ['intel/2024.0', 'materials/qe/7.2-impi'],
+      mpiLauncher: ['mpirun', '-np', '{ranks}'],
+      pythonExecutable: '  /opt/conda/envs/science/bin/python3  ',
+    },
+    'slurm',
+  );
+  assert.deepEqual(slurmMpirun.mpiLauncher, ['mpirun', '-np', '{ranks}']);
+  assert.equal(slurmMpirun.pythonExecutable, '/opt/conda/envs/science/bin/python3');
+
+  const slurmMpiexec = validateHpcRuntime(
+    {
+      environmentModules: [],
+      mpiLauncher: ['mpiexec', '-n', '{ranks}'],
+    },
+    'slurm',
+  );
+  assert.deepEqual(slurmMpiexec.mpiLauncher, ['mpiexec', '-n', '{ranks}']);
+  assert.equal(slurmMpiexec.pythonExecutable, undefined);
+
+  assert.throws(
+    () => validateHpcRuntime({ environmentModules: [], mpiLauncher: ['bash', '-c', '{ranks}'] }, 'slurm'),
+    HpcProfileError,
+  );
+  assert.throws(
+    () => validateHpcRuntime({ environmentModules: [], mpiLauncher: ['mpirun', '-np', '{ranks}'], pythonExecutable: 'envs/science/bin/python3' }, 'slurm'),
+    HpcProfileError,
+  );
+  assert.throws(
+    () => validateHpcRuntime({ environmentModules: [], mpiLauncher: ['mpirun', '-np', '{ranks}'], pythonExecutable: '/opt/my python/bin/python3' }, 'slurm'),
+    HpcProfileError,
+  );
+  assert.throws(
+    () => validateHpcRuntime({ environmentModules: [], mpiLauncher: ['mpirun', '-np', '{ranks}'], pythonExecutable: '/opt/conda/envs/"bad"/python3' }, 'slurm'),
+    HpcProfileError,
+  );
 });

@@ -18,14 +18,18 @@ from typing import Any
 
 try:
     from .hpc import HpcError, job_id, launcher_template
-    from .hpc_ssh import HpcSshConnection, HpcSshError
+    from .hpc_ssh import HpcSshConnection, HpcSshError, PYTHON_CANDIDATE_GLOBS
     from .recovery import atomic_json, canonical_digest
 except ImportError:
     from hpc import HpcError, job_id, launcher_template
-    from hpc_ssh import HpcSshConnection, HpcSshError
+    from hpc_ssh import HpcSshConnection, HpcSshError, PYTHON_CANDIDATE_GLOBS
     from recovery import atomic_json, canonical_digest
 
-SPARSE_HARVEST_EXTENSIONS = {".xml", ".out", ".err", ".log", ".json", ".dat", ".png", ".svg", ".csv", ".gz", ".txt"}
+SPARSE_HARVEST_EXTENSIONS = {
+    ".xml", ".out", ".err", ".log", ".json", ".dat", ".png", ".svg", ".pdf",
+    ".csv", ".gz", ".txt", ".in", ".gnu", ".gp", ".freq", ".trace",
+    ".condtens", ".halltens", ".bt2", ".btj",
+}
 DISALLOWED_HARVEST_PATTERNS = [r"^wfc.*\.dat$", r"^charge-density.*\.dat$", r"^atomic_occupations.*\.dat$", r".*\.save/K[0-9]+/.*\.dat$"]
 SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.@-]{0,95}$")
 SAFE_MODULE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.+@:/-]{0,127}$")
@@ -75,7 +79,11 @@ def is_sparse_harvest_target(filename: str, retain_wavefunctions: bool = False) 
     normalized = filename.replace("\\", "/")
     if not retain_wavefunctions and any(re.fullmatch(pattern, candidate) for pattern in DISALLOWED_HARVEST_PATTERNS for candidate in (base, normalized)):
         return False
-    return Path(filename).suffix.lower() in SPARSE_HARVEST_EXTENSIONS or base in {"total-energy.dat", "manifest.sha256"}
+    return (
+        Path(filename).suffix.lower() in SPARSE_HARVEST_EXTENSIONS
+        or base in {"total-energy.dat", "manifest.sha256"}
+        or ".pdos" in base
+    )
 
 
 class HpcRemoteJobManager:
@@ -133,8 +141,17 @@ class HpcRemoteJobManager:
             if account: directives.append(f"#PBS -A {account}")
         runtime = self.profile.get("runtime", {})
         launcher = launcher_template(runtime.get("mpiLauncher", ["srun", "--mpi=pmix", "--ntasks={ranks}"] if self.scheduler == "slurm" else ["mpiexec", "-n", "{ranks}"]))
-        if (Path(launcher[0]).name != ("srun" if self.scheduler == "slurm" else "mpiexec")):
+        allowed_launchers = {"srun", "mpiexec", "mpirun"} if self.scheduler == "slurm" else {"mpiexec", "mpirun"}
+        if Path(launcher[0]).name not in allowed_launchers:
             raise HpcError("MPI launcher does not match the scheduler.")
+        raw_python = runtime.get("pythonExecutable")
+        python_executable: str | None = None
+        if isinstance(raw_python, str) and raw_python.strip():
+            python_executable = _safe_remote_path(raw_python.strip())
+            if any(char.isspace() or char in "\"'\\$`;&|()<>{}" for char in python_executable):
+                raise HpcError("Python executable contains unsupported characters.")
+        elif raw_python not in (None, ""):
+            raise HpcError("Python executable path is invalid.")
         environment = {
             "PHYNITE_WORK_DIR": remote_work_dir,
             "PHYNITE_CALCULATION_ID": calculation_id,
@@ -147,9 +164,43 @@ class HpcRemoteJobManager:
             "OMP_NUM_THREADS": "1",
             "OPENBLAS_NUM_THREADS": "1",
         }
+        python_setup: list[str]
+        if python_executable:
+            py_cmd = '"$PHYNITE_PYTHON"'
+            python_setup = [f"export PHYNITE_PYTHON={shlex.quote(python_executable)}"]
+        else:
+            py_cmd = "python3"
+            python_setup = [
+                'if ! python3 -c \'import sys, numpy, scipy, matplotlib; raise SystemExit(0 if sys.version_info >= (3, 7) else 1)\' >/dev/null 2>&1; then',
+                f'  for _ph_py in {" ".join(PYTHON_CANDIDATE_GLOBS)}; do',
+                '    if [ -x "$_ph_py" ] && "$_ph_py" -c \'import sys, numpy, scipy, matplotlib; raise SystemExit(0 if sys.version_info >= (3, 7) else 1)\' >/dev/null 2>&1; then',
+                '      export PATH="$(dirname "$_ph_py"):$PATH"',
+                '      break',
+                '    fi',
+                '  done',
+                'fi',
+            ]
         # The same source-bound scientific runner used by personal QE creates
         # result.json and validates the exact input/pseudopotential identity.
-        return "\n".join(["#!/bin/bash", *directives, "set -euo pipefail", "umask 077", f"cd {shlex.quote(remote_work_dir)}", "", "# Load verified module names", *[f"module load {shlex.quote(name)}" for name in self._modules()], *[f"export {key}={shlex.quote(value)}" for key, value in environment.items()], "python3 runners/local_runner.py > runner.out 2>&1 || STATUS=$?", "STATUS=${STATUS:-0}", "mkdir -p results", "cp runner.out results/runner.out", "python3 runners/hpc_manifest.py", "exit $STATUS", ""])
+        return "\n".join([
+            "#!/bin/bash",
+            *directives,
+            "set -euo pipefail",
+            "umask 077",
+            f"cd {shlex.quote(remote_work_dir)}",
+            "",
+            "# Load verified module names",
+            *[f"module load {shlex.quote(name)}" for name in self._modules()],
+            *[f"export {key}={shlex.quote(value)}" for key, value in environment.items()],
+            *python_setup,
+            f"{py_cmd} runners/local_runner.py > runner.out 2>&1 || STATUS=$?",
+            "STATUS=${STATUS:-0}",
+            "mkdir -p results",
+            "cp runner.out results/runner.out",
+            f"{py_cmd} runners/hpc_manifest.py",
+            "exit $STATUS",
+            "",
+        ])
 
     def _receipt(self, receipt_path: Path, value: dict[str, Any], *, overwrite: bool = True) -> None:
         atomic_json(receipt_path, value, overwrite=overwrite)
@@ -232,7 +283,7 @@ class HpcRemoteJobManager:
     def sparse_harvest(self, remote_work_dir: str, local_destination: Path, retain_wavefunctions: bool = False) -> list[str]:
         remote_work_dir = self._remote_dir(remote_work_dir); local_destination.mkdir(mode=0o700, parents=True, exist_ok=True)
         results_dir = remote_work_dir + "/results"
-        code, stdout, _ = self.connection.run_command(["find", results_dir, "-type", "f", "-printf", "%P\n"])
+        code, stdout, _ = self.connection.run_command(["find", results_dir, "-type", "f", "-printf", r"%P\n"])
         if code != 0: return []
         harvested: list[str] = []
         total = 0
@@ -404,13 +455,35 @@ class HpcRemoteWorker:
             manager.calculation_type = str(payload.get("calculationType", ""))
             if self.workspace_builder is None:
                 raise HpcError("Remote QE requires the source-bound scientific runner and verified pseudopotentials.")
-            if (job_destination / "receipts" / f"{job['calculationId']}.json").exists():
-                raise HpcError("Submission receipt already exists; reconcile it before retrying.")
-            files = self.workspace_builder(job, job_destination / "inputs")
-            if heartbeat_failure:
-                raise heartbeat_failure[0]
-            receipt = manager.submit_job(job["calculationId"], files, job_destination / "receipts")
-            self.scheduler_observation = f"{self.scheduler} job {receipt['schedulerJobId']}: submitted; scientific results pending validation."
+            receipt_path = job_destination / "receipts" / f"{job['calculationId']}.json"
+            receipt: dict[str, Any] | None = None
+            if receipt_path.exists():
+                try:
+                    existing_receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+                except (OSError, ValueError):
+                    existing_receipt = None
+                if (
+                    isinstance(existing_receipt, dict)
+                    and existing_receipt.get("state") == "submitted"
+                    and existing_receipt.get("calculationId") == job["calculationId"]
+                    and existing_receipt.get("profileSha256") == self.profile_sha256
+                    and existing_receipt.get("scheduler") == self.scheduler
+                    and existing_receipt.get("schedulerJobId")
+                    and existing_receipt.get("remoteWorkDir")
+                ):
+                    job_id(str(existing_receipt["schedulerJobId"]), self.scheduler)
+                    _safe_remote_path(str(existing_receipt["remoteWorkDir"]))
+                    receipt = existing_receipt
+                else:
+                    raise HpcError("Submission receipt already exists; reconcile it before retrying.")
+            if receipt is None:
+                files = self.workspace_builder(job, job_destination / "inputs")
+                if heartbeat_failure:
+                    raise heartbeat_failure[0]
+                receipt = manager.submit_job(job["calculationId"], files, job_destination / "receipts")
+                self.scheduler_observation = f"{self.scheduler} job {receipt['schedulerJobId']}: submitted; scientific results pending validation."
+            else:
+                self.scheduler_observation = f"{self.scheduler} job {receipt['schedulerJobId']}: resumed polling; scientific results pending validation."
             max_polls = max(max_polls, int((int(allocation["wallSeconds"]) + 600) / max(1, poll_seconds)))
             for poll_index in range(max(1, max_polls)):
                 if heartbeat_failure:
