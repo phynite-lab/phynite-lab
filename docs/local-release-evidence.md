@@ -44,7 +44,7 @@ registry writes; `--provenance` adds npm provenance to the publication request.
 
 The inventory format is `phynite-local-release-candidate`, schema version 1. It
 identifies the release version, exact public source commit, SHA-256-bound
-`git archive` source tarball, the launcher and all four platform runtime tarballs, and
+`git archive` source tarball, the launcher and all three platform runtime tarballs, and
 each actual target's smoke/scientific reports. Missing platform evidence, unshipped
 targets and qualification deferrals are rejected. No scientific gate is waived.
 
