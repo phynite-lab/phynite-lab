@@ -380,7 +380,6 @@ def _runtime_probe_diagnostics(profile: dict[str, Any], probe: dict[str, Any]) -
     mpi_info = probe.get("mpi") if isinstance(probe.get("mpi"), dict) else {}
     srun_plugins = mpi_info.get("srunPlugins") if isinstance(mpi_info.get("srunPlugins"), list) else []
     has_mpirun = bool(mpi_info.get("mpirun"))
-    qe_mpi = mpi_info.get("qeMpi")
 
     if scheduler == "slurm" and launcher and Path(str(launcher[0])).name == "srun":
         requested_plugin = _selected_mpi_plugin([str(item) for item in launcher])
@@ -391,17 +390,12 @@ def _runtime_probe_diagnostics(profile: dict[str, Any], probe: dict[str, Any]) -
             )
             if has_mpirun:
                 suggested_launcher = ["mpirun", "-np", "{ranks}"]
-        elif qe_mpi in {"impi", "openmpi"} and "pmix" not in srun_plugins and has_mpirun:
-            warnings.append(
-                f"pw.x uses {qe_mpi} and Slurm on this cluster lacks PMIx; mpirun is recommended over srun."
-            )
-            suggested_launcher = ["mpirun", "-np", "{ranks}"]
 
     python_info = probe.get("python") if isinstance(probe.get("python"), dict) else None
     if python_info:
         if not python_info.get("packagesOk"):
             ver = python_info.get("version") or "missing"
-            missing = [pkg for pkg in (python_info.get("missingPackages") or []) if pkg in {"numpy", "scipy", "matplotlib"}]
+            missing = [pkg for pkg in (python_info.get("missingPackages") or []) if pkg in {"numpy", "scipy", "matplotlib", "seekpath", "spglib"}]
             detail = f"Python {ver}" + (f" (missing {', '.join(missing)})" if missing else "")
             if python_info.get("suggestedExecutable"):
                 suggested_python = str(python_info["suggestedExecutable"])
@@ -411,7 +405,7 @@ def _runtime_probe_diagnostics(profile: dict[str, Any], probe: dict[str, Any]) -
                 )
             else:
                 warnings.append(
-                    f"Remote {detail} lacks Python >= 3.7 with numpy, scipy, and matplotlib. Add a Python/Conda module or set Python Executable."
+                    f"Remote {detail} requires Python >= 3.10 with working numpy, scipy, matplotlib, seekpath, and spglib. Add a Python/Conda module or set Python Executable."
                 )
 
     return {

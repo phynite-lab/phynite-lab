@@ -4,6 +4,7 @@ import tempfile
 import json
 import shutil
 import os
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -498,7 +499,7 @@ class TestHpcRemoteHardening(unittest.TestCase):
                 binary / "ldd": "#!/bin/sh\necho 'libmpi.so.12 => /opt/impi/lib/libmpi.so.12'\n",
                 binary / "srun": "#!/bin/sh\nprintf 'MPI plugin types are...\\n\\t%s\\n\\t%s\\n\\t%s\\n' cray_shasta none pmi2\n",
                 binary / "python3": "#!/bin/sh\necho '3.6.8|numpy,scipy,matplotlib,seekpath'\n",
-                conda_bin / "python3": "#!/bin/sh\necho '3.10.20|seekpath'\n",
+                conda_bin / "python3": "#!/bin/sh\necho '3.10.20|'\n",
             }
             for path, content in scripts.items():
                 path.write_text(content, encoding="utf-8")
@@ -606,6 +607,7 @@ class TestHpcRemoteHardening(unittest.TestCase):
             manager.submit_job.assert_not_called()
             manager.poll_job.assert_not_called()
 
+    @unittest.skipUnless(sys.platform.startswith("linux"), "requires GNU find/stat used on remote Linux HPC nodes")
     def test_sparse_harvest_argv_passes_ssh_validation_and_real_find(self):
         import hashlib, subprocess
         with tempfile.TemporaryDirectory() as folder:

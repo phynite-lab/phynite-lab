@@ -171,15 +171,21 @@ class HpcRemoteJobManager:
         else:
             py_cmd = "python3"
             python_setup = [
-                'if ! python3 -c \'import sys, numpy, scipy, matplotlib; raise SystemExit(0 if sys.version_info >= (3, 7) else 1)\' >/dev/null 2>&1; then',
+                'if ! python3 -c \'import sys, numpy, scipy, matplotlib, seekpath, spglib; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)\' >/dev/null 2>&1; then',
                 f'  for _ph_py in {" ".join(PYTHON_CANDIDATE_GLOBS)}; do',
-                '    if [ -x "$_ph_py" ] && "$_ph_py" -c \'import sys, numpy, scipy, matplotlib; raise SystemExit(0 if sys.version_info >= (3, 7) else 1)\' >/dev/null 2>&1; then',
+                '    if [ -x "$_ph_py" ] && "$_ph_py" -c \'import sys, numpy, scipy, matplotlib, seekpath, spglib; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)\' >/dev/null 2>&1; then',
                 '      export PATH="$(dirname "$_ph_py"):$PATH"',
                 '      break',
                 '    fi',
                 '  done',
                 'fi',
             ]
+        python_setup.extend([
+            f"if ! {py_cmd} -c 'import sys, numpy, scipy, matplotlib, seekpath, spglib; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1; then",
+            "  printf '%s\\n' 'Phynite requires Python >= 3.10 with working numpy, scipy, matplotlib, seekpath, and spglib. Check the HPC runtime profile.' >&2",
+            "  exit 1",
+            "fi",
+        ])
         # The same source-bound scientific runner used by personal QE creates
         # result.json and validates the exact input/pseudopotential identity.
         return "\n".join([
@@ -452,6 +458,7 @@ class HpcRemoteWorker:
                     or int(allocation["nodes"]) * int(allocation["memoryMiBPerNode"]) != int(job["memoryMiB"])):
                 raise HpcError("The frozen HPC allocation differs from the accepted job resources.")
             manager = self.manager_factory(connection, profile, allocation)
+            manager.calculation_id = _safe_calculation_id(job["calculationId"])
             manager.calculation_type = str(payload.get("calculationType", ""))
             if self.workspace_builder is None:
                 raise HpcError("Remote QE requires the source-bound scientific runner and verified pseudopotentials.")

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Server, Plus, Trash2, RefreshCw, CheckCircle2, XCircle, Pencil, Star } from 'lucide-react';
 import { useLocale } from '../locale-provider';
 import type { HpcAuthKind, HpcClusterProfile, HpcScheduler } from '@/lib/hpc-profile';
@@ -64,6 +64,7 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
   const [pythonExecutable, setPythonExecutable] = useState('');
   const [saving, setSaving] = useState(false);
   const [detectingScratch, setDetectingScratch] = useState(false);
+  const scratchRequest = useRef(0);
   const [detectMessage, setDetectMessage] = useState('');
   const [formError, setFormError] = useState('');
 
@@ -121,6 +122,7 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
   });
 
   const handleDetectScratch = async () => {
+    const requestId = ++scratchRequest.current;
     const existing = editingId ? clusters.find(cluster => cluster.id === editingId) : undefined;
     setDetectingScratch(true);
     setFormError('');
@@ -129,15 +131,18 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
       const data = await localRequest<{ scratchRoot?: string }>('hpc/clusters/detect-scratch', 'POST', {
         connection: buildConnectionPayload(existing),
       });
+      if (requestId !== scratchRequest.current) return;
       if (!data.scratchRoot) {
         throw new Error(t('Could not detect a writable scratch path.', 'Tidak dapat mendeteksi path scratch yang bisa ditulisi.'));
       }
       setScratchRoot(data.scratchRoot);
       setDetectMessage(t(`Detected writable path: ${data.scratchRoot}`, `Terdeteksi path writable: ${data.scratchRoot}`));
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : t('Failed to auto-detect remote scratch root.', 'Gagal mendeteksi direktori scratch remote secara otomatis.'));
+      if (requestId === scratchRequest.current) {
+        setFormError(err instanceof Error ? err.message : t('Failed to auto-detect remote scratch root.', 'Gagal mendeteksi direktori scratch remote secara otomatis.'));
+      }
     } finally {
-      setDetectingScratch(false);
+      if (requestId === scratchRequest.current) setDetectingScratch(false);
     }
   };
 
@@ -194,7 +199,7 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
       connection: buildConnectionPayload(existing),
       storage: {
         ...existing?.storage,
-        ...(trimmedScratch ? { scratchRoot: trimmedScratch } : {}),
+        scratchRoot: trimmedScratch,
         purgeWavefunctions: existing?.storage.purgeWavefunctions ?? true,
       },
       runtime: {
@@ -225,6 +230,8 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
   };
 
   const resetForm = () => {
+    scratchRequest.current += 1;
+    setDetectingScratch(false);
     setEditingId(null);
     setScheduler('slurm');
     setName('');
@@ -457,29 +464,29 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
               <div className="lab-field-grid">
                 <label>
                   <span>{t('Login Host', 'Host Login Node')}</span>
-                  <input type="text" required placeholder="login2.hpc.brin.go.id" value={host} onChange={e => setHost(e.target.value)} />
+                  <input type="text" required disabled={detectingScratch || saving} placeholder="login2.hpc.brin.go.id" value={host} onChange={e => setHost(e.target.value)} />
                 </label>
                 <label>
                   <span>{t('Port', 'Port')}</span>
-                  <input type="number" required value={port} onChange={e => setPort(e.target.value)} />
+                  <input type="number" required disabled={detectingScratch || saving} value={port} onChange={e => setPort(e.target.value)} />
                 </label>
               </div>
 
               <div className="lab-field-grid">
                 <label>
                   <span>{t('SSH Username', 'Username SSH')}</span>
-                  <input type="text" required placeholder="user" value={username} onChange={e => setUsername(e.target.value)} />
+                  <input type="text" required disabled={detectingScratch || saving} placeholder="user" value={username} onChange={e => setUsername(e.target.value)} />
                 </label>
                 <label>
                   <span>{t('Authentication', 'Autentikasi')}</span>
-                  <select value={authKind} onChange={e => setAuthKind(e.target.value as HpcAuthKind)}>
+                  <select disabled={detectingScratch || saving} value={authKind} onChange={e => setAuthKind(e.target.value as HpcAuthKind)}>
                     <option value="key">Private key</option>
                     <option value="agent">SSH agent</option>
                   </select>
                 </label>
                 <label>
                   <span>{t('Private Key Path (Local)', 'Path Kunci Privat (Lokal)')}</span>
-                  <input type="text" disabled={authKind !== 'key'} placeholder="/Users/name/.ssh/id_ed25519" value={privateKeyPath} onChange={e => setPrivateKeyPath(e.target.value)} />
+                  <input type="text" disabled={authKind !== 'key' || detectingScratch || saving} placeholder="/Users/name/.ssh/id_ed25519" value={privateKeyPath} onChange={e => setPrivateKeyPath(e.target.value)} />
                 </label>
               </div>
 
@@ -489,6 +496,7 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <input
                       type="text"
+                      disabled={detectingScratch || saving}
                       style={{ flex: 1 }}
                       placeholder={t('Leave blank to auto-detect via SSH', 'Kosongkan untuk deteksi otomatis via SSH')}
                       value={scratchRoot}
@@ -571,7 +579,7 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
                     aria-label={t('Python Executable (optional)', 'Python Executable (opsional)')}
                   />
                   <small style={{ color: 'var(--muted, #666)', fontSize: '11px', marginTop: '2px' }}>
-                    {t('Requires Python 3.7+ with numpy, scipy, and matplotlib. Leave empty to auto-detect from modules or Conda.', 'Memerlukan Python 3.7+ dengan numpy, scipy, dan matplotlib. Kosongkan untuk deteksi otomatis dari modul atau Conda.')}
+                    {t('Requires Python 3.10+ with numpy, scipy, matplotlib, seekpath, and spglib. Leave empty to auto-detect from modules or Conda.', 'Memerlukan Python 3.10+ dengan numpy, scipy, matplotlib, seekpath, dan spglib. Kosongkan untuk deteksi otomatis dari modul atau Conda.')}
                   </small>
                 </label>
               </div>

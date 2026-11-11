@@ -1,4 +1,4 @@
-"""Regression tests for headless compute fallbacks (precompiled crystal_b k-paths and MPI version probes)."""
+"""Regression tests for reciprocal-path dependency failures and optional MPI diagnostics."""
 from __future__ import annotations
 
 import importlib.util
@@ -73,13 +73,6 @@ K_POINTS crystal_b
 0.500000 0.500000 0.000000 1 ! X
 """
 
-_AUTO_INPUT = """&CONTROL
-  calculation = 'bands'
-/
-K_POINTS automatic
-6 6 1 0 0 0
-"""
-
 _SCF_INPUT = """&CONTROL
   calculation = 'scf'
 /
@@ -91,29 +84,48 @@ class ComputeFallbackTests(unittest.TestCase):
     def setUpClass(cls):
         cls.kpath, cls.qe_model, cls.scientific_runner = _load_compute_modules()
 
-    def test_crystal_b_path_metadata_parses_labels_counts_and_discontinuities(self):
-        meta = self.kpath.crystal_b_path_metadata(_CRYSTAL_B_INPUT)
-        self.assertIsNotNone(meta)
-        self.assertEqual(meta["labels"], ["G", "M", "K", "G", "X"])
-        self.assertEqual(meta["segments"], [["G", "M"], ["M", "K"], ["G", "X"]])
-        self.assertEqual(meta["tickIndices"], [0, 20, 30, 31, 46])
-        self.assertEqual(meta["breakIndices"], [31])
-        self.assertEqual(meta["pointCoords"]["K"], [0.333333, 0.333333, 0.0])
-        self.assertIsNone(self.kpath.crystal_b_path_metadata(_AUTO_INPUT))
+    def test_automatic_paths_reject_unverified_templates_when_dependencies_are_missing(self):
+        for calculation_type, target in (("Band structure", "nscfbands.in"), ("Phonon dispersion", "matdyn.in")):
+            for dependency in ("seekpath", "spglib"):
+                for settings in ({"kPathPoints": 200}, {"requestedKPath": "G-M-K-G"}):
+                    with self.subTest(calculation_type=calculation_type, dependency=dependency, settings=settings):
+                        inputs = {"scf.in": _SCF_INPUT, target: _CRYSTAL_B_INPUT}
+                        original = dict(inputs)
+                        error = ModuleNotFoundError(f"No module named '{dependency}'", name=dependency)
+                        with patch.object(self.scientific_runner, "seek_path_for_qe", side_effect=error):
+                            with self.assertRaisesRegex(RuntimeError, "require working seekpath and spglib"):
+                                self.scientific_runner.prepare_automatic_k_path(calculation_type, inputs, settings)
+                        self.assertEqual(inputs, original)
 
-    def test_prepare_automatic_k_path_falls_back_to_precompiled_crystal_b_without_seekpath(self):
+    def test_explicit_manual_path_does_not_require_seekpath_or_rewrite_input(self):
         inputs = {"scf.in": _SCF_INPUT, "nscfbands.in": _CRYSTAL_B_INPUT}
-        with patch.object(self.scientific_runner, "seek_path_for_qe", side_effect=ImportError("No module named 'seekpath'")):
-            meta = self.scientific_runner.prepare_automatic_k_path("Band structure", inputs, {})
-        self.assertIsNotNone(meta)
-        self.assertEqual(meta["mode"], "precompiled-crystal-b")
-        self.assertEqual(meta["labels"], ["G", "M", "K", "G", "X"])
+        with patch.object(self.scientific_runner, "seek_path_for_qe") as automatic:
+            result = self.scientific_runner.prepare_automatic_k_path("Band structure", inputs, {"autoKPath": False})
+        self.assertEqual(result, {"mode": "manual"})
         self.assertEqual(inputs["nscfbands.in"], _CRYSTAL_B_INPUT)
+        automatic.assert_not_called()
 
-        missing_crystal_b = {"scf.in": _SCF_INPUT, "nscfbands.in": _AUTO_INPUT}
-        with patch.object(self.scientific_runner, "seek_path_for_qe", side_effect=ImportError("No module named 'seekpath'")):
-            with self.assertRaises(ImportError):
-                self.scientific_runner.prepare_automatic_k_path("Band structure", missing_crystal_b, {})
+    @unittest.skipUnless(importlib.util.find_spec("seekpath") is not None, "requires the scientific Python runtime")
+    def test_automatic_path_uses_current_structure_and_requested_point_density(self):
+        # Diamond Si primitive cell; exercise real SeeK-path rather than a canned path result.
+        scf = """CELL_PARAMETERS angstrom
+0 2.715 2.715
+2.715 0 2.715
+2.715 2.715 0
+ATOMIC_POSITIONS crystal
+Si 0 0 0
+Si 0.25 0.25 0.25
+K_POINTS automatic
+6 6 6 0 0 0
+"""
+        inputs = {"scf.in": scf, "nscfbands.in": _CRYSTAL_B_INPUT}
+        result = self.scientific_runner.prepare_automatic_k_path("Band structure", inputs, {"kPathPoints": 200})
+        self.assertEqual(result["mode"], "seekpath-original-cell")
+        self.assertEqual(result["pointsPerSegment"], 200)
+        self.assertEqual(result["spaceGroupNumber"], 227)
+        self.assertEqual(result["cellAngstrom"], [[0, 2.715, 2.715], [2.715, 0, 2.715], [2.715, 2.715, 0]])
+        self.assertNotEqual(inputs["nscfbands.in"], _CRYSTAL_B_INPUT)
+        self.assertEqual(inputs["nscfbands.in"].split("K_POINTS crystal_b\n")[1].splitlines()[1].split("!")[0].split()[-1], "200")
 
     def test_software_version_uses_devnull_and_retries_once_with_single_rank_mpi_launcher(self):
         direct_ok = MagicMock(returncode=0, stdout="Program PWSCF v.7.2 starts on 11Nov2026\n", stderr="")
@@ -135,6 +147,21 @@ class ComputeFallbackTests(unittest.TestCase):
         self.assertEqual(mock_run.call_args_list[1].args[0], ["mpirun", "-np", "1", "pw.x", "--version"])
         self.assertIs(mock_run.call_args_list[1].kwargs["stdin"], subprocess.DEVNULL)
 
+    def test_version_probe_failures_do_not_discard_scientific_results(self):
+        pmi_fail = MagicMock(returncode=1, stdout="", stderr="PMI server not found")
+        for failure in (subprocess.TimeoutExpired(["mpirun"], 15), OSError("MPI launcher unavailable")):
+            with self.subTest(failure=type(failure).__name__), \
+                 patch.dict(os.environ, {"PHYNITE_MPI_LAUNCHER": json.dumps(["mpirun", "-np", "{ranks}"])}), \
+                 patch.object(self.qe_model.shutil, "which", return_value="/opt/qe/bin/pw.x"), \
+                 patch.object(self.qe_model.subprocess, "run", side_effect=[pmi_fail, failure]):
+                self.assertEqual(self.qe_model.software_version(["pw.x", "--version"]), "unknown (version probe failed)")
+
+    def test_direct_version_timeout_still_tries_single_rank_launcher(self):
+        mpi_ok = MagicMock(returncode=0, stdout="Program PWSCF v.7.2 starts", stderr="")
+        with patch.dict(os.environ, {"PHYNITE_MPI_LAUNCHER": json.dumps(["mpirun", "-np", "{ranks}"])}), \
+             patch.object(self.qe_model.shutil, "which", return_value="/opt/qe/bin/pw.x"), \
+             patch.object(self.qe_model.subprocess, "run", side_effect=[subprocess.TimeoutExpired(["pw.x"], 30), mpi_ok]):
+            self.assertEqual(self.qe_model.software_version(["pw.x", "--version"]), "Quantum ESPRESSO PWSCF 7.2")
 
 if __name__ == "__main__":
     unittest.main()

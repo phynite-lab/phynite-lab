@@ -252,7 +252,7 @@ class HpcDesktopProtocolTests(unittest.TestCase):
                 'schedulers': {'slurm': True, 'pbs': False},
                 'solvers': {'qe': '/opt/qe/bin/pw.x', 'lammps': None},
                 'mpi': {'mpirun': '/opt/impi/bin/mpirun', 'mpiexec': '/opt/impi/bin/mpiexec', 'srunPlugins': ['pmi2'], 'qeMpi': 'intelmpi'},
-                'python': {'executable': '/home/researcher/miniconda3/envs/science/bin/python3', 'version': '3.10.20', 'versionOk': True, 'packagesOk': True, 'missingPackages': ['seekpath']},
+                'python': {'executable': '/home/researcher/miniconda3/envs/science/bin/python3', 'version': '3.10.20', 'versionOk': True, 'packagesOk': True, 'missingPackages': []},
             }
             fixed = copy.deepcopy(prof)
             fixed['runtime']['mpiLauncher'] = ['mpirun', '-np', '{ranks}']

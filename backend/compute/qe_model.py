@@ -227,29 +227,34 @@ def validate_transport_settings(settings: dict[str, Any]) -> None:
 def software_version(command: list[str]) -> str:
     if not shutil.which(command[0]):
         return "not installed"
+    attempts = [(command, 30)]
+    raw_launcher = os.environ.get("PHYNITE_MPI_LAUNCHER", "").strip()
+    if Path(command[0]).name == "pw.x" and raw_launcher:
+        try:
+            launcher_args = json.loads(raw_launcher)
+        except (ValueError, TypeError):
+            launcher_args = None
+        if isinstance(launcher_args, list) and launcher_args and all(isinstance(arg, str) and arg for arg in launcher_args):
+            single_rank = [arg.replace("{ranks}", "1") for arg in launcher_args] + command
+            if shutil.which(single_rank[0]):
+                attempts.append((single_rank, 15))
+    diagnostic_failed = False
     with tempfile.TemporaryDirectory(prefix="phynite-version-") as temporary_directory:
-        completed = subprocess.run(command, cwd=temporary_directory, stdin=subprocess.DEVNULL,
-                                   capture_output=True, text=True, check=False, timeout=30)
-        output = "\n".join(part.strip() for part in (completed.stdout, completed.stderr) if part.strip())
-        version = re.search(r"Program\s+(\S+)\s+v\.([^\s]+)", output)
-        if version:
-            return f"Quantum ESPRESSO {version.group(1)} {version.group(2)}"
-        raw_launcher = os.environ.get("PHYNITE_MPI_LAUNCHER", "").strip()
-        if Path(command[0]).name == "pw.x" and raw_launcher:
+        for probe_command, timeout in attempts:
             try:
-                launcher_args = json.loads(raw_launcher)
-            except (ValueError, TypeError):
-                launcher_args = None
-            if isinstance(launcher_args, list) and launcher_args and all(isinstance(arg, str) for arg in launcher_args):
-                single_rank = [arg.replace("{ranks}", "1") for arg in launcher_args] + command
-                if shutil.which(single_rank[0]):
-                    mpi_completed = subprocess.run(single_rank, cwd=temporary_directory, stdin=subprocess.DEVNULL,
-                                                   capture_output=True, text=True, check=False, timeout=15)
-                    mpi_output = "\n".join(part.strip() for part in (mpi_completed.stdout, mpi_completed.stderr) if part.strip())
-                    mpi_version = re.search(r"Program\s+(\S+)\s+v\.([^\s]+)", mpi_output)
-                    if mpi_version:
-                        return f"Quantum ESPRESSO {mpi_version.group(1)} {mpi_version.group(2)}"
-    return output.splitlines()[0] if output else "unknown"
+                completed = subprocess.run(probe_command, cwd=temporary_directory, stdin=subprocess.DEVNULL,
+                                           capture_output=True, text=True, check=False, timeout=timeout)
+            except (subprocess.TimeoutExpired, OSError):
+                diagnostic_failed = True
+                continue
+            output = "\n".join(part.strip() for part in (completed.stdout, completed.stderr) if part.strip())
+            version = re.search(r"Program\s+(\S+)\s+v\.([^\s]+)", output)
+            if version:
+                return f"Quantum ESPRESSO {version.group(1)} {version.group(2)}"
+            if completed.returncode == 0 and output:
+                return output.splitlines()[0]
+            diagnostic_failed = diagnostic_failed or completed.returncode != 0
+    return "unknown (version probe failed)" if diagnostic_failed else "unknown"
 
 
 def qe_runtime_identity(pseudo_dir: Path) -> dict[str, Any]:

@@ -20,7 +20,7 @@ from typing import Any, Iterable
 
 import numpy as np
 
-from kpath import crystal_b_path_metadata, parse_qe_structure, qe_path_break_indices, qe_path_lines, replace_matdyn_q_path, replace_pw_k_path, requested_path_segments, seek_path_for_qe
+from kpath import parse_qe_structure, qe_path_break_indices, qe_path_lines, replace_matdyn_q_path, replace_pw_k_path, requested_path_segments, seek_path_for_qe
 from results import build_scientific_results, parse_qe_output, qe_stage_xml_path, retain_qe_stage_xml, write_result_manifest
 from qe_model import dft_result_error, qe_stage_error, qe_runtime_identity, qe_string_value, transport_numbers, validate_qe_models, validate_band_postprocessor_input, validate_relaxation_input, validate_transport_settings
 from workflow_scf import attach_scf_bundle, prepare_shared_scf
@@ -893,13 +893,11 @@ def prepare_automatic_k_path(calculation_type: str, input_files: dict[str, str],
     try:
         path_result = seek_path_for_qe(scf_input)
     except ImportError as exc:
-        if (getattr(exc, "name", None) or "seekpath") != "seekpath" or requested_path:
-            raise
-        target_name = "nscfbands.in" if calculation_type == "Band structure" else "matdyn.in"
-        fallback = crystal_b_path_metadata(input_files.get(target_name, ""))
-        if fallback is None:
-            raise
-        return {"mode": "precompiled-crystal-b", **fallback}
+        raise RuntimeError(
+            "Automatic reciprocal-space paths require working seekpath and spglib packages in the selected Python runtime. "
+            "Load a compatible scientific Python module or configure Python Executable, then probe the HPC profile again. "
+            "The unverified input path was not used."
+        ) from exc
     mode = "seekpath-original-cell"
     if requested_path:
         segments, requested_labels = requested_path_segments(path_result, requested_path)

@@ -46,11 +46,20 @@ def _valid_remote_dir(value: Any) -> str | None:
     return cleaned
 
 
-_PY_CHECK_CODE = (
-    'import importlib.util,sys;'
-    'print("%d.%d.%d|%s"%(sys.version_info[:3]+(",".join(m for m in("numpy","scipy","matplotlib","seekpath") '
-    'if not importlib.util.find_spec(m)),)))'
-)
+REQUIRED_PYTHON_MODULES = ("numpy", "scipy", "matplotlib", "seekpath", "spglib")
+_PY_CHECK_CODE = "\n".join([
+    "import importlib, sys",
+    "missing = []",
+    f"for name in {REQUIRED_PYTHON_MODULES!r}:",
+    "    try:",
+    "        importlib.import_module(name)",
+    "    except Exception:",
+    "        missing.append(name)",
+    'print("%d.%d.%d|%s" % (sys.version_info[:3] + (",".join(missing),)))',
+])
+# Keep SSH arguments free of literal control characters; Python decodes these
+# newlines only after the remote shell has passed the single argument.
+_PY_CHECK_CODE = f"exec({_PY_CHECK_CODE!r})"
 
 # Prefer cluster-wide shared HPC installations before user-managed $HOME envs.
 PYTHON_CANDIDATE_GLOBS = (
@@ -76,7 +85,7 @@ def _valid_remote_executable(value: Any) -> str | None:
     return path
 
 
-def _version_at_least(version: str, minimum: tuple[int, int] = (3, 7)) -> bool:
+def _version_at_least(version: str, minimum: tuple[int, int] = (3, 10)) -> bool:
     parts = []
     for piece in version.split(".")[:2]:
         try:
@@ -390,19 +399,18 @@ class HpcSshConnection:
             f'_ph_py_info=$("$_ph_py" -c {shlex.quote(_PY_CHECK_CODE)} 2>/dev/null || :); '
             'printf \'py_info=%s\\n\' "$_ph_py_info"; '
             'case "$_ph_py_info" in '
-            '3.[789].*\\|*|3.[1-9][0-9].*\\|*) '
+            '3.[1-9][0-9].*\\|*) '
             '_ph_py_miss=${_ph_py_info#*|}; '
-            'case ",$_ph_py_miss," in *,numpy,*|*,scipy,*|*,matplotlib,*) ;; *) _ph_py_ok=1 ;; esac ;; '
+            'if [ -z "$_ph_py_miss" ]; then _ph_py_ok=1; fi ;; '
             'esac; '
             'fi; '
             'if [ "$_ph_py_ok" != "1" ]; then '
             f'for _ph_cand in {" ".join(PYTHON_CANDIDATE_GLOBS)}; do '
             'if [ -x "$_ph_cand" ]; then '
             f'_ph_ci=$("$_ph_cand" -c {shlex.quote(_PY_CHECK_CODE)} 2>/dev/null || :); '
-            'case "$_ph_ci" in 3.[789].*\\|*|3.[1-9][0-9].*\\|*) '
+            'case "$_ph_ci" in 3.[1-9][0-9].*\\|*) '
             '_ph_cm=${_ph_ci#*|}; '
-            'case ",$_ph_cm," in *,numpy,*|*,scipy,*|*,matplotlib,*) ;; '
-            '*) printf \'py_suggested=%s\\n\' "$_ph_cand"; printf \'py_suggested_info=%s\\n\' "$_ph_ci"; break ;; esac ;; '
+            'if [ -z "$_ph_cm" ]; then printf \'py_suggested=%s\\n\' "$_ph_cand"; printf \'py_suggested_info=%s\\n\' "$_ph_ci"; break; fi ;; '
             'esac; '
             'fi; '
             'done; '
@@ -470,13 +478,12 @@ class HpcSshConnection:
             if "|" in py_info:
                 version, raw_miss = py_info.split("|", 1)
                 missing = [pkg for pkg in raw_miss.split(",") if pkg]
-            core_missing = [pkg for pkg in missing if pkg in {"numpy", "scipy", "matplotlib"}]
             version_ok = bool(version and _version_at_least(version))
             python_summary: dict[str, Any] = {
                 "executable": py_bin,
                 "version": version or None,
                 "versionOk": version_ok,
-                "packagesOk": bool(version_ok and "|" in py_info and not core_missing),
+                "packagesOk": bool(version_ok and "|" in py_info and not missing),
                 "missingPackages": missing,
             }
             if py_suggested:
