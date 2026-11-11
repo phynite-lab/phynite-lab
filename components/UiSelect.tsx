@@ -38,9 +38,44 @@ export function UiSelect({ label, ariaLabel, value, displayValue, options, onCha
     return enabledIndexes[(position + direction + enabledIndexes.length) % enabledIndexes.length];
   }, [enabledIndexes]);
 
-  const positionMenu = () => {
+  const resolveTarget = () =>
+    buttonRef.current?.closest<HTMLElement>('[data-ui-portal]') ??
+    buttonRef.current?.closest<HTMLDialogElement>('dialog[open]') ??
+    document.body;
+
+  const positionMenu = (targetElement?: HTMLElement | null) => {
     const rect = buttonRef.current?.getBoundingClientRect();
     if (!rect) return;
+    const target = targetElement !== undefined ? targetElement : portalTarget;
+    const isTargetCustom = Boolean(target && target !== document.body);
+
+    if (isTargetCustom && target) {
+      const targetRect = target.getBoundingClientRect();
+      const originLeft = targetRect.left + target.clientLeft - target.scrollLeft;
+      const originTop = targetRect.top + target.clientTop - target.scrollTop;
+      const targetVisibleTop = targetRect.top + target.clientTop;
+      const targetVisibleBottom = targetRect.bottom - target.clientTop;
+
+      const menuHeight = Math.min(options.reduce((height, option) => height + (option.detail ? 42 : compact ? 30 : 38), 10) + Math.max(0, options.length - 1) * (compact ? 2 : 6), 260);
+      const spaceBelow = Math.max(0, targetVisibleBottom - rect.bottom - 6);
+      const spaceAbove = Math.max(0, rect.top - targetVisibleTop - 6);
+      const upward = spaceBelow < menuHeight && spaceAbove > spaceBelow;
+      const maxHeight = Math.min(260, upward ? spaceAbove : spaceBelow);
+
+      const maxAvailableWidth = Math.max(0, target.clientWidth - 16);
+      const width = Math.max(0, Math.min(Math.max(rect.width, compact ? 200 : 220), maxAvailableWidth));
+      const triggerLeftInTarget = rect.left - originLeft;
+      const minLeft = 8;
+      const maxLeft = Math.max(minLeft, target.clientWidth - width - 8);
+      const left = Math.max(minLeft, Math.min(triggerLeftInTarget, maxLeft));
+
+      const top = rect.bottom + 6 - originTop;
+      const bottom = (target.clientHeight - (rect.top - originTop)) + 6;
+
+      setPosition({ left, top, bottom, width, maxHeight, upward });
+      return;
+    }
+
     const viewportGutter = 12, viewport = window.visualViewport;
     const viewportLeft = (viewport?.offsetLeft ?? 0) + viewportGutter, viewportTop = (viewport?.offsetTop ?? 0) + viewportGutter;
     const viewportRight = (viewport?.offsetLeft ?? 0) + (viewport?.width ?? window.innerWidth) - viewportGutter;
@@ -59,8 +94,9 @@ export function UiSelect({ label, ariaLabel, value, displayValue, options, onCha
     if (disabled) return;
     if (!open) {
       // Native modal dialogs live in the top layer; a body portal sits behind them.
-      setPortalTarget(buttonRef.current?.closest<HTMLElement>('[data-ui-portal]') ?? buttonRef.current?.closest<HTMLDialogElement>('dialog[open]') ?? document.body);
-      positionMenu();
+      const target = resolveTarget();
+      setPortalTarget(target);
+      positionMenu(target);
       const selectedIndex = options.findIndex((option) => option.value === value && !option.disabled);
       setActiveIndex(selectedIndex >= 0 ? selectedIndex : enabledIndexes[0] ?? 0);
     }
