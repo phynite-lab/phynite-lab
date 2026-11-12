@@ -193,7 +193,7 @@ async function handle(request: NextRequest, context: Context): Promise<Response>
       if (!config) throw new AiError(503, 'AI_NOT_CONFIGURED', 'The selected AI source is not connected. Choose another source.');
       const mediaTypes = (saved.attachments ?? []).filter(file => (queuedMessage?.attachmentIds ?? payload.attachmentIds)?.includes(file.id)).map(file => file.mediaType);
       requireGatewayCapability(providerEnvironment, selection.modelId, selection.effort ?? 'auto', nativeInputMediaTypes(mediaTypes), providerId);
-      const detail = await call<AiDetail & { lease: string }>(`${base}/${payload.resume ? 'resume' : 'start'}`, payload.resume ? { runId: payload.runId } : payload.queueId ? { queueId: payload.queueId, settingsRevision: saved.conversation.revision } : { text: payload.text, attachmentIds: payload.attachmentIds ?? [], taskMode: payload.taskMode ?? 'work', contextRefs: payload.contextRefs ?? [], skillRef: payload.skillRef, sourceArtifactId: payload.sourceArtifactId, settingsRevision: saved.conversation.revision });
+      const detail = await call<AiDetail & { lease: string }>(`${base}/${payload.resume ? 'resume' : 'start'}`, payload.resume ? { runId: payload.runId } : payload.queueId ? { queueId: payload.queueId, settingsRevision: saved.conversation.revision } : { text: payload.text, attachmentIds: payload.attachmentIds ?? [], taskMode: payload.taskMode ?? 'work', executionMode: payload.executionMode ?? 'foreground', contextRefs: payload.contextRefs ?? [], skillRef: payload.skillRef, sourceArtifactId: payload.sourceArtifactId, settingsRevision: saved.conversation.revision });
       const abort = new AbortController();
       const signal = AbortSignal.any([abort.signal, request.signal]);
       const normalizeFailure = (error: unknown) => normalizeAiFailure(error instanceof AuthServiceError || error instanceof ControlPlaneTimeoutError ? new AiError(error.status, error.code, error.message) : aiTurnFailure(error, signal), requestId);
@@ -212,7 +212,7 @@ async function handle(request: NextRequest, context: Context): Promise<Response>
           const stopRenewal = maintainAiTurnLease({ renew: () => backend('renew'), signal, onFailure: error => abort.abort(error) });
           // Return from start immediately so cancellation can abort an in-flight provider fetch.
           void (async () => {
-            try { const { lease: _lease, ...publicDetail } = detail; void _lease; send({ type: 'state', detail: publicDetail }); await runAiAgent({ detail, backend, config, send, signal, normalizeFailure, toolBudget: 6, assertAttachment: mediaType => { requireGatewayCapability(providerEnvironment, detail.run!.modelId, detail.run!.effort ?? 'auto', [mediaType], providerId); } }); }
+            try { const { lease: _lease, ...publicDetail } = detail; void _lease; send({ type: 'state', detail: publicDetail }); await runAiAgent({ detail, backend, config, send, signal, normalizeFailure, toolBudget: detail.run?.executionMode === 'multistage' ? 40 : 6, maxSteps: detail.run?.executionMode === 'multistage' ? 40 : 12, maxRounds: detail.run?.executionMode === 'multistage' ? 30 : 14, assertAttachment: mediaType => { requireGatewayCapability(providerEnvironment, detail.run!.modelId, detail.run!.effort ?? 'auto', [mediaType], providerId); } }); }
             catch (error) {
               const failure = normalizeFailure(error);
               const trackingId = failure.requestId ?? requestId;

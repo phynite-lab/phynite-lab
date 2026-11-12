@@ -26,6 +26,30 @@ contract for the bundled runtime.  A missing or broken scientific runtime uses
 the researcher-facing message specified by the product contract and never
 suggests a terminal installation command.
 
+## Pinned memory and long local turns
+
+Short turns retain the six-tool foreground budget and twelve-step hard ceiling.
+The explicit **Multistage** composer option permits up to 40 tools and 30 model
+rounds. This public application runs through the active local connection: keep
+the tab open. It does not deploy a hosted worker or poll scientific jobs in the
+background. Pending approval still stops execution before subsequent tools.
+
+Pinned memory retains exact user requirements with source message IDs, selected
+source values/checksums, recorded action outcomes and gaps. Model assessments are
+labelled as assessments; they never constitute scientific proof. Long ledgers
+overflow to owner/conversation-scoped, checksum-verified local artifact storage.
+Every ten tools saves a stage checkpoint. Older tool results replay compact
+evidence digests; complete sanitized observations remain in stored messages.
+An oversized history also stores a deterministic index, with explicit coverage
+limits. Initial requirements remain pinned independently of that history window.
+
+Before a multi-step turn finishes, an audit compares dispositions and actual
+action states. One corrective model round can resolve uncertainty; remaining
+unknown/unmet requirements or pending/failed actions are explicitly appended to
+the answer and retained in the run verification record. Near the tool/round
+ceiling the assistant records a partial checkpoint rather than executing excess
+calls. Continue from that checkpoint and inspect uncertain submissions manually.
+
 ## Scientific inspection in Phynite AI
 
 The conversation tools inspect saved project evidence. Unsaved editor changes are
