@@ -27,6 +27,7 @@
     "backend/local_api/domain/__init__.py",
     "backend/local_api/domain/account.py",
     "backend/local_api/domain/ai_attachments.py",
+    "backend/local_api/domain/ai_observation.py",
     "backend/local_api/domain/ai_runtime.py",
     "backend/local_api/domain/ai_skills.py",
     "backend/local_api/domain/ai_workbench.py",
@@ -136,6 +137,7 @@
     "backend/local_api/domain/__init__.py",
     "backend/local_api/domain/account.py",
     "backend/local_api/domain/ai_attachments.py",
+    "backend/local_api/domain/ai_observation.py",
     "backend/local_api/domain/ai_runtime.py",
     "backend/local_api/domain/ai_skills.py",
     "backend/local_api/domain/ai_workbench.py",
@@ -238,6 +240,7 @@
     "backend.md_compute"
   ],
   "portableTests": [
+    "backend/tests/test_local_ai_observation.py",
     "backend/tests/test_local_crystal_cells.py",
     "backend/tests/test_local_desktop.py",
     "backend/tests/test_local_integrity.py",

@@ -2,7 +2,7 @@
 from __future__ import annotations
 import copy
 import json
-from backend.local_api.domain.ai_workspace import RESOURCE_KINDS, clean, digest, fail, valid_id
+from backend.local_api.domain.ai_workspace import RESOURCE_KINDS, bounded, clean, digest, fail, valid_id
 from backend.local_api.domain.ai_skills import selected_skill
 
 TASK_MODES = {"work", "plan", "research", "summary"}
@@ -138,9 +138,9 @@ class AiWorkbench:
                 fail(400, "This context target is not supported.", "AI_CONTEXT_INVALID")
             value = clean(value)
             source_hash = digest(value)
-            encoded = json.dumps(value, ensure_ascii=False)
-            if len(encoded) > 16000:
-                value = {"truncated": True, "excerpt": encoded[:16000], "note": "Only this excerpt was read. Request a narrower saved resource for more evidence."}
+            if len(json.dumps(value).encode()) > 16000:
+                note = "Use read_resource or a narrower context reference for full data."
+                value = {"truncated": True, "note": note, "data": bounded(value, 16000 - len(json.dumps({"truncated": True, "note": note, "data": None}).encode()))}
             manifests.append({"ref": {**copy.deepcopy(ref), **({"revision": revision} if revision is not None else {})}, "label": clean(label), "sha256": source_hash, "value": value, "sourceId": "C" + str(len(manifests) + 1)})
         if len(json.dumps(manifests).encode()) > 60000:
             fail(413, "Select fewer or narrower context references.", "AI_CONTEXT_LIMIT")

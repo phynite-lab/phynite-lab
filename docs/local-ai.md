@@ -45,6 +45,27 @@ See [settings and preferences](settings-preferences.md) for account, usage, and
 notification navigation. Provider CLI installation and subscription requirements
 remain separate from the scientific-compute runtime.
 
+## Evidence and conversation windows
+
+Phynite AI answers in the user's language with scientific values and source
+references in the explanation. Source chips and action cards retain checksums
+and before/after details. Reading limits belong in the answer when they affect
+its conclusions; a pending action or running job still cannot count as a result.
+
+Large observations are compacted as valid JSON, preserving errors, status,
+pagination, checksums and scientific metadata before shortening long text or
+sampling arrays. Samples show their original item count and first/last entries;
+omitted fields and shortened strings are marked explicitly. The original source
+and its checksum remain unchanged. Selected context references have a 16,000-byte
+window per source; use `read_resource` or narrower context to inspect more.
+
+Model-facing tool observations have a 24,000-character budget; local backend
+observations have a 24,000-byte budget including JSON escaping. Recent conversation
+replay has a shared 180,000-character budget including evidence delimiters.
+Evidence, recorded tool outputs and attachments use escaped XML delimiters and
+remain untrusted data. Instructions embedded in them cannot change permissions,
+project scope or scientific validation requirements.
+
 ## QE on local HPC clusters
 
 Configure and probe a Slurm or OpenPBS profile in **Settings → Compute → HPC

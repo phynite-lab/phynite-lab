@@ -11,6 +11,7 @@ import time
 from datetime import datetime
 from typing import Any
 from urllib.parse import quote, urlsplit
+from backend.local_api.domain.ai_observation import AI_OBSERVATION_BYTE_BUDGET, compact_observation
 from backend.local_api.domain.phynite_core import ApiError, json_safe, owner_partition, response, storage_owner, utc_now
 MODES = {'chat', 'approval', 'full'}
 RESOURCE_KINDS = {'structure': 'STRUCTURE', 'calculation': 'CALCULATION', 'trajectory': 'MD_TRAJECTORY', 'simulation': 'MD_SIMULATION', 'analysis': 'MD_ANALYSIS', 'md_configuration': 'MD_CONFIGURATION', 'potential': 'MD_POTENTIAL', 'dataset': 'DATASET', 'figure': 'FIGURE'}
@@ -87,12 +88,9 @@ def body(result: dict) -> dict:
 def fail(status: int, message: str, code: str='AI_INVALID_REQUEST') -> None:
     raise ApiError(status, message, code)
 
-def bounded(value: Any, maximum: int=24000) -> Any:
+def bounded(value: Any, maximum: int=AI_OBSERVATION_BYTE_BUDGET) -> Any:
     value = clean(value)
-    encoded = json.dumps(value, sort_keys=True)
-    if len(encoded.encode()) <= maximum:
-        return value
-    return {'truncated': True, 'sha256': digest(value), 'note': 'Read the referenced project resource for the complete source.', 'resources': {key: {field: record[field] for field in ('id', 'name', 'status') if field in record} for key, record in value.items() if isinstance(record, dict) and 'id' in record} if isinstance(value, dict) else {}}
+    return compact_observation(value, maximum)
 
 def valid_id(value: Any) -> str:
     if not isinstance(value, str) or not re.fullmatch('[A-Za-z0-9_-]{1,200}', value):
