@@ -93,14 +93,45 @@ class LocalWorkflowReadinessTests(unittest.TestCase):
                     self.assertIn('install it', message)
 
     def test_runtime_readiness_checks_only_new_execution_not_retained_results_or_inputs(self):
-        workflow = graph(); workflow['nodes'] = workflow['nodes'][:2]; workflow['edges'] = workflow['edges'][:1]
-        workflow['nodes'][1]['configuration'] = {'execution': {'structureId': 'str_1'}}
+        workflow = graph()
+        workflow['nodes'].append(node('figure', 'figure'))
+        workflow['edges'].append({'id': 'bf', 'source': 'bands', 'target': 'figure', 'port': 'dataset'})
+        for item in workflow['nodes'][1:3]:
+            item['configuration'] = {'execution': {'structureId': 'str_1'}}
         self.call('PUT', payload={'workflow': workflow, 'baseRevision': 0})
         self.services.update_item('user-1', 'PERSONAL_WORKER', 'primary', {'lastSeenAtEpoch': 0, 'capabilities': []})
-        with patch.object(self.workflow, 'find_reusable', side_effect=lambda owner, project, item, fingerprint: {'id': 'retained-attempt'} if item['kind'] == 'scf' else None):
-            plan, _ = self.workflow.plan('user-1', 'prj_1', {'revision': 1, 'targets': ['scf']})
-        self.assertEqual([item['action'] for item in plan['nodes']], ['input', 'reuse'])
-        self.assertEqual(plan['errors'], [])
+        with patch.object(self.workflow, 'find_reusable', side_effect=lambda owner, project, item, fingerprint: {'id': f"retained-{item['id']}"} if item['kind'] in {'scf', 'bands'} else None):
+            figure_plan, _ = self.workflow.plan('user-1', 'prj_1', {'revision': 1, 'targets': ['figure']})
+            self.assertEqual([item['action'] for item in figure_plan['nodes']], ['input', 'reuse', 'reuse', 'prepare'])
+            self.assertEqual(figure_plan['errors'], [])
+            scf_plan, _ = self.workflow.plan('user-1', 'prj_1', {'revision': 1, 'targets': ['scf']})
+            self.assertEqual([item['action'] for item in scf_plan['nodes']], ['input', 'run'])
+            self.assertEqual(len(scf_plan['errors']), 1)
+
+    def test_completed_target_runs_fresh_and_cascades_downstream_while_reusing_upstream(self):
+        workflow = graph()
+        workflow['nodes'].append(node('figure', 'figure'))
+        workflow['edges'].append({'id': 'bf', 'source': 'bands', 'target': 'figure', 'port': 'dataset'})
+        for item in workflow['nodes'][1:3]:
+            item['configuration'] = {'execution': {'structureId': 'str_1'}}
+        self.call('PUT', payload={'workflow': workflow, 'baseRevision': 0})
+        with patch.object(self.workflow, 'submit', side_effect=[
+            {'status': 'queued', 'jobId': 'calc_1', 'jobKind': 'CALCULATION'},
+            {'status': 'queued', 'jobId': 'calc_2', 'jobKind': 'CALCULATION'},
+        ]) as submit:
+            self.services.put_item({'PK': owner_partition('user-1'), 'SK': 'CALCULATION#calc_1', 'id': 'calc_1', 'projectId': 'prj_1', 'status': 'COMPLETED'})
+            first = self.call('POST', '/runs', {'revision': 1, 'targets': ['scf'], 'idempotencyKey': 'local-fresh-run-1'})['run']
+            self.assertEqual(first['attempts'][-1]['jobId'], 'calc_1')
+            self.services.put_item({'PK': owner_partition('user-1'), 'SK': 'CALCULATION#calc_2', 'id': 'calc_2', 'projectId': 'prj_1', 'status': 'QUEUED'})
+            second = self.call('POST', '/runs', {'revision': 1, 'targets': ['scf'], 'idempotencyKey': 'local-fresh-run-2'})['run']
+            self.assertEqual(second['attempts'][-1]['jobId'], 'calc_2')
+            self.assertEqual(second['attempts'][-1]['status'], 'queued')
+            self.assertEqual(submit.call_count, 2)
+        with patch.object(self.workflow, 'find_reusable', side_effect=lambda owner, project, item, fingerprint: {'id': item['id']} if item['kind'] in {'scf', 'bands'} else None):
+            downstream, _ = self.workflow.plan('user-1', 'prj_1', {'revision': 1, 'targets': ['bands']})
+            self.assertEqual([(item['nodeId'], item['action']) for item in downstream['nodes']], [('s', 'input'), ('scf', 'reuse'), ('bands', 'run')])
+            cascade, _ = self.workflow.plan('user-1', 'prj_1', {'revision': 1, 'targets': ['scf', 'figure']})
+            self.assertEqual([(item['nodeId'], item['action']) for item in cascade['nodes']], [('s', 'input'), ('scf', 'run'), ('bands', 'run'), ('figure', 'prepare')])
 
     def test_analysis_and_extraction_require_analysis_capability_not_just_qe(self):
         self.workflow.put_new('user-1', 'MD_TRAJECTORY', 'trajectory', {'projectId': 'prj_1'})

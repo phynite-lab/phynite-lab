@@ -552,6 +552,7 @@ class ProjectWorkflowApi:
         execution_order = order(graph, targets)
         if any((item not in execution_order for item in rerun)):
             fail('Only targets and their prerequisites can be run fresh.')
+        target_set = set(targets)
         forced = set(rerun)
         for node_id in execution_order:
             if any((edge['source'] in forced and edge['target'] == node_id for edge in graph['edges'])):
@@ -570,6 +571,7 @@ class ProjectWorkflowApi:
         compiled = invoke('prepareNodes', [graph, execution_order]) if needs_compiler else {}
         planned: list[dict[str, Any]] = []
         errors: list[dict[str, str]] = []
+        fresh_runs: set[str] = set()
         estimated_micros = 0
         worker = self.services.get_item(owner, 'PERSONAL_WORKER', 'primary') or {}
         now = time.time()
@@ -631,8 +633,11 @@ class ProjectWorkflowApi:
                 self.resources(owner, {**graph, 'nodes': [node]}, execution=True)
             except ApiError as exc:
                 error = str(exc)
-            reusable = None if node_id in forced or error else self.find_reusable(owner, project, node, hashes[node_id])
+            skip_reuse = node_id in forced or node_id in target_set or any((edge['source'] in fresh_runs for edge in input_edges))
+            reusable = None if skip_reuse or error else self.find_reusable(owner, project, node, hashes[node_id])
             action = 'reuse' if reusable else 'input' if node['kind'] in {'structure', 'trajectory'} or legacy_result else 'prepare' if node['kind'] == 'figure' else 'run'
+            if action == 'run':
+                fresh_runs.add(node_id)
             hpc_compute = None
             if action == 'run' and not error and node['kind'] in DFT_TYPES and node['configuration'].get('computeTarget') == 'hpc':
                 from backend.local_api.hpc_profiles import resolve_hpc_compute
