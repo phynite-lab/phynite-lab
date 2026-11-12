@@ -121,5 +121,5 @@ test('new mutations use exact action payload/hash and never execute before appro
   assert.deepEqual((calls.find(([operation]) => operation === 'prepare')![1] as { payload: unknown }).payload, input);
   calls.length = 0;
   await executeAiTool('import_md_potential', { provider: 'nist', identifier: 'exact-model', elements: ['Si'] }, 'full', backend, signal());
-  assert.deepEqual(calls.find(([operation]) => operation === 'execute')![1], { actionId: 'action', payloadHash: action.payloadHash });
+  assert.deepEqual(calls.find(([operation]) => operation === 'execute')![1], { actionId: 'action', payloadHash: action.payloadHash, toolName: 'import_md_potential' });
 });

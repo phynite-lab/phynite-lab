@@ -111,7 +111,7 @@ class AiArtifacts:
                 fail(400, 'Every figure layer needs its retained dataset.', 'AI_ARTIFACT_INVALID')
 
     def publish(self, owner, conversation, run, request, update=False, *, evidence=None):
-        envelope = {'runId', 'lease', 'controlRevision', 'toolCallId'}
+        envelope = {'runId', 'lease', 'controlRevision', 'toolCallId', 'toolName'}
         fields(request, envelope | ({'artifactId', 'title', 'content', 'structuredData', 'status'} if update else {'artifactGroupId', 'kind', 'title', 'content', 'structuredData', 'status'}))
         call_id = request.get('toolCallId')
         if call_id is not None and (not isinstance(call_id, str) or not re.fullmatch('[A-Za-z0-9_-]{1,200}', call_id)): fail(400, 'Invalid artifact call ID.', 'AI_ARTIFACT_INVALID')

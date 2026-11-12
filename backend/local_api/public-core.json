@@ -100,7 +100,8 @@
     "backend/local_worker/hpc_remote.py",
     "backend/local_worker/hpc_ssh.py",
     "backend/local_worker/ai_operator.py",
-    "backend/compute/hpc_manifest.py"
+    "backend/compute/hpc_manifest.py",
+    "backend/local_api/domain/ai_custom_skills.py"
   ],
   "dataFiles": [
     "backend/local_api/runtime-manifest.json",
@@ -274,6 +275,7 @@
     "backend/tests/test_agent_runtime_release.py",
     "backend/tests/test_ai_paper_index.py",
     "backend/tests/test_ai_memory.py",
-    "backend/tests/test_ai_artifacts.py"
+    "backend/tests/test_ai_artifacts.py",
+    "backend/tests/test_ai_custom_skills.py"
   ]
 }

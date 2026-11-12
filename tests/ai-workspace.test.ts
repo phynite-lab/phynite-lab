@@ -193,7 +193,7 @@ test('geometry and figures use real shared operations and bound source datasets'
 });
 test('agent preserves signed thinking only within a turn and stops at pending approval', async () => {
   const mock = backendMock(); let requests = 0; const output: AiEvent[] = [];
-  await runAiAgent({ detail: detail(), backend: mock.backend, config, send: event => output.push(event), signal: signal(), providerFetch: async () => { requests++; return sse(events({ id: 't1', name: 'prepare_dft', input: { materialId: 'm1', configurationId: 'cfg1', name: 'SCF', calculation: 'Total energy', settingsPatch: {}, run: false } }, '', true)); } });
+  await runAiAgent({ detail: detail(), backend: mock.backend, config, send: event => output.push(event), signal: signal(), providerFetch: async () => { requests++; return sse(events({ id: 't1', name: 'prepare_dft', input: { materialId: 'm1', configurationId: 'cfg1', name: 'SCF', calculation: 'Total energy', settingsPatch: {}, run: false, scientificCheck: Object.fromEntries(['units', 'speciesMapping', 'periodicity', 'convergence'].map(key => [key, { status: 'checked', note: 'Exact synthetic fixture input reviewed.' }])) } }, '', true)); } });
   assert.equal(requests, 1); assert.ok(output.some(event => event.type === 'action')); assert.ok(!mock.calls.some(call => call.operation === 'execute'));
   assert.doesNotMatch(JSON.stringify(mock.calls), /PRIVATE THOUGHT|signed-fixture/);
 });

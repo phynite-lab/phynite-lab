@@ -845,3 +845,18 @@ for (const [mode, code] of [['permission', 'UNSAFE_TOOLS'], ['tool-call', 'UNSAF
     });
   });
 }
+
+test('verified effort parameters reach the native proposal adapter and conflicting choices fail', async () => {
+  const dir = await mkdtemp('/tmp/phynite-native-effort-'), registry = new NativeAiRegistry({ dataDir: dir });
+  await registry.ready;
+  registry.state.providers.codex = { optedIn: true, status: 'connected' };
+  registry.catalog.capabilities.models['codex/synthetic'] = { available: true, text: true, streaming: true, tools: true, efforts: ['auto', 'high'] };
+  let observed;
+  registry.execute = async function* (prepared) { observed = prepared.effort; yield { proposal: { text: 'Synthetic fixture', calls: [] } }; };
+  const payload = { model: 'codex/synthetic', output_config: { effort: 'high' }, messages: [{ role: 'user', content: 'Synthetic effort fixture' }] };
+  try {
+    for await (const event of registry.stream(payload)) void event;
+    assert.equal(observed, 'high');
+    for (const bad of [{ ...payload, effort: 'low' }, { ...payload, output_config: { effort: 'unverified' } }]) await assert.rejects(async () => { for await (const event of registry.stream(bad)) void event; }, { code: 'UNSUPPORTED_EFFORT' });
+  } finally { await registry.close(); await rm(dir, { recursive: true, force: true }); }
+});

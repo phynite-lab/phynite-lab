@@ -47,7 +47,7 @@ class PublicLocalCoreTests(unittest.TestCase):
             # Shared SSE parser and the release producer are public source, not
             # frozen runtime dependencies. Their portable contract tests need
             # these explicit inputs even in this Python-only stripped tree.
-            test_inputs = ["lib/ai-provider.ts", "lib/ai-contract.ts", "scripts/qualify-local-science.py", "distribution/qualification/qe/fixture.json", "tests/fixtures/crystal-database-imports.json", "tests/fixtures/crystal-optimade-imports.json"]
+            test_inputs = ["lib/ai-reasoning.ts", "lib/ai-provider.ts", "lib/ai-contract.ts", "scripts/qualify-local-science.py", "distribution/qualification/qe/fixture.json", "tests/fixtures/crystal-database-imports.json", "tests/fixtures/crystal-optimade-imports.json"]
             for module in sorted((ROOT / "packages/phynite-lab/lib").glob("*.mjs")):
                 test_inputs.append(module.relative_to(ROOT).as_posix())
             for name in manifest["pythonModules"] + manifest["dataFiles"] + tests + test_inputs:

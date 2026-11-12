@@ -1,4 +1,5 @@
-import { aiOutputTokens, aiCapabilities, AiStreamError, isAiEffort, isAiModel, isRouterModelId, isGatewayModelId, readSse, type AiProviderId, type AiEffort, type AiModelId } from './ai-contract.ts';
+import { aiReasoningCapability, aiReasoningParameters, type AiReasoningCapability } from './ai-reasoning.ts';
+import { aiCapabilities, AiStreamError, isAiModel, isRouterModelId, isGatewayModelId, readSse, type AiProviderId, type AiEffort, type AiModelId } from './ai-contract.ts';
 
 export class AiError extends Error {
   readonly status: number;
@@ -29,7 +30,7 @@ export type ClaudeBlock = { type: 'text'; text: string } | { type: 'tool_use'; i
 type PrivateThinkingBlock = { type: 'thinking'; thinking: string; signature: string } | { type: 'redacted_thinking'; data: string };
 export type ClaudeInputBlock = { type: 'image' | 'document'; source: { type: 'base64'; media_type: string; data: string }; title?: string };
 export type ClaudeMessage = { role: 'user' | 'assistant'; content: string | Array<ClaudeBlock | PrivateThinkingBlock | ClaudeInputBlock> };
-export type AiProviderConfig = { baseUrl: string; token: string; providerId?: AiProviderId; modelIds?: AiModelId[]; modelCapabilities?: Record<string, { efforts?: AiEffort[] }>; local?: boolean };
+export type AiProviderConfig = { baseUrl: string; token: string; providerId?: AiProviderId; modelIds?: AiModelId[]; modelCapabilities?: Record<string, Partial<AiReasoningCapability> & { efforts?: AiEffort[] }>; local?: boolean };
 export function routerModelIds(env: Record<string, string | undefined>, native = false): AiModelId[] {
   if (native) {
     try {
@@ -51,9 +52,10 @@ export function aiProviderConfig(env: Record<string, string | undefined>, provid
   const base = new URL((local ? env.PHYNITE_LOCAL_AI_URL : router ? env.PHYNITE_AI_9ROUTER_BASE_URL : env.PHYNITE_AI_BASE_URL) || (router ? 'https://unconfigured.invalid' : 'https://api.mwapi.dev'));
   const loopback = (local || env.PHYNITE_AI_ALLOW_LOOPBACK_PROVIDER === 'true') && base.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(base.hostname);
   if (base.protocol !== 'https:' && !loopback || base.username || base.password || base.search || base.hash || !['', '/', '/v1', '/v1/'].includes(base.pathname)) throw new AiError(503, 'AI_CONFIGURATION_INVALID', 'The AI provider configuration needs attention.');
-  let modelCapabilities: Record<string, { efforts?: AiEffort[] }> | undefined;
-  if (local && env.PHYNITE_LOCAL_AI_CAPABILITIES) {
-    try { const report = JSON.parse(env.PHYNITE_LOCAL_AI_CAPABILITIES); if (report?.models && typeof report.models === 'object') modelCapabilities = report.models; } catch { throw new AiError(503, 'AI_CAPABILITIES_INVALID', 'The local AI compatibility report needs attention.'); }
+  let modelCapabilities: Record<string, Partial<AiReasoningCapability> & { efforts?: AiEffort[] }> | undefined;
+  const reportText = local ? env.PHYNITE_LOCAL_AI_CAPABILITIES : router ? env.PHYNITE_AI_9ROUTER_CAPABILITIES : env.PHYNITE_AI_GATEWAY_CAPABILITIES;
+  if (reportText) {
+    try { const report = JSON.parse(reportText); if (report?.models && typeof report.models === 'object') modelCapabilities = report.models; } catch { throw new AiError(503, 'AI_CAPABILITIES_INVALID', 'The local AI compatibility report needs attention.'); }
   }
   return { baseUrl: base.origin, token: token ?? '', providerId, local: env.PHYNITE_APP_MODE === 'local', ...(router ? { modelIds: routerModelIds(env, providerId === 'local') } : {}), ...(modelCapabilities ? { modelCapabilities } : {}) };
 }
@@ -65,13 +67,15 @@ async function streamClaudeResponse(options: {
 }): Promise<{ content: ClaudeBlock[]; continuation: Array<ClaudeBlock | PrivateThinkingBlock>; usage: { inputTokens: number; outputTokens: number }; stopReason: string }> {
   if (options.config.providerId === '9router' || options.config.providerId === 'local' ? !(options.config.local ? isGatewayModelId(options.modelId) : isRouterModelId(options.modelId)) || !options.config.modelIds?.includes(options.modelId) : !isAiModel(options.modelId)) throw new AiError(400, 'AI_MODEL_INVALID', 'Choose a model from the selected provider catalogue.');
   const effort = options.effort ?? 'auto';
-  const supportedEfforts = options.config.providerId === 'local' ? options.config.modelCapabilities?.[options.modelId]?.efforts ?? ['auto'] : aiCapabilities(options.modelId).efforts;
-  if (!supportedEfforts.includes(effort) || options.config.providerId !== 'local' && !isAiEffort(options.modelId, effort)) throw new AiError(400, 'AI_EFFORT_UNSUPPORTED', 'This model does not support the selected effort. Choose Auto or another supported level.');
+  const capability = aiReasoningCapability(options.config.modelCapabilities?.[options.modelId] ?? (options.config.providerId === undefined || options.config.providerId === 'phynite' ? { efforts: [...aiCapabilities(options.modelId).efforts] } : undefined), options.config.providerId);
+  // Existing Gemini variants encode their effort in the exact selected model ID.
+  const variant = options.config.providerId === '9router' && !options.config.modelCapabilities?.[options.modelId]?.reasoningControl && /^ag\/gemini-.*-(low|medium|high)$/.exec(options.modelId)?.[1] === effort;
+  if (!variant && !capability.supportedEfforts.includes(effort)) throw new AiError(400, 'AI_EFFORT_UNSUPPORTED', 'This model has not verified the requested reasoning control. Choose Auto or another supported level.');
   const response = await (options.fetcher ?? fetch)(`${options.config.baseUrl}/v1/messages`, {
     method: 'POST', signal: options.signal, redirect: 'manual',
     headers: { Authorization: `Bearer ${options.config.token}`, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-    body: JSON.stringify({ model: options.modelId, max_tokens: aiOutputTokens(effort), stream: true, system: options.system, messages: options.messages, tools: options.tools,
-      ...(options.config.providerId !== '9router' && options.config.providerId !== 'local' && effort !== 'auto' ? { output_config: { effort }, thinking: { type: 'adaptive' } } : {}) }),
+    body: JSON.stringify({ model: options.modelId, max_tokens: capability.maxOutputTokens, stream: true, system: options.system, messages: options.messages, tools: options.tools,
+      ...(variant ? {} : aiReasoningParameters(capability, effort)) }),
   });
   if (!response.ok) {
     await response.body?.cancel();
