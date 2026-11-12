@@ -15,8 +15,8 @@ from backend.local_api.domain.ai_observation import AI_OBSERVATION_BYTE_BUDGET, 
 from backend.local_api.domain.phynite_core import ApiError, json_safe, owner_partition, response, storage_owner, utc_now
 MODES = {'chat', 'approval', 'full'}
 RESOURCE_KINDS = {'structure': 'STRUCTURE', 'calculation': 'CALCULATION', 'trajectory': 'MD_TRAJECTORY', 'simulation': 'MD_SIMULATION', 'analysis': 'MD_ANALYSIS', 'md_configuration': 'MD_CONFIGURATION', 'potential': 'MD_POTENTIAL', 'dataset': 'DATASET', 'figure': 'FIGURE'}
-ACTIONS = {'modify_structure', 'import_md_potential', 'derive_structure', 'import_structure', 'save_dft', 'run_dft', 'save_md', 'run_md', 'run_analysis', 'cancel_job', 'save_figure', 'export_figure', 'save_workflow', 'run_workflow', 'cancel_workflow'}
-PATH = re.compile('^/v1/ai/conversations(?:/([a-z0-9_]+)(?:/(detail|settings|start|resume|renew|stop|context|compute|read|canvas|step|message|finish|prepare|execute|actions|queue|steer|continue|events|control|job_artifacts|job_file|dataset_query|potential_search|jobs|job_status|worker_status|calculation_diagnosis|md_preview|attachment_read|attachment_search|attachment_provider|ledger|audit|save_plan|complete_call|replay|references|artifacts|artifact_publish|artifact_update|artifact_get|report)(?:/([a-z0-9_]+))?)?)?$')
+ACTIONS = {'mcp_call', 'modify_structure', 'import_md_potential', 'derive_structure', 'import_structure', 'save_dft', 'run_dft', 'save_md', 'run_md', 'run_analysis', 'cancel_job', 'save_figure', 'export_figure', 'save_workflow', 'run_workflow', 'cancel_workflow'}
+PATH = re.compile('^/v1/ai/conversations(?:/([a-z0-9_]+)(?:/(detail|settings|start|resume|renew|stop|context|compute|read|canvas|step|message|finish|prepare|execute|actions|queue|steer|continue|events|control|mcp_tools|mcp_call|job_artifacts|job_file|dataset_query|potential_search|jobs|job_status|worker_status|calculation_diagnosis|md_preview|attachment_read|attachment_search|attachment_provider|ledger|audit|save_plan|complete_call|replay|references|artifacts|artifact_publish|artifact_update|artifact_get|report)(?:/([a-z0-9_]+))?)?)?$')
 
 def router_models(provider: str='9router') -> list[str]:
     try:
@@ -445,6 +445,9 @@ class AiWorkspace:
         title = str(payload.get('title') or kind)[:180]
         before = self.summary(context)
         after = {'operation': kind, 'name': data.get('name'), 'computeTarget': 'personal' if kind.startswith('run_') else None}
+        if kind == 'mcp_call':
+            before = {}
+            after = {'tool': data['name'], 'arguments': data['arguments'], 'toolHash': data['toolHash']}
         if kind == 'save_workflow':
             after['changes'] = [{'nodeId': c['nodeId'], 'name': (c.get('after') or c.get('before') or {}).get('name'), 'operation': 'add' if c.get('before') is None else 'remove' if c.get('after') is None else 'update', 'before': c.get('before'), 'after': c.get('after')} for c in data.get('changes', [])]
         elif kind == 'import_structure':
@@ -505,6 +508,9 @@ class AiWorkspace:
             fail(400, 'AI actions cannot override ownership, network destinations or compute targets.')
         if kind not in {'save_dft', 'run_dft'} and any(key in data for key in ('compute', 'hpc', 'executionAffinity')):
             fail(400, 'Only QE actions accept HPC compute configuration. MD uses personal compute.', 'INVALID_COMPUTE_TARGET')
+        if kind == 'mcp_call':
+            from backend.local_api.domain.ai_mcp import AiMcp
+            AiMcp(self).validate_action(owner, conversation, data)
         if kind == 'modify_structure':
             from backend.local_api.domain.ai_domain_actions import modification
             modification(self, owner, conversation, data)
@@ -662,6 +668,9 @@ class AiWorkspace:
 
     def perform(self, owner: str, conversation: dict, action: dict, data: dict) -> dict:
         kind = action['kind']
+        if kind == 'mcp_call':
+            from backend.local_api.domain.ai_mcp import AiMcp
+            return AiMcp(self).perform(owner, conversation, action, data)
         project = self.scope(owner, conversation['projectKey'])
         now = utc_now()
         if kind == 'modify_structure':
@@ -997,6 +1006,10 @@ class AiWorkspace:
         if operation in {'attachment_read', 'attachment_search', 'attachment_provider'}:
             from backend.local_api.domain.ai_attachments import AiAttachments
             return response(200, AiAttachments(self.api).read(owner, conversation, {**payload, **({'search': True} if operation == 'attachment_search' else {})}, operation == 'attachment_provider'))
+        if operation in {'mcp_tools', 'mcp_call'}:
+            from backend.local_api.domain.ai_mcp import AiMcp
+            service = AiMcp(self)
+            return response(200, {'tools': service.tools(conversation, run)} if operation == 'mcp_tools' else service.read(conversation, run, payload))
         if operation == 'canvas':
             project = self.scope(owner, conversation['projectKey'])
             if project['kind'] != 'canvas':

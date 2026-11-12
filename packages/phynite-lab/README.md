@@ -107,7 +107,7 @@ Cloud and AI connections are optional and configured inside the application.
 Local AI uses the official Codex, Claude Code or Antigravity CLI already installed on this
 computer. Open **Settings → AI provider accounts** and sign in; models connect and
 verify automatically. An existing CLI sign-in can be reused. Phynite never reads or copies CLI session files or
-provider tokens. The bridge runs on loopback with shell, MCP, plugin, browser,
+provider tokens. CLI inference sessions run on loopback with shell, MCP, plugin, browser,
 and network tools disabled; a model is unavailable until its text, streaming,
 and host-validated tool-proposal probe succeeds. A loopback OpenAI-compatible
 Antigravity uses a restricted profile, explicit permission denials and a native
@@ -120,6 +120,14 @@ output is used, and a model other than the selected one is refused. Sign in with
 Claude account (`claude auth login`); API-key sign-in is not used. The Claude Code
 bridge reports no usage percentages because the CLI exposes none, and reads
 attachments through extracted text (native image and PDF input are not verified).
+Application MCP connections are a separate opt-in feature under the chat menu’s
+**Local MCP connections**. Register trusted local servers in the private
+`~/.phynite-lab/mcp/servers.json` file (or your selected data directory), then
+enable them in the application. Chat/research exposes declared read-only tools;
+mutations follow the conversation’s action permissions. Server credentials stay
+on disk. See the [scientific AI guide](https://github.com/phynite-lab/phynite-lab/blob/main/docs/scientific-ai-agent.md#local-mcp-connections)
+for configuration, protocol limits, custom skills and scientific evidence rules.
+
 Hosted Phynite AI is not used by the local application. Cloud sign-in requires a
 release assembled with public cloud connection metadata; an unconfigured release
 remains available for local work. Signing in does not enable Cloud Sync for a
