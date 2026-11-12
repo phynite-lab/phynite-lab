@@ -32,6 +32,31 @@ def require_signed(stanza: str) -> None:
         raise ValueError('Refusing an unauthenticated Ubuntu source.')
 
 
+def fallback_priority(existing: str) -> int:
+    # GitHub runners now also run on AWS. Keep the image's actual official
+    # regional mirrors and ordering instead of assuming Azure is priority 1.
+    priorities = []
+    official = False
+    for number, line in enumerate(existing.splitlines(), 1):
+        if not line.strip() or line.lstrip().startswith('#'):
+            continue
+        fields = line.split()
+        if len(fields) != 2:
+            raise ValueError(f'Expected a bounded Ubuntu mirror priority on line {number}.')
+        uri, tag = fields
+        known = re.fullmatch(r'https?://(?:(?:azure\.)?archive\.ubuntu\.com|security\.ubuntu\.com|(?:[a-z0-9-]+\.)?ec2\.archive\.ubuntu\.com)/ubuntu/?', uri)
+        priority = re.fullmatch(r'priority:([1-9][0-9]{0,3})', tag)
+        if (not known and uri != X64_MIRROR) or not priority:
+            raise ValueError(f'Expected an official Ubuntu mirror and bounded priority on line {number}.')
+        official = official or bool(known)
+        priorities.append(int(priority[1]))
+    if not official:
+        raise ValueError('Expected at least one existing official Ubuntu archive mirror.')
+    if X64_MIRROR not in existing.split() and max(priorities) >= 9999:
+        raise ValueError('No bounded fallback priority remains.')
+    return max(priorities) + 1
+
+
 def configure(apt_root: Path, target: str) -> None:
     sources = apt_root / 'sources.list.d/ubuntu.sources'
     original = sources.read_text(encoding='utf-8')
@@ -44,10 +69,9 @@ def configure(apt_root: Path, target: str) -> None:
             require_signed(stanza)
         mirrors = apt_root / 'apt-mirrors.txt'
         existing = mirrors.read_text(encoding='utf-8')
-        if not re.search(r'^https?://azure\.archive\.ubuntu\.com/ubuntu/?\s+priority:1\s*$', existing, re.M):
-            raise ValueError('Expected the existing GitHub Ubuntu mirror priorities.')
+        priority = fallback_priority(existing)
         if X64_MIRROR not in existing.split():
-            writes[mirrors] = existing.rstrip() + f'\n{X64_MIRROR}\tpriority:4\n'
+            writes[mirrors] = existing.rstrip() + f'\n{X64_MIRROR}\tpriority:{priority}\n'
     elif target == 'linux-arm64':
         stanzas = original.split('\n\n')
         count = 0

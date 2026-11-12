@@ -13,7 +13,8 @@ WSL2 uses the Linux x64 package because it reports that platform to Node and npm
 process builds the exact public
 commit, installs the launcher and matching platform tarball in a clean prefix, and requires
 all browser, persistence, scientific reference and sandbox checks to pass.
-Ephemeral Linux CI retains the Ubuntu archive mirrors and adds kernel.org (x64)
+Ephemeral Linux CI retains the image’s signed Ubuntu archive mirrors and priorities,
+including Azure and regional EC2 archives, and adds kernel.org (x64)
 or MIT's Ubuntu ports mirror (ARM64) as a fallback for archive DNS failures.
 APT retains the image's Ubuntu signing key, suites and components, uses bounded
 transport retries, and requires successful index updates. These CI settings are
