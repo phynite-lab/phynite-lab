@@ -39,7 +39,7 @@ SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.@-]{0,95}$")
 SAFE_MODULE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.+@:/-]{0,127}$")
 SAFE_SHA = re.compile(r"^[a-f0-9]{64}$")
 TERMINAL_STATES = {"COMPLETED", "FAILED", "TIMEOUT", "CANCELLED", "NODE_FAIL", "PREEMPTED", "OUT_OF_MEMORY", "BOOT_FAIL", "DEADLINE", "REVOKED", "C", "F", "E", "X"}
-MAX_HARVEST_BYTES = 64 * 1024 * 1024
+MAX_HARVEST_BYTES = 256 * 1024 * 1024
 
 
 class MonitoringDeferred(HpcError):
@@ -366,7 +366,7 @@ class HpcRemoteJobManager:
             if size_code == 0:
                 try:
                     size = int(size_out.strip())
-                    if not 0 <= size <= MAX_HARVEST_BYTES or total + size > 256 * 1024 * 1024:
+                    if not 0 <= size <= MAX_HARVEST_BYTES or total + size > 512 * 1024 * 1024:
                         continue
                 except ValueError:
                     continue
