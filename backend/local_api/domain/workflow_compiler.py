@@ -23,7 +23,7 @@ def compiler_source() -> str:
 
 
 def invoke(method: str, payload: list[Any], frozen: dict[str, str] | None = None) -> Any:
-    if method not in {'compileBoundDft', 'validateDraft', 'compileMd', 'prepareNodes'}:
+    if method not in {'compileBoundDft', 'validateDraft', 'compileMd', 'prepareNodes', 'modifyAiStructure'}:
         raise ApiError(400, 'Unknown scientific compiler operation.', 'INVALID_WORKFLOW')
     try:
         import quickjs

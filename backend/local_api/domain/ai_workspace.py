@@ -15,8 +15,8 @@ from backend.local_api.domain.ai_observation import AI_OBSERVATION_BYTE_BUDGET, 
 from backend.local_api.domain.phynite_core import ApiError, json_safe, owner_partition, response, storage_owner, utc_now
 MODES = {'chat', 'approval', 'full'}
 RESOURCE_KINDS = {'structure': 'STRUCTURE', 'calculation': 'CALCULATION', 'trajectory': 'MD_TRAJECTORY', 'simulation': 'MD_SIMULATION', 'analysis': 'MD_ANALYSIS', 'md_configuration': 'MD_CONFIGURATION', 'potential': 'MD_POTENTIAL', 'dataset': 'DATASET', 'figure': 'FIGURE'}
-ACTIONS = {'derive_structure', 'import_structure', 'save_dft', 'run_dft', 'save_md', 'run_md', 'run_analysis', 'cancel_job', 'save_figure', 'export_figure', 'save_workflow', 'run_workflow', 'cancel_workflow'}
-PATH = re.compile('^/v1/ai/conversations(?:/([a-z0-9_]+)(?:/(detail|settings|start|resume|renew|stop|context|compute|read|canvas|step|message|finish|prepare|execute|actions|queue|steer|continue|events|control|attachment_read|attachment_provider|ledger|audit|save_plan|complete_call|replay|references|artifacts|report)(?:/([a-z0-9_]+))?)?)?$')
+ACTIONS = {'modify_structure', 'import_md_potential', 'derive_structure', 'import_structure', 'save_dft', 'run_dft', 'save_md', 'run_md', 'run_analysis', 'cancel_job', 'save_figure', 'export_figure', 'save_workflow', 'run_workflow', 'cancel_workflow'}
+PATH = re.compile('^/v1/ai/conversations(?:/([a-z0-9_]+)(?:/(detail|settings|start|resume|renew|stop|context|compute|read|canvas|step|message|finish|prepare|execute|actions|queue|steer|continue|events|control|job_artifacts|job_file|dataset_query|potential_search|jobs|job_status|worker_status|calculation_diagnosis|md_preview|attachment_read|attachment_provider|ledger|audit|save_plan|complete_call|replay|references|artifacts|report)(?:/([a-z0-9_]+))?)?)?$')
 
 def router_models(provider: str='9router') -> list[str]:
     try:
@@ -56,7 +56,7 @@ def digest(value: Any) -> str:
 def clean(value: Any) -> Any:
     """Strip storage locations, signed links and credentials before exposing model context."""
     if isinstance(value, dict):
-        return {key: clean(item) for key, item in value.items() if key not in {'PK', 'SK', 'history', 'objectKey', 'extractedKey', 'visionKey', 'inputKey', 'outputPrefix', 'tokenHash', 'leaseHash', 'connection', 'privateKeyPath', 'remoteWorkDir', 'scratchRoot', 'pseudoRoot'} and (not key.startswith('GSI')) and (key in {'inputTokens', 'outputTokens'} or not re.search('(?i)(?:api.?key|token|secret|password|credential|downloadurl|uploadurl|authorization)', key))}
+        return {key: clean(item) for key, item in value.items() if key not in {'PK', 'SK', 'history', 'objectKey', 'extractedKey', 'visionKey', 'inputKey', 'outputPrefix', 'tokenHash', 'leaseHash', 'connection', 'privateKeyPath', 'remoteWorkDir', 'scratchRoot', 'pseudoRoot'} and (not key.startswith('GSI')) and (key in {'inputTokens', 'outputTokens'} or not re.search('(?i)(?:api.?key|token|secret|password|credential|downloadurl|viewurl|resultmanifesturl|uploadurl|authorization)', key))}
     if isinstance(value, list):
         return [clean(item) for item in value]
     if isinstance(value, str):
@@ -411,6 +411,12 @@ class AiWorkspace:
         if kind not in ACTIONS or not isinstance(data, dict):
             fail(400, 'This action is not available to AI.')
         data = copy.deepcopy(data)
+        if kind == 'modify_structure':
+            from backend.local_api.domain.ai_domain_actions import modification
+            modification(self, owner, conversation, data, preparing=True)
+        if kind == 'import_md_potential':
+            from backend.local_api.domain.ai_domain_actions import stage_potential
+            data = stage_potential(self, owner, conversation, action_id, data)
         self.validate_action(owner, conversation, kind, data)
         if kind == 'run_md':
             configuration = self.resource(owner, conversation, 'md_configuration', valid_id(data.get('configurationId')))['item']
@@ -445,6 +451,16 @@ class AiWorkspace:
             after['allocation'] = {key: data['submission'][key] for key in ('executionAffinity', 'vcpus', 'memoryMiB') if key in data['submission']}
         elif kind == 'run_workflow':
             after['plan'] = data['reviewedPlan']
+        elif kind == 'modify_structure':
+            from backend.local_api.domain.ai_domain_actions import modification
+            source = modification(self, owner, conversation, data)
+            before['structure'] = {'atomCount': len(source['atoms']), 'lattice': source['lattice'], 'sha256': data['sourceSha256']}
+            after['structure'] = {'name': data['name'], 'atomCount': len(data['result']['atoms']), 'lattice': data['result']['lattice'], 'modifiers': data['modifiers']}
+            after['target'] = data['target']
+        elif kind == 'import_md_potential':
+            from backend.local_api.domain.ai_domain_actions import potential_provenance_summary
+            after['potential'] = {**data['metadata'], 'requestedElements': data['requestedElements'], 'repositoryProvenance': potential_provenance_summary(data['provenance'])}
+            after['attached'] = False
         elif kind == 'derive_structure':
             current = next((m for m in context['workspace']['materials'] if m['id'] == data['materialId']))
             before['structure'] = {'name': current['name'], 'atomCount': len(current['atoms']), 'lattice': current['lattice']}
@@ -481,6 +497,12 @@ class AiWorkspace:
             fail(400, 'AI actions cannot override ownership, network destinations or compute targets.')
         if kind not in {'save_dft', 'run_dft'} and any(key in data for key in ('compute', 'hpc', 'executionAffinity')):
             fail(400, 'Only QE actions accept HPC compute configuration. MD uses personal compute.', 'INVALID_COMPUTE_TARGET')
+        if kind == 'modify_structure':
+            from backend.local_api.domain.ai_domain_actions import modification
+            modification(self, owner, conversation, data)
+        if kind == 'import_md_potential':
+            from backend.local_api.domain.ai_domain_actions import validate_staged_potential
+            validate_staged_potential(self, owner, conversation, data)
         if kind == 'import_structure':
             if not project or project['kind'] != 'canvas':
                 fail(400, 'Select a Canvas project to import a database structure.', 'AI_PROJECT_REQUIRED')
@@ -634,6 +656,12 @@ class AiWorkspace:
         kind = action['kind']
         project = self.scope(owner, conversation['projectKey'])
         now = utc_now()
+        if kind == 'modify_structure':
+            from backend.local_api.domain.ai_domain_actions import perform_modification
+            return perform_modification(self, owner, conversation, action, data)
+        if kind == 'import_md_potential':
+            from backend.local_api.domain.ai_domain_actions import perform_potential
+            return perform_potential(self, owner, conversation, data)
         if kind == 'import_structure':
             from backend.local_api.domain.project_workflow import ProjectWorkflowApi
             service = ProjectWorkflowApi(self.api)
@@ -905,6 +933,9 @@ class AiWorkspace:
             return response(200, clean(self.context(owner, conversation)))
         if operation == 'compute':
             return response(200, clean(self.compute_context(owner)))
+        from backend.local_api.domain.ai_readers import AiReaders, READ_OPERATIONS
+        if operation in READ_OPERATIONS:
+            return response(200, AiReaders(self).read(operation, owner, conversation, payload))
         if operation == 'replay':
             call_id = payload.get('toolCallId')
             if not isinstance(call_id, str) or not re.fullmatch('[A-Za-z0-9_-]{1,200}', call_id):

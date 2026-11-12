@@ -1,13 +1,15 @@
 {
   "version": 1,
-  "sha256": "ff3342b77eaafa51f308d1468ae14c466b324891c88a897079494bd2b33ff866",
+  "sha256": "2febcc5b35be181beba06432d7cdbf524ba034df2fd7c725115455fba616019d",
   "inputs": {
     "data/sssp/SSSP_1.3.0_PBE_efficiency.json": "2c8642a70308ecd072a209a30c160bf51423560bb202116cb31fd5275eff814a",
     "data/sssp/SSSP_1.3.0_PBE_precision.json": "7b7b648915e54c8397cd8143a7385c17eeed3104ad1236cecd905126d338a4e3",
+    "lib/ai-structure-tools.ts": "8b1cc3a470659784bb77f38fd86588b9361fff74201e8e499cfd4f9f9727160e",
+    "lib/crystal-builder.ts": "30b5e8ef432aa5e0cf0049a1c521e78bcb2fd3b9182c4645074e21898631156e",
     "lib/crystal-cell.ts": "408a78c5c5b1a948d401dac0e6e8771085303097bf33a178ef441a95cc1514bd",
     "lib/md-workflow-compiler.ts": "f3926543dafe2445015c75aa0f82823813e8c4f78219fc15afe42da8e9dbd6f7",
     "lib/project-workflow-compiler.ts": "88c6ff68de810797231ee545249f779c39935c920e579b1ab8d91e3484574707",
-    "lib/project-workflow-control-compiler.ts": "377a4207a6ba18e8f0f10f5afff61dd10313b4beab006873aa1cdd91de805b2b",
+    "lib/project-workflow-control-compiler.ts": "c41fc35115e1c706485dbe5b63d70356a5934fa177ddb497ab8ee7f915f00836",
     "lib/qe-adaptive.ts": "80610a46c34da44611cdbadcc0e9a4fb8aa1ea7c1b2a6cb849415324715b3f11",
     "lib/qe-atomic-masses.ts": "f9d58c6649f53724f9142772054c1d05ef504f667c62f5054fd939bb37789a27",
     "lib/qe-defaults.ts": "814e9ba3b8c40e26e62cd0bad0edada577095031e12b0514b7bf8b0b7f72b613",
@@ -17,6 +19,7 @@
     "lib/qe-workflow.ts": "7d92f71b145fb84e20eecbfa189e38cab874bc252497f2703dc5fe63c0adbaf7",
     "lib/reciprocal-path.ts": "70b92e26b2d80a7b8d7a01ee1656bc98ebc5dc259463d2e8ab890b092b65168a",
     "lib/structure-formula.ts": "890a018efc44fb54b7e83b2585345607f22d636538ca51af7329dd91657a7c18",
-    "lib/structure-occupancy.ts": "940128c15c03f5d602570ad629c3df6d9cdf414b267f666c191af04c85cc2879"
+    "lib/structure-occupancy.ts": "940128c15c03f5d602570ad629c3df6d9cdf414b267f666c191af04c85cc2879",
+    "lib/workflow-geometry.ts": "5c8ece355bcaa62423469bf92931ad01934980c64fbfa1fb8a94d6c2ceb9403c"
   }
 }
