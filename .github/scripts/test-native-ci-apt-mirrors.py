@@ -48,6 +48,28 @@ class MirrorTests(unittest.TestCase):
         mirrors.configure(self.root, 'linux-x64')
         self.assertEqual(self.snapshot(), after)
 
+    def test_x64_accepts_regional_aws_mirrors_without_changing_image_priorities(self):
+        path = self.setup_x64()
+        for first in ['http://us-west-2.ec2.archive.ubuntu.com/ubuntu/', 'https://eu-central-1.ec2.archive.ubuntu.com/ubuntu', 'http://ec2.archive.ubuntu.com/ubuntu/']:
+            original = f'# Image-owned mirrors\n{first}\tpriority:2\nhttps://archive.ubuntu.com/ubuntu/\tpriority:5\nhttps://security.ubuntu.com/ubuntu/\tpriority:8\n'
+            path.write_text(original)
+            before = self.sources.read_bytes()
+            mirrors.configure(self.root, 'linux-x64')
+            self.assertEqual(path.read_text(), original + mirrors.X64_MIRROR + '\tpriority:9\n')
+            self.assertEqual(self.sources.read_bytes(), before)
+            after = self.snapshot()
+            mirrors.configure(self.root, 'linux-x64')
+            self.assertEqual(self.snapshot(), after)
+
+    def test_x64_rejects_unreviewed_mirrors_and_bad_priorities_without_writes(self):
+        path = self.setup_x64()
+        for entry in ['https://archive.ubuntu.com.evil.test/ubuntu/ priority:1', 'https://user:password@archive.ubuntu.com/ubuntu/ priority:1', 'https://archive.ubuntu.com/ubuntu/?trusted=yes priority:1', 'https://archive.ubuntu.com/ubuntu/ priority:9999', 'https://archive.ubuntu.com/ubuntu/ priority:10000', 'https://archive.ubuntu.com/ubuntu/ priority:bad', mirrors.X64_MIRROR + ' priority:1', '']:
+            path.write_text(entry + '\n')
+            before = self.snapshot()
+            with self.assertRaises(ValueError):
+                mirrors.configure(self.root, 'linux-x64')
+            self.assertEqual(self.snapshot(), before)
+
     def test_arm_preserves_all_fields_and_non_ubuntu_sources(self):
         original = self.source('http://ports.ubuntu.com/ubuntu-ports/')
         extra = '\nTypes: deb\nURIs: https://packages.microsoft.com/ubuntu/24.04/prod\nSuites: noble\nComponents: main\nSigned-By: /usr/share/keyrings/microsoft-prod.gpg\n'
