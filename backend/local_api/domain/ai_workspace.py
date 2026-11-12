@@ -16,7 +16,7 @@ from backend.local_api.domain.phynite_core import ApiError, json_safe, owner_par
 MODES = {'chat', 'approval', 'full'}
 RESOURCE_KINDS = {'structure': 'STRUCTURE', 'calculation': 'CALCULATION', 'trajectory': 'MD_TRAJECTORY', 'simulation': 'MD_SIMULATION', 'analysis': 'MD_ANALYSIS', 'md_configuration': 'MD_CONFIGURATION', 'potential': 'MD_POTENTIAL', 'dataset': 'DATASET', 'figure': 'FIGURE'}
 ACTIONS = {'modify_structure', 'import_md_potential', 'derive_structure', 'import_structure', 'save_dft', 'run_dft', 'save_md', 'run_md', 'run_analysis', 'cancel_job', 'save_figure', 'export_figure', 'save_workflow', 'run_workflow', 'cancel_workflow'}
-PATH = re.compile('^/v1/ai/conversations(?:/([a-z0-9_]+)(?:/(detail|settings|start|resume|renew|stop|context|compute|read|canvas|step|message|finish|prepare|execute|actions|queue|steer|continue|events|control|job_artifacts|job_file|dataset_query|potential_search|jobs|job_status|worker_status|calculation_diagnosis|md_preview|attachment_read|attachment_provider|ledger|audit|save_plan|complete_call|replay|references|artifacts|report)(?:/([a-z0-9_]+))?)?)?$')
+PATH = re.compile('^/v1/ai/conversations(?:/([a-z0-9_]+)(?:/(detail|settings|start|resume|renew|stop|context|compute|read|canvas|step|message|finish|prepare|execute|actions|queue|steer|continue|events|control|job_artifacts|job_file|dataset_query|potential_search|jobs|job_status|worker_status|calculation_diagnosis|md_preview|attachment_read|attachment_provider|ledger|audit|save_plan|complete_call|replay|references|artifacts|artifact_publish|artifact_update|artifact_get|report)(?:/([a-z0-9_]+))?)?)?$')
 
 def router_models(provider: str='9router') -> list[str]:
     try:
@@ -815,7 +815,9 @@ class AiWorkspace:
                 return response(200, {'contextManifest': workbench.resolve(owner, conversation, payload.get('contextRefs', []))})
         if operation == 'artifacts' and method == 'GET':
             self.scope(owner, conversation['projectKey'])
-            return response(200, {'artifacts': workbench.artifacts(owner, conversation)})
+            from backend.local_api.domain.ai_artifacts import AiArtifacts
+            service = AiArtifacts(self)
+            return response(200, {'artifact': service.get(owner, conversation, action_id)} if action_id else {'artifacts': service.list(owner, conversation)})
         if operation in {'queue', 'steer', 'continue', 'events'}:
             from backend.local_api.domain.ai_runtime import AiRuntime
             self.scope(owner, conversation['projectKey'])
@@ -993,11 +995,13 @@ class AiWorkspace:
                 saved = {'revision': saved['revision'], 'projectId': project['id'], 'nodes': [{'id': n['id'], 'name': n['name'], 'kind': n['kind'], **({'configuration': n['configuration'], 'resources': n['resources']} if n['id'] in ids else {})} for n in saved['workflow']['nodes']], 'edges': saved['workflow']['edges'], 'groups': saved['workflow']['groups']}
                 return response(200, clean(saved))
             return response(200, saved)
-        if operation == 'report':
-            item = self.row(owner, 'AI_ARTIFACT', valid_id(payload.get('id')))
-            if item.get('conversationId') != conversation_id:
-                fail(404, 'This report is not in this conversation.', 'AI_NOT_FOUND')
-            return response(200, {'artifact': clean(item)})
+        if operation in {'artifact_publish', 'artifact_update', 'artifact_get', 'report'}:
+            from backend.local_api.domain.ai_artifacts import AiArtifacts
+            service = AiArtifacts(self)
+            if operation in {'artifact_get', 'report'}: return response(200, service.read(owner, conversation, payload))
+            if run.get('queueId') and payload.get('controlRevision', 0) != run.get('controlRevision', 0):
+                fail(409, 'Read pending user direction before publishing.', 'AI_STEER_PENDING')
+            return response(201, {'artifact': service.publish(owner, conversation, run, payload, operation == 'artifact_update')})
         if operation == 'read':
             return response(200, self.resource(owner, conversation, str(payload.get('kind')), valid_id(payload.get('id'))))
         if operation == 'step':

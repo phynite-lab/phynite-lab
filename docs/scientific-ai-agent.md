@@ -104,3 +104,20 @@ workflow instructions. They grant no additional tools or permissions, preserve
 task-mode restrictions, and cite only the evidence actually read. Literature
 search supplies metadata/abstracts; uploaded files use the available attachment
 reader, without claiming that structural PDF or citation-graph tools already exist.
+
+## Versioned research artifacts
+
+The agent can publish reports, plans, tables, input drafts, diffs and previews of
+saved scientific datasets in every conversation mode. Each deliverable has one
+card and an immutable version history. Open the card to read, compare versions,
+copy or export it; the viewer splits beside the conversation on wide screens and
+opens as a drawer on narrow screens. Tables export CSV with units, figures export
+SVG/PNG, input drafts retain their exact text, and Markdown exports include the
+recorded sources. Publication does not apply a plan, install an input or run a
+solver. Input validation supplied by the model is explicitly an assessment.
+
+Deliverables are limited to 2 MB of retained JSON. Larger than 32 KB uses local
+artifact storage with checksum verification; the conversation stream carries only
+metadata. Project figure previews require the exact saved project datasets and
+use the existing deterministic renderer. Markdown, SVG, tables and input previews
+never execute user HTML or JavaScript. Older saved reports remain readable.

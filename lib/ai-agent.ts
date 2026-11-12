@@ -207,7 +207,11 @@ export async function runAiAgent(options: {
         let observation: string, isError = false;
         try {
           if (!aiTools(permission, Boolean(detail.conversation.projectKey)).some(tool => tool.name === call.name)) throw new AiError(403, 'AI_PERMISSION_DENIED', 'This tool is not permitted.');
-          const output = await executeAiTool(call.name, call.input, permission, backend, signal, run.queueId ? call.id : undefined);
+          const output = await executeAiTool(call.name, call.input, permission, backend, signal, call.id);
+          if (['publish_artifact', 'update_artifact'].includes(call.name) && output.result && typeof output.result === 'object' && 'artifact' in output.result) {
+            const a = (output.result as { artifact: import('./ai-workbench.ts').AiArtifact }).artifact;
+            send({ type: 'artifact', artifact: { id: a.id, conversationId: a.conversationId, runId: a.runId, artifactGroupId: a.artifactGroupId, version: a.version, parentArtifactId: a.parentArtifactId, kind: a.kind, title: a.title, status: a.status, createdAt: a.createdAt, hasOverflow: a.hasOverflow, sha256: a.sha256 } });
+          }
           if (output.action) send({ type: 'action', action: output.action });
           if (call.name === 'record_progress' && output.result && typeof output.result === 'object' && 'ledger' in output.result) { ledger = (output.result as { ledger: AiStateLedger }).ledger; send({ type: 'ledger', ledger }); }
           observation = aiObservation(output.result);
