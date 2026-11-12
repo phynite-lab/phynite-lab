@@ -35,6 +35,10 @@ export function aiOutputTokens(effort: AiEffort = 'auto') { return effort === 'x
 // flood of files in one message without constraining an individual research
 // archive or dataset.
 export const aiAttachmentLimits = { count: 5, pdfPages: 50 } as const;
+export const AI_HISTORY_CHAR_BUDGET = 180_000;
+// Checkpoints retain a wider window than model replay, including room for delimiters.
+export const AI_CLAIM_HISTORY_CHAR_BUDGET = AI_HISTORY_CHAR_BUDGET + 20_000;
+export const AI_OBSERVATION_CHAR_BUDGET = 24_000;
 export type AiAttachment = { id: string; conversationId: string; filename: string; mediaType: string; sizeBytes: number; sha256: string; status: 'uploading' | 'ready' | 'failed'; error?: string; pages?: number; sheets?: string[]; warnings?: string[]; visual?: boolean };
 export type AiSkillRef = { id: string; version: number };
 export type AiSkillCatalogEntry = AiSkillRef & { command: string; label: { en: string; id: string }; description: { en: string; id: string } };
