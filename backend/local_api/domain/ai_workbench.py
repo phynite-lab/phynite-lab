@@ -148,6 +148,9 @@ class AiWorkbench:
 
     def selection(self, owner: str, conversation: dict, payload: dict, *, previous_skill: dict | None = None, preserve_skill: bool = False) -> dict:
         mode = task_mode(payload.get("taskMode", "work"))
+        execution = payload.get("executionMode", "foreground")
+        if not isinstance(execution, str) or execution not in {"foreground", "multistage"}:
+            fail(400, "Choose foreground or multistage execution.", "AI_EXECUTION_INVALID")
         refs = payload.get("contextRefs", [])
         source = payload.get("sourceArtifactId")
         if source:
@@ -157,7 +160,7 @@ class AiWorkbench:
             if artifact.get("sourceStamp") != self.ai.context(owner, conversation)["stamp"]:
                 fail(409, "The project changed since this plan. Refresh the plan before implementing it.", "AI_PLAN_STALE")
             refs = [item["ref"] for item in artifact.get("contextManifest", [])]
-        return {"taskMode": mode, "contextManifest": self.resolve(owner, conversation, refs), "skillSnapshot": selected_skill(payload, previous_skill, preserve=preserve_skill), **({"sourceArtifactId": source, "sourcePlan": artifact["text"]} if source else {})}
+        return {"executionMode": execution, "taskMode": mode, "contextManifest": self.resolve(owner, conversation, refs), "skillSnapshot": selected_skill(payload, previous_skill, preserve=preserve_skill), **({"sourceArtifactId": source, "sourcePlan": artifact["text"]} if source else {})}
 
     def artifacts(self, owner: str, conversation: dict) -> list[dict]:
         return sorted([clean(row) for row in self.ai.services.list_owner_items(owner, "AI_ARTIFACT") if row.get("conversationId") == conversation["id"]], key=lambda row: row["createdAt"])
@@ -165,7 +168,10 @@ class AiWorkbench:
     def complete(self, owner: str, conversation: dict, run: dict, status: str) -> None:
         kind = run.get("taskMode", "work")
         if kind == "work":
-            return
+            if run.get("steps", 0) < (37 if run.get("executionMode") == "multistage" else 10):
+                return
+            kind = "plan"
+            status = "partial"
         messages = self.ai.detail(owner, conversation)["messages"]
         text = "\n\n".join(item["text"] for item in messages if item["runId"] == run["id"] and item["role"] == "assistant")
         if not text.strip():
