@@ -35,7 +35,7 @@ class AiRuntime:
         return self.ai.update(owner, 'AI_CONVERSATION', current, {'dispatchPending': True, 'dispatchGeneration': current.get('dispatchGeneration', 0) + (0 if current.get('dispatchPending') else 1), 'GSI1PK': 'AI_IDLE' if current.get('queuePaused') else 'AI_DISPATCH', 'GSI1SK': str(time.time_ns())})
 
     def event(self, owner, conversation, event, event_id=None):
-        if not isinstance(event, dict) or event.get('type') not in {'text', 'response_start', 'activity', 'ledger', 'action', 'done', 'error', 'steering', 'queue'}:
+        if not isinstance(event, dict) or event.get('type') not in {'text', 'response_start', 'activity', 'ledger', 'artifact', 'action', 'done', 'error', 'steering', 'queue'}:
             fail(400, 'Only public AI events may be recorded.')
         raw = json.dumps(event)
         if len(raw.encode()) > 100000:

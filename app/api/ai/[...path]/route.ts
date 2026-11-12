@@ -230,7 +230,7 @@ async function handle(request: NextRequest, context: Context): Promise<Response>
       || path === 'conversations' && ['GET', 'POST'].includes(method)
       || /^conversations\/aic_[a-z0-9]+$/.test(path) && ['GET', 'DELETE'].includes(method)
       || /^conversations\/aic_[a-z0-9]+\/references$/.test(path) && ['GET', 'POST'].includes(method)
-      || /^conversations\/aic_[a-z0-9]+\/artifacts$/.test(path) && method === 'GET'
+      || /^conversations\/aic_[a-z0-9]+\/artifacts(?:\/aid_[a-z0-9]+)?$/.test(path) && method === 'GET'
       || /^conversations\/aic_[a-z0-9]+\/settings$/.test(path) && method === 'PATCH'
       || /^conversations\/aic_[a-z0-9]+\/stop$/.test(path) && method === 'POST'
       || /^conversations\/aic_[a-z0-9]+\/actions\/aia_[a-z0-9]+$/.test(path) && ['GET', 'POST'].includes(method);

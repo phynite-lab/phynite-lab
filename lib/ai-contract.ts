@@ -73,6 +73,7 @@ export type AiEvent =
   | { type: 'text'; text: string }
   | { type: 'response_start' }
   | { type: 'activity'; text: string }
+  | { type: 'artifact'; artifact: import('./ai-workbench.ts').AiArtifactSummary }
   | { type: 'ledger'; ledger: AiStateLedger }
   | { type: 'action'; action: AiAction }
   | { type: 'queue'; queue: AiQueuedMessage[]; paused: boolean }

@@ -154,7 +154,8 @@ class AiWorkbench:
         refs = payload.get("contextRefs", [])
         source = payload.get("sourceArtifactId")
         if source:
-            artifact = self.ai.row(owner, "AI_ARTIFACT", valid_id(source))
+            from backend.local_api.domain.ai_artifacts import AiArtifacts
+            artifact = AiArtifacts(self.ai).get(owner, conversation, valid_id(source))
             if artifact.get("conversationId") != conversation["id"] or artifact.get("kind") != "plan" or artifact.get("status") != "complete" or mode != "work":
                 fail(400, "Select a plan from this conversation to implement.", "AI_PLAN_INVALID")
             if artifact.get("sourceStamp") != self.ai.context(owner, conversation)["stamp"]:
@@ -172,24 +173,13 @@ class AiWorkbench:
                 return
             kind = "plan"
             status = "partial"
-        messages = self.ai.detail(owner, conversation)["messages"]
-        text = "\n\n".join(item["text"] for item in messages if item["runId"] == run["id"] and item["role"] == "assistant")
-        if not text.strip():
+        from backend.local_api.domain.ai_artifacts import AiArtifacts
+        service = AiArtifacts(self.ai)
+        if any(row.get('runId') == run['id'] for row in service.list(owner, conversation)):
             return
-        evidence = []
-        for message in messages:
-            if message.get("runId") == run["id"] and message.get("evidence"):
-                try:
-                    entry = {**message["evidence"], "observation": json.loads(message["text"])}
-                    if len(json.dumps(evidence + [entry]).encode()) <= 60000:
-                        evidence.append(entry)
-                except (ValueError, TypeError):
-                    continue
-        truncated = len(text.encode()) > 100000
-        recorded_text = text.encode()[:99500 if truncated else 100000].decode("utf-8", errors="ignore")
-        if truncated:
-            recorded_text += "\n\n[Partial report: the recorded output exceeded 100 KB. Read the full messages before continuing; this excerpt cannot be implemented as a complete plan.]"
-        item_id = "aid_" + digest([run["id"], kind])[:32]
-        if self.ai.services.get_item(owner, "AI_ARTIFACT", item_id):
-            return
-        self.ai.put(owner, "AI_ARTIFACT", item_id, {"conversationId": conversation["id"], "projectKey": conversation.get("projectKey"), "runId": run["id"], "kind": kind, "status": "complete" if status == "completed" and not truncated else "partial", "truncated": truncated, "text": recorded_text, "sourceStamp": run.get("sourceStamp"), "contextManifest": run.get("contextManifest", []), "evidence": evidence, "modelId": run["modelId"], "providerId": run.get("providerId", "phynite"), "effort": run.get("effort", "auto")})
+        messages = sorted(self.ai.services.list_owner_items(owner, 'AI_MESSAGE#' + conversation['id']), key=lambda row: row['order'])
+        content = '\n\n'.join(item['text'] for item in messages if item['runId'] == run['id'] and item['role'] == 'assistant')
+        if not content.strip(): return
+        service.publish(owner, conversation, run, {'kind': 'plan' if kind == 'plan' else 'report',
+            'title': 'Research plan' if kind == 'plan' else 'Research report' if kind == 'research' else 'Conversation summary',
+            'content': content, 'status': 'complete' if status == 'completed' else 'partial', 'toolCallId': 'automatic_deliverable'}, evidence=[{'tool': item['evidence'], 'observation': bounded(item['text'], 4000)} for item in messages if item.get('runId') == run['id'] and item.get('evidence')][:40])
