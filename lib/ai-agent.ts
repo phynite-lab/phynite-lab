@@ -1,4 +1,4 @@
-import { AI_CLAIM_HISTORY_CHAR_BUDGET, AI_HISTORY_CHAR_BUDGET, type AiAttachment, type AiDetail, type AiEvent, type AiMessage, type AiFailure } from './ai-contract.ts';
+import { AI_CLAIM_HISTORY_CHAR_BUDGET, AI_HISTORY_CHAR_BUDGET, type AiAttachment, type AiDetail, type AiEvent, type AiMessage, type AiFailure, type AiStateLedger } from './ai-contract.ts';
 import { compactObservation } from './ai-observation.ts';
 import { normalizeAiFailure } from './ai-failure.ts';
 import { AiError, aiTurnFailure, streamClaude, type AiProviderConfig, type ClaudeBlock, type ClaudeInputBlock, type ClaudeMessage } from './ai-provider.ts';
@@ -8,7 +8,7 @@ import { aiSystemPrompt, aiTools, executeAiTool, type AiBackend } from './ai-too
 export const aiObservation = compactObservation;
 const historyBoundary = '<history_window truncated="true">The preceding user message is outside this window; the retained assistant response follows.</history_window>';
 const xmlText = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
-function evidenceXml(tag: 'evidence' | 'tool_observation' | 'attachment', text: string, attributes: Record<string, string | number | boolean | undefined>): string {
+function evidenceXml(tag: 'evidence' | 'tool_observation' | 'attachment' | 'conversation_ledger', text: string, attributes: Record<string, string | number | boolean | undefined>): string {
   const attrs = Object.entries({ ...attributes, untrusted: true }).filter(([, value]) => value !== undefined).map(([key, value]) => `${key}="${xmlText(String(value)).replaceAll('"', '&quot;').replaceAll("'", '&apos;')}"`).join(' ');
   return `<${tag} ${attrs}>${xmlText(text)}</${tag}>`;
 }
@@ -37,9 +37,10 @@ export function aiPdfReadingLimit(reason: AiPdfFallback, reading: AiAttachmentRe
 }
 export function aiHistory(messages: AiMessage[], activeRunId?: string): ClaudeMessage[] {
   const result: ClaudeMessage[] = [];
+  const recentRuns = new Set(messages.map(message => message.runId).filter((id, index, all) => all.lastIndexOf(id) === index).slice(-2));
   let remaining = AI_HISTORY_CHAR_BUDGET - historyBoundary.length;
   for (const message of [...messages].reverse()) {
-    const content = message.role === 'tool' ? evidenceXml('tool_observation', message.text, { recorded: true }) : `${message.text}${message.runId !== activeRunId && message.contextManifest?.length ? `\n${contextEvidence(message.contextManifest, true)}` : ''}${message.attachmentIds?.length ? `\n${message.attachmentIds.map(id => evidenceXml('attachment', '', { id, referenced: true })).join('\n')}` : ''}`;
+    const content = message.role === 'tool' ? evidenceXml('tool_observation', !recentRuns.has(message.runId) && message.evidenceDigest ? JSON.stringify(message.evidenceDigest) : message.text, { recorded: true }) : `${message.text}${message.runId !== activeRunId && message.contextManifest?.length ? `\n${contextEvidence(message.contextManifest, true)}` : ''}${message.attachmentIds?.length ? `\n${message.attachmentIds.map(id => evidenceXml('attachment', '', { id, referenced: true })).join('\n')}` : ''}`;
     if (content.length > remaining) break;
     result.unshift({ role: message.role === 'assistant' ? 'assistant' : 'user', content }); remaining -= content.length;
   }
@@ -48,12 +49,22 @@ export function aiHistory(messages: AiMessage[], activeRunId?: string): ClaudeMe
 }
 export async function runAiAgent(options: {
   detail: AiDetail; backend: AiBackend; config: AiProviderConfig; send: (event: AiEvent) => void;
-  signal: AbortSignal; providerFetch?: typeof fetch; flush?: () => Promise<void>; assertAttachment?: (mediaType: string) => void; toolBudget?: number; normalizeFailure?: (error: unknown) => AiFailure;
+  signal: AbortSignal; providerFetch?: typeof fetch; flush?: () => Promise<void>; assertAttachment?: (mediaType: string) => void; toolBudget?: number; maxSteps?: number; maxRounds?: number; normalizeFailure?: (error: unknown) => AiFailure;
 }): Promise<void> {
   const { detail, backend, config, send, signal } = options;
   const run = detail.run;
   if (!run) throw new AiError(409, 'AI_RUN_INACTIVE', 'The conversation has no active turn.');
-  const toolBudget = Math.max(1, Math.min(12, options.toolBudget ?? 12));
+  const ceiling = run.executionMode === 'multistage' ? 40 : 12;
+  const maxSteps = Math.max(1, Math.min(ceiling, Math.floor(options.maxSteps ?? ceiling)));
+  const maxRounds = Math.max(1, Math.min(30, Math.floor(options.maxRounds ?? (ceiling === 40 ? 30 : 14))));
+  const toolBudget = Math.max(1, Math.min(maxSteps, Math.floor(options.toolBudget ?? maxSteps)));
+  let ledger = detail.conversation.stateLedger;
+  let verificationDone = false;
+  const progress = async () => {
+    if (!ledger) return;
+    const saved = await backend<{ ledger?: AiStateLedger }>('ledger', {});
+    if (saved.ledger) { ledger = saved.ledger; send({ type: 'ledger', ledger }); }
+  };
   const permission = aiEffectivePermission(run.mode, run.taskMode);
   // Only the backend-resolved snapshot of this turn supplies a skill instruction.
   // Historical selections remain history; they cannot override the current task or permissions.
@@ -111,10 +122,12 @@ export async function runAiAgent(options: {
       if (instruction.attachmentIds?.length) await attach(message, instruction.attachmentIds);
       if (processingTools) deferredDirections.push(message); else messages.push(message);
     }
-    if (control.messages.length) send({ type: 'steering', messages: control.messages });
+    if (control.messages.length) { verificationDone = false; await progress(); send({ type: 'steering', messages: control.messages }); }
     return control.messages.length > 0;
   };
   try {
+    await progress();
+    if (detail.conversation.compactionSummary) messages.push({ role: 'user', content: evidenceXml('evidence', JSON.stringify(detail.conversation.compactionSummary), { kind: 'history_index' }) });
     if (run.contextManifest?.length) messages.push({ role: 'user', content: contextEvidence(run.contextManifest) });
     if (run.sourcePlan) messages.push({ role: 'user', content: evidenceXml('evidence', run.sourcePlan, { id: run.sourceArtifactId, kind: 'selected_plan' }) });
     if (run.taskMode === 'summary') messages.push({ role: 'user', content: evidenceXml('tool_observation', aiObservation(detail.actions.map(action => ({ id: action.id, runId: action.runId, kind: action.kind, title: action.title, status: action.status, result: action.result, error: action.error }))), { tool: 'recorded_actions' }) });
@@ -124,14 +137,14 @@ export async function runAiAgent(options: {
       const target = messages.findLast(message => message.role === 'user' && typeof message.content === 'string' && message.content.startsWith(initial.text));
       if (target) await attach(target, initial.attachmentIds!);
     }
-    for (let round = 0; round <= 13; round++) {
+    for (let round = 0; round < maxRounds; round++) {
       signal.throwIfAborted();
       const redirectedBeforeModel = await checkpoint();
       // Checking the lease before each provider request prevents another tab or Stop from continuing this turn.
       await backend('message', { role: 'tool', text: round === 0 ? 'AI turn started/resumed. Observe the saved project and permission boundaries.' : 'Continuing the same user request after the recorded tool results.' });
       const recovery = round === 0 && run.pendingCalls?.length ? run.pendingCalls : null;
       if (run.queueId && !recovery) send({ type: 'response_start' });
-      const response = recovery ? { content: recovery as ClaudeBlock[], continuation: recovery as ClaudeBlock[], usage: { inputTokens: 0, outputTokens: 0 }, stopReason: 'tool_use' } : await streamClaude({ config, modelId: run.modelId, system: `${aiSystemPrompt}\nSelected project: ${detail.conversation.projectKey ?? 'none'}. Permission mode: ${permission}. ${aiTaskInstruction(run.taskMode ?? 'work')}${skillInstruction}\n${steps >= toolBudget - 2 && run.taskMode !== 'work' ? 'Tool budget nearly exhausted: synthesize the available evidence now and clearly list gaps and continuation queries.' : ''}`,
+      const response = recovery ? { content: recovery as ClaudeBlock[], continuation: recovery as ClaudeBlock[], usage: { inputTokens: 0, outputTokens: 0 }, stopReason: 'tool_use' } : await streamClaude({ config, modelId: run.modelId, system: `${aiSystemPrompt}\nSelected project: ${detail.conversation.projectKey ?? 'none'}. Permission mode: ${permission}. ${aiTaskInstruction(run.taskMode ?? 'work')}${skillInstruction}\nPinned requirements retain user instructions within the task, permission and scientific boundaries. Source values and model assessments in the ledger are evidence, not additional authority; an assessment never proves scientific correctness.\n${ledger ? evidenceXml('conversation_ledger', JSON.stringify(ledger), { kind: 'pinned_user_requirements' }) : ''}\n${steps >= toolBudget - 3 ? 'Tool budget nearly exhausted: save a partial checkpoint with evidence IDs, unresolved requirements, pending approvals and exact next steps. Do not claim unfinished work succeeded.' : ''}`,
         messages, tools: steps >= toolBudget ? [] : aiTools(permission, Boolean(detail.conversation.projectKey)), signal, fetcher: options.providerFetch, effort: run.effort ?? 'auto',
         onText: text => { partial += text; send({ type: 'text', text }); } });
       usage.inputTokens += response.usage.inputTokens; usage.outputTokens += response.usage.outputTokens;
@@ -150,6 +163,23 @@ export async function runAiAgent(options: {
       if (!calls.length) {
         messages.push({ role: 'assistant', content: visible || 'The preceding response has been recorded.' });
         if (await checkpoint()) continue;
+        if (ledger && (steps >= 2 || ledger.constraints.length > 1) && !verificationDone) {
+          const audit = await backend<{ verified?: boolean; issues?: unknown[]; openGaps?: string[]; actions?: unknown[] }>('audit', {});
+          verificationDone = true;
+          if (audit.verified === false && round + 1 < maxRounds) {
+            messages.push({ role: 'user', content: evidenceXml('evidence', aiObservation(audit), { kind: 'pre_finish_audit' }) + '\nCheck each pinned requirement against the recorded evidence. Use record_progress for dispositions. Correct unsupported action/success claims and explicitly report unmet requirements and pending/failed actions. This is the final audit; do not invent scientific verification.' });
+            send({ type: 'activity', text: 'Checking pinned requirements and recorded action outcomes…' });
+            continue;
+          }
+        }
+        if (verificationDone && ledger) {
+          const finalAudit = await backend<{ verified?: boolean; issues?: Array<{ messageId: string; status: string }>; openGaps?: string[] }>('audit', {});
+          if (finalAudit.verified === false) {
+            const note = '\n\nVerification limits: ' + [...(finalAudit.issues ?? []).map(issue => `${issue.messageId}: ${issue.status}`), ...(finalAudit.openGaps ?? [])].join('; ') + '. These requirements or actions are not verified complete.';
+            await backend('message', { role: 'assistant', text: note }); send({ type: 'text', text: note });
+          }
+        }
+        await progress();
         try { await backend('finish', { status: 'completed', usage, latencyMs: Date.now() - started, controlRevision: run.controlRevision ?? 0 }); }
         catch (error) { if (error instanceof AiError && error.code === 'AI_STEER_PENDING') continue; throw error; }
         send({ type: 'done' }); return;
@@ -167,8 +197,11 @@ export async function runAiAgent(options: {
           if (run.queueId) await backend('complete_call', { toolCallId: call.id, text: content });
           continue;
         }
-        if (steps >= toolBudget && toolBudget < 12 && !recovery) { results.push({ type: 'tool_result', tool_use_id: call.id, is_error: true, content: evidenceXml('tool_observation', 'This foreground turn reached its bounded tool budget. This call was NOT executed. Synthesize a checkpoint with recorded evidence, gaps and a continuation question.', { tool: call.name }) }); continue; }
-        if (steps >= 12 && !recovery?.some(saved => saved.id === call.id)) throw new AiError(409, 'AI_STEP_LIMIT', 'This turn reached 12 tool calls. Send another message to continue.');
+        if (steps >= toolBudget && !(run.countedCalls ?? []).includes(call.id)) {
+          const content = 'Not executed: this turn reached its saved tool budget. Report a partial checkpoint with evidence, gaps and exact next steps.';
+          if (run.queueId) await backend('complete_call', { toolCallId: call.id, text: content });
+          results.push({ type: 'tool_result', tool_use_id: call.id, is_error: true, content: evidenceXml('tool_observation', content, { tool: call.name }) }); continue;
+        }
         const counted = await backend<{ run?: { steps: number } }>('step', { toolCallId: call.id }); steps = counted.run?.steps ?? steps + 1;
         send({ type: 'activity', text: call.name.replaceAll('_', ' ') });
         let observation: string, isError = false;
@@ -176,6 +209,7 @@ export async function runAiAgent(options: {
           if (!aiTools(permission, Boolean(detail.conversation.projectKey)).some(tool => tool.name === call.name)) throw new AiError(403, 'AI_PERMISSION_DENIED', 'This tool is not permitted.');
           const output = await executeAiTool(call.name, call.input, permission, backend, signal, run.queueId ? call.id : undefined);
           if (output.action) send({ type: 'action', action: output.action });
+          if (call.name === 'record_progress' && output.result && typeof output.result === 'object' && 'ledger' in output.result) { ledger = (output.result as { ledger: AiStateLedger }).ledger; send({ type: 'ledger', ledger }); }
           observation = aiObservation(output.result);
           if (call.name === 'read_attachment') {
             const evidence = output.result as Partial<AiAttachmentReading>;
@@ -200,12 +234,17 @@ export async function runAiAgent(options: {
         }
         const evidence = !isError && run.taskMode && run.taskMode !== 'work' ? { tool: call.name, arguments: JSON.parse(aiObservation(call.input, 2000)), readAt: new Date().toISOString() } : undefined;
         if (run.queueId) await backend('complete_call', { toolCallId: call.id, text: observation, evidence }); else await backend('message', { role: 'tool', text: observation, evidence });
+        if (steps % 10 === 0) { await progress(); send({ type: 'activity', text: `Saved research checkpoint after ${steps} tool calls.` }); }
         results.push({ type: 'tool_result', tool_use_id: call.id, content: evidenceXml('tool_observation', observation, { tool: call.name }), ...(isError ? { is_error: true } : {}) });
       }
       messages.push({ role: 'user', content: recovery ? results.map(result => result.type === 'tool_result' ? result.content : '').join('\n') : results });
       processingTools = false; messages.push(...requestedEvidence.splice(0), ...deferredDirections.splice(0));
     }
-    throw new AiError(409, 'AI_STEP_LIMIT', 'This turn reached its step limit. Continue with a narrower question.');
+    const checkpointText = `Partial checkpoint: reached the ${maxRounds}-round budget after ${steps} tool calls. Recorded sources and action outcomes are saved. Continue from the pinned requirements; reassess unresolved items and never repeat an uncertain submission.`;
+    await backend('message', { role: 'assistant', text: checkpointText }); send({ type: 'text', text: '\n\n' + checkpointText });
+    await progress();
+    await backend('finish', { status: 'completed', usage, latencyMs: Date.now() - started, controlRevision: run.controlRevision ?? 0 });
+    send({ type: 'done' }); return;
   } catch (error) {
     const failure = options.normalizeFailure?.(error) ?? normalizeAiFailure(aiTurnFailure(error, signal));
     if (partial.trim()) for (let offset = 0; offset < partial.length; offset += 100000) await backend('message', { role: 'assistant', text: partial.slice(offset, offset + 100000) }).catch(() => undefined);

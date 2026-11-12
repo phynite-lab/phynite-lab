@@ -14,7 +14,7 @@ from backend.local_api.domain.phynite_core import ApiError, json_safe, parse_bod
 from backend.local_api.domain.ai_skills import request_skill_ref, skill_identity, snapshot_ref
 
 def request_selection(payload: dict) -> dict:
-    return {'taskMode': payload.get('taskMode', 'work'), 'contextRefs': payload.get('contextRefs', []), 'sourceArtifactId': payload.get('sourceArtifactId'), 'skillRef': request_skill_ref(payload)}
+    return {'executionMode': payload.get('executionMode', 'foreground'), 'taskMode': payload.get('taskMode', 'work'), 'contextRefs': payload.get('contextRefs', []), 'sourceArtifactId': payload.get('sourceArtifactId'), 'skillRef': request_skill_ref(payload)}
 
 class AiRuntime:
 
@@ -35,7 +35,7 @@ class AiRuntime:
         return self.ai.update(owner, 'AI_CONVERSATION', current, {'dispatchPending': True, 'dispatchGeneration': current.get('dispatchGeneration', 0) + (0 if current.get('dispatchPending') else 1), 'GSI1PK': 'AI_IDLE' if current.get('queuePaused') else 'AI_DISPATCH', 'GSI1SK': str(time.time_ns())})
 
     def event(self, owner, conversation, event, event_id=None):
-        if not isinstance(event, dict) or event.get('type') not in {'text', 'response_start', 'activity', 'action', 'done', 'error', 'steering', 'queue'}:
+        if not isinstance(event, dict) or event.get('type') not in {'text', 'response_start', 'activity', 'ledger', 'action', 'done', 'error', 'steering', 'queue'}:
             fail(400, 'Only public AI events may be recorded.')
         raw = json.dumps(event)
         if len(raw.encode()) > 100000:
@@ -213,7 +213,7 @@ class AiRuntime:
             fail(409, 'This message is already being processed.', 'AI_RUN_ACTIVE')
         lease = secrets.token_hex(32)
         values = {'activeRunId': run_id, 'title': (item['text'] or 'Attached research files')[:90] if conversation['title'] == 'New research conversation' else conversation['title']}
-        run = {'PK': owner_partition(owner), 'SK': 'AI_RUN#' + run_id, 'entityType': 'AI_RUN', 'ownerId': owner, 'id': run_id, 'revision': 0, 'createdAt': utc_now(), 'conversationId': conversation['id'], 'queueId': item['id'], 'modelId': conversation['modelId'], 'providerId': conversation.get('providerId', 'phynite'), 'effort': conversation.get('effort', 'auto'), 'mode': conversation['mode'], 'taskMode': item.get('taskMode', 'work'), 'contextManifest': item.get('contextManifest', []), 'skillSnapshot': copy.deepcopy(item.get('skillSnapshot')), 'sourceArtifactId': item.get('sourceArtifactId'), 'sourcePlan': item.get('sourcePlan'), 'sourceStamp': item.get('sourceStamp') or self.ai.context(owner, conversation)['stamp'], 'status': 'running', 'steps': 0, 'controlRevision': 0, 'leaseHash': digest(lease), 'expiresAt': int(time.time()) + 900}
+        run = {'PK': owner_partition(owner), 'SK': 'AI_RUN#' + run_id, 'entityType': 'AI_RUN', 'ownerId': owner, 'id': run_id, 'revision': 0, 'createdAt': utc_now(), 'conversationId': conversation['id'], 'queueId': item['id'], 'modelId': conversation['modelId'], 'providerId': conversation.get('providerId', 'phynite'), 'effort': conversation.get('effort', 'auto'), 'mode': conversation['mode'], 'executionMode': item.get('executionMode', 'foreground'), 'taskMode': item.get('taskMode', 'work'), 'contextManifest': item.get('contextManifest', []), 'skillSnapshot': copy.deepcopy(item.get('skillSnapshot')), 'sourceArtifactId': item.get('sourceArtifactId'), 'sourcePlan': item.get('sourcePlan'), 'sourceStamp': item.get('sourceStamp') or self.ai.context(owner, conversation)['stamp'], 'status': 'running', 'steps': 0, 'controlRevision': 0, 'leaseHash': digest(lease), 'expiresAt': int(time.time()) + 900}
         if foreground:
             run['foreground'] = True
         message_id = 'aim_' + digest(item['id'])[:32]

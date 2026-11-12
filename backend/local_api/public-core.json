@@ -34,6 +34,7 @@
     "backend/local_api/domain/ai_runtime.py",
     "backend/local_api/domain/ai_skills.py",
     "backend/local_api/domain/ai_workbench.py",
+    "backend/local_api/domain/ai_memory.py",
     "backend/local_api/domain/ai_workspace.py",
     "backend/local_api/domain/api.py",
     "backend/local_api/domain/compute_preferences.py",
@@ -147,6 +148,7 @@
     "backend/local_api/domain/ai_runtime.py",
     "backend/local_api/domain/ai_skills.py",
     "backend/local_api/domain/ai_workbench.py",
+    "backend/local_api/domain/ai_memory.py",
     "backend/local_api/domain/ai_workspace.py",
     "backend/local_api/domain/api.py",
     "backend/local_api/domain/compute_preferences.py",
@@ -268,6 +270,7 @@
     "backend/tests/test_hpc_remote.py",
     "backend/tests/test_ai_operator.py",
     "backend/tests/test_agent_runtime_release.py",
-    "backend/tests/test_ai_paper_index.py"
+    "backend/tests/test_ai_paper_index.py",
+    "backend/tests/test_ai_memory.py"
   ]
 }

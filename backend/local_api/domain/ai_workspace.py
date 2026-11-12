@@ -16,7 +16,7 @@ from backend.local_api.domain.phynite_core import ApiError, json_safe, owner_par
 MODES = {'chat', 'approval', 'full'}
 RESOURCE_KINDS = {'structure': 'STRUCTURE', 'calculation': 'CALCULATION', 'trajectory': 'MD_TRAJECTORY', 'simulation': 'MD_SIMULATION', 'analysis': 'MD_ANALYSIS', 'md_configuration': 'MD_CONFIGURATION', 'potential': 'MD_POTENTIAL', 'dataset': 'DATASET', 'figure': 'FIGURE'}
 ACTIONS = {'modify_structure', 'import_md_potential', 'derive_structure', 'import_structure', 'save_dft', 'run_dft', 'save_md', 'run_md', 'run_analysis', 'cancel_job', 'save_figure', 'export_figure', 'save_workflow', 'run_workflow', 'cancel_workflow'}
-PATH = re.compile('^/v1/ai/conversations(?:/([a-z0-9_]+)(?:/(detail|settings|start|resume|renew|stop|context|compute|read|canvas|step|message|finish|prepare|execute|actions|queue|steer|continue|events|control|job_artifacts|job_file|dataset_query|potential_search|jobs|job_status|worker_status|calculation_diagnosis|md_preview|attachment_read|attachment_search|attachment_provider|save_plan|complete_call|replay|references|artifacts|report)(?:/([a-z0-9_]+))?)?)?$')
+PATH = re.compile('^/v1/ai/conversations(?:/([a-z0-9_]+)(?:/(detail|settings|start|resume|renew|stop|context|compute|read|canvas|step|message|finish|prepare|execute|actions|queue|steer|continue|events|control|job_artifacts|job_file|dataset_query|potential_search|jobs|job_status|worker_status|calculation_diagnosis|md_preview|attachment_read|attachment_search|attachment_provider|ledger|audit|save_plan|complete_call|replay|references|artifacts|report)(?:/([a-z0-9_]+))?)?)?$')
 
 def router_models(provider: str='9router') -> list[str]:
     try:
@@ -56,7 +56,7 @@ def digest(value: Any) -> str:
 def clean(value: Any) -> Any:
     """Strip storage locations, signed links and credentials before exposing model context."""
     if isinstance(value, dict):
-        return {key: clean(item) for key, item in value.items() if key not in {'PK', 'SK', 'history', 'objectKey', 'extractedKey', 'visionKey', 'inputKey', 'outputPrefix', 'tokenHash', 'leaseHash', 'connection', 'privateKeyPath', 'remoteWorkDir', 'scratchRoot', 'pseudoRoot'} and (not key.startswith('GSI')) and (key in {'inputTokens', 'outputTokens'} or not re.search('(?i)(?:token|secret|password|credential|downloadurl|viewurl|resultmanifesturl|uploadurl|authorization)', key))}
+        return {key: clean(item) for key, item in value.items() if key not in {'PK', 'SK', 'history', 'objectKey', 'extractedKey', 'visionKey', 'inputKey', 'outputPrefix', 'tokenHash', 'leaseHash', 'connection', 'privateKeyPath', 'remoteWorkDir', 'scratchRoot', 'pseudoRoot'} and (not key.startswith('GSI')) and (key in {'inputTokens', 'outputTokens'} or not re.search('(?i)(?:api.?key|token|secret|password|credential|downloadurl|viewurl|resultmanifesturl|uploadurl|authorization)', key))}
     if isinstance(value, list):
         return [clean(item) for item in value]
     if isinstance(value, str):
@@ -333,13 +333,20 @@ class AiWorkspace:
             fail(400, 'AI messages need text within the supported context size.')
         if evidence is not None and (not isinstance(evidence, dict) or set(evidence) - {'tool', 'arguments', 'readAt'} or len(json.dumps(evidence).encode()) > 16000):
             fail(400, 'Evidence metadata exceeds the supported size.', 'AI_EVIDENCE_INVALID')
-        return self.put(owner, f"AI_MESSAGE#{conversation['id']}", 'aim_' + secrets.token_hex(16), {'entityType': 'AI_MESSAGE', 'conversationId': conversation['id'], 'runId': run['id'], 'role': role, 'text': clean(text), **({'evidence': clean(evidence)} if role == 'tool' and evidence else {}), 'modelId': run['modelId'], 'providerId': run.get('providerId', 'phynite'), 'effort': run.get('effort', 'auto'), 'attachmentIds': attachment_ids or [], 'order': str(time.time_ns()), 'taskMode': run.get('taskMode', 'work'), **({'contextManifest': run.get('contextManifest', []), 'skillSnapshot': copy.deepcopy(run.get('skillSnapshot'))} if role == 'user' else {})})
+        from backend.local_api.domain.ai_memory import evidence_digest
+        return self.put(owner, f"AI_MESSAGE#{conversation['id']}", 'aim_' + secrets.token_hex(16), {'entityType': 'AI_MESSAGE', 'conversationId': conversation['id'], 'runId': run['id'], 'role': role, 'text': clean(text), **({'evidenceDigest': evidence_digest(clean(text), evidence)} if role == 'tool' else {}), **({'evidence': clean(evidence)} if role == 'tool' and evidence else {}), 'modelId': run['modelId'], 'providerId': run.get('providerId', 'phynite'), 'effort': run.get('effort', 'auto'), 'attachmentIds': attachment_ids or [], 'order': str(time.time_ns()), 'taskMode': run.get('taskMode', 'work'), **({'contextManifest': run.get('contextManifest', []), 'skillSnapshot': copy.deepcopy(run.get('skillSnapshot'))} if role == 'user' else {})})
 
     def detail(self, owner: str, conversation: dict, before: str | None=None) -> dict:
         messages = sorted([clean(row) for row in self.services.list_owner_items(owner, f"AI_MESSAGE#{conversation['id']}")], key=lambda row: row['order'])
         if before:
             messages = [row for row in messages if row['order'] < before]
-        selected = messages[-100:]
+        from backend.local_api.domain.ai_memory import AiMemory
+        selected, size = [], 0
+        for message in reversed(messages):
+            if selected and size + len(message['text']) > 200000:
+                break
+            selected.insert(0, message)
+            size += len(message['text'])
         selected_runs = {message['runId'] for message in selected} | {conversation.get('activeRunId')}
         actions = [self.public_action(row) for row in self.services.list_owner_items(owner, 'AI_ACTION') if row.get('conversationId') == conversation['id'] and row.get('runId') in selected_runs]
         active = self.services.get_item(owner, 'AI_RUN', conversation.get('activeRunId') or 'none')
@@ -349,7 +356,7 @@ class AiWorkspace:
         start = (active or {}).get('responseStart', '')
         last_assistant = max((m['order'] for m in messages if m['role'] == 'assistant'), default='')
         partial = ''.join((e['event']['text'] for e in runtime.events(owner, conversation, start, limit=200) if e['event']['type'] == 'text')) if start > last_assistant and active and (active['status'] == 'running') else ''
-        return {'conversation': {'providerId': 'phynite', 'effort': 'auto', 'queuePaused': False, **clean(conversation)}, 'messages': selected, 'actions': sorted(actions, key=lambda row: row['createdAt']), 'turns': self.turn_summaries(owner, conversation['id'], selected_runs), 'run': clean(active) if active else None, 'hasOlderMessages': len(messages) > 100, 'before': selected[0]['order'] if selected else None, 'queue': AiRuntime(self.api).queue(owner, conversation), 'attachments': [clean(a) for a in self.services.list_owner_items(owner, 'AI_ATTACHMENT') if a['conversationId'] == conversation['id']], 'streamText': partial, 'eventCursor': events[-1]['order'] if events else ''}
+        return {'conversation': {'providerId': 'phynite', 'effort': 'auto', 'queuePaused': False, **clean(conversation), 'stateLedger': clean(AiMemory(self).snapshot(owner, conversation))}, 'messages': selected, 'actions': sorted(actions, key=lambda row: row['createdAt']), 'turns': self.turn_summaries(owner, conversation['id'], selected_runs), 'run': clean(active) if active else None, 'hasOlderMessages': len(messages) > len(selected), 'before': selected[0]['order'] if selected else None, 'queue': AiRuntime(self.api).queue(owner, conversation), 'attachments': [clean(a) for a in self.services.list_owner_items(owner, 'AI_ATTACHMENT') if a['conversationId'] == conversation['id']], 'streamText': partial, 'eventCursor': events[-1]['order'] if events else ''}
 
     def turn_summaries(self, owner: str, conversation_id: str, run_ids: set[str | None]) -> dict:
         ids = sorted((run_id for run_id in run_ids if isinstance(run_id, str)))[:101]
@@ -878,7 +885,7 @@ class AiWorkspace:
                 text = text.strip() or 'Read the attached files.'
                 run_id = 'air_' + secrets.token_hex(16)
                 conversation = self.update(owner, 'AI_CONVERSATION', conversation, {'activeRunId': run_id, 'title': text.strip()[:90] if conversation['title'] == 'New research conversation' else conversation['title']})
-                run = self.put(owner, 'AI_RUN', run_id, {'conversationId': conversation_id, 'modelId': conversation['modelId'], 'providerId': conversation.get('providerId', 'phynite'), 'effort': conversation.get('effort', 'auto'), 'mode': conversation['mode'], **selection, 'sourceStamp': self.context(owner, conversation)['stamp'], 'status': 'running', 'steps': 0, 'leaseHash': digest(lease), 'expiresAt': int(time.time()) + 900})
+                run = self.put(owner, 'AI_RUN', run_id, {'conversationId': conversation_id, 'modelId': conversation['modelId'], 'providerId': conversation.get('providerId', 'phynite'), 'effort': conversation.get('effort', 'auto'), 'mode': conversation['mode'], **selection, 'sourceStamp': self.context(owner, conversation)['stamp'], 'status': 'running', 'steps': 0, 'foreground': True, 'leaseHash': digest(lease), 'expiresAt': int(time.time()) + 900})
                 self.message(owner, conversation, run, 'user', text, attachment_ids)
             return response(200, {**self.detail(owner, conversation), 'lease': lease})
         if method == 'POST' and operation == 'stop':
@@ -937,7 +944,7 @@ class AiWorkspace:
             return response(200, {'action': self.public_action(action) if action else None})
         if operation == 'save_plan':
             calls = payload.get('calls')
-            if not isinstance(calls, list) or len(calls) > 12 or len(json.dumps(calls).encode()) > 250000 or any((not isinstance(c, dict) or c.get('type') != 'tool_use' for c in calls)):
+            if not isinstance(calls, list) or len(calls) > 16 or len(json.dumps(calls).encode()) > 250000 or any((not isinstance(c, dict) or c.get('type') != 'tool_use' for c in calls)):
                 fail(422, 'The tool plan exceeds supported limits.', 'AI_TOOL_INPUT_INVALID')
             if run.get('pendingCalls'):
                 if run['pendingCalls'] == calls:
@@ -946,6 +953,7 @@ class AiWorkspace:
             self.update(owner, 'AI_RUN', run, {'pendingCalls': calls, 'planControlRevision': run.get('controlRevision', 0)})
             return response(200, {'saved': True})
         if operation == 'complete_call':
+            from backend.local_api.domain.ai_memory import evidence_digest
             call_id, text = (payload.get('toolCallId'), payload.get('text'))
             pending = run.get('pendingCalls', [])
             message_id = 'aim_' + digest([run['id'], call_id])[:32]
@@ -955,9 +963,15 @@ class AiWorkspace:
                 fail(409, 'This tool call is no longer pending.', 'AI_PLAN_CHANGED')
             message_id = 'aim_' + digest([run['id'], call_id])[:32]
             if not self.services.get_item(owner, 'AI_MESSAGE#' + conversation_id, message_id):
-                self.put(owner, 'AI_MESSAGE#' + conversation_id, message_id, {'entityType': 'AI_MESSAGE', 'conversationId': conversation_id, 'runId': run['id'], 'role': 'tool', 'text': clean(text), **({'evidence': clean(payload['evidence'])} if payload.get('evidence') else {}), 'modelId': run['modelId'], 'providerId': run.get('providerId', 'phynite'), 'effort': run.get('effort', 'auto'), 'order': str(time.time_ns())})
+                self.put(owner, 'AI_MESSAGE#' + conversation_id, message_id, {'entityType': 'AI_MESSAGE', 'conversationId': conversation_id, 'runId': run['id'], 'role': 'tool', 'text': clean(text), 'evidenceDigest': evidence_digest(clean(text), payload.get('evidence')), **({'evidence': clean(payload['evidence'])} if payload.get('evidence') else {}), 'modelId': run['modelId'], 'providerId': run.get('providerId', 'phynite'), 'effort': run.get('effort', 'auto'), 'order': str(time.time_ns())})
             self.update(owner, 'AI_RUN', run, {'pendingCalls': [] if payload.get('discardRest') else [c for c in pending if c['id'] != call_id]})
             return response(200, {'saved': True})
+        if operation in {'ledger', 'audit'}:
+            from backend.local_api.domain.ai_memory import AiMemory
+            memory = AiMemory(self)
+            if operation == 'audit':
+                return response(200, clean(memory.audit(owner, conversation, run)))
+            return response(200, {'ledger': clean(memory.checkpoint(owner, conversation, run, payload.get('assessments')))})
         if operation == 'control':
             steering = [m for m in self.detail(owner, conversation)['messages'] if m.get('steering') and m['runId'] == run['id'] and (m['id'] not in payload.get('seen', []))]
             return response(200, {'controlRevision': run.get('controlRevision', 0), 'messages': steering})
@@ -991,8 +1005,8 @@ class AiWorkspace:
             call_id = payload.get('toolCallId')
             if call_id and call_id in called:
                 return response(200, {'run': clean(run)})
-            if run['steps'] >= 12:
-                fail(409, 'This turn reached 12 tool calls. Continue with a new message.', 'AI_STEP_LIMIT')
+            if run['steps'] >= (40 if run.get('executionMode') == 'multistage' else 12):
+                fail(409, 'This turn reached its tool limit. Continue from the saved checkpoint.', 'AI_STEP_LIMIT')
             return response(200, {'run': clean(self.update(owner, 'AI_RUN', run, {'steps': run['steps'] + 1, 'countedCalls': called + ([call_id] if call_id else [])}))})
         if operation == 'message':
             self.message(owner, conversation, run, payload.get('role'), payload.get('text'), evidence=payload.get('evidence'))
@@ -1013,8 +1027,12 @@ class AiWorkspace:
             usage = payload.get('usage') or {}
             if not isinstance(usage, dict) or any((type(value) is not int or value < 0 for value in usage.values())):
                 fail(400, 'Token usage is invalid.')
+            from backend.local_api.domain.ai_memory import AiMemory
+            AiMemory(self).checkpoint(owner, conversation, run)
+            conversation = self.row(owner, 'AI_CONVERSATION', conversation_id)
+            run = self.row(owner, 'AI_RUN', run['id'])
             workbench.complete(owner, conversation, run, status)
-            updated = self.update(owner, 'AI_RUN', run, {'status': status, 'usage': usage, 'latencyMs': max(0, min(int(payload.get('latencyMs', 0)), 604800000)), **({'failure': failure} if failure is not None else {})})
+            updated = self.update(owner, 'AI_RUN', run, {'status': status, 'verification': AiMemory(self).audit(owner, conversation, run), 'usage': usage, 'latencyMs': max(0, min(int(payload.get('latencyMs', 0)), 604800000)), **({'failure': failure} if failure is not None else {})})
             from backend.local_api.domain.ai_runtime import AiRuntime
             AiRuntime(self.api).finish(owner, conversation, run, status)
             return response(200, {'run': clean(updated)})

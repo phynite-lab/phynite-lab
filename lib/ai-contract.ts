@@ -44,33 +44,36 @@ export type AiSkillRef = { id: string; version: number };
 export type AiSkillCatalogEntry = AiSkillRef & { command: string; label: { en: string; id: string }; description: { en: string; id: string } };
 /** Resolved by the authenticated backend and frozen for this turn. Never accept a client instruction. */
 export type AiSkillSnapshot = AiSkillRef & { label: string; instruction: string; sha256: string };
-export type AiQueuedMessage = { id: string; conversationId: string; clientMessageId: string; text: string; attachmentIds: string[]; taskMode?: AiTaskMode; contextManifest?: AiContextManifest[]; skillSnapshot?: AiSkillSnapshot | null; sourceArtifactId?: string; status: 'queued' | 'claimed' | 'steered' | 'cancelled' | 'completed'; revision: number; createdAt: string; runId?: string };
+export type AiQueuedMessage = { executionMode?: AiExecutionMode; id: string; conversationId: string; clientMessageId: string; text: string; attachmentIds: string[]; taskMode?: AiTaskMode; contextManifest?: AiContextManifest[]; skillSnapshot?: AiSkillSnapshot | null; sourceArtifactId?: string; status: 'queued' | 'claimed' | 'steered' | 'cancelled' | 'completed'; revision: number; createdAt: string; runId?: string };
 export const isAiModel = (value: unknown): value is AiModelId => aiModels.some(model => model.id === value) || legacyAiModelIds.some(id => id === value);
 export type AiProject = { key: string; name: string; kind: 'dft' | 'md' | 'canvas'; href: string };
+export type AiStateLedger = { schemaVersion: 1; constraints: Array<{ messageId: string; text: string; status: 'active' | 'superseded'; runId: string; assessment?: { status: 'addressed' | 'unmet' | 'unknown'; explanation: string; runId: string } | null }>; lockedParameters: Array<Record<string, unknown>>; completedActions: Array<Record<string, unknown>>; openGaps: string[]; stage: number };
+export type AiExecutionMode = 'foreground' | 'multistage';
 export type AiConversation = {
   id: string; title: string; projectKey: string | null; modelId: AiModelId; providerId?: AiProviderId; mode: AiPermissionMode;
-  revision: number; activeRunId: string | null; createdAt: string; updatedAt: string; effort?: AiEffort; queuePaused?: boolean;
+  stateLedger?: AiStateLedger; compactionSummary?: unknown; revision: number; activeRunId: string | null; createdAt: string; updatedAt: string; effort?: AiEffort; queuePaused?: boolean;
 };
-export type AiMessage = { id: string; conversationId: string; role: 'user' | 'assistant' | 'tool'; text: string; modelId: AiModelId; providerId?: AiProviderId; createdAt: string; runId: string; effort?: AiEffort; attachmentIds?: string[]; taskMode?: AiTaskMode; contextManifest?: AiContextManifest[]; skillSnapshot?: AiSkillSnapshot | null; steering?: boolean };
+export type AiMessage = { id: string; conversationId: string; role: 'user' | 'assistant' | 'tool'; text: string; modelId: AiModelId; providerId?: AiProviderId; createdAt: string; runId: string; effort?: AiEffort; attachmentIds?: string[]; taskMode?: AiTaskMode; contextManifest?: AiContextManifest[]; skillSnapshot?: AiSkillSnapshot | null; steering?: boolean; evidenceDigest?: Record<string, unknown> };
 export type AiFailure = { code: string; message: string; requestId?: string; issues?: Array<{ nodeId?: string; path?: string; message: string }> };
 export type AiAgentBudget = { maxWallSeconds: number; maxQueueWaitSeconds: number; agentLeaseTimeoutSeconds: number; maxCandidates?: number; maxRepairs: number; maxNodeHours?: number; maxSparseHarvestBytes: number };
 export type AiAgentState = 'planning' | 'awaiting approval' | 'executing' | 'observing' | 'validating' | 'completed' | 'repair proposed' | 'manual resume required';
 export type AiCampaignContract = { maxCandidates: number; parameterRanges: Record<string, { min: number; max: number; unit?: string }>; evaluator: string; allowedClusters: readonly string[]; totalNodeHours: number; maxWallSecondsPerCandidate: number; repairPolicy: readonly string[]; expiresAtEpoch: number };
 export type AiVisionEvidence = { attachmentId: string; attachmentSha256: string; page?: number; region?: { x: number; y: number; width: number; height: number }; confidence: number; label: string; approximate: true };
-export type AiRun = { id: string; status: 'running' | 'awaiting_approval' | 'completed' | 'failed' | 'stopped'; modelId: AiModelId; providerId?: AiProviderId; mode: AiPermissionMode; taskMode?: AiTaskMode; contextManifest?: AiContextManifest[]; skillSnapshot?: AiSkillSnapshot | null; sourceArtifactId?: string; sourcePlan?: string; steps: number; revision: number; expiresAt: number; effort?: AiEffort; queueId?: string; controlRevision?: number; planControlRevision?: number; failure?: AiFailure; pendingCalls?: Array<{ type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }>; agentState?: AiAgentState; agentBudget?: AiAgentBudget; campaignContract?: AiCampaignContract; receiptId?: string };
+export type AiRun = { countedCalls?: string[]; executionMode?: AiExecutionMode; stateLedger?: AiStateLedger; id: string; status: 'running' | 'awaiting_approval' | 'completed' | 'failed' | 'stopped'; modelId: AiModelId; providerId?: AiProviderId; mode: AiPermissionMode; taskMode?: AiTaskMode; contextManifest?: AiContextManifest[]; skillSnapshot?: AiSkillSnapshot | null; sourceArtifactId?: string; sourcePlan?: string; steps: number; revision: number; expiresAt: number; effort?: AiEffort; queueId?: string; controlRevision?: number; planControlRevision?: number; failure?: AiFailure; pendingCalls?: Array<{ type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }>; agentState?: AiAgentState; agentBudget?: AiAgentBudget; campaignContract?: AiCampaignContract; receiptId?: string };
 export type AiAction = {
   id: string; conversationId: string; runId: string; kind: string; title: string;
   status: 'pending' | 'executing' | 'succeeded' | 'failed' | 'rejected' | 'expired' | 'superseded';
   before: unknown; after: unknown; payloadHash: string; expiresAt: number;
   result?: Record<string, unknown>; error?: string;
 };
-export type AiSendPayload = { text?: string; attachmentIds?: string[]; taskMode?: AiTaskMode; contextRefs?: AiContextRef[]; skillRef?: AiSkillRef | null; sourceArtifactId?: string; resume?: boolean; runId?: string; queueId?: string; clientMessageId?: string };
+export type AiSendPayload = { executionMode?: AiExecutionMode; text?: string; attachmentIds?: string[]; taskMode?: AiTaskMode; contextRefs?: AiContextRef[]; skillRef?: AiSkillRef | null; sourceArtifactId?: string; resume?: boolean; runId?: string; queueId?: string; clientMessageId?: string };
 export type AiDetail = { turns?: Record<string, { status: AiRun['status']; failure?: AiFailure }>; conversation: AiConversation; messages: AiMessage[]; actions: AiAction[]; run: AiRun | null; hasOlderMessages?: boolean; before?: string; queue?: AiQueuedMessage[]; attachments?: AiAttachment[]; streamText?: string; eventCursor?: string };
 export type AiEvent =
   | { type: 'state'; detail: AiDetail }
   | { type: 'text'; text: string }
   | { type: 'response_start' }
   | { type: 'activity'; text: string }
+  | { type: 'ledger'; ledger: AiStateLedger }
   | { type: 'action'; action: AiAction }
   | { type: 'queue'; queue: AiQueuedMessage[]; paused: boolean }
   | { type: 'steering'; messages: AiMessage[] }
