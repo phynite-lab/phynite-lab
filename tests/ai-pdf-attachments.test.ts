@@ -150,3 +150,12 @@ test('a PDF whose extraction was deferred is not described as having no text lay
   assert.match(note, /warnings state why/);
   assert.match(note, /split it into PDFs under 10 MiB/);
 });
+
+test('PDFs above 40 pages always use structural text without buffering visual PDF bytes', async t => {
+  t.mock.method(globalThis, 'fetch', async () => { throw new Error('Long PDF visual source must not be fetched'); });
+  const mock = backendFixture({ ...attachment(), pages: 120 });
+  await runAiAgent({ detail: detail(), backend: mock.backend, config, send() {}, signal: new AbortController().signal, assertAttachment() {}, providerFetch: async (_url, init) => {
+    const body = JSON.parse(String(init?.body)); assertTextFallback(body); assert.match(JSON.stringify(body.messages), /40-page native visual input limit/); return completion();
+  } });
+  assert.ok(mock.calls.some(call => call.operation === 'attachment_read'));
+});

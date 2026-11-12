@@ -23,12 +23,12 @@ export function aiClaimHistory(messages: AiMessage[]): AiMessage[] {
 }
 const nativeAttachmentLimit = 10 * 1024 ** 2;
 type AiAttachmentReading = { attachment: AiAttachment; sections?: unknown[]; totalSections?: number; nextOffset?: number | null; warnings?: string[]; untrusted?: boolean };
-export type AiPdfFallback = 'unverified' | 'size';
+export type AiPdfFallback = 'unverified' | 'size' | 'pages';
 /** States exactly what a text-only PDF reading covered, so unread figures or scanned pages are never presented as read. */
 export function aiPdfReadingLimit(reason: AiPdfFallback, reading: AiAttachmentReading): string {
-  const cause = reason === 'unverified' ? 'the selected model has not passed native PDF reading checks' : 'the PDF exceeds the 10 MiB native model input limit';
+  const cause = reason === 'pages' ? 'the PDF exceeds the 40-page native visual input limit' : reason === 'unverified' ? 'the selected model has not passed native PDF reading checks' : 'the PDF exceeds the 10 MiB native model input limit';
   if (!reading.totalSections && !reading.sections?.length) {
-    const alternative = reason === 'unverified' ? 'or to choose a model that has passed native PDF reading checks' : 'or to split it into PDFs under 10 MiB';
+    const alternative = reason === 'unverified' ? 'or to choose a model that has passed native PDF reading checks' : 'or to split it into PDFs under 10 MiB and 40 pages';
     // Either the PDF has no text layer or extraction was deferred; the warnings state which.
     return `Native PDF reading was not used because ${cause}. No readable text was extracted from this PDF (the warnings state why), so none of its content was read. Do not describe or infer its contents. Ask the user for an OCR text version or page images of the relevant pages, ${alternative}.`;
   }
@@ -84,7 +84,7 @@ export async function runAiAgent(options: {
     const pdf = attachment.mediaType === 'application/pdf';
     try { options.assertAttachment?.(attachment.mediaType); }
     catch (error) { if (pdf && error instanceof AiError && error.code === 'AI_PDF_UNSUPPORTED') return 'unverified'; throw error; }
-    return pdf && attachment.sizeBytes > nativeAttachmentLimit ? 'size' : null;
+    return pdf && (attachment.pages ?? 0) > 40 ? 'pages' : pdf && attachment.sizeBytes > nativeAttachmentLimit ? 'size' : null;
   };
   const attach = async (message: ClaudeMessage, ids: string[]) => {
     const blocks: Array<ClaudeBlock | ClaudeInputBlock> = [{ type: 'text', text: typeof message.content === 'string' ? message.content : 'Read this user-attached research evidence.' }];
