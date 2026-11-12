@@ -216,7 +216,7 @@ export function parseJwtPayload(token: string): Record<string, unknown> {
   }
 }
 
-export async function backendFetch(path: string, accessToken: string, init?: RequestInit) {
+export async function backendFetch(path: string, accessToken: string, init?: RequestInit, timeoutMs = 20_000) {
   const { apiUrl } = serverConfig();
   return controlPlaneFetch(`${apiUrl}${path}`, {
     ...init,
@@ -226,7 +226,7 @@ export async function backendFetch(path: string, accessToken: string, init?: Req
       ...init?.headers,
     },
     cache: "no-store",
-  });
+  }, timeoutMs);
 }
 
 export async function publicBackendFetch(path: string, init?: RequestInit) {

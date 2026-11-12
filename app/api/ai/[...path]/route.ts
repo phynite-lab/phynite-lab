@@ -1,3 +1,4 @@
+import { aiMcpControlPlaneTimeout } from '@/lib/ai-mcp';
 import { NextRequest, NextResponse } from 'next/server';
 import { env } from '@/lib/runtime-bindings';
 import { accessTokenFrom, authErrorResponse, AuthServiceError, backendFetch, refreshAuth, setAuthCookies } from '@/lib/auth-server';
@@ -81,8 +82,8 @@ async function handle(request: NextRequest, context: Context): Promise<Response>
     }
     const call = async <T,>(backendPath: string, payload?: Record<string, unknown>, verb = 'POST'): Promise<T> => {
       if (!token) { refreshed = await refreshAuth(request); token = refreshed.result.AccessToken ?? ''; }
-      let response = await backendFetch(`/v1/ai/${backendPath}`, token, { method: verb, ...(payload ? { body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json' } } : {}) });
-      if (response.status === 401 && !refreshed) { refreshed = await refreshAuth(request); token = refreshed.result.AccessToken ?? ''; response = await backendFetch(`/v1/ai/${backendPath}`, token, { method: verb, ...(payload ? { body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json' } } : {}) }); }
+      let response = await backendFetch(`/v1/ai/${backendPath}`, token, { method: verb, ...(payload ? { body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json' } } : {}) }, aiMcpControlPlaneTimeout(backendPath, local));
+      if (response.status === 401 && !refreshed) { refreshed = await refreshAuth(request); token = refreshed.result.AccessToken ?? ''; response = await backendFetch(`/v1/ai/${backendPath}`, token, { method: verb, ...(payload ? { body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json' } } : {}) }, aiMcpControlPlaneTimeout(backendPath, local)); }
       const data = await response.json() as T & { error?: string; message?: string; code?: string; requestId?: string; issues?: NonNullable<AiError['details']>['issues'] };
       if (!response.ok) throw new AiError(response.status, data.code ?? 'AI_BACKEND_ERROR', data.message ?? data.error ?? 'The AI workspace request failed.', { requestId: data.requestId ?? requestId, issues: data.issues });
       return data;

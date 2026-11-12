@@ -227,7 +227,9 @@ keywords (including remote `$ref` and regular-expression constraints) reject
 that server's discovery rather than silently bypassing validation. Limits are
 eight servers, 48 discovered tools, 16 KB per schema, 32 KB arguments and 1 MiB
 per response; discovery has a 10-second deadline and calls have a 30-second
-deadline. Abort/disable/shutdown terminates outstanding child sessions.
+deadline. Local MCP/action API requests allow up to 150 seconds for discovery,
+capability revalidation and execution together; timed-out mutations are never
+automatically retried. Abort/disable/shutdown terminates outstanding child sessions.
 
 Only text and structured tool results reach the model, after credential and
 private-artifact sanitization and structure-aware compaction. Omitted image or

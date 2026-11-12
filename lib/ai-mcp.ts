@@ -20,3 +20,8 @@ export async function executeAiMcpTool(tool: AiMcpTool, input: Record<string, un
   const executed = await backend<{ action: AiAction }>('execute', { actionId: action.id, payloadHash: action.payloadHash });
   return { result: executed.action, action: executed.action };
 }
+
+/** Covers discovery, repeated capability validation and one bounded tool call. No retries. */
+export function aiMcpControlPlaneTimeout(path: string, local: boolean): number {
+  return local && /^conversations\/aic_[a-z0-9]+\/(?:mcp_tools|mcp_call|prepare|execute|actions\/aia_[a-z0-9]+)(?:\?.*)?$/.test(path) ? 150_000 : 20_000;
+}
