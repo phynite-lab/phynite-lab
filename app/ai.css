@@ -409,3 +409,24 @@
 .ai-code-keyword { color: var(--accent, #6366f1); }
 .ai-artifact-figure svg { display: block; max-width: 100%; height: auto; background: white; }
 @container ai-workspace (max-width: 899px) { .ai-artifact-viewer { position: absolute; inset: 0; width: 100%; min-width: 0; } }
+
+.ai-skill-modal { width: min(900px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); margin: auto; padding: 0; border: 1px solid var(--panel-border, #ddd); border-radius: 12px; background: var(--panel-bg, #fff); color: var(--panel-text, #222); font: inherit; }
+.ai-skill-modal::backdrop { background: #0005; }
+.ai-skill-modal > header { display: flex; justify-content: space-between; gap: 20px; padding: 22px; border-bottom: 1px solid var(--panel-border, #ddd); }
+.ai-skill-modal > header > button { display: grid; place-items: center; flex: none; width: 32px; height: 32px; padding: 0; border: 0; background: transparent; color: inherit; }
+.ai-skill-modal h2 { font-size: 18px; font-weight: 550; }
+.ai-skill-modal p, .ai-skill-modal small { color: var(--panel-muted, #666); font-size: 12px; }
+.ai-skill-layout { display: grid; grid-template-columns: minmax(150px, 220px) 1fr; }
+.ai-skill-layout nav { padding: 16px; border-right: 1px solid var(--panel-border, #ddd); }
+.ai-skill-layout nav button { display: grid; text-align: left; gap: 5px; width: 100%; padding: 12px; border-radius: 7px; }
+.ai-skill-layout nav button[aria-pressed=true] { background: var(--panel-raised, #f5f5f5); }
+.ai-skill-layout form { padding: 22px; min-width: 0; display: grid; gap: 16px; }
+.ai-skill-layout form > label { display: grid; gap: 7px; font-size: 12px; }
+.ai-skill-layout input:not([type=checkbox]), .ai-skill-layout textarea { box-sizing: border-box; width: 100%; border: 1px solid var(--panel-border, #ddd); border-radius: 6px; padding: 9px; color: inherit; background: var(--panel-bg, #fff); font: inherit; }
+.ai-skill-layout fieldset { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; }
+.ai-skill-layout legend { margin-bottom: 8px; }
+.ai-skill-layout fieldset label, .ai-skill-tools label { display: flex; align-items: center; gap: 6px; }
+.ai-skill-tools { display: grid; gap: 8px; max-height: 200px; overflow: auto; margin-top: 12px; font-size: 12px; }
+.ai-skill-layout footer { display: flex; flex-wrap: wrap; gap: 12px; }
+.ai-skill-layout footer button, .ai-skill-layout details > button { display: inline-flex; gap: 6px; align-items: center; padding: 8px; border: 1px solid var(--panel-border, #ddd); border-radius: 6px; font-size: 12px; }
+@media (max-width: 600px) { .ai-skill-layout { grid-template-columns: 1fr; } .ai-skill-layout nav { border-right: 0; border-bottom: 1px solid var(--panel-border, #ddd); max-height: 140px; overflow: auto; } }

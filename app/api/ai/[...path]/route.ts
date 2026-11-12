@@ -226,7 +226,9 @@ async function handle(request: NextRequest, context: Context): Promise<Response>
       });
       return cookies(new NextResponse(stream, { headers: { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store, no-transform', 'X-Accel-Buffering': 'no' } }));
     }
-    const allowed = ['projects', 'skills'].includes(path) && method === 'GET'
+    const allowed = path === 'projects' && method === 'GET'
+      || path === 'skills' && ['GET', 'POST'].includes(method)
+      || /^skills\/usr_[a-f0-9]{16}$/.test(path) && ['PATCH', 'DELETE'].includes(method)
       || path === 'conversations' && ['GET', 'POST'].includes(method)
       || /^conversations\/aic_[a-z0-9]+$/.test(path) && ['GET', 'DELETE'].includes(method)
       || /^conversations\/aic_[a-z0-9]+\/references$/.test(path) && ['GET', 'POST'].includes(method)

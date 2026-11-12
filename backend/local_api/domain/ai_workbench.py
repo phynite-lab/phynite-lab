@@ -161,7 +161,10 @@ class AiWorkbench:
             if artifact.get("sourceStamp") != self.ai.context(owner, conversation)["stamp"]:
                 fail(409, "The project changed since this plan. Refresh the plan before implementing it.", "AI_PLAN_STALE")
             refs = [item["ref"] for item in artifact.get("contextManifest", [])]
-        return {"executionMode": execution, "taskMode": mode, "contextManifest": self.resolve(owner, conversation, refs), "skillSnapshot": selected_skill(payload, previous_skill, preserve=preserve_skill), **({"sourceArtifactId": source, "sourcePlan": artifact["text"]} if source else {})}
+        skill = selected_skill(payload, previous_skill, preserve=preserve_skill, ai=self.ai, owner=owner)
+        if skill and skill.get('allowedTaskModes') is not None and mode not in skill['allowedTaskModes']:
+            fail(403, 'This skill is unavailable in the selected task mode.', 'AI_SKILL_MODE_MISMATCH')
+        return {"executionMode": execution, "taskMode": mode, "contextManifest": self.resolve(owner, conversation, refs), "skillSnapshot": skill, **({"sourceArtifactId": source, "sourcePlan": artifact["text"]} if source else {})}
 
     def artifacts(self, owner: str, conversation: dict) -> list[dict]:
         return sorted([clean(row) for row in self.ai.services.list_owner_items(owner, "AI_ARTIFACT") if row.get("conversationId") == conversation["id"]], key=lambda row: row["createdAt"])

@@ -27,7 +27,7 @@ export function aiCapabilities(model: AiModelId) {
   return { ...aiModelCapabilities, efforts };
 }
 export function isAiEffort(model: AiModelId, effort: unknown): effort is AiEffort { return aiCapabilities(model).efforts.includes(effort as AiEffort); }
-export function aiOutputTokens(effort: AiEffort = 'auto') { return effort === 'xhigh' || effort === 'max' ? 65536 : effort === 'high' ? 32768 : 16384; }
+export function aiOutputTokens(_effort: AiEffort = 'auto') { void _effort; return 65536; }
 // Attachments are stored as user-owned source files.  Do not impose a small
 // browser-side size quota here: the upload is streamed to the configured
 // object store and the reader applies format-specific safety limits after the
@@ -40,10 +40,11 @@ export const AI_HISTORY_CHAR_BUDGET = 180_000;
 export const AI_CLAIM_HISTORY_CHAR_BUDGET = AI_HISTORY_CHAR_BUDGET + 20_000;
 export const AI_OBSERVATION_CHAR_BUDGET = 24_000;
 export type AiAttachment = { id: string; conversationId: string; filename: string; mediaType: string; sizeBytes: number; sha256: string; status: 'uploading' | 'ready' | 'failed'; error?: string; pages?: number; sheets?: string[]; warnings?: string[]; visual?: boolean };
-export type AiSkillRef = { id: string; version: number };
+export type AiSkillRef = { scope?: 'builtin' | 'user'; id: string; version: number };
 export type AiSkillCatalogEntry = AiSkillRef & { command: string; label: { en: string; id: string }; description: { en: string; id: string } };
 /** Resolved by the authenticated backend and frozen for this turn. Never accept a client instruction. */
-export type AiSkillSnapshot = AiSkillRef & { label: string; instruction: string; sha256: string };
+export type AiSkillSnapshot = AiSkillRef & { label: string; instruction: string; sha256: string; allowedTools?: string[] | null; allowedTaskModes?: AiTaskMode[] | null };
+export type AiCustomSkill = AiSkillRef & { scope: 'user'; command: string; label: string; description: string; instruction: string; sha256: string; allowedTaskModes: AiTaskMode[] | null; allowedTools: string[] | null; archived: boolean };
 export type AiQueuedMessage = { executionMode?: AiExecutionMode; id: string; conversationId: string; clientMessageId: string; text: string; attachmentIds: string[]; taskMode?: AiTaskMode; contextManifest?: AiContextManifest[]; skillSnapshot?: AiSkillSnapshot | null; sourceArtifactId?: string; status: 'queued' | 'claimed' | 'steered' | 'cancelled' | 'completed'; revision: number; createdAt: string; runId?: string };
 export const isAiModel = (value: unknown): value is AiModelId => aiModels.some(model => model.id === value) || legacyAiModelIds.some(id => id === value);
 export type AiProject = { key: string; name: string; kind: 'dft' | 'md' | 'canvas'; href: string };

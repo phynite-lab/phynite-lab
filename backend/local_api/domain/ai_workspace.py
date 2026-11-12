@@ -34,20 +34,22 @@ def valid_selection(provider, model, effort) -> bool:
         return False
     if provider == 'phynite':
         return False
-    if provider == '9router':
-        variant = re.fullmatch('ag/gemini-.*-(low|medium|high)', model)
-        return model in router_models() and (effort == 'auto' or (variant is not None and effort == variant[1]))
-    if provider == 'local':
-        if model not in router_models('local') or not re.fullmatch('(?:codex|agy|claude)/[A-Za-z0-9_.:/+\\-]{1,200}', model):
-            return False
+    if provider in {'9router', 'local'}:
+        if model not in router_models(provider): return False
+        if provider == 'local' and not re.fullmatch(r'(?:codex|agy|claude)/[A-Za-z0-9_.:/+\-]{1,200}', model): return False
         try:
-            report = json.loads(os.environ.get('PHYNITE_LOCAL_AI_CAPABILITIES', '{}'))
-            catalog = report.get('models', {}).get(model, {}) if isinstance(report, dict) else {}
-            efforts = catalog.get('efforts', ['auto']) if isinstance(catalog, dict) else ['auto']
-            return isinstance(efforts, list) and effort in efforts
-        except (TypeError, ValueError):
-            return effort == 'auto'
+            report = json.loads(os.environ.get('PHYNITE_LOCAL_AI_CAPABILITIES' if provider == 'local' else 'PHYNITE_AI_9ROUTER_CAPABILITIES', '{}'))
+            capability = report.get('models', {}).get(model, {})
+            control = capability.get('reasoningControl', 'effort_param' if provider == 'local' else 'none')
+            efforts = capability.get('supportedEfforts', capability.get('efforts', ['auto']))
+            return isinstance(efforts, list) and effort in efforts and (effort == 'auto' or control in {'adaptive', 'budget_tokens', 'effort_param'})
+        except (AttributeError, TypeError, ValueError): return effort == 'auto'
     return False
+
+def run_effort(conversation, task):
+    requested = conversation.get('effort', 'auto')
+    return 'high' if requested == 'auto' and task in {'plan', 'research'} and valid_selection(conversation.get('providerId'), conversation.get('modelId'), 'high') else requested
+
 SECRET = re.compile('(?i)(?:bearer\\s+[\\w.\\-]+|sk-[a-z0-9_\\-]{16,}|(?:token|password|api[_-]?key|secret)\\s*[:=]\\s*[^\\s,;]+)')
 
 def digest(value: Any) -> str:
@@ -392,9 +394,15 @@ class AiWorkspace:
 
     def prepare(self, owner: str, conversation: dict, run: dict, payload: dict) -> dict:
         from backend.local_api.domain.ai_workbench import assert_work
+        from backend.local_api.domain.ai_custom_skills import enforce_tools
+        enforce_tools(run.get('skillSnapshot'), 'prepare', payload)
         assert_work(run)
         if conversation['mode'] == 'chat':
             fail(403, 'Chat only mode cannot prepare changes. Choose an execution mode first.', 'AI_PERMISSION_DENIED')
+        check = payload.get('scientificCheck')
+        if payload.get('toolName') in {'edit_canvas', 'prepare_dft', 'save_md', 'modify_structure', 'derive_structure', 'import_structure', 'import_crystal_structure', 'import_md_potential', 'create_figure', 'edit_figure', 'run_workflow', 'run_md', 'run_analysis', 'configure_qe_compute'}:
+            if not isinstance(check, dict) or set(check) != {'units', 'speciesMapping', 'periodicity', 'convergence'} or any(not isinstance(value, dict) or set(value) != {'status', 'note'} or not isinstance(value['status'], str) or value['status'] not in {'checked', 'not_applicable'} or not isinstance(value['note'], str) or not 1 <= len(value['note'].strip()) <= 500 for value in check.values()):
+                fail(422, 'Resolve and record all four scientific checks before preparing this change.', 'AI_SCIENTIFIC_CHECK_REQUIRED')
         call_id = payload.get('toolCallId')
         if call_id is not None and (not isinstance(call_id, str) or not re.fullmatch('[A-Za-z0-9_-]{1,200}', call_id)):
             fail(400, 'The tool call identity is invalid.')
@@ -469,7 +477,7 @@ class AiWorkspace:
             current = next((c for c in context['resources'].get('md_configuration', []) if c.get('id') == data.get('configurationId')), None)
             before['workflow'] = current.get('workflow') if current else None
             after['workflow'] = data['workflow']
-        action = self.put(owner, 'AI_ACTION', action_id, {'conversationId': conversation['id'], 'runId': run['id'], 'kind': kind, 'title': title, 'status': 'pending', 'stamp': context['stamp'], 'workspaceRevision': context['workspaceRevision'], 'payloadKey': key, 'payloadHash': digest(data), 'before': bounded(before), 'after': bounded(after), 'expiresAt': run['expiresAt'], 'controlRevision': run.get('controlRevision', 0)})
+        action = self.put(owner, 'AI_ACTION', action_id, {'conversationId': conversation['id'], 'runId': run['id'], 'kind': kind, 'title': title, 'status': 'pending', 'stamp': context['stamp'], 'workspaceRevision': context['workspaceRevision'], 'payloadKey': key, 'payloadHash': digest(data), 'scientificCheck': clean(check), 'before': bounded(before), 'after': bounded(after), 'expiresAt': run['expiresAt'], 'controlRevision': run.get('controlRevision', 0)})
         if conversation['mode'] == 'approval':
             self.update(owner, 'AI_RUN', run, {'status': 'awaiting_approval'})
         return action
@@ -764,9 +772,14 @@ class AiWorkspace:
         fail(400, 'This action is not supported.')
 
     def handle(self, owner: str, method: str, path: str, payload: dict, params: dict) -> dict:
-        if path == '/v1/ai/skills' and method == 'GET':
-            from backend.local_api.domain.ai_skills import catalogue
-            return response(200, {'skills': catalogue()})
+        skill_route = re.fullmatch('/v1/ai/skills(?:/(usr_[a-f0-9]{16}))?', path)
+        if skill_route:
+            from backend.local_api.domain.ai_custom_skills import CustomSkills
+            skills = CustomSkills(self)
+            if method == 'GET' and not skill_route[1]: return response(200, skills.catalog(owner))
+            if method == 'POST' and not skill_route[1]: return response(201, {'skill': skills.save(owner, payload)})
+            if method in {'PATCH', 'DELETE'} and skill_route[1]: return response(200, {'skill': skills.save(owner, payload, skill_route[1], method == 'DELETE')})
+            fail(405, 'This skill operation is not supported.')
         if path == '/v1/ai/projects' and method == 'GET':
             return response(200, {'projects': self.projects(owner)})
         attachment = re.fullmatch('/v1/ai/conversations/([a-z0-9_]+)/attachments(?:/([a-z0-9_]+)(?:/(upload|content|complete))?)?', path)
@@ -887,7 +900,7 @@ class AiWorkspace:
                 text = text.strip() or 'Read the attached files.'
                 run_id = 'air_' + secrets.token_hex(16)
                 conversation = self.update(owner, 'AI_CONVERSATION', conversation, {'activeRunId': run_id, 'title': text.strip()[:90] if conversation['title'] == 'New research conversation' else conversation['title']})
-                run = self.put(owner, 'AI_RUN', run_id, {'conversationId': conversation_id, 'modelId': conversation['modelId'], 'providerId': conversation.get('providerId', 'phynite'), 'effort': conversation.get('effort', 'auto'), 'mode': conversation['mode'], **selection, 'sourceStamp': self.context(owner, conversation)['stamp'], 'status': 'running', 'steps': 0, 'foreground': True, 'leaseHash': digest(lease), 'expiresAt': int(time.time()) + 900})
+                run = self.put(owner, 'AI_RUN', run_id, {'conversationId': conversation_id, 'modelId': conversation['modelId'], 'providerId': conversation.get('providerId', 'phynite'), 'effort': run_effort(conversation, selection.get('taskMode')), 'mode': conversation['mode'], **selection, 'sourceStamp': self.context(owner, conversation)['stamp'], 'status': 'running', 'steps': 0, 'foreground': True, 'leaseHash': digest(lease), 'expiresAt': int(time.time()) + 900})
                 self.message(owner, conversation, run, 'user', text, attachment_ids)
             return response(200, {**self.detail(owner, conversation), 'lease': lease})
         if method == 'POST' and operation == 'stop':
@@ -928,6 +941,8 @@ class AiWorkspace:
         if method != 'POST':
             fail(405, 'This method is not supported.')
         run = self.run(owner, conversation, payload, allow_waiting=operation == 'complete_call')
+        from backend.local_api.domain.ai_custom_skills import enforce_tools
+        enforce_tools(run.get('skillSnapshot'), operation, payload)
         if operation == 'renew':
             renewed = self.update(owner, 'AI_RUN', run, {'expiresAt': int(time.time()) + 900})
             return response(200, {'expiresAt': renewed['expiresAt']})

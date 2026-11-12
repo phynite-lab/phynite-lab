@@ -1,7 +1,8 @@
+import { aiReasoningCapability, type AiReasoningCapability } from './ai-reasoning.ts';
 /** Server-owned gateway evidence. Never infer a passed probe from a model name. */
 import { aiCapabilities, aiModels, type AiProviderId, type AiEffort, type AiModelId } from './ai-contract.ts';
 import { AiError, routerModelIds } from './ai-provider.ts';
-export type AiGatewayModel = { available: boolean; text: boolean; streaming: boolean; tools: boolean; images: boolean; pdf: boolean; efforts: AiEffort[] };
+export type AiGatewayModel = AiReasoningCapability & { available: boolean; text: boolean; streaming: boolean; tools: boolean; images: boolean; pdf: boolean; efforts: AiEffort[] };
 export function gatewayCapabilities(env: Record<string, string | undefined>, providerId: AiProviderId = 'phynite'): Record<AiModelId, AiGatewayModel> {
   const local = providerId === 'local';
   const fixture = env.PHYNITE_APP_MODE !== 'local' && env.PHYNITE_AI_ALLOW_LOOPBACK_PROVIDER === 'true' && (providerId === '9router' ? env.PHYNITE_AI_9ROUTER_BASE_URL : env.PHYNITE_AI_BASE_URL)?.startsWith('http://127.0.0.1:');
@@ -16,8 +17,9 @@ export function gatewayCapabilities(env: Record<string, string | undefined>, pro
   }
   return Object.fromEntries((providerId === '9router' || local ? routerModelIds(env, local).map(id => ({ id })) : aiModels).map(model => {
     const source = fixture ? { ...aiCapabilities(model.id), available: true } : models[model.id];
-    const efforts = local ? (source?.efforts ?? ['auto']).filter((effort): effort is AiEffort => ['auto', 'low', 'medium', 'high', 'xhigh', 'max'].includes(effort)) : aiCapabilities(model.id).efforts.filter(e => e === 'auto' || source?.efforts?.includes(e));
-    const capability: AiGatewayModel = { available: source?.available === true && source.text === true && source.streaming === true && source.tools === true, text: source?.text === true, streaming: source?.streaming === true, tools: source?.tools === true, images: source?.images === true, pdf: source?.pdf === true, efforts };
+    const reasoning = aiReasoningCapability(source, providerId);
+    const efforts = reasoning.supportedEfforts;
+    const capability: AiGatewayModel = { available: source?.available === true && source.text === true && source.streaming === true && source.tools === true, text: source?.text === true, streaming: source?.streaming === true, tools: source?.tools === true, images: source?.images === true, pdf: source?.pdf === true, ...reasoning, efforts };
     return [model.id, capability];
   })) as Record<AiModelId, AiGatewayModel>;
 }

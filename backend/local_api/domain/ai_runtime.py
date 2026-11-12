@@ -9,7 +9,7 @@ import os
 import re
 import secrets
 import time
-from backend.local_api.domain.ai_workspace import AiWorkspace, body, clean, digest, fail, valid_id
+from backend.local_api.domain.ai_workspace import AiWorkspace, body, clean, digest, fail, valid_id, run_effort
 from backend.local_api.domain.phynite_core import ApiError, json_safe, parse_body, response, owner_partition, utc_now
 from backend.local_api.domain.ai_skills import request_skill_ref, skill_identity, snapshot_ref
 
@@ -213,7 +213,7 @@ class AiRuntime:
             fail(409, 'This message is already being processed.', 'AI_RUN_ACTIVE')
         lease = secrets.token_hex(32)
         values = {'activeRunId': run_id, 'title': (item['text'] or 'Attached research files')[:90] if conversation['title'] == 'New research conversation' else conversation['title']}
-        run = {'PK': owner_partition(owner), 'SK': 'AI_RUN#' + run_id, 'entityType': 'AI_RUN', 'ownerId': owner, 'id': run_id, 'revision': 0, 'createdAt': utc_now(), 'conversationId': conversation['id'], 'queueId': item['id'], 'modelId': conversation['modelId'], 'providerId': conversation.get('providerId', 'phynite'), 'effort': conversation.get('effort', 'auto'), 'mode': conversation['mode'], 'executionMode': item.get('executionMode', 'foreground'), 'taskMode': item.get('taskMode', 'work'), 'contextManifest': item.get('contextManifest', []), 'skillSnapshot': copy.deepcopy(item.get('skillSnapshot')), 'sourceArtifactId': item.get('sourceArtifactId'), 'sourcePlan': item.get('sourcePlan'), 'sourceStamp': item.get('sourceStamp') or self.ai.context(owner, conversation)['stamp'], 'status': 'running', 'steps': 0, 'controlRevision': 0, 'leaseHash': digest(lease), 'expiresAt': int(time.time()) + 900}
+        run = {'PK': owner_partition(owner), 'SK': 'AI_RUN#' + run_id, 'entityType': 'AI_RUN', 'ownerId': owner, 'id': run_id, 'revision': 0, 'createdAt': utc_now(), 'conversationId': conversation['id'], 'queueId': item['id'], 'modelId': conversation['modelId'], 'providerId': conversation.get('providerId', 'phynite'), 'effort': run_effort(conversation, item.get('taskMode')), 'mode': conversation['mode'], 'executionMode': item.get('executionMode', 'foreground'), 'taskMode': item.get('taskMode', 'work'), 'contextManifest': item.get('contextManifest', []), 'skillSnapshot': copy.deepcopy(item.get('skillSnapshot')), 'sourceArtifactId': item.get('sourceArtifactId'), 'sourcePlan': item.get('sourcePlan'), 'sourceStamp': item.get('sourceStamp') or self.ai.context(owner, conversation)['stamp'], 'status': 'running', 'steps': 0, 'controlRevision': 0, 'leaseHash': digest(lease), 'expiresAt': int(time.time()) + 900}
         if foreground:
             run['foreground'] = True
         message_id = 'aim_' + digest(item['id'])[:32]

@@ -144,3 +144,28 @@ artifact storage with checksum verification; the conversation stream carries onl
 metadata. Project figure previews require the exact saved project datasets and
 use the existing deterministic renderer. Markdown, SVG, tables and input previews
 never execute user HTML or JavaScript. Older saved reports remain readable.
+
+## Custom skills and reasoning
+
+Use **Add context → Manage custom skills** to create, edit or archive owner-local
+workflow instructions. Skills have slash commands, task-mode restrictions and an
+optional tool subset. They never grant new tools or bypass conversation approval,
+project scope or scientific validators. The catalogue permits 50 active skills;
+commands must be distinct from modes, modules and built-in skills. JSON
+import/export copies editable preferences and requires Save before selection.
+
+Every queued or active turn keeps its exact selected skill version, instruction
+checksum and permission subset. Editing or archiving the skill does not change
+that snapshot; a new turn must select the current version. User instructions are
+escaped inside a guidance-only XML boundary. The host filters available tools and
+rejects disallowed operations again in the local backend.
+
+Reasoning effort and output length are independent. The connector uses the
+verified model's output ceiling and declared adaptive, token-budget or effort
+control. Unverified router controls remain Auto only. The native connector
+forwards validated effort to the official CLI without enabling native tools.
+Auto uses High for Plan/Research when the current capability report supports it;
+explicit effort choices are preserved. Before proposing a scientific mutation,
+the model records brief checks of units, species/potential mapping, periodicity
+and convergence settings. Unknown checks block preparation. These assessments
+are not convergence proof, solver output or a substitute for application validation.
