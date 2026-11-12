@@ -77,6 +77,29 @@ runtime readiness still require the normal run checks. MD stays on personal comp
 The built-in catalogue also offers **Convergence study**, **Failure diagnostics**,
 **Figure design**, **MD analysis**, and **Literature synthesis**. These are versioned
 workflow instructions. They grant no additional tools or permissions, preserve
-task-mode restrictions, and cite only the evidence actually read. Literature
-search supplies metadata/abstracts; uploaded files use the available attachment
-reader, without claiming that structural PDF or citation-graph tools already exist.
+task-mode restrictions, and cite only the evidence actually read. Literature tools distinguish verified metadata, abstracts and actually read OA text; uploaded papers expose the structural attachment index described below.
+
+## Deep paper reading
+
+PDF text extraction supports up to 150 pages, with a 12 MB extracted-text and
+24 MB stored-index guard. Existing streamed source uploads remain available;
+native model PDF input stays limited to 10 MiB and 40 pages. Longer PDFs use
+text with explicit limits: figures, scanned pages and layout remain unread.
+The original source checksum is retained and new extracted indexes have their
+own verified checksum.
+
+`read_attachment(includeIndex: true)` returns outline/heuristic section headings,
+page coverage, captions and reference text. `search_attachment` finds literal
+terms, then `read_attachment` jumps by section ID, page range or original section
+index. Continue with `nextOffset` and pass `nextTextOffset` as `textOffset`; this
+preserves long Unicode sections without dropping unread text. Structural indexes
+are heuristics and do not establish citation validity or recover scanned text.
+
+`lookup_paper` verifies exactly one DOI/arXiv ID with Crossref/arXiv. Optional
+OpenAlex citation/reference directions contain at most 15 verified metadata
+records each. OA reading uses verified arXiv HTML text only and does not fetch
+arbitrary publisher URLs or execute HTML. Provider redirects, failures, missing
+graph identities and bounded excerpt coverage are reported. `search_papers`
+supports result limits, year windows and relevance/recent/citation sorting;
+missing citation counts stay unknown. All queries must use public research
+keywords/identifiers, never private project text or credentials.
