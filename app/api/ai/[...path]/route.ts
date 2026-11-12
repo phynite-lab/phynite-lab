@@ -26,6 +26,12 @@ async function handle(request: NextRequest, context: Context): Promise<Response>
     const path = segments.join('/'), method = request.method;
     let token = accessTokenFrom(request);
     const local = localAppMode();
+    if (path === 'mcp/servers' && ['GET', 'POST'].includes(method)) {
+      if (!local) throw new AiError(404, 'MCP_LOCAL_REQUIRED', 'MCP connections require the installed application.');
+      const payload = method === 'POST' ? await readJsonBody<Record<string, unknown>>(request, 2000) : undefined;
+      const reply = await localAiFetch('/mcp/servers', { method, signal: request.signal, ...(payload ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) } : {}) });
+      return cookies(NextResponse.json(await reply.json(), { status: reply.status, headers: { 'Cache-Control': 'no-store' } }));
+    }
     let catalogRefreshing = false;
     let providerEnvironment: Record<string, string | undefined> = process.env;
     if (local) {

@@ -5,7 +5,7 @@ import hashlib
 import re
 import secrets
 from backend.local_api.domain.ai_skills import catalogue, invalid, manifest
-from backend.local_api.domain.phynite_core import json_safe
+from backend.local_api.domain.phynite_core import ApiError, json_safe
 
 TASKS = {'work', 'plan', 'research', 'summary'}
 ACTION_TOOLS = {
@@ -41,17 +41,29 @@ def public(row):
 def enforce_tools(snapshot, operation, payload):
     allowed = (snapshot or {}).get('allowedTools')
     if allowed is None or operation in {'context', 'ledger'} and not payload.get('toolName') and not payload.get('assessments'): return
+    if operation == 'mcp_call' or operation == 'prepare' and payload.get('kind') == 'mcp_call':
+        name = payload.get('toolName')
+        if not isinstance(name, str) or not name.startswith('mcp__') or name not in allowed: invalid('The selected skill does not allow this MCP tool.', 'AI_SKILL_TOOL_DENIED', 403)
+        return
     if operation == 'prepare':
         candidates = ACTION_TOOLS.get(payload.get('kind'), set())
     else:
         candidates = {name for name, operations in READ_OPERATIONS.items() if operation in operations}
-        if operation == 'context': candidates = TOOL_NAMES - {'read_guide', 'search_papers', 'lookup_paper', 'search_crystal_structures', 'search_crystal_db'}
+        if operation == 'context': candidates = {name for name in allowed if name.startswith('mcp__')} | TOOL_NAMES - {'read_guide', 'search_papers', 'lookup_paper', 'search_crystal_structures', 'search_crystal_db'}
         if operation == 'read': candidates |= {'diagnose_figure', 'create_figure', 'edit_figure', 'export_figure'}
         if operation == 'canvas': candidates |= {'edit_canvas', 'configure_qe_compute', 'import_structure', 'import_crystal_structure', 'inspect_dft_setup', 'modify_structure'}
     if not candidates: return  # Lifecycle/control operations do not grant tools.
     name = payload.get('toolName')
     if not isinstance(name, str) or name not in candidates or name not in allowed:
         invalid('The selected skill does not allow this tool.', 'AI_SKILL_TOOL_DENIED', 403)
+
+
+def available_tools():
+    try:
+        from backend.local_api.domain.ai_mcp import bridge
+        return TOOL_NAMES | {tool['name'] for tool in bridge('tools').get('tools', []) if isinstance(tool, dict) and isinstance(tool.get('name'), str) and re.fullmatch(r'mcp__[A-Za-z0-9_-]{1,59}', tool['name'])}
+    except (ApiError, AttributeError, KeyError, TypeError, ValueError):
+        return TOOL_NAMES
 
 
 class CustomSkills:
@@ -63,7 +75,7 @@ class CustomSkills:
     def catalog(self, owner):
         builtin, custom = catalogue(), self.list(owner)
         summaries = [{**{key: row[key] for key in ('id', 'scope', 'version', 'command', 'allowedTaskModes', 'allowedTools')}, 'label': {'en': row['label'], 'id': row['label']}, 'description': {'en': row['description'], 'id': row['description']}} for row in custom]
-        return {'skills': builtin + summaries, 'builtin': builtin, 'custom': custom, 'toolNames': sorted(TOOL_NAMES)}
+        return {'skills': builtin + summaries, 'builtin': builtin, 'custom': custom, 'toolNames': sorted(available_tools())}
 
     def get(self, owner, identifier):
         if not isinstance(identifier, str) or not re.fullmatch('usr_[a-f0-9]{16}', identifier): invalid()
@@ -74,6 +86,7 @@ class CustomSkills:
     def save(self, owner, payload, identifier=None, archive=False):
         fields = {'command', 'label', 'description', 'instruction', 'allowedTaskModes', 'allowedTools', 'baseVersion'}
         if not isinstance(payload, dict) or set(payload) - fields: invalid('Skill contains unsupported fields.')
+        known_tools = available_tools()
         # Local SQLite serialization covers command uniqueness and the owner limit.
         with self.services.table.atomic():
             current = self.get(owner, identifier) if identifier else None
@@ -89,7 +102,7 @@ class CustomSkills:
             active = self.list(owner)
             if any(item['command'] == data['command'] and item['id'] != identifier for item in active): invalid('That command is already used by another skill.', 'AI_SKILL_CONFLICT', 409)
             if not current and len(active) >= 50: invalid('Archive a skill before creating another; the limit is 50 active skills.', 'AI_SKILL_LIMIT', 413)
-            for key, known in [('allowedTaskModes', TASKS), ('allowedTools', TOOL_NAMES)]:
+            for key, known in [('allowedTaskModes', TASKS), ('allowedTools', known_tools)]:
                 values = data[key]
                 if values is not None and (not isinstance(values, list) or len(values) > len(known) or any(not isinstance(value, str) or value not in known for value in values) or len(values) != len(set(values))): invalid(f'{key} must be a distinct subset of the current catalogue or null.')
             data.update({'scope': 'user', 'version': int(current['version']) + 1 if current else 1, 'sha256': hashlib.sha256(data['instruction'].encode()).hexdigest(), 'archived': False})

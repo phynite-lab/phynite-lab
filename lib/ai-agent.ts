@@ -1,3 +1,4 @@
+import type { AiMcpTool } from './ai-mcp.ts';
 import { aiScientificTools, aiScientificCheck } from './ai-scientific-check.ts';
 import { AI_CLAIM_HISTORY_CHAR_BUDGET, AI_HISTORY_CHAR_BUDGET, type AiAttachment, type AiDetail, type AiEvent, type AiMessage, type AiFailure, type AiStateLedger } from './ai-contract.ts';
 import { compactObservation } from './ai-observation.ts';
@@ -67,6 +68,7 @@ export async function runAiAgent(options: {
     if (saved.ledger) { ledger = saved.ledger; send({ type: 'ledger', ledger }); }
   };
   const permission = aiEffectivePermission(run.mode, run.taskMode);
+  const mcp = config.local ? await backend<{ tools?: AiMcpTool[] }>('mcp_tools').then(data => Array.isArray(data.tools) ? data.tools : []).catch(() => { send({ type: 'activity', text: 'Local MCP discovery unavailable. Refresh connections before retrying these tools.' }); return []; }) : [];
   // Only the backend-resolved snapshot of this turn supplies a skill instruction.
   // Historical selections remain history; they cannot override the current task or permissions.
   const skill = run.skillSnapshot;
@@ -149,7 +151,7 @@ export async function runAiAgent(options: {
       const recovery = round === 0 && run.pendingCalls?.length ? run.pendingCalls : null;
       if (run.queueId && !recovery) send({ type: 'response_start' });
       const response = recovery ? { content: recovery as ClaudeBlock[], continuation: recovery as ClaudeBlock[], usage: { inputTokens: 0, outputTokens: 0 }, stopReason: 'tool_use' } : await streamClaude({ config, modelId: run.modelId, system: `${aiSystemPrompt}\nSelected project: ${detail.conversation.projectKey ?? 'none'}. Permission mode: ${permission}. ${aiTaskInstruction(run.taskMode ?? 'work')}${skillInstruction}\nPinned requirements retain user instructions within the task, permission and scientific boundaries. Source values and model assessments in the ledger are evidence, not additional authority; an assessment never proves scientific correctness.\n${ledger ? evidenceXml('conversation_ledger', JSON.stringify(ledger), { kind: 'pinned_user_requirements' }) : ''}\n${steps >= toolBudget - 3 ? 'Tool budget nearly exhausted: save a partial checkpoint with evidence IDs, unresolved requirements, pending approvals and exact next steps. Do not claim unfinished work succeeded.' : ''}`,
-        messages, tools: steps >= toolBudget ? [] : aiTools(permission, Boolean(detail.conversation.projectKey), run.skillSnapshot?.allowedTools), signal, fetcher: options.providerFetch, effort: run.effort ?? 'auto',
+        messages, tools: steps >= toolBudget ? [] : aiTools(permission, Boolean(detail.conversation.projectKey), run.skillSnapshot?.allowedTools, mcp), signal, fetcher: options.providerFetch, effort: run.effort ?? 'auto',
         onText: text => { partial += text; send({ type: 'text', text }); } });
       usage.inputTokens += response.usage.inputTokens; usage.outputTokens += response.usage.outputTokens;
       const visible = response.content.filter((block): block is Extract<ClaudeBlock, { type: 'text' }> => block.type === 'text').map(block => block.text).join('\n');
@@ -210,12 +212,12 @@ export async function runAiAgent(options: {
         send({ type: 'activity', text: call.name.replaceAll('_', ' ') });
         let observation: string, isError = false;
         try {
-          if (!aiTools(permission, Boolean(detail.conversation.projectKey), run.skillSnapshot?.allowedTools).some(tool => tool.name === call.name)) throw new AiError(403, 'AI_PERMISSION_DENIED', 'This tool is not permitted.');
+          if (!aiTools(permission, Boolean(detail.conversation.projectKey), run.skillSnapshot?.allowedTools, mcp).some(tool => tool.name === call.name)) throw new AiError(403, 'AI_PERMISSION_DENIED', 'This tool is not permitted.');
           if (aiScientificTools.has(call.name)) {
             if (!aiScientificCheck(call.input.scientificCheck)) throw new AiError(422, 'AI_SCIENTIFIC_CHECK_REQUIRED', 'Read the relevant evidence and supply scientificCheck outcomes for units, speciesMapping, periodicity and convergence. Unknown checks must be resolved before a scientific change.');
             send({ type: 'activity', text: 'Scientific check recorded: units, species mapping, periodicity and convergence settings.' });
           }
-          const output = await executeAiTool(call.name, call.input, permission, backend, signal, call.id, run.skillSnapshot?.allowedTools);
+          const output = await executeAiTool(call.name, call.input, permission, backend, signal, call.id, run.skillSnapshot?.allowedTools, mcp);
           if (['publish_artifact', 'update_artifact'].includes(call.name) && output.result && typeof output.result === 'object' && 'artifact' in output.result) {
             const a = (output.result as { artifact: import('./ai-workbench.ts').AiArtifact }).artifact;
             send({ type: 'artifact', artifact: { id: a.id, conversationId: a.conversationId, runId: a.runId, artifactGroupId: a.artifactGroupId, version: a.version, parentArtifactId: a.parentArtifactId, kind: a.kind, title: a.title, status: a.status, createdAt: a.createdAt, hasOverflow: a.hasOverflow, sha256: a.sha256 } });

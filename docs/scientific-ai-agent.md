@@ -169,3 +169,69 @@ explicit effort choices are preserved. Before proposing a scientific mutation,
 the model records brief checks of units, species/potential mapping, periodicity
 and convergence settings. Unknown checks block preparation. These assessments
 are not convergence proof, solver output or a substitute for application validation.
+
+## Local MCP connections
+
+The first MCP release ships Tier 1 for the installed application. Tier 2 remains
+out of scope until a hosted scientific registry has verified endpoints. The
+public app never accepts a remote MCP URL or executable from a browser/model.
+
+Register servers in `<data-directory>/mcp/servers.json` (default
+`~/.phynite-lab/mcp/servers.json`). Keep the directory mode `700` and the JSON
+file mode `600`; symlinks and public-readable configuration are rejected. For
+example, using an actual executable and script you have installed and trust:
+
+```json
+{
+  "version": 1,
+  "servers": [{
+    "id": "science",
+    "label": "My scientific tools",
+    "transport": "stdio",
+    "command": "/absolute/path/to/node",
+    "args": ["/absolute/path/to/your-mcp-server.mjs"],
+    "env": {}
+  }]
+}
+```
+
+Alternatively use `transport: "http"`, `url: "http://127.0.0.1:PORT/mcp"` and an
+optional `headers` object instead of `command`, `args`, and `env`. No redirects,
+remote hosts, URL credentials or query parameters are accepted. Credentials
+belong in private `env`/`headers`, never in tool arguments. Phynite/AWS/Cognito
+credentials and process-injection environment variables cannot be forwarded.
+Server IDs use lowercase letters, digits, `_` or `-`, start with a letter, have
+at most 32 characters, and cannot contain `__`.
+
+Open the chat menu → **Local MCP connections** to enable a configured server or
+refresh its tools. Servers start disabled. Trusted MCP programs have their own
+local filesystem/network access; enabling one is an explicit local choice.
+Phynite's CLI model sessions retain their separate tool isolation. The browser
+uses only same-origin `/api/ai/mcp/servers`; private bridge credentials,
+executable arguments, connection addresses and server environment never return
+to the browser or model.
+
+Discovered names use `mcp__<server>__<tool>` with deterministic SHA-256 shortening
+when necessary. Only `annotations.readOnlyHint: true` tools are available in
+Chat, Plan, Research and Summary; every other tool requires Work, a project and
+execution permission. Approval mode creates an ordinary action card with exact
+arguments and payload checksum. Full mode uses that same validated action
+lifecycle. Editing/disabling a server or changing its tool schema invalidates a
+previously reviewed capability. Custom skills can only narrow this tool set.
+
+The bridge negotiates MCP `2025-03-26` (or `2024-11-05`), supports newline JSON-RPC
+stdio and Streamable HTTP JSON/SSE responses, and validates a bounded JSON Schema
+subset: types, properties/required/additionalProperties, items, enum/const,
+anyOf/oneOf/allOf, numeric bounds and string/array lengths. Unsupported schema
+keywords (including remote `$ref` and regular-expression constraints) reject
+that server's discovery rather than silently bypassing validation. Limits are
+eight servers, 48 discovered tools, 16 KB per schema, 32 KB arguments and 1 MiB
+per response; discovery has a 10-second deadline and calls have a 30-second
+deadline. Abort/disable/shutdown terminates outstanding child sessions.
+
+Only text and structured tool results reach the model, after credential and
+private-artifact sanitization and structure-aware compaction. Omitted image or
+resource blocks are counted explicitly. All outputs remain untrusted evidence;
+MCP claims alone do not establish scientific validity. Errors are never recorded
+as successful mutating actions. A failed or interrupted mutation must be
+inspected before a new action is prepared.

@@ -57,7 +57,9 @@ class AiMemoryTests(unittest.TestCase):
         self.assertEqual(self.memory.load(self.owner, self.conversation), ledger)
         with self.assertRaises(ApiError):
             self.memory.checkpoint(self.owner, {**self.conversation, 'revision': 0}, self.run)
-        self.services.s3.put_object(Bucket=self.services.bucket, Key=next(p['Key'] for p in self.services.s3.list_objects_v2(Bucket=self.services.bucket)['Contents'] if '/ledger/' in p['Key']), Body=b'{}')
+        # A rejected checkpoint may leave an unreferenced immutable blob. Corrupt the live ledger.
+        active_suffix = '/' + self.conversation['ledgerSha256'] + '.json'
+        self.services.s3.put_object(Bucket=self.services.bucket, Key=next(p['Key'] for p in self.services.s3.list_objects_v2(Bucket=self.services.bucket)['Contents'] if p['Key'].endswith(active_suffix)), Body=b'{}')
         with self.assertRaisesRegex(ApiError, 'verification'):
             self.memory.load(self.owner, self.conversation)
 

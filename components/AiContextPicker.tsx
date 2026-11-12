@@ -15,10 +15,10 @@ export { aiOverlayTheme, aiOverlayViewport } from './use-ai-overlay';
 export type AiContextPickerController = { handleKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => boolean };
 export type AiContextPickerView = 'menu' | 'contexts' | 'commands' | 'mode' | 'skills';
 type PickerRow = { key: string; label: string; detail?: string; command?: string; icon: LucideIcon | typeof PhyniteAiIcon; checked?: boolean; disabled?: boolean; select: () => void; item?: AiContextItem };
-export function AiContextPicker({ anchorRef, portalOwner, load, onSelect, onFiles, onClose, onTask, taskMode, taskLocked, saved = true, initialView = 'menu', commandToken, skills = [], skillRef, onSkill, onManageSkills, controllerRef }: {
+export function AiContextPicker({ anchorRef, portalOwner, load, onSelect, onFiles, onClose, onTask, taskMode, taskLocked, saved = true, initialView = 'menu', commandToken, skills = [], skillRef, onSkill, onManageSkills, onManageMcp, controllerRef }: {
   anchorRef: RefObject<HTMLButtonElement | null>; portalOwner: string;
   load: (nodeId?: string, query?: string) => Promise<{ items: AiContextItem[]; hasMore: boolean }>;
-  onManageSkills?: () => void;
+  onManageSkills?: () => void; onManageMcp?: () => void;
   onSelect: (item: AiContextItem) => void; onFiles: () => void; onClose: (restoreFocus?: boolean) => void;
   onTask: (task: AiTaskMode) => void; taskMode: AiTaskMode; taskLocked: boolean; saved?: boolean;
   initialView?: AiContextPickerView; commandToken?: AiCommandToken; skills?: AiSkillCatalogEntry[];
@@ -111,6 +111,7 @@ export function AiContextPicker({ anchorRef, portalOwner, load, onSelect, onFile
     <header><div>{view !== 'menu' && <button type="button" className="ai-command-back" aria-label={t('Back to chat menu', 'Kembali ke menu chat')} onClick={() => openView('menu')}><ArrowLeft size={15} /></button>}<strong>{title}</strong></div><button type="button" onClick={() => onClose(true)} aria-label={t('Close context picker', 'Tutup pilihan konteks')}><X size={16} /></button></header>
     {showSearch && <label className="ai-context-search"><Search size={15} aria-hidden="true" /><input ref={search} maxLength={200} value={query} onChange={event => setQuery(event.target.value)} placeholder={view === 'contexts' ? t('Search project context…', 'Cari konteks project…') : t('Search…', 'Cari…')} aria-label={view === 'contexts' ? t('Search saved context', 'Cari konteks tersimpan') : t('Search commands', 'Cari perintah')} /></label>}
     {view === 'commands' && <p className="ai-command-hint" role="status">{kind ? t('Choose the saved module to include.', 'Pilih modul tersimpan sebagai konteks.') : t('Choose a mode, skill or saved module.', 'Pilih mode, skill, atau modul tersimpan.')}<kbd>↑↓</kbd><kbd>↵</kbd></p>}
+    {onManageMcp && view === "menu" && <button type="button" className="ai-text-button" disabled={taskLocked} onClick={onManageMcp}>{t("Local MCP connections", "Koneksi MCP lokal")}</button>}
     {onManageSkills && (view === "menu" || view === "skills") && <button type="button" className="ai-text-button" disabled={taskLocked} onClick={onManageSkills}>{t("Manage custom skills", "Kelola skill kustom")}</button>}
     <div className="ai-context-picker-scroll" data-ai-overlay-scroll>
       {view === 'menu' && <div className="ai-command-menu">

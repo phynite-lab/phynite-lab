@@ -95,6 +95,11 @@ See [crystal database imports](docs/crystal-database.md) for supported sources,
 property filters, preview, primitive/conventional cells, supercells and retained
 source evidence.
 
+Phynite AI includes targeted scientific readers, pinned requirements, typed/versioned
+artifacts, structural paper search, custom workflow skills and opt-in local MCP
+tools. See [the scientific AI guide](docs/scientific-ai-agent.md) for capabilities,
+approval boundaries and private local MCP registration.
+
 The guide follows task paths: **Start here**, **Install & update**, **Projects
 & structures**, **QE & DFT**, **MD & analysis**, **AI providers**, **Phynite
 Cloud**, **Storage & backups**, **Settings & preferences**, **Results &

@@ -430,3 +430,15 @@
 .ai-skill-layout footer { display: flex; flex-wrap: wrap; gap: 12px; }
 .ai-skill-layout footer button, .ai-skill-layout details > button { display: inline-flex; gap: 6px; align-items: center; padding: 8px; border: 1px solid var(--panel-border, #ddd); border-radius: 6px; font-size: 12px; }
 @media (max-width: 600px) { .ai-skill-layout { grid-template-columns: 1fr; } .ai-skill-layout nav { border-right: 0; border-bottom: 1px solid var(--panel-border, #ddd); max-height: 140px; overflow: auto; } }
+
+.ai-mcp-content { padding: 22px; display: grid; gap: 16px; }
+.ai-mcp-content > p { line-height: 1.6; }
+.ai-mcp-content > button { justify-self: start; }
+.ai-mcp-server { padding: 16px; border: 1px solid var(--panel-border, #ddd); border-radius: 8px; min-width: 0; }
+.ai-mcp-server > label { display: flex; gap: 10px; align-items: center; font-size: 14px; }
+.ai-mcp-server > p { margin: 8px 0; }
+.ai-mcp-server ul { list-style: none; padding: 0; margin-top: 12px; display: grid; gap: 8px; }
+.ai-mcp-server li { display: flex; gap: 12px; justify-content: space-between; font-size: 11px; }
+.ai-mcp-server code { overflow-wrap: anywhere; min-width: 0; }
+.ai-mcp-server li span { flex: none; color: var(--panel-muted, #666); }
+@media (max-width: 600px) { .ai-mcp-server li { flex-direction: column; gap: 3px; } }

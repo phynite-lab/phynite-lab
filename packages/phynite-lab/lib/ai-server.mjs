@@ -2,9 +2,10 @@
 import { createServer } from 'node:http';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { NativeAiRegistry } from './native-ai.mjs';
+import { LocalMcpRegistry } from './local-mcp.mjs';
 
 const equal = (a, b) => typeof a === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b));
-export async function createLocalAiServer({ dataDir, registry = new NativeAiRegistry({ dataDir }) }) {
+export async function createLocalAiServer({ dataDir, registry = new NativeAiRegistry({ dataDir }), mcp = new LocalMcpRegistry({ dataDir }) }) {
   const token = randomBytes(32).toString('hex');
   const active = new Set();
   let origin;
@@ -22,7 +23,8 @@ export async function createLocalAiServer({ dataDir, registry = new NativeAiRegi
     try {
       if (request.method === 'GET' && request.url === '/status') { json(200, await registry.status()); return; }
       if (request.method === 'GET' && request.url === '/usage') { json(200, await registry.usage()); return; }
-      if (request.method !== 'POST' || !['/connect', '/login', '/disconnect', '/models', '/probe', '/v1/messages'].includes(request.url)) { json(404, { error: 'Local AI operation not found.', code: 'NOT_FOUND' }); return; }
+      if (request.method === 'GET' && request.url === '/mcp/servers') { json(200, await mcp.list({ signal: abort.signal })); return; }
+      if (request.method !== 'POST' || !['/connect', '/login', '/disconnect', '/models', '/probe', '/v1/messages', '/mcp/servers', '/mcp/tools', '/mcp/validate', '/mcp/call'].includes(request.url)) { json(404, { error: 'Local AI operation not found.', code: 'NOT_FOUND' }); return; }
       if (!/^application\/json(?:\s*;|$)/i.test(request.headers['content-type'] ?? '')) { json(415, { error: 'Send JSON to the local AI service.', code: 'INVALID_CONTENT_TYPE' }); return; }
       const chunks = []; let size = 0;
       for await (const chunk of request) {
@@ -34,6 +36,10 @@ export async function createLocalAiServer({ dataDir, registry = new NativeAiRegi
       try { payload = JSON.parse(Buffer.concat(chunks).toString('utf8')); }
       catch { json(400, { error: 'Send a valid JSON object.', code: 'INVALID_JSON' }); return; }
       if (!payload || typeof payload !== 'object' || Array.isArray(payload)) { json(400, { error: 'Send a JSON object.', code: 'INVALID_JSON' }); return; }
+      if (request.url.startsWith('/mcp/')) {
+        const value = request.url === '/mcp/servers' ? await mcp.setEnabled(payload, { signal: abort.signal }) : request.url === '/mcp/tools' ? await mcp.list({ signal: abort.signal }) : await mcp.invoke(payload, { signal: abort.signal, execute: request.url === '/mcp/call' });
+        json(200, value); return;
+      }
       if (request.url === '/v1/messages') {
         response.writeHead(200, { 'Content-Type': 'text/event-stream', 'X-Accel-Buffering': 'no' });
         const heartbeat = setInterval(() => { if (!abort.signal.aborted) response.write(': heartbeat\n\n'); }, 10000);
@@ -66,5 +72,5 @@ export async function createLocalAiServer({ dataDir, registry = new NativeAiRegi
   server.requestTimeout = 5 * 60_000; server.headersTimeout = 15000;
   await new Promise((accept, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', accept); });
   origin = `http://127.0.0.1:${server.address().port}`;
-  return { origin, token, async close() { for (const abort of active) abort.abort(); server.closeAllConnections(); await registry.close?.(); await new Promise(accept => server.close(accept)); } };
+  return { origin, token, async close() { for (const abort of active) abort.abort(); server.closeAllConnections(); await mcp.close(); await registry.close?.(); await new Promise(accept => server.close(accept)); } };
 }
