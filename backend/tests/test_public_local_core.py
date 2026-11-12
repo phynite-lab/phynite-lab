@@ -41,7 +41,7 @@ class PublicLocalCoreTests(unittest.TestCase):
 
     def test_clean_public_checkout_runs_local_regressions_without_private_imports(self):
         manifest = json.loads(MANIFEST.read_text())
-        tests = [name for name in manifest["portableTests"] if Path(name).stem in {"test_local_desktop", "test_local_integrity", "test_local_persistence", "test_local_cloud_integrity", "test_local_draft_bundle", "test_local_regressions", "test_local_connections", "test_local_scientific_qualification", "test_local_workflow_readiness", "test_local_pseudopotentials", "test_local_ai_structure_import"}]
+        tests = [name for name in manifest["portableTests"] if Path(name).stem in {"test_local_ai_observation", "test_local_desktop", "test_local_integrity", "test_local_persistence", "test_local_cloud_integrity", "test_local_draft_bundle", "test_local_regressions", "test_local_connections", "test_local_scientific_qualification", "test_local_workflow_readiness", "test_local_pseudopotentials", "test_local_ai_structure_import"}]
         with tempfile.TemporaryDirectory(prefix="phynite-public-only-") as directory:
             target = Path(directory)
             # Shared SSE parser and the release producer are public source, not

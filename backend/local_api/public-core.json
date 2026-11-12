@@ -29,6 +29,7 @@
     "backend/local_api/domain/ai_attachments.py",
     "backend/local_api/domain/ai_readers.py",
     "backend/local_api/domain/ai_domain_actions.py",
+    "backend/local_api/domain/ai_observation.py",
     "backend/local_api/domain/ai_runtime.py",
     "backend/local_api/domain/ai_skills.py",
     "backend/local_api/domain/ai_workbench.py",
@@ -140,6 +141,7 @@
     "backend/local_api/domain/ai_attachments.py",
     "backend/local_api/domain/ai_readers.py",
     "backend/local_api/domain/ai_domain_actions.py",
+    "backend/local_api/domain/ai_observation.py",
     "backend/local_api/domain/ai_runtime.py",
     "backend/local_api/domain/ai_skills.py",
     "backend/local_api/domain/ai_workbench.py",
@@ -242,6 +244,7 @@
     "backend.md_compute"
   ],
   "portableTests": [
+    "backend/tests/test_local_ai_observation.py",
     "backend/tests/test_local_crystal_cells.py",
     "backend/tests/test_local_desktop.py",
     "backend/tests/test_local_integrity.py",
