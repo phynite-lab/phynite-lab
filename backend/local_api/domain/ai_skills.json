@@ -32,6 +32,76 @@
       "label": { "en": "Results review", "id": "Tinjau hasil" },
       "description": { "en": "Compare saved results with their inputs, units and evidence limits.", "id": "Bandingkan hasil tersimpan dengan input, satuan, dan batas buktinya." },
       "instruction": "Review actual saved calculation, simulation, analysis or figure evidence and trace each result to its source inputs, status, units and provenance. Separate completed observations from pending jobs, interpretation and hypotheses. Check available convergence or quality evidence without claiming unperformed validation. Preserve numerical values, source identities, checksums and dataset bindings; cite exact source IDs and relevant fields. Compare only compatible quantities and explain missing data, uncertainty and reading limits. Never fabricate results or citations, and do not alter source data to improve presentation. This skill grants no extra tools or permissions; obey the active task mode and require explicit user intent before any permitted change. For HPC, distinguish queued/running scheduler observations from completed scientific results; require the validated result manifest/checksum evidence. Explain submission-uncertain or manual-resume-required and retained checkpoints without resubmitting or proposing automatic solver restarts."
+    },
+    {
+      "id": "convergence_study",
+      "version": 1,
+      "command": "convergence_study",
+      "label": {
+        "en": "Convergence study",
+        "id": "Studi konvergensi"
+      },
+      "description": {
+        "en": "Design cutoff, k-point and smearing refinement using actual results.",
+        "id": "Rancang penyempurnaan cutoff, k-point, dan smearing dari hasil nyata."
+      },
+      "instruction": "Inspect the saved DFT setup and retained calculation evidence first. Define the observable, tolerance and source units with the researcher; vary one physical sampling or numerical parameter at a time. Use inspect_dft_setup, diagnose_calculation, query_dataset and Canvas parameter_study operations when available. Keep functional, pseudopotential family, structure identity, charge, spin and unrelated settings fixed. Distinguish solver threshold acceptance from observable refinement and physical validation. Never claim convergence without an actual refinement series. Propose missing evidence before running anything. This built-in skill grants no additional tools or permissions; follow the current task mode and the normal action approval workflow."
+    },
+    {
+      "id": "failure_diagnostics",
+      "version": 1,
+      "command": "failure_diagnostics",
+      "label": {
+        "en": "Failure diagnostics",
+        "id": "Diagnosis kegagalan"
+      },
+      "description": {
+        "en": "Trace the first QE or LAMMPS failure through retained inputs and logs.",
+        "id": "Telusuri kegagalan QE atau LAMMPS pertama dari input dan log tersimpan."
+      },
+      "instruction": "Inspect get_job_status and list_job_artifacts before reading bounded log windows with read_job_file. Grep for the first relevant error and inspect surrounding lines, source inputs and diagnose_calculation evidence. For QE distinguish electronic/EXX, diagonalization, mixing, ionic/BFGS and setup failures; for LAMMPS distinguish preflight, lost atoms, neighbor overflow and unsupported potentials. Missing logs before solver launch are not solver output. Keep root cause, hypothesis and proposed repair separate. Preserve physical settings unless the user explicitly chooses a change. Never retry an uncertain HPC submission or invent a successful restart. This built-in skill grants no additional tools or permissions; follow the current task mode and the normal action approval workflow."
+    },
+    {
+      "id": "figure_design",
+      "version": 1,
+      "command": "figure_design",
+      "label": {
+        "en": "Figure design",
+        "id": "Desain figur"
+      },
+      "description": {
+        "en": "Compose publication figures from saved, traceable numerical datasets.",
+        "id": "Susun figur publikasi dari dataset numerik tersimpan yang dapat ditelusuri."
+      },
+      "instruction": "Inspect source dataset metadata and samples with query_dataset, then use diagnose_figure on saved figures. Plan single, overlay, grid, band-dos or parameter layouts using saved evidence. Preserve axis units, Fermi/VBM/vacuum references, DOS basis, normalization and source identities. Use Figure Lab colorblind-safe palettes and readable labels. Do not align unknown references, invent missing curves or treat downsampled points as full data. Explain remaining figure issues before proposing an approved edit/export. A prepared export is not a completed download. This built-in skill grants no additional tools or permissions; follow the current task mode and the normal action approval workflow."
+    },
+    {
+      "id": "md_analysis",
+      "version": 1,
+      "command": "md_analysis",
+      "label": {
+        "en": "MD analysis",
+        "id": "Analisis MD"
+      },
+      "description": {
+        "en": "Review trajectory analysis and thermodynamic evidence on personal compute.",
+        "id": "Tinjau analisis trajektori dan bukti termodinamika pada komputasi pribadi."
+      },
+      "instruction": "Inspect the saved trajectory, MD configuration, potential element mapping and checksums. Use list_job_artifacts and read_job_file for log.lammps or thermo.csv, and query_dataset for available numerical series. Distinguish equilibration, sampling intervals and production windows before interpreting RDF, MSD, coordination or thermodynamic trends. Preserve physical time, temperature, distance and normalization units and disclose finite-size/statistical limitations. Use preview_md_input before an intended configuration change. MD and analysis run only on personal compute. Never fabricate a trajectory, potential validity domain, diffusion coefficient or completed analysis. This built-in skill grants no additional tools or permissions; follow the current task mode and the normal action approval workflow."
+    },
+    {
+      "id": "literature_synthesis",
+      "version": 1,
+      "command": "literature_synthesis",
+      "label": {
+        "en": "Literature synthesis",
+        "id": "Sintesis literatur"
+      },
+      "description": {
+        "en": "Compare paper methods while citing exactly the evidence that was read.",
+        "id": "Bandingkan metode makalah dengan mengutip bukti yang benar-benar dibaca."
+      },
+      "instruction": "Use public keywords with search_papers and read_attachment for uploaded papers. Compare composition/structure, functional, pseudopotential, cutoffs, k-points, charge/spin, boundary conditions, ensembles, timescales and observables only where the sources report them. Cite verified DOI/URLs or filename plus page/paragraph references. Clearly distinguish metadata/abstract access from read full text; follow returned offsets and state unread ranges. Use structural section/citation tools only if actually available. Separate agreement, methodological differences and unresolved evidence. Never invent citations, numerical values or a missing methods section, and never send private logs or project identifiers to external search. This built-in skill grants no additional tools or permissions; follow the current task mode and the normal action approval workflow."
     }
   ]
 }
