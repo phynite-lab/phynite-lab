@@ -16,7 +16,7 @@ from backend.local_api.domain.phynite_core import ApiError, json_safe, owner_par
 MODES = {'chat', 'approval', 'full'}
 RESOURCE_KINDS = {'structure': 'STRUCTURE', 'calculation': 'CALCULATION', 'trajectory': 'MD_TRAJECTORY', 'simulation': 'MD_SIMULATION', 'analysis': 'MD_ANALYSIS', 'md_configuration': 'MD_CONFIGURATION', 'potential': 'MD_POTENTIAL', 'dataset': 'DATASET', 'figure': 'FIGURE'}
 ACTIONS = {'modify_structure', 'import_md_potential', 'derive_structure', 'import_structure', 'save_dft', 'run_dft', 'save_md', 'run_md', 'run_analysis', 'cancel_job', 'save_figure', 'export_figure', 'save_workflow', 'run_workflow', 'cancel_workflow'}
-PATH = re.compile('^/v1/ai/conversations(?:/([a-z0-9_]+)(?:/(detail|settings|start|resume|renew|stop|context|compute|read|canvas|step|message|finish|prepare|execute|actions|queue|steer|continue|events|control|job_artifacts|job_file|dataset_query|potential_search|jobs|job_status|worker_status|calculation_diagnosis|md_preview|attachment_read|attachment_provider|ledger|audit|save_plan|complete_call|replay|references|artifacts|report)(?:/([a-z0-9_]+))?)?)?$')
+PATH = re.compile('^/v1/ai/conversations(?:/([a-z0-9_]+)(?:/(detail|settings|start|resume|renew|stop|context|compute|read|canvas|step|message|finish|prepare|execute|actions|queue|steer|continue|events|control|job_artifacts|job_file|dataset_query|potential_search|jobs|job_status|worker_status|calculation_diagnosis|md_preview|attachment_read|attachment_search|attachment_provider|ledger|audit|save_plan|complete_call|replay|references|artifacts|report)(?:/([a-z0-9_]+))?)?)?$')
 
 def router_models(provider: str='9router') -> list[str]:
     try:
@@ -977,9 +977,9 @@ class AiWorkspace:
             return response(200, {'controlRevision': run.get('controlRevision', 0), 'messages': steering})
         if operation in {'prepare', 'execute', 'finish'} and run.get('queueId') and (payload.get('controlRevision', 0) != run.get('controlRevision', 0)):
             fail(409, 'New user direction is waiting. Read it before taking another action.', 'AI_STEER_PENDING')
-        if operation in {'attachment_read', 'attachment_provider'}:
+        if operation in {'attachment_read', 'attachment_search', 'attachment_provider'}:
             from backend.local_api.domain.ai_attachments import AiAttachments
-            return response(200, AiAttachments(self.api).read(owner, conversation, payload, operation == 'attachment_provider'))
+            return response(200, AiAttachments(self.api).read(owner, conversation, {**payload, **({'search': True} if operation == 'attachment_search' else {})}, operation == 'attachment_provider'))
         if operation == 'canvas':
             project = self.scope(owner, conversation['projectKey'])
             if project['kind'] != 'canvas':

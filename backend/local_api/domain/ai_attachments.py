@@ -53,20 +53,24 @@ def extract(raw: bytes, filename: str, media: str) -> dict:
             pdf = PdfReader(io.BytesIO(raw), strict=True)
             if pdf.is_encrypted:
                 fail(422, "Upload an unencrypted PDF.", "AI_ATTACHMENT_ENCRYPTED")
-            if len(pdf.pages) > 50:
-                fail(413, "Split this PDF into files of at most 50 pages.", "AI_ATTACHMENT_LIMIT")
+            if len(pdf.pages) > 150:
+                fail(413, "Split this PDF into files of at most 150 pages.", "AI_ATTACHMENT_LIMIT")
             metadata["pages"] = len(pdf.pages)
-            total = 0
+            total, pages_index = 0, []
             for index, page in enumerate(pdf.pages):
                 text = page.extract_text() or ""
-                total += len(text)
-                if total > 8_000_000:
+                total += len(text.encode())
+                if total > 12_000_000:
                     fail(413, "Split this PDF into smaller documents before uploading.", "AI_ATTACHMENT_LIMIT")
+                indices = []
                 for offset in range(0, max(1, len(text)), 8000):
-                    sections.append({"reference": f"page {index + 1}" + (f", part {offset // 8000 + 1}" if len(text)>8000 else ""), "text": text[offset:offset+8000]})
+                    indices.append(len(sections))
+                    sections.append({"page": index + 1, "sectionIndex": len(sections), "reference": f"page {index + 1}" + (f", part {offset // 8000 + 1}" if len(text)>8000 else ""), "text": text[offset:offset+8000]})
+                pages_index.append({"page": index + 1, "charCount": len(text), "sectionIndices": indices, "hasText": bool(text.strip()), "text": text})
                 if not text.strip():
                     warnings.append(f"Page {index + 1} has no extractable text; visual PDF reading is required.")
-        return {"sections": sections, "warnings": warnings, "visual": True, **metadata}
+        from backend.local_api.domain.ai_paper_index import pdf_index
+        return {"sections": sections, "warnings": warnings, "visual": True, **metadata, **pdf_index(pdf, sections, pages_index)}
     if ext in {"docx", "xlsx"}:
         with zipfile.ZipFile(io.BytesIO(raw)) as archive:
             entries = archive.infolist()
@@ -208,7 +212,7 @@ class AiAttachments:
                 else:
                     document = extract(raw, item["filename"], item["mediaType"])
                 extracted = json.dumps(document, ensure_ascii=False).encode()
-                if len(extracted) > 16 * 1024 ** 2:
+                if len(extracted) > 24 * 1024 ** 2:
                     fail(413, "Split this document into smaller files before uploading; extracted evidence exceeds the reading limit.", "AI_ATTACHMENT_LIMIT")
             except Exception as error:
                 from backend.local_api.domain.phynite_core import ApiError
@@ -238,7 +242,7 @@ class AiAttachments:
                         self.services.s3.put_object(Bucket=self.services.bucket, Key=vision_key, Body=prepared, ContentType="image/jpeg", ServerSideEncryption="AES256")
                         vision = {"visionKey": vision_key, "providerSha256": hashlib.sha256(prepared).hexdigest(), "providerMediaType": "image/jpeg"}
                         document["warnings"].append("The image is resized for model reading; the original file and its checksum are retained.")
-            item = self.ai.update(owner, "AI_ATTACHMENT", item, {"status": "ready", "objectKey": original_key, "extractedKey": key, **vision, **{k: document[k] for k in ("pages", "sheets", "warnings", "visual") if k in document}})
+            item = self.ai.update(owner, "AI_ATTACHMENT", item, {"status": "ready", "objectKey": original_key, "extractedKey": key, "extractedSha256": hashlib.sha256(extracted).hexdigest(), **vision, **{k: document[k] for k in ("pages", "sheets", "warnings", "visual") if k in document}})
             return response(200, {"attachment": clean(item)})
         fail(405, "This attachment operation is not supported.")
 
@@ -252,15 +256,37 @@ class AiAttachments:
         if provider and item.get("visual"):
             target = {**item, "objectKey": item.get("visionKey", item["objectKey"])}
             return {"attachment": clean(item), "url": self.url(target), "providerMediaType": item.get("providerMediaType", item["mediaType"]), "providerSha256": item.get("providerSha256", item["sha256"])}
-        document = json.loads(self.services.s3.get_object(Bucket=self.services.bucket, Key=item["extractedKey"])["Body"].read(16 * 1024 ** 2))
-        offset = payload.get("offset", 0)
-        if type(offset) is not int or offset < 0:
-            fail(400, "Use a nonnegative section offset.")
-        sections, length = [], 0
-        for section in document["sections"][offset:offset + 100]:
-            if length + len(section["text"]) > 16000:
-                if not sections:
-                    sections.append({**section, "text": section["text"][:16000], "truncated": True})
-                break
-            sections.append(section); length += len(section["text"])
-        return {"attachment": clean(item), "sections": clean(sections), "totalSections": len(document["sections"]), "nextOffset": offset + len(sections) if offset + len(sections) < len(document["sections"]) else None, "warnings": document["warnings"], "untrusted": True}
+        from backend.local_api.domain.ai_observation import compact_observation
+        from backend.local_api.domain.ai_paper_index import search_document, selected_indices
+        source = self.services.s3.get_object(Bucket=self.services.bucket, Key=item["extractedKey"])["Body"]
+        try: raw = source.read(24 * 1024 ** 2 + 1)
+        finally: source.close()
+        if len(raw) > 24 * 1024 ** 2 or item.get("extractedSha256") and hashlib.sha256(raw).hexdigest() != item["extractedSha256"]:
+            fail(409, "Extracted attachment evidence failed its size/checksum check.", "AI_ATTACHMENT_CHECKSUM")
+        document = json.loads(raw)
+        if payload.get("search"):
+            return {"attachment": clean(item), **compact_observation(clean(search_document(document, payload)), 14000), "untrusted": True}
+        offset, text_offset = payload.get("offset", 0), payload.get("textOffset", 0)
+        if type(offset) is not int or offset < 0 or type(text_offset) is not int or text_offset < 0 or type(payload.get("includeIndex", False)) is not bool:
+            fail(400, "Use nonnegative section/text offsets and a boolean includeIndex.")
+        indices = [i for i in selected_indices(document, payload) if i >= offset]
+        sections, length, next_offset, next_text = [], 0, None, 0
+        for position, index in enumerate(indices):
+            section = document["sections"][index]
+            text = section['text'][text_offset if position == 0 else 0:]
+            budget = 7000 - length
+            if budget < 256:
+                next_offset = index; break
+            excerpt = text.encode()[:budget].decode('utf-8', errors='ignore')
+            sections.append({**section, 'sectionIndex': index, 'text': excerpt, **({'truncated': True} if excerpt != text else {})})
+            length += len(excerpt.encode())
+            if excerpt != text:
+                next_offset, next_text = index, (text_offset if position == 0 else 0) + len(excerpt); break
+            if position + 1 < len(indices): next_offset = indices[position + 1]
+            else: next_offset = None
+        result = {"attachment": clean(item), "sections": clean(sections), "totalSections": len(document["sections"]),
+                  "nextOffset": next_offset, "nextTextOffset": next_text, "filters": {k: payload[k] for k in ('section', 'pageStart', 'pageEnd') if k in payload},
+                  "warnings": compact_observation(document["warnings"], 2000), "untrusted": True}
+        if payload.get('includeIndex'):
+            result['index'] = compact_observation({k: document[k] for k in ('toc', 'pagesIndex', 'captions', 'references', 'indexLimits') if k in document}, 6000)
+        return compact_observation(result, 16000)
