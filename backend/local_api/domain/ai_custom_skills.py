@@ -9,6 +9,11 @@ from backend.local_api.domain.phynite_core import ApiError, json_safe
 
 TASKS = {'work', 'plan', 'research', 'summary'}
 ACTION_TOOLS = {
+    'run_mlip': {'run_mlip'}, 'cancel_mlip': {'cancel_mlip'},
+
+    'start_campaign': {'start_campaign'}, 'cancel_campaign': {'cancel_campaign'},
+
+    'start_discovery': {'start_discovery'}, 'cancel_discovery': {'cancel_discovery'},
     'modify_structure': {'modify_structure'}, 'derive_structure': {'derive_structure'},
     'import_structure': {'import_structure', 'import_crystal_structure'}, 'import_md_potential': {'import_md_potential'},
     'save_workflow': {'edit_canvas', 'configure_qe_compute'}, 'run_workflow': {'run_workflow'}, 'cancel_workflow': {'cancel_workflow'},
@@ -17,12 +22,15 @@ ACTION_TOOLS = {
     'save_figure': {'create_figure', 'edit_figure'}, 'export_figure': {'export_figure'},
 }
 READ_OPERATIONS = {
-    'record_progress': {'ledger'}, 'read_compute': {'compute'}, 'list_job_artifacts': {'job_artifacts'},
+    'get_discovery_status': {'discovery_status'},
+    'get_campaign_status': {'campaign_status'},
+    'read_mlip_runtime': {'mlip_runtime'}, 'get_mlip_result': {'mlip_result'}, 'propose_mlip_dft': {'mlip_promotions'},
+    'capture_viewport': {'capture_request', 'capture_status'}, 'record_progress': {'ledger'}, 'read_compute': {'compute'}, 'list_job_artifacts': {'job_artifacts'},
     'read_job_file': {'job_file'}, 'query_dataset': {'dataset_query'}, 'search_md_potentials': {'potential_search'},
     'list_active_jobs': {'jobs'}, 'get_job_status': {'job_status'}, 'get_worker_status': {'worker_status'},
     'diagnose_calculation': {'calculation_diagnosis'}, 'preview_md_input': {'md_preview'},
-    'read_report': {'report'}, 'read_artifact': {'artifact_get'}, 'publish_artifact': {'artifact_publish'},
-    'update_artifact': {'artifact_update'}, 'read_attachment': {'attachment_read'}, 'search_attachment': {'attachment_search'},
+    'create_manuscript': {'manuscript_create'}, 'read_report': {'report'}, 'read_artifact': {'artifact_get'}, 'publish_artifact': {'artifact_publish'},
+    'update_artifact': {'artifact_update'}, 'propose_artifact_patch': {'artifact_propose'}, 'read_attachment': {'attachment_read'}, 'search_attachment': {'attachment_search'},
     'read_resource': {'read'}, 'read_canvas': {'canvas'},
 }
 TOOL_NAMES = set(READ_OPERATIONS) | set().union(*ACTION_TOOLS.values()) | {

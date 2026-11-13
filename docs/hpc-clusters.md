@@ -47,7 +47,7 @@ Native MD continues to use **Your computer**; remote LAMMPS is unavailable.
 
 Results require a terminal scheduler status with a successful exit code, a
 checksum-valid result inventory and positive scientific convergence evidence.
-Harvest is limited to 64 MiB per file and 256 MiB per result set. Missing or
+Harvest is limited to 256 MiB per file and 512 MiB per result set. Missing or
 oversized required artifacts require manual reconciliation instead of partial
 scientific success. Scratch and checkpoints remain on the cluster. Profile
 updates retain workers for active jobs using older immutable snapshots.
@@ -67,3 +67,25 @@ still require manual reconciliation. Inspect the
 receipt in the local workspace's `work/hpc` directory, the scheduler job and
 remote scratch before explicitly starting another run. Phynite never resubmits
 an uncertain job or automatically restarts the solver.
+
+## Python setup and SCF state reuse
+
+**Auto Setup Venv** explicitly creates a private remote `$HOME/.phynite-venv`
+and installs the displayed scientific packages. It requires writable home storage,
+Python 3.10+ and access to the package index. Existing unmanaged directories and
+symlinks are rejected. Concurrent setup is locked; a profile changed during setup
+must be reloaded before the new interpreter can be applied. A successful login-node
+setup does not qualify the compute nodes or a scientific calculation.
+
+Canvas Bands accepts either a saved structure (SCF and Bands in one calculation)
+or an SCF output (the shared model and immutable state are inherited). Each workflow
+stage waits for verified upstream results and uses a separate scheduler allocation.
+Single-allocation pipeline fusing and early dependent-job submission are unavailable.
+An exact-checksummed retained SCF archive can be copied on the cluster to avoid
+uploading that state again. Missing or changed retained archives fall back to the
+verified local upload. Extraction and QE execution use private copies; upstream
+scratch is never hardlinked into writable solver state.
+
+The compute advisor gives qualitative hints from atom count, mesh and calculation
+type. It does not estimate elapsed time or guarantee speedup. Resource checks,
+cutoffs, bands, convergence, available hardware and queue conditions still apply.

@@ -69,6 +69,11 @@ export function buildWorkflowComputePlan(graph: ProjectWorkflow, plan: WorkflowP
         : item.error || 'Resolve the module inputs and review a valid cluster profile and allocation before submitting.',
     });
   }
+  const chained = hpc.filter(node => plan.nodes.find(item => item.nodeId === node.id)?.sourceScfNodeId);
+  if (chained.length) result.checks.push({
+    id: 'hpc:scf-reuse', label: 'Shared SCF state', status: 'ready',
+    detail: 'Downstream stages wait for verified SCF results and use separate scheduler jobs. Retained cluster state can avoid repeat uploads only when its bundle checksum matches.',
+  });
   if (plan.errors.length) result.checks.push({ id: 'modules', label: 'Module inputs', status: 'blocked', detail: 'Resolve the module errors below before starting a run.' });
   result.ready = result.checks.every(check => check.status === 'ready');
   return result;

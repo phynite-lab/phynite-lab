@@ -56,6 +56,17 @@ class DesktopApplication:
         self.pseudopotentials = PseudopotentialManager(self.data_dir)
         self.token = secrets.token_urlsafe(48)
         self.closed = threading.Event()
+        from backend.local_api.mlip_runtime import MlipRuntime
+        from backend.local_api.domain.ai_mlip import MlipJobs
+        self.mlip = MlipRuntime(self.data_dir, None)
+        self.services.mlip_runtime = self.mlip
+        self.mlip_jobs = MlipJobs(PhyniteApi(self.services), self.mlip)
+
+        from backend.local_api.domain.ai_campaign import CampaignSupervisor
+        self.campaigns = CampaignSupervisor(PhyniteApi(self.services))
+
+        from backend.local_api.domain.ai_discovery import DiscoverySupervisor
+        self.discovery = DiscoverySupervisor(PhyniteApi(self.services))
         self.workers: list[subprocess.Popen] = []
         self.worker_slots: dict[subprocess.Popen, int] = {}
         self.worker_started: dict[subprocess.Popen, float] = {}
@@ -80,6 +91,9 @@ class DesktopApplication:
         else:
             manifest = ROOT / "backend/local_api/runtime-manifest.json"
             self.runtime = RuntimeManager(self.data_dir, manifest if manifest.is_file() else None)
+            self.mlip.base = self.runtime
+
+            self.services.discovery_runtime = self.runtime
             self.scheduler = ResourceScheduler(self.data_dir)
 
     def worker_job(self, headers, job_id: str) -> dict:
@@ -96,7 +110,7 @@ class DesktopApplication:
     def hpc_request(self, method: str, path: str, raw: bytes, headers, query: dict) -> dict:
         """Serve owner-scoped HPC profiles and immutable worker snapshots."""
         import re
-        from backend.local_api.hpc_profiles import HpcProfileStore, detect_scratch_root, probe_profile, resolve_scratch_root
+        from backend.local_api.hpc_profiles import HpcProfileStore, detect_scratch_root, probe_profile, resolve_scratch_root, setup_cluster_venv
 
         store = HpcProfileStore(self.services)
         detect_scratch = path == "/__local/hpc/clusters/detect-scratch"
@@ -120,6 +134,7 @@ class DesktopApplication:
 
         collection = path == "/__local/hpc/clusters"
         probe = re.fullmatch(r"/__local/hpc/clusters/([A-Za-z0-9][A-Za-z0-9_.@-]{0,95})/probe", path)
+        setup_venv = re.fullmatch(r"/__local/hpc/clusters/([A-Za-z0-9][A-Za-z0-9_.@-]{0,95})/setup-venv", path)
         if collection and method == "GET":
             return response(200, {"clusters": store.list()})
         if collection and method == "POST":
@@ -133,6 +148,12 @@ class DesktopApplication:
             if not profile:
                 raise ApiError(404, "HPC profile was not found.", "HPC_PROFILE_NOT_FOUND")
             return response(200, {"probe": probe_profile(profile)})
+        if setup_venv and method == "POST":
+            payload = json.loads(raw or b"{}") if raw else {}
+            if not isinstance(payload, dict) or set(payload) - {'venvPath'}:
+                raise ApiError(400, 'Setup accepts only an optional absolute venvPath.', 'INVALID_HPC_PROFILE')
+            custom_path = payload.get("venvPath")
+            return response(200, setup_cluster_venv(store, setup_venv[1], custom_venv_path=custom_path))
         if not member:
             raise ApiError(404, "HPC route was not found.", "NOT_FOUND")
         identifier = member[1]
@@ -312,6 +333,11 @@ class DesktopApplication:
     def maintain(self):
         while not self.closed.wait(1):
             try:
+                self.mlip_jobs.tick()
+
+                self.campaigns.tick()
+
+                self.discovery.tick()
                 self.maintain_hpc_workers()
                 hpc_ready = any(process.poll() is None for process in self.hpc_workers.values())
                 if not self.runtime or not self.scheduler:
@@ -422,6 +448,16 @@ class DesktopApplication:
             return response(200, self.materials_project.search(query.get('q'), limit, options))
         if path.startswith('/__local/materials-project/'):
             raise ApiError(404, 'Unknown Materials Project operation.', 'NOT_FOUND')
+        if path == '/__local/mlip' and method == 'GET':
+            return response(200, self.mlip.status())
+        if path == '/__local/mlip/install' and method == 'POST':
+            if payload != {'acceptModelLicense': True}:
+                raise ApiError(400, 'Review the separate MLIP installation and model license.', 'MLIP_SETUP_REQUIRED')
+            def install_mlip():
+                try: self.mlip.install()
+                except Exception: return  # precise failure is retained in setup progress
+            threading.Thread(target=install_mlip, daemon=True).start()
+            return response(202, {'accepted': True})
         if path == "/__local/runtime" and method == "GET":
             worker = self.services.get_item(self.services.owner, 'PERSONAL_WORKER', 'primary') or {}
             online = int(worker.get('lastSeenAtEpoch') or 0) > time.time() - 90
@@ -508,6 +544,8 @@ class DesktopApplication:
 
     def close(self):
         self.closed.set()
+        for process in self.mlip_jobs.processes.values():
+            if process.poll() is None: process.terminate()
         self.connections.close()
         self.stop_workers()
         if self.scheduler:

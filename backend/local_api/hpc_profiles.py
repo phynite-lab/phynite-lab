@@ -288,10 +288,12 @@ class HpcProfileStore:
                         return True
         return False
 
-    def save(self, raw: Any, identifier: str | None = None) -> dict[str, Any]:
+    def save(self, raw: Any, identifier: str | None = None, *, expected_checksum: str | None = None) -> dict[str, Any]:
         transaction = self.services.table.atomic() if hasattr(self.services.table, "atomic") else nullcontext()
         with transaction:
             existing = self.get(identifier) if identifier else None
+            if expected_checksum is not None and (not existing or existing.get('profileSha256') != expected_checksum):
+                raise ApiError(409, 'HPC profile changed during venv setup. Reload the profile before applying the Python path.', 'HPC_PROFILE_CHANGED')
             profile = validate_profile(raw, self.owner_id, profile_id=identifier, created_at=existing.get("createdAt") if existing else None)
             if profile.get("isDefault"):
                 for item in self.list():
@@ -442,3 +444,32 @@ def probe_profile(profile: dict[str, Any]) -> dict[str, Any]:
         return result
     except (HpcSshError, OSError, ValueError) as exc:
         return {"ok": False, "latencyMs": 0, "error": str(exc), "solvers": {}, "schedulers": {}}
+
+
+def setup_cluster_venv(store: HpcProfileStore, profile_id: str, custom_venv_path: str | None = None) -> dict[str, Any]:
+    """Execute 1-click automatic venv creation and package installation on the cluster."""
+    import copy
+    from backend.local_worker.hpc_ssh import HpcSshError
+    profile = store.get(profile_id)
+    if not profile:
+        raise ApiError(404, "HPC profile was not found.", "HPC_PROFILE_NOT_FOUND")
+    try:
+        client = _ssh_client(profile["connection"])
+        runtime = profile.get("runtime", {})
+        modules = runtime.get("environmentModules", [])
+        base_python = runtime.get("pythonExecutable")
+        if base_python and (".phynite-venv" in base_python or (custom_venv_path and custom_venv_path in base_python)):
+            base_python = None
+        result = client.setup_python_venv(modules=modules, venv_path=custom_venv_path, base_python=base_python)
+        if not result.get("ok"):
+            return result
+        py_exec = result.get("pythonExecutable")
+        if py_exec:
+            updated = copy.deepcopy(profile)
+            updated.setdefault("runtime", {})["pythonExecutable"] = py_exec
+            saved_profile = store.save(updated, profile_id, expected_checksum=profile["profileSha256"])
+            probe = probe_profile(saved_profile)
+            return {**result, "probe": probe, "cluster": saved_profile}
+        return result
+    except (HpcSshError, OSError, ValueError) as exc:
+        return {"ok": False, "error": str(exc)}

@@ -5,6 +5,7 @@ import type { WorkflowNode } from './project-workflow.ts';
 import { qeMethodIssue } from './qe-input.ts';
 import type { ProjectWorkflow } from './project-workflow.ts';
 import type { ParsedStructure } from './structure-parsers.ts';
+export { manuscriptFigure } from './manuscript-evidence.ts';
 export { modifyAiStructure } from './ai-structure-tools.ts';
 
 /** Same compiler and defaults in the browser and the Python control plane. */

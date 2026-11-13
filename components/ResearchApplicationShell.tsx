@@ -130,7 +130,7 @@ function ResearchApplicationShell({ children }: { children: ReactNode }) {
   const resizeCleanup = useRef<(() => void) | null>(null);
   const handlers = useRef(new Map<NavigationSection, Set<(target: NavigationSection, href: string) => boolean | Promise<boolean>>>());
   const request = useRef(0);
-  const unread = useInboxUnread(owner);
+  const unread = useInboxUnread(session?.mode === 'local' ? undefined : owner);
   const refreshProjects = useCallback((event?: unknown) => {
     const removedId = event instanceof CustomEvent ? event.detail?.removedProjectId : undefined;
     if (typeof removedId === 'string') setRemote(items => items.filter(item => item.id !== removedId));
@@ -169,7 +169,7 @@ function ResearchApplicationShell({ children }: { children: ReactNode }) {
     const remember = (event: Event) => {
       const target = event.target;
       if (!(target instanceof Element) || event.type === 'focusin' && target === document.body) return;
-      compactControlFocus.current = target.closest('.lab-account-menu') ? 'account' : target.closest('.workspace-resources-meter') ? 'resources' : null;
+      compactControlFocus.current = target.closest('.lab-account-menu, .lab-local-connection-actions') ? 'account' : target.closest('.workspace-resources-meter') ? 'resources' : null;
     };
     const clear = () => { compactControlFocus.current = null; };
     document.addEventListener('focusin', remember, true);
@@ -189,7 +189,7 @@ function ResearchApplicationShell({ children }: { children: ReactNode }) {
       setMobileLayout(media.matches); setMobileOpen(false); setPreview(null);
       requestAnimationFrame(() => {
         if (resourceFocused) document.querySelector<HTMLElement>('.workspace-resources-meter')?.focus({ preventScroll: true });
-        else if (accountFocused) document.querySelector<HTMLElement>(media.matches ? '.lab-account-menu--mobile .lab-account-toggle' : '.lab-account-menu--rail .lab-account-toggle')?.focus({ preventScroll: true });
+        else if (accountFocused) document.querySelector<HTMLElement>(media.matches ? '.lab-account-menu--mobile .lab-account-toggle, .lab-local-connection-actions[data-account-variant="mobile"] a' : '.lab-account-menu--rail .lab-account-toggle, .lab-local-connection-actions[data-account-variant="rail"] a')?.focus({ preventScroll: true });
         else if (navigationFocused) (media.matches ? document.querySelector<HTMLElement>('.workflow-history-controls button[aria-controls="research-navigation"]') ?? mobileTrigger.current : document.querySelector<HTMLElement>('.research-icon-rail > a'))?.focus({ preventScroll: true });
       });
     };

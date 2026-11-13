@@ -71,3 +71,17 @@ test('RTL flips start and end alignment without escaping the pane', () => {
   assert.equal(placeAiOverlay({ ...options, rtl: true, align: 'start' }).left + 400, trigger.right);
   assert.equal(placeAiOverlay({ ...options, rtl: true, align: 'end' }).left, trigger.left);
 });
+
+test('Discovery reserves composer space even when mobile content needs scrolling', () => {
+  for (const width of [320, 390, 720, 1440]) {
+    const composerTop = 260;
+    const available = { left: 12, right: width - 12, top: 12, bottom: composerTop - 8 };
+    const pane = rect(0, 44, width, 356), anchor = rect(60, composerTop, 36, 0);
+    const result = placeAiOverlay({ viewport: available, pane, bounds: pane, anchor, contentHeight: 900, minimumHeight: 150 });
+    assert.ok(result.top >= available.top);
+    assert.ok(result.top + result.maxHeight <= composerTop - 8);
+    assert.ok(result.maxHeight >= 150);
+    assert.ok(result.left + result.width <= available.right);
+    assert.equal(result.side, width < 480 ? 'sheet' : 'above');
+  }
+});

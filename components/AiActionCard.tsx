@@ -1,9 +1,16 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowRight, Check, CheckCircle2, ChevronRight, CircleDashed, Download, FileCode2, GitCompareArrows, Layers, Play, X } from 'lucide-react';
+import { MlipJobStatus } from './MlipJobStatus';
+
+import { AiCampaignStatus } from './AiCampaignStatus';
+
+import { AiDiscoveryStatus } from './AiDiscoveryStatus';
 import { useLocale } from '@/app/locale-provider';
 import { aiFieldChanges, aiFieldLabel } from '@/lib/ai-action-summary';
+import { parseProjectWorkflow } from '@/lib/project-workflow';
+import type { AiCanvasPreviewHandler } from '@/lib/workflow-auto-layout';
 import type { AiAction } from '@/lib/ai-contract';
 import type { FigureDocument, ResearchDataset } from '@/lib/research-figures';
 
@@ -36,10 +43,13 @@ async function actionRequest<T>(conversation: string, action: string, query = ''
   if (!response.ok) throw new Error(`${data.error ?? 'The action could not be read.'}${data.code ? ` [${data.code}]` : ''}${data.requestId ? ` · ${data.requestId}` : ''}`);
   return data;
 }
-export function AiActionCard({ action, conversationId, locked, onDecision, onCanvas }: { action: AiAction; conversationId: string; locked: boolean; onDecision: (action: AiAction, decision: 'approve' | 'reject') => Promise<void>; onCanvas?: (ids: string[]) => void }) {
+export function AiActionCard({ action, conversationId, locked, onDecision, onCanvas, onCanvasPreview }: { onCanvasPreview?: AiCanvasPreviewHandler; action: AiAction; conversationId: string; locked: boolean; onDecision: (action: AiAction, decision: 'approve' | 'reject') => Promise<void>; onCanvas?: (ids: string[]) => void }) {
   const { t } = useLocale();
   const [preview, setPreview] = useState<unknown>(), [error, setError] = useState(''), [loading, setLoading] = useState(false);
   const pending = action.status === 'pending';
+  const previewCallback = useRef(onCanvasPreview);
+  useEffect(() => { previewCallback.current = onCanvasPreview; }, [onCanvasPreview]);
+  useEffect(() => { if (action.status !== 'pending') previewCallback.current?.(null, action.id); }, [action.status, action.id]);
   const rawChanges = (action.after as { changes?: unknown } | null)?.changes;
   const changes = Array.isArray(rawChanges) ? rawChanges.filter((item): item is { nodeId: string; name?: string; operation: string; before: unknown; after: unknown } => !!item && typeof item === 'object' && typeof item.nodeId === 'string') : [];
   const review = async () => { setLoading(true); setError(''); try { setPreview((await actionRequest<{ preview: unknown }>(conversationId, action.id)).preview); } catch (failure) { setError((failure as Error).message); } finally { setLoading(false); } };
@@ -64,11 +74,14 @@ export function AiActionCard({ action, conversationId, locked, onDecision, onCan
       {preview !== undefined && <Disclosure title={t('Input and parameters', 'Input dan parameter')} icon={<FileCode2 size={15} />} open><PreviewValues value={preview} /><details className="ai-raw-data"><summary>{t('Exact payload · SHA-256', 'Payload lengkap · SHA-256')}</summary><code>{action.payloadHash}</code><pre>{JSON.stringify(preview, null, 2)}</pre></details></Disclosure>}
       {action.result && <Disclosure title={t('Execution result', 'Hasil eksekusi')} icon={<Play size={15} />}><DataValue value={action.result} /></Disclosure>}
     </div>
-    <footer className="ai-action-footer"><button className="ai-review-button" onClick={() => void review()} disabled={loading}><FileCode2 size={14} />{t('Review exact input', 'Tinjau input lengkap')}</button>
+    {action.status === 'succeeded' && action.kind === 'start_discovery' && typeof action.result?.discoveryId === 'string' && <AiDiscoveryStatus conversationId={conversationId} discoveryId={action.result.discoveryId} />}
+    {action.status === 'succeeded' && action.kind === 'start_campaign' && typeof action.result?.campaignId === 'string' && <AiCampaignStatus conversationId={conversationId} campaignId={action.result.campaignId} />}
+    {action.status === 'succeeded' && action.kind === 'run_mlip' && typeof action.result?.mlipId === 'string' && <MlipJobStatus conversationId={conversationId} jobId={action.result.mlipId} />}
+    <footer className="ai-action-footer">{pending && action.kind === 'save_workflow' && preview !== undefined && <button className="ai-review-button" onClick={() => { try { const data = preview as { workflow: unknown; baseRevision: number; nodeIds?: string[] }; onCanvasPreview?.({ conversationId, actionId: action.id, payloadHash: action.payloadHash, expiresAt: action.expiresAt, baseRevision: data.baseRevision, workflow: parseProjectWorkflow(data.workflow) }); onCanvas?.(data.nodeIds ?? []); } catch (failure) { setError((failure as Error).message); } }}>{t('Preview on Canvas', 'Preview di Kanvas')}</button>}<button className="ai-review-button" onClick={() => void review()} disabled={loading}><FileCode2 size={14} />{t('Review exact input', 'Tinjau input lengkap')}</button>
       {action.status === 'succeeded' && action.kind === 'save_workflow' && Array.isArray(action.result?.nodeIds) && <button className="ai-review-button" onClick={() => onCanvas?.((action.result!.nodeIds as unknown[]).filter((id): id is string => typeof id === 'string'))}>{t('Show changes on Canvas', 'Lihat perubahan di Kanvas')}<ArrowRight size={14} /></button>}
       {action.status === 'succeeded' && action.kind === 'export_figure' && <button className="ai-button" disabled={loading} onClick={() => void download()}><Download size={14} />{t('Download figure', 'Unduh figure')}</button>}
     </footer>
-    {pending && <div className="ai-action-buttons"><button className="ai-button" disabled={locked || loading || preview === undefined} onClick={() => void onDecision(action, 'approve')}><Check size={14} />{t('Approve action', 'Setujui aksi')}</button><button className="ai-button ai-button-secondary" disabled={locked || loading} onClick={() => void onDecision(action, 'reject')}><X size={14} />{t('Reject', 'Tolak')}</button></div>}
+    {pending && <div className="ai-action-buttons"><button className="ai-button" disabled={locked || loading || preview === undefined} onClick={() => { onCanvasPreview?.(null, action.id); void onDecision(action, 'approve'); }}><Check size={14} />{t('Approve action', 'Setujui aksi')}</button><button className="ai-button ai-button-secondary" disabled={locked || loading} onClick={() => { onCanvasPreview?.(null, action.id); void onDecision(action, 'reject'); }}><X size={14} />{t('Reject', 'Tolak')}</button></div>}
     {action.error && <p className="ai-action-error" role="alert">{action.error}</p>}{error && <p className="ai-action-error" role="alert">{error}</p>}
   </section>;
 }

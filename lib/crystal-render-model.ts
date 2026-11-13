@@ -284,9 +284,11 @@ export function buildCrystalRenderModel(
   return {
     atoms: Array.from(atomByInstance.values()),
     primaryAtomCount: primaryAtoms.length,
+    repeats,
     bonds,
     omittedBonds,
     edges,
+    fractionalToWorld: (point: CrystalPoint) => toWorldOffset({ x: point[0], y: point[1], z: point[2] } as CustomAtom, [0, 0, 0]).toArray() as CrystalPoint,
     worldToFractional,
   };
 }

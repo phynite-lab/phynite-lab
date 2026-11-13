@@ -22,12 +22,12 @@ export type WorkflowHpcCompute = {
 };
 export type WorkflowPlan = { compilerSha256?: string | null; revision: number; targets: string[]; order: string[]; nodes: Array<{ nodeId: string; fingerprint: string; action: 'run' | 'reuse' | 'input' | 'prepare'; sourceScfNodeId?: string; force?: boolean; validationDeferred?: boolean; error?: string; compute?: WorkflowHpcCompute }>; errors: Array<{ nodeId: string; message: string }>; compute: { pricing: 'existing'; md: 'personal'; requiresConfirmation: true; estimatedQuanta?: number | null; hasSharedCompute?: boolean } };
 
-export const workflowModules: Record<WorkflowKind, { en: string; id: string; input?: WorkflowPort; output: WorkflowPort; multiple?: boolean }> = {
+export const workflowModules: Record<WorkflowKind, { en: string; id: string; input?: WorkflowPort; inputs?: WorkflowPort[]; output: WorkflowPort; multiple?: boolean }> = {
   structure: { en: 'Crystal structure', id: 'Struktur kristal', output: 'structure' },
   trajectory: { en: 'Imported trajectory', id: 'Impor trajectory', output: 'trajectory' },
   relax: { en: 'Relaxation', id: 'Relaksasi', input: 'structure', output: 'structure' },
   scf: { en: 'SCF / Total energy', id: 'SCF / Energi total', input: 'structure', output: 'electronic' },
-  bands: { en: 'Band structure', id: 'Struktur pita', input: 'electronic', output: 'dataset' },
+  bands: { en: 'Band structure', id: 'Struktur pita', input: 'electronic', inputs: ['electronic', 'structure'], output: 'dataset' },
   dos: { en: 'DOS / PDOS', id: 'DOS / PDOS', input: 'electronic', output: 'dataset' },
   phonon: { en: 'Phonon', id: 'Fonon', input: 'electronic', output: 'dataset' },
   btp2: { en: 'BTP2 transport', id: 'Transport BTP2', input: 'electronic', output: 'dataset' },
@@ -37,6 +37,12 @@ export const workflowModules: Record<WorkflowKind, { en: string; id: string; inp
   figure: { en: 'Figure', id: 'Figure', input: 'dataset', output: 'dataset', multiple: true },
   legacy: { en: 'Legacy configuration', id: 'Konfigurasi legacy', output: 'dataset' },
 };
+export function workflowAllowedInputs(kind: WorkflowKind): WorkflowPort[] {
+  const mod = workflowModules[kind];
+  if (!mod) return [];
+  if (mod.inputs) return mod.inputs;
+  return mod.input ? [mod.input] : [];
+}
 const identifier = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z0-9_-]{1,200}$/.test(value);
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 export const emptyProjectWorkflow = (projectId: string): ProjectWorkflow => ({ version: 1, projectId, nodes: [], edges: [], groups: [] });
@@ -87,8 +93,8 @@ export function workflowConnectionError(graph: ProjectWorkflow, edge: Pick<Workf
   if (!source || !target) return 'Connect nodes inside this project.';
   if (source.kind === 'figure') return 'Figure is an output. Connect a calculation or analysis dataset.';
   if (source.id === target.id) return 'A node cannot connect to itself.';
-  const out = workflowModules[source.kind].output, input = workflowModules[target.kind].input;
-  if (edge.port !== input || out !== input) return 'These module inputs and outputs are incompatible.';
+  const out = workflowModules[source.kind].output, allowed = workflowAllowedInputs(target.kind);
+  if (!allowed.includes(edge.port) || !allowed.includes(out) || edge.port !== out) return 'These module inputs and outputs are incompatible.';
   if (!workflowModules[target.kind].multiple && graph.edges.some(item => item.target === target.id)) return 'Disconnect the current input before selecting another source.';
   const pending = [target.id], seen = new Set<string>();
   while (pending.length) {
@@ -157,13 +163,14 @@ export async function workflowFingerprints(graph: ProjectWorkflow): Promise<Reco
     const node = graph.nodes.find(item => item.id === id)!;
     const inputs = graph.edges.filter(edge => edge.target === id).map(edge => ({ port: edge.port, fingerprint: fingerprints[edge.source] })).sort((a, b) => stableWorkflowJson(a).localeCompare(stableWorkflowJson(b)));
     const resources = node.resources.map(ref => ({ kind: ref.kind, id: ref.id, ...(ref.deviceOnly ? { deviceOnly: true } : {}) }));
-    const bytes = new TextEncoder().encode(stableWorkflowJson({ kind: node.kind, configuration: scientificWorkflowConfiguration(node.configuration, node.kind), resources, inputs }));
+    const bytes = new TextEncoder().encode(stableWorkflowJson({ kind: node.kind, configuration: scientificWorkflowConfiguration(node.configuration, node.kind, graph.edges.some(edge => edge.target === id && edge.port === 'electronic')), resources, inputs }));
     fingerprints[id] = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), byte => byte.toString(16).padStart(2, '0')).join('');
   }
   return fingerprints;
 }
-export function scientificWorkflowConfiguration(configuration: Record<string, unknown>, kind?: WorkflowKind): Record<string, unknown> {
+export function scientificWorkflowConfiguration(configuration: Record<string, unknown>, kind?: WorkflowKind, inheritsScf?: boolean): Record<string, unknown> {
   const result = structuredClone(configuration);
+  delete result.standalone;
   if (configuration.compilerVersion === 1 || kind && DFT_WORKFLOW_KINDS.has(kind) && record(configuration.draft) || kind === 'md' && Array.isArray(configuration.components)) delete result.execution;
   for (const key of ['savedStructureSignature', 'configurationError', 'legacySource', 'preservedHistory', 'plotSettings', 'elementMapText', 'style', 'compilerVersion', 'estimatedComputeSeconds', 'formula', 'missingInputs', 'parameterStudy', 'pseudopotentialChecksums', 'computeTarget', 'cloudMode', 'computeProfileId', 'vcpus', 'memoryMiB', 'resolvedHpcCompute']) delete result[key];
   for (const key of ['structure', 'draft', 'execution']) {
@@ -185,7 +192,8 @@ export function scientificWorkflowConfiguration(configuration: Record<string, un
     if (key === 'draft') {
       for (const draftUiKey of ['calculations', 'plotYMin', 'plotYMax']) delete value[draftUiKey];
       if (kind && DFT_WORKFLOW_KINDS.has(kind)) {
-        if (DFT_BRANCH_KINDS.has(kind) && !String(value.rawInput ?? '').trim()) {
+        const isBranch = DFT_BRANCH_KINDS.has(kind) && (kind !== 'bands' || (inheritsScf ?? configuration.standalone !== true));
+        if (isBranch && !String(value.rawInput ?? '').trim()) {
           for (const draftKey of Object.keys(value)) {
             if (draftKey in DEFAULT_QE_DRAFT && !WORKFLOW_BRANCH_FIELDS.has(draftKey)) delete value[draftKey];
           }

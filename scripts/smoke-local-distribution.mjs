@@ -107,7 +107,7 @@ async function api(page, path, method = 'GET', payload) {
 }
 
 async function contextFor(origin, viewport) {
-  const context = await browser.newContext({ viewport, locale: 'en-US', serviceWorkers: 'block' });
+  const context = await browser.newContext({ viewport, isMobile: viewport.width <= 520, hasTouch: viewport.width <= 520, locale: 'en-US', serviceWorkers: 'block' });
   const externalRequests = [];
   await context.addCookies([{ name: 'phynite-language', value: 'en', url: origin }]);
   await context.route('**/*', route => {
@@ -129,6 +129,61 @@ async function visit(page, origin, path) {
   if (path === '/account/compute') await expect(page.getByRole('heading', { name: 'Compute', exact: true })).toBeVisible();
   if (path === '/account/account') await expect(page.getByRole('heading', { name: 'Phynite Cloud', exact: true })).toBeVisible();
   if (path === '/workspace') await expect(page.getByRole('button', { name: 'New project', exact: true })).toBeEnabled();
+}
+
+async function verifyComposer(page, origin, projectPath) {
+  const submissions = [];
+  const observe = request => {
+    if (request.method() !== 'GET' && new URL(request.url()).pathname.startsWith('/api/ai/')) submissions.push(request.url());
+  };
+  page.on('request', observe);
+  try {
+    // The real empty composer needs no provider, conversation or calculation.
+    await page.goto(`${origin}${projectPath}?layout=full&tab=tool%3Aai`, { waitUntil: 'domcontentloaded' });
+    const trigger = page.getByRole('button', { name: 'Discovery presets', exact: true });
+    const input = page.getByRole('textbox', { name: 'Message Phynite AI', exact: true });
+    const verifyControls = () => expect.poll(() => page.locator('.ai-composer-toolbar').evaluate(toolbar => [...toolbar.querySelectorAll('button')].every(button => {
+      const rect = button.getBoundingClientRect();
+      const size = Number.parseFloat(getComputedStyle(toolbar).getPropertyValue('--ai-control-size'));
+      return rect.width >= size && rect.height >= size && rect.left >= 0 && rect.right <= innerWidth && rect.top >= 0 && rect.bottom <= innerHeight
+        && button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+    }))).toBe(true);
+    for (const viewport of [{ width: 1440, height: 900 }, { width: 360, height: 640 }, { width: 768, height: 400 }, { width: 390, height: 340 }, { width: 720, height: 480 }, { width: 320, height: 640 }]) {
+      await page.setViewportSize(viewport);
+      await expect(trigger).toBeEnabled();
+      await verifyControls();
+      await trigger.click();
+      const discovery = page.getByRole('dialog', { name: 'Discovery presets', exact: true });
+      await expect(discovery).toBeVisible();
+      const presets = discovery.locator('.ai-agent-presets button');
+      await expect(presets).toHaveCount(3);
+      for (const preset of await presets.all()) { await preset.scrollIntoViewIfNeeded(); await expect(preset).toBeInViewport(); }
+      await discovery.getByRole('checkbox').scrollIntoViewIfNeeded();
+      await expect(discovery.getByRole('checkbox')).toBeInViewport();
+      const bounds = await discovery.boundingBox(), composer = await page.locator('.ai-composer-box').boundingBox();
+      assert.ok(bounds && composer && bounds.y + bounds.height <= composer.y, 'Discovery must preserve the complete composer.');
+      if (viewport.width === 320) await page.screenshot({ path: join(output, 'mobile-discovery.png') });
+      await presets.last().click();
+      await expect(discovery).toHaveCount(0);
+      await expect(input).toBeFocused();
+      await expect(input).toHaveValue(/Do not submit calculations\./);
+      await verifyControls();
+      await trigger.click();
+      await page.keyboard.press('Escape');
+      await expect(discovery).toHaveCount(0);
+      await expect(trigger).toBeFocused();
+      await trigger.click();
+      await input.click();
+      await expect(discovery).toHaveCount(0);
+      await expect(input).toBeFocused();
+      await trigger.click();
+      await page.getByRole('button', { name: 'AI model', exact: true }).click();
+      await expect(discovery).toHaveCount(0);
+      await expect(page.getByRole('dialog', { name: 'Model and effort', exact: true })).toBeVisible();
+      await page.keyboard.press('Escape');
+    }
+    assert.deepEqual(submissions, [], 'Preset selection and overlay navigation must not create conversations or run AI tools.');
+  } finally { page.off('request', observe); }
 }
 
 try {
@@ -171,12 +226,12 @@ try {
   activePage = page;
   await visit(page, initial.origin, '/workspace');
   await expect(page.locator('.lab-account-toggle')).toHaveCount(0);
-  const cloudLogin = page.locator('.lab-local-connection-actions:visible').getByRole('link', { name: 'Connect Phynite Cloud', exact: true }).first();
-  await expect(cloudLogin).toBeVisible();
+  const settingsAction = page.locator('.lab-local-connection-actions:visible').getByRole('link', { name: 'Settings', exact: true }).first();
+  await expect(settingsAction).toBeVisible();
   await expect(page.getByRole('menuitem', { name: 'Log out', exact: true })).toHaveCount(0);
-  await cloudLogin.click();
-  await expect(page).toHaveURL(initial.origin + '/account/account#cloud');
-  await expect(page.getByRole('heading', { name: 'Phynite Cloud', exact: true })).toBeInViewport();
+  await settingsAction.click();
+  await expect(page).toHaveURL(initial.origin + '/account/appearance');
+  await expect(page.getByRole('heading', { name: 'Appearance & language', exact: true })).toBeVisible();
   for (const path of ['/login', '/register']) {
     await page.goto(initial.origin + path, { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(initial.origin + '/account/account#cloud');
@@ -190,12 +245,25 @@ try {
   await expect(page.getByRole('button', { name: /Save gateway|Switch|Create account slot/, exact: true })).toHaveCount(0);
   await page.goto(initial.origin + '/account/compute', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'Compute', exact: true })).toBeVisible();
+  const mlip = await api(page, '/api/local/mlip');
+  assert.equal(typeof mlip.ready, 'boolean');
+  assert.equal(typeof mlip.supportedPlatform, 'boolean');
+  await page.getByRole('button', { name: 'Add Cluster', exact: true }).click();
+  const clusterDialog = page.getByRole('dialog', { name: 'Add HPC Cluster Profile', exact: true });
+  await expect(clusterDialog).toBeVisible();
+  assert.ok(await clusterDialog.evaluate(element => element.matches(':modal')));
+  await clusterDialog.getByRole('button', { name: 'Save Cluster Profile', exact: true }).focus();
+  await page.keyboard.press('Tab');
+  await expect(clusterDialog.getByRole('button', { name: 'Close HPC profile', exact: true })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(clusterDialog).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Add Cluster', exact: true })).toBeFocused();
   await expect(page.getByRole('button', { name: 'Disconnect computer', exact: true })).toHaveCount(0);
   await page.goto(initial.origin + '/account/privacy', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'Local privacy', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Manage preferences', exact: true })).toHaveCount(0);
   report.checkIds.push('local-ai-provider-connections', 'optional-cloud-no-auto-upload');
-  report.checks.push('Local workspace has no unauthenticated profile; its Cloud login and login/register pages lead to optional cloud connection; public cloud configuration matches manifest; local AI exposes only official CLI provider connections with no gateway or account-switching controls; native compute settings offer no worker pairing. No provider or cloud login was attempted.');
+  report.checks.push('Local workspace has no unauthenticated profile; its settings gear opens device preferences and login/register pages lead to optional cloud connection; public cloud configuration matches manifest; local AI exposes only official CLI provider connections with no gateway or account-switching controls; native compute settings offer no worker pairing. No provider or cloud login was attempted.');
   let simulatedCloud = true;
   await page.route('**/api/auth/session', async route => {
     const upstream = await route.fetch();
@@ -214,11 +282,11 @@ try {
     await expect(page.locator('.lab-account-popover')).toHaveCount(0);
     await expect(page).toHaveURL(initial.origin + '/workspace');
     await expect(page.locator('.lab-account-toggle')).toHaveCount(0);
-    await expect(page.locator('.lab-local-connection-actions:visible').getByRole('link', { name: 'Connect Phynite Cloud', exact: true }).first()).toBeVisible();
+    await expect(page.locator('.lab-local-connection-actions:visible').getByRole('link', { name: 'Settings', exact: true }).first()).toBeVisible();
   }
   await page.unroute('**/api/auth/session');
   await page.unroute('**/api/local/cloud/logout');
-  report.checks.push('With explicitly simulated cloud identity only: actual local logout endpoint keeps workspace open, removes the profile menu, restores Cloud login and supports a second disconnect after reconnection.');
+  report.checks.push('With explicitly simulated cloud identity only: actual local logout endpoint keeps workspace open, removes the profile menu, restores the settings gear and supports a second disconnect after reconnection.');
   await visit(page, initial.origin, '/workspace');
   await page.screenshot({ path: join(output, 'desktop-workspace.png'), fullPage: true });
   await visit(page, initial.origin, '/account/compute');
@@ -286,7 +354,7 @@ try {
   assert.deepEqual(copy.workflow.nodes[0].configuration.structure, structure);
   report.checkIds.push('project-import-export');
   report.checks.push('Desktop no-login UI; project created with UI; actual same-origin structure upload; workflow saved; real archive exported/imported as a copy.');
-  const mobile = await contextFor(initial.origin, { width: 390, height: 844 });
+  const mobile = await contextFor(initial.origin, { width: 320, height: 640 });
   const mobilePage = await mobile.context.newPage();
   activePage = mobilePage;
   for (const path of ['/workspace', '/account/compute']) {
@@ -295,14 +363,14 @@ try {
     await mobilePage.screenshot({ path: join(output, path === '/workspace' ? 'mobile-workspace.png' : 'mobile-local.png'), fullPage: true });
     if (path === '/workspace') {
       await expect(mobilePage.locator('.lab-account-toggle')).toHaveCount(0);
-      const action = mobilePage.locator('.lab-local-connection-actions:visible').getByRole('link', { name: 'Connect Phynite Cloud', exact: true }).first();
+      const action = mobilePage.locator('.lab-local-connection-actions:visible').getByRole('link', { name: 'Settings', exact: true }).first();
       await expect(action).toBeVisible();
       assert.ok(await action.evaluate(element => {
         const rect = element.getBoundingClientRect();
         return rect.left >= 0 && rect.right <= innerWidth && rect.top >= 0 && rect.bottom <= innerHeight
           && element.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
-      }), 'Local Cloud login must fit the mobile viewport and remain unobstructed.');
-      await mobilePage.screenshot({ path: join(output, 'mobile-cloud-login.png'), fullPage: true });
+      }), 'Local settings must fit the mobile viewport and remain unobstructed.');
+      await mobilePage.screenshot({ path: join(output, 'mobile-settings.png'), fullPage: true });
     } else {
       await expect(mobilePage.locator('.research-app-shell[data-settings="true"]')).toBeVisible();
       await expect(mobilePage.locator('.research-navigation')).toBeHidden();
@@ -317,9 +385,22 @@ try {
       await mobilePage.screenshot({ path: join(output, 'mobile-connections.png') });
     }
   }
+  await visit(mobilePage, initial.origin, projectPath);
+  const canvasTab = mobilePage.getByRole('tab', { name: 'Canvas', exact: true });
+  await canvasTab.click();
+  assert.ok(await canvasTab.evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    return rect.width >= 70 && rect.left >= 0 && rect.right <= innerWidth
+      && element.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+  }), 'Project tabs must retain usable width beside navigation and settings at 320px.');
+  await mobilePage.getByRole('button', { name: 'New tab', exact: true }).click();
+  await expect(mobilePage.getByRole('searchbox', { name: 'Find module', exact: true })).toBeVisible();
+  await canvasTab.click();
+  await mobilePage.screenshot({ path: join(output, 'mobile-project.png') });
+  await verifyComposer(mobilePage, initial.origin, projectPath);
   assert.deepEqual(desktop.externalRequests, []); assert.deepEqual(mobile.externalRequests, []);
   report.checkIds.push('ui-desktop-mobile');
-  report.checks.push('Mobile workspace/setup fit 390px; browser issued no external network requests before cloud/AI opt-in.');
+  report.checks.push('Workspace, setup and project tabs fit 320px; Discovery presets, evidence, focus recovery, single-overlay ownership and the complete composer remain reachable in six desktop/mobile/short/zoom-equivalent viewports, without any AI submission. No external network requests before cloud/AI opt-in.');
   await desktop.context.close(); await mobile.context.close();
   await stop();
   const restarted = await start();
@@ -349,7 +430,7 @@ try {
 } finally {
   await browser?.close();
   try { await stop(); } catch (error) { report.passed = false; report.shutdownFailure = error instanceof Error ? error.message : 'Shutdown failed'; process.exitCode = 1; }
-  for (const name of ['desktop-workspace.png', 'desktop-local.png', 'desktop-connections.png', 'desktop-project.png', 'mobile-workspace.png', 'mobile-local.png', 'mobile-cloud-login.png', 'mobile-connections.png', 'failure.png', 'launcher.log']) {
+  for (const name of ['desktop-workspace.png', 'desktop-local.png', 'desktop-connections.png', 'desktop-project.png', 'mobile-workspace.png', 'mobile-local.png', 'mobile-settings.png', 'mobile-connections.png', 'mobile-project.png', 'mobile-discovery.png', 'failure.png', 'launcher.log']) {
     try { report.artifacts.push({ path: name, sha256: createHash('sha256').update(await readFile(join(output, name))).digest('hex') }); } catch { /* Failed acceptance may have no screenshot yet. */ }
   }
   await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });

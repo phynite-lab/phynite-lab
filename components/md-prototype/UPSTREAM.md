@@ -42,3 +42,6 @@ Phynite adaptations:
   modifier for exportable geometry.
 
 See `docs/md-studio.md` for setup, scientific limits, and validation.
+
+- Scientific AI captures reuse the active WebGL renderer with per-conversation
+  opt-in, scoped source binding, camera/frame/selection/cell and clipping metadata.

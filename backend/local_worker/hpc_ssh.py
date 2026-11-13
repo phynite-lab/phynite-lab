@@ -565,6 +565,206 @@ class HpcSshConnection:
         records = _extract_framed_records(out, begin, end, {"writable"})
         return bool(records and records.get("writable") == "1")
 
+    def setup_python_venv(
+        self,
+        modules: list[str] | None = None,
+        *,
+        venv_path: str | None = None,
+        base_python: str | None = None,
+        packages: list[str] | None = None,
+        timeout: float = 300,
+    ) -> dict[str, Any]:
+        """Automatically create and configure a Python virtual environment on the cluster.
+
+        Installs scientific packages (numpy, scipy, matplotlib, seekpath, spglib, ase, pymatgen)
+        into a dedicated venv and returns the verified pythonExecutable.
+        """
+        safe_modules: list[str] = []
+        if modules is not None and not isinstance(modules, list):
+            raise HpcSshError("Environment modules are invalid; expected a list of module names.")
+        for raw in modules or []:
+            if not isinstance(raw, str):
+                raise HpcSshError("Environment modules are invalid; expected module names.")
+            value = raw.strip()
+            if value == "module purge":
+                continue
+            if value.startswith("module load "):
+                value = value[len("module load "):].strip()
+            if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.+@:/-]{0,127}", value):
+                raise HpcSshError("Environment modules must be safe module names.")
+            if value not in safe_modules:
+                safe_modules.append(value)
+
+        allowed_packages = {"numpy", "scipy", "matplotlib", "seekpath", "spglib", "ase", "pymatgen"}
+        if packages is not None and (not isinstance(packages, list) or not packages or any(not isinstance(p, str) or p not in allowed_packages for p in packages)):
+            raise HpcSshError("Choose supported scientific packages for the managed venv.")
+        target_packages = list(packages or ["numpy", "scipy", "matplotlib", "seekpath", "spglib", "ase", "pymatgen"])
+        target_packages_str = " ".join(shlex.quote(p) for p in target_packages)
+        check_modules_code = "\n".join([
+            "import importlib, sys",
+            "missing = []",
+            f"for name in {target_packages!r}:",
+            "    try:",
+            "        importlib.import_module(name)",
+            "    except Exception:",
+            "        missing.append(name)",
+            'print("%d.%d.%d|%s" % (sys.version_info[:3] + (",".join(missing),)))',
+        ])
+        check_modules_call = f"exec({check_modules_code!r})"
+
+        marker = "PHYNITE_VENV_" + uuid.uuid4().hex
+        begin, end = marker + "_BEGIN", marker + "_END"
+
+        custom_venv = _valid_remote_executable(venv_path) if venv_path is not None else None
+        custom_base = _valid_remote_executable(base_python) if base_python is not None else None
+        if venv_path is not None and not custom_venv:
+            raise HpcSshError("Venv path must be a safe absolute path.")
+        if base_python is not None and not custom_base:
+            raise HpcSshError("Base Python must be a safe absolute executable path.")
+
+        script_lines = [
+            f"printf '%s\\n' {shlex.quote(begin)}",
+            "set -e",
+            "umask 077",
+        ]
+        for name in safe_modules:
+            script_lines.append(f"module load {shlex.quote(name)} >&2 || exit 1")
+
+        script_lines.append('_ph_base=""')
+        if custom_base:
+            script_lines.append(
+                f'if [ -x {shlex.quote(custom_base)} ] && {shlex.quote(custom_base)} -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)" >/dev/null 2>&1; then\n'
+                f'  _ph_base={shlex.quote(custom_base)}\n'
+                'fi'
+            )
+        script_lines.append(
+            'if [ -z "$_ph_base" ]; then\n'
+            '  _ph_sys_py="$(command -v python3 2>/dev/null || :)"\n'
+            '  if [ -n "$_ph_sys_py" ] && "$_ph_sys_py" -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)" >/dev/null 2>&1; then\n'
+            '    _ph_base="$_ph_sys_py"\n'
+            '  else\n'
+            f'    for _ph_c in {" ".join(PYTHON_CANDIDATE_GLOBS)}; do\n'
+            '      if [ -x "$_ph_c" ] && "$_ph_c" -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)" >/dev/null 2>&1; then\n'
+            '        _ph_base="$_ph_c"\n'
+            '        break\n'
+            '      fi\n'
+            '    done\n'
+            '  fi\n'
+            'fi\n'
+            'if [ -z "$_ph_base" ] || [ ! -x "$_ph_base" ]; then\n'
+            f'  printf \'error=%s\\n\' "No Python >= 3.10 executable found on cluster. Load a Python module or specify base python."\n'
+            f'  printf \'%s\\n\' {shlex.quote(end)}\n'
+            '  exit 0\n'
+            'fi'
+        )
+
+        if custom_venv:
+            script_lines.append(f'_ph_venv={shlex.quote(custom_venv)}')
+        else:
+            script_lines.append(
+                'if [ -n "${HOME:-}" ] && [ -d "$HOME" ] && [ -w "$HOME" ]; then\n'
+                '  _ph_venv="$HOME/.phynite-venv"\n'
+                'else\n'
+                '  printf \'%s\\n\' "Set a writable HOME or an explicit venv path." >&2\n'
+                '  exit 1\n'
+                'fi'
+            )
+
+        script_lines.extend([
+            'if [ -L "$_ph_venv" ] || { [ -e "$_ph_venv" ] && [ ! -f "$_ph_venv/pyvenv.cfg" ]; }; then printf \'%s\\n\' "Refusing an unmanaged directory or symlink at the venv path." >&2; exit 1; fi',
+            'mkdir -p "$(dirname "$_ph_venv")"',
+            'if ! mkdir "$_ph_venv.phynite-setup.lock" 2>/dev/null; then printf \'%s\\n\' "Venv setup is already running, or its lock needs inspection." >&2; exit 1; fi',
+            "trap 'rmdir \"$_ph_venv.phynite-setup.lock\"' EXIT",
+        ])
+        script_lines.append(
+            'if [ -x "$_ph_venv/bin/python" ]; then\n'
+            f'  _ph_check=$("$_ph_venv/bin/python" -c {shlex.quote(check_modules_call)} 2>/dev/null || :)\n'
+            '  case "$_ph_check" in\n'
+            '    3.[1-9][0-9].*\\|)\n'
+            '      printf \'ok=1\\n\'\n'
+            '      printf \'already_configured=1\\n\'\n'
+            '      printf \'python_executable=%s/bin/python\\n\' "$_ph_venv"\n'
+            '      printf \'venv_dir=%s\\n\' "$_ph_venv"\n'
+            '      printf \'version=%s\\n\' "${_ph_check%%|*}"\n'
+            f'      printf \'packages=%s\\n\' "{",".join(target_packages)}"\n'
+            f'      printf \'%s\\n\' {shlex.quote(end)}\n'
+            '      exit 0\n'
+            '      ;;\n'
+            '  esac\n'
+            'fi'
+        )
+
+        script_lines.append(
+            'mkdir -p "$(dirname "$_ph_venv")"\n'
+            'if [ ! -x "$_ph_venv/bin/python" ]; then\n'
+            '  "$_ph_base" -m venv "$_ph_venv" 2>&1 || virtualenv -p "$_ph_base" "$_ph_venv" 2>&1 || {\n'
+            f'    printf \'error=%s\\n\' "Failed to create virtual environment using $_ph_base."\n'
+            f'    printf \'%s\\n\' {shlex.quote(end)}\n'
+            '    exit 0\n'
+            '  }\n'
+            'fi'
+        )
+
+        script_lines.append(
+            f'"$_ph_venv/bin/python" -m pip install --disable-pip-version-check --no-input --timeout 30 --retries 1 --no-cache-dir {target_packages_str} >&2 || :\n'
+            f'_ph_final_check=$("$_ph_venv/bin/python" -c {shlex.quote(check_modules_call)} 2>/dev/null || :)\n'
+            'case "$_ph_final_check" in\n'
+            '  3.[1-9][0-9].*\\|)\n'
+            '    printf \'ok=1\\n\'\n'
+            '    printf \'python_executable=%s/bin/python\\n\' "$_ph_venv"\n'
+            '    printf \'venv_dir=%s\\n\' "$_ph_venv"\n'
+            '    printf \'version=%s\\n\' "${_ph_final_check%%|*}"\n'
+            f'    printf \'packages=%s\\n\' "{",".join(target_packages)}"\n'
+            '    ;;\n'
+            '  *\\|*)\n'
+            '    _ph_miss="${_ph_final_check#*|}"\n'
+            '    printf \'ok=0\\n\'\n'
+            '    printf \'error=Could not install required packages: %s\\n\' "$_ph_miss"\n'
+            '    printf \'missing_packages=%s\\n\' "$_ph_miss"\n'
+            '    ;;\n'
+            '  *)\n'
+            '    printf \'ok=0\\n\'\n'
+            '    printf \'error=%s\\n\' "Virtual environment verification failed."\n'
+            '    ;;\n'
+            'esac\n'
+            f"printf '%s\\n' {shlex.quote(end)}"
+        )
+
+        full_script = "\n".join(script_lines)
+        # Send this trusted generated script on stdin. Command arguments remain
+        # single-line, as required by run_command's SSH boundary.
+        deadline = _deadline(timeout)
+        self.ensure_master(timeout=_remaining(deadline))
+        command = shlex.join(["bash", "-ls" if safe_modules else "-s"])
+        result = self._run_ssh_tool(
+            ["ssh", *self._base_ssh_args(), self.target, command],
+            input=full_script, timeout=_remaining(deadline),
+        )
+        code, out, err = result.returncode, result.stdout, result.stderr
+        records = _extract_framed_records(
+            out, begin, end,
+            {"ok", "error", "python_executable", "venv_dir", "version", "packages", "missing_packages", "already_configured"}
+        )
+        if records is None:
+            return {"ok": False, "error": f"Venv setup returned incomplete output: {err.strip()[:500] or out.strip()[:500]}"}
+        if code == 0 and records.get("ok") == "1":
+            executable = _valid_remote_executable(records.get("python_executable"))
+            if not executable or not _version_at_least(records.get("version", "")):
+                return {"ok": False, "error": "Venv setup returned an invalid Python executable or version."}
+            return {
+                "ok": True,
+                "pythonExecutable": executable,
+                "venvDir": records.get("venv_dir"),
+                "version": records.get("version"),
+                "packages": [p for p in (records.get("packages") or "").split(",") if p],
+                "alreadyConfigured": records.get("already_configured") == "1",
+            }
+        return {
+            "ok": False,
+            "error": records.get("error", "Venv setup failed."),
+            "missingPackages": [p for p in (records.get("missing_packages") or "").split(",") if p],
+        }
+
     def _run_sftp_batch(self, batch: str, action: str, *, deadline: float) -> None:
         cmd = ["sftp", "-b", "-", *self._base_ssh_args(sftp=True), self.target]
         try:

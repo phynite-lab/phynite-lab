@@ -15,8 +15,8 @@ from backend.local_api.domain.ai_observation import AI_OBSERVATION_BYTE_BUDGET, 
 from backend.local_api.domain.phynite_core import ApiError, json_safe, owner_partition, response, storage_owner, utc_now
 MODES = {'chat', 'approval', 'full'}
 RESOURCE_KINDS = {'structure': 'STRUCTURE', 'calculation': 'CALCULATION', 'trajectory': 'MD_TRAJECTORY', 'simulation': 'MD_SIMULATION', 'analysis': 'MD_ANALYSIS', 'md_configuration': 'MD_CONFIGURATION', 'potential': 'MD_POTENTIAL', 'dataset': 'DATASET', 'figure': 'FIGURE'}
-ACTIONS = {'mcp_call', 'modify_structure', 'import_md_potential', 'derive_structure', 'import_structure', 'save_dft', 'run_dft', 'save_md', 'run_md', 'run_analysis', 'cancel_job', 'save_figure', 'export_figure', 'save_workflow', 'run_workflow', 'cancel_workflow'}
-PATH = re.compile('^/v1/ai/conversations(?:/([a-z0-9_]+)(?:/(detail|settings|start|resume|renew|stop|context|compute|read|canvas|step|message|finish|prepare|execute|actions|queue|steer|continue|events|control|mcp_tools|mcp_call|job_artifacts|job_file|dataset_query|potential_search|jobs|job_status|worker_status|calculation_diagnosis|md_preview|attachment_read|attachment_search|attachment_provider|ledger|audit|save_plan|complete_call|replay|references|artifacts|artifact_publish|artifact_update|artifact_get|report)(?:/([a-z0-9_]+))?)?)?$')
+ACTIONS = {'start_discovery', 'cancel_discovery', 'start_campaign', 'cancel_campaign', 'run_mlip', 'cancel_mlip', 'mcp_call', 'modify_structure', 'import_md_potential', 'derive_structure', 'import_structure', 'save_dft', 'run_dft', 'save_md', 'run_md', 'run_analysis', 'cancel_job', 'save_figure', 'export_figure', 'save_workflow', 'run_workflow', 'cancel_workflow'}
+PATH = re.compile('^/v1/ai/conversations(?:/([a-z0-9_]+)(?:/(detail|settings|start|resume|renew|stop|context|compute|read|canvas|step|message|finish|prepare|execute|actions|queue|steer|continue|events|control|mcp_tools|mcp_call|job_artifacts|job_file|dataset_query|potential_search|jobs|job_status|worker_status|calculation_diagnosis|md_preview|attachment_read|attachment_search|attachment_provider|ledger|audit|save_plan|complete_call|replay|references|artifacts|artifact_publish|artifact_update|artifact_get|manuscript_create|artifact_edit|artifact_patches|artifact_decision|artifact_propose|report|discovery_status|discovery|campaign_status|campaigns|capture_request|capture_status|viewport|captures|mlip_runtime|mlip_result|mlip_promotions|mlip)(?:/([a-z0-9_]+))?)?)?$')
 
 def router_models(provider: str='9router') -> list[str]:
     try:
@@ -400,7 +400,7 @@ class AiWorkspace:
         if conversation['mode'] == 'chat':
             fail(403, 'Chat only mode cannot prepare changes. Choose an execution mode first.', 'AI_PERMISSION_DENIED')
         check = payload.get('scientificCheck')
-        if payload.get('toolName') in {'edit_canvas', 'prepare_dft', 'save_md', 'modify_structure', 'derive_structure', 'import_structure', 'import_crystal_structure', 'import_md_potential', 'create_figure', 'edit_figure', 'run_workflow', 'run_md', 'run_analysis', 'configure_qe_compute'}:
+        if payload.get('toolName') in {'edit_canvas', 'prepare_dft', 'save_md', 'modify_structure', 'derive_structure', 'import_structure', 'import_crystal_structure', 'import_md_potential', 'create_figure', 'edit_figure', 'run_workflow', 'run_md', 'run_analysis', 'configure_qe_compute', 'run_mlip', 'start_campaign', 'start_discovery'}:
             if not isinstance(check, dict) or set(check) != {'units', 'speciesMapping', 'periodicity', 'convergence'} or any(not isinstance(value, dict) or set(value) != {'status', 'note'} or not isinstance(value['status'], str) or value['status'] not in {'checked', 'not_applicable'} or not isinstance(value['note'], str) or not 1 <= len(value['note'].strip()) <= 500 for value in check.values()):
                 fail(422, 'Resolve and record all four scientific checks before preparing this change.', 'AI_SCIENTIFIC_CHECK_REQUIRED')
         call_id = payload.get('toolCallId')
@@ -422,9 +422,19 @@ class AiWorkspace:
         if kind == 'modify_structure':
             from backend.local_api.domain.ai_domain_actions import modification
             modification(self, owner, conversation, data, preparing=True)
+        if kind == 'run_mlip':
+            from backend.local_api.domain.ai_mlip import MlipJobs
+            data = MlipJobs(self.api).prepare(owner, conversation, data)
+
+        if kind == 'start_discovery':
+            from backend.local_api.domain.ai_discovery import DiscoverySupervisor
+            data = DiscoverySupervisor(self.api).prepare(owner, conversation, data)
         if kind == 'import_md_potential':
             from backend.local_api.domain.ai_domain_actions import stage_potential
             data = stage_potential(self, owner, conversation, action_id, data)
+        if kind == 'start_campaign':
+            from backend.local_api.domain.ai_campaign import CampaignSupervisor
+            data = CampaignSupervisor(self.api).prepare(owner, conversation, data)
         self.validate_action(owner, conversation, kind, data)
         if kind == 'run_md':
             configuration = self.resource(owner, conversation, 'md_configuration', valid_id(data.get('configurationId')))['item']
@@ -504,6 +514,38 @@ class AiWorkspace:
 
     def validate_action(self, owner: str, conversation: dict, kind: str, data: dict) -> None:
         project = self.scope(owner, conversation['projectKey'])
+        if kind in {'run_mlip', 'cancel_mlip'}:
+            from backend.local_api.domain.ai_mlip import MlipJobs
+            service = MlipJobs(self.api)
+            if kind == 'run_mlip':
+                if service.prepare(owner, conversation, data) != data: fail(409, 'MLIP input or runtime changed; review a fresh action.', 'AI_CONTEXT_CHANGED')
+            else:
+                row = service.scoped(owner, conversation, data.get('id'))
+                if data.get('revision') != row['revision']: fail(409, 'Refresh the MLIP job before cancelling.', 'MLIP_CONFLICT')
+            return
+
+        if kind in {'start_campaign', 'cancel_campaign'}:
+            from backend.local_api.domain.ai_campaign import CampaignSupervisor
+            service = CampaignSupervisor(self.api)
+            if kind == 'start_campaign':
+                current = service.prepare(owner, conversation, data)
+                if current != data:
+                    fail(409, 'Campaign inputs changed. Prepare a new approval.', 'AI_CONTEXT_CHANGED')
+            else:
+                row = service.scoped(owner, conversation, data.get('campaignId'))
+                if data.get('revision') != row['revision']:
+                    fail(409, 'Refresh the campaign before cancellation.', 'CAMPAIGN_CONFLICT')
+            return
+
+        if kind in {'start_discovery', 'cancel_discovery'}:
+            from backend.local_api.domain.ai_discovery import DiscoverySupervisor
+            service = DiscoverySupervisor(self.api)
+            if kind == 'start_discovery':
+                if service.prepare(owner, conversation, data) != data: fail(409, 'Discovery basis changed; prepare a fresh approval.', 'AI_CONTEXT_CHANGED')
+            else:
+                row = service.scoped(owner, conversation, data.get('id'))
+                if data.get('revision') != row['revision']: fail(409, 'Refresh Discovery before cancelling.', 'DISCOVERY_CONFLICT')
+            return
         if any((key in data for key in ('computeTarget', 'cloudMode', 'quoteId', 'url', 'path', 'ownerId'))):
             fail(400, 'AI actions cannot override ownership, network destinations or compute targets.')
         if kind not in {'save_dft', 'run_dft'} and any(key in data for key in ('compute', 'hpc', 'executionAffinity')):
@@ -672,6 +714,21 @@ class AiWorkspace:
             from backend.local_api.domain.ai_mcp import AiMcp
             return AiMcp(self).perform(owner, conversation, action, data)
         project = self.scope(owner, conversation['projectKey'])
+        if kind in {'run_mlip', 'cancel_mlip'}:
+            from backend.local_api.domain.ai_mlip import MlipJobs
+            service = MlipJobs(self.api)
+            return service.create(owner, conversation, action, data) if kind == 'run_mlip' else service.cancel(owner, conversation, data['id'], data['revision'])
+
+        if kind in {'start_campaign', 'cancel_campaign'}:
+            from backend.local_api.domain.ai_campaign import CampaignSupervisor
+            service = CampaignSupervisor(self.api)
+            campaign = service.create(owner, conversation, action, data) if kind == 'start_campaign' else service.cancel(owner, conversation, data['campaignId'], data['revision'])
+            return {'campaignId': campaign['id'], 'status': campaign['status']}
+
+        if kind in {'start_discovery', 'cancel_discovery'}:
+            from backend.local_api.domain.ai_discovery import DiscoverySupervisor
+            service = DiscoverySupervisor(self.api)
+            return service.create(owner, conversation, action, data) if kind == 'start_discovery' else service.cancel(owner, conversation, data['id'], data['revision'])
         now = utc_now()
         if kind == 'modify_structure':
             from backend.local_api.domain.ai_domain_actions import perform_modification
@@ -829,12 +886,31 @@ class AiWorkspace:
             return response(200, {'deleted': True})
         from backend.local_api.domain.ai_workbench import AiWorkbench
         workbench = AiWorkbench(self)
+        if operation in {'viewport', 'captures'}:
+            self.scope(owner, conversation['projectKey'])
+            from backend.local_api.domain.ai_viewport import AiViewport
+            service = AiViewport(self)
+            if operation == 'viewport' and method in {'GET', 'POST'}:
+                return response(200, service.permission(owner, conversation, payload if method == 'POST' else None))
+            if operation == 'captures' and method == 'GET' and not action_id:
+                return response(200, {'captures': service.pending(owner, conversation)})
+            if operation == 'captures' and method == 'POST' and action_id:
+                return response(200, {'capture': service.complete(owner, conversation, action_id, payload)})
+            fail(405, 'This capture operation is not supported.')
         if operation == 'references':
             self.scope(owner, conversation['projectKey'])
             if method == 'GET':
                 return response(200, workbench.catalogue(owner, conversation, str(params.get('q', ''))[:200], params.get('nodeId')))
             if method == 'POST':
                 return response(200, {'contextManifest': workbench.resolve(owner, conversation, payload.get('contextRefs', []))})
+        if operation in {'artifact_edit', 'artifact_patches', 'artifact_decision'}:
+            self.scope(owner, conversation['projectKey'])
+            from backend.local_api.domain.ai_artifacts import AiArtifacts
+            service = AiArtifacts(self)
+            if operation == 'artifact_edit' and method == 'POST': return response(201, {'artifact': service.edit(owner, conversation, payload)})
+            if operation == 'artifact_patches' and method == 'GET': return response(200, {'proposals': service.patches(owner, conversation, action_id)})
+            if operation == 'artifact_decision' and method == 'POST': return response(200, service.decide_patch(owner, conversation, payload))
+            fail(405, 'This artifact operation does not support that method.', 'AI_METHOD_INVALID')
         if operation == 'artifacts' and method == 'GET':
             self.scope(owner, conversation['projectKey'])
             from backend.local_api.domain.ai_artifacts import AiArtifacts
@@ -848,6 +924,31 @@ class AiWorkspace:
             return response(200, self.detail(owner, conversation, params.get('before')))
         if method == 'GET' and operation == 'context':
             return response(200, clean(self.context(owner, conversation)))
+        if operation == 'mlip' and action_id:
+            from backend.local_api.domain.ai_mlip import MlipJobs
+            service = MlipJobs(self.api)
+            if method == 'GET': return response(200, service.read(owner, conversation, action_id))
+            if method == 'POST': return response(200, service.cancel(owner, conversation, action_id, payload.get('revision')))
+
+        if operation == 'campaigns' and action_id:
+            from backend.local_api.domain.ai_campaign import CampaignSupervisor
+            service = CampaignSupervisor(self.api)
+            if method == 'GET':
+                if 'attempt' in params:
+                    value = str(params['attempt'])
+                    if not value.isdigit():
+                        fail(400, 'Choose a campaign attempt index.')
+                    return response(200, service.attempt_input(owner, conversation, action_id, int(value)))
+                return response(200, service.read(owner, conversation, action_id))
+            if method == 'POST':
+                return response(200, {'campaign': service.cancel(owner, conversation, action_id, payload.get('revision'))})
+            fail(405, 'This method is not supported.')
+
+        if operation == 'discovery' and action_id:
+            from backend.local_api.domain.ai_discovery import DiscoverySupervisor
+            service = DiscoverySupervisor(self.api)
+            if method == 'GET': return response(200, service.read(owner, conversation, action_id))
+            if method == 'POST': return response(200, service.cancel(owner, conversation, action_id, payload.get('revision')))
         if method == 'GET' and operation == 'actions' and action_id:
             action = self.row(owner, 'AI_ACTION', action_id)
             if action['conversationId'] != conversation_id:
@@ -1003,6 +1104,14 @@ class AiWorkspace:
             return response(200, {'controlRevision': run.get('controlRevision', 0), 'messages': steering})
         if operation in {'prepare', 'execute', 'finish'} and run.get('queueId') and (payload.get('controlRevision', 0) != run.get('controlRevision', 0)):
             fail(409, 'New user direction is waiting. Read it before taking another action.', 'AI_STEER_PENDING')
+        if operation in {'capture_request', 'capture_status'}:
+            from backend.local_api.domain.ai_viewport import AiViewport
+            service = AiViewport(self)
+            if operation == 'capture_request':
+                return response(200, {'capture': service.request(owner, conversation, run, payload)})
+            capture = service.get(owner, conversation, valid_id(payload.get('id')))
+            if capture['runId'] != run['id']: fail(404, 'Capture not found.', 'AI_NOT_FOUND')
+            return response(200, {'capture': service.public(capture)})
         if operation in {'attachment_read', 'attachment_search', 'attachment_provider'}:
             from backend.local_api.domain.ai_attachments import AiAttachments
             return response(200, AiAttachments(self.api).read(owner, conversation, {**payload, **({'search': True} if operation == 'attachment_search' else {})}, operation == 'attachment_provider'))
@@ -1010,6 +1119,20 @@ class AiWorkspace:
             from backend.local_api.domain.ai_mcp import AiMcp
             service = AiMcp(self)
             return response(200, {'tools': service.tools(conversation, run)} if operation == 'mcp_tools' else service.read(conversation, run, payload))
+        if operation in {'mlip_runtime', 'mlip_result', 'mlip_promotions'}:
+            from backend.local_api.domain.ai_mlip import MlipJobs
+            service = MlipJobs(self.api)
+            if operation == 'mlip_runtime': return response(200, service.runtime.status() if service.runtime else {'ready': False, 'reason': 'MLIP runtime is not available.'})
+            if operation == 'mlip_promotions': return response(200, service.promotions(owner, conversation, payload))
+            return response(200, service.read(owner, conversation, payload.get('id')))
+
+        if operation == 'campaign_status':
+            from backend.local_api.domain.ai_campaign import CampaignSupervisor
+            return response(200, CampaignSupervisor(self.api).read(owner, conversation, payload.get('id')))
+
+        if operation == 'discovery_status':
+            from backend.local_api.domain.ai_discovery import DiscoverySupervisor
+            return response(200, DiscoverySupervisor(self.api).read(owner, conversation, payload.get('id')))
         if operation == 'canvas':
             project = self.scope(owner, conversation['projectKey'])
             if project['kind'] != 'canvas':
@@ -1023,12 +1146,18 @@ class AiWorkspace:
                 saved = {'revision': saved['revision'], 'projectId': project['id'], 'nodes': [{'id': n['id'], 'name': n['name'], 'kind': n['kind'], **({'configuration': n['configuration'], 'resources': n['resources']} if n['id'] in ids else {})} for n in saved['workflow']['nodes']], 'edges': saved['workflow']['edges'], 'groups': saved['workflow']['groups']}
                 return response(200, clean(saved))
             return response(200, saved)
-        if operation in {'artifact_publish', 'artifact_update', 'artifact_get', 'report'}:
+        if operation == 'manuscript_create':
+            from backend.local_api.domain.ai_manuscript import AiManuscripts
+            if run.get('queueId') and payload.get('controlRevision', 0) != run.get('controlRevision', 0): fail(409, 'Read pending user direction before publishing.', 'AI_STEER_PENDING')
+            return response(201, {'artifact': AiManuscripts(self).create(owner, conversation, run, payload)})
+        if operation in {'artifact_publish', 'artifact_update', 'artifact_get', 'artifact_propose', 'report'}:
+            self.scope(owner, conversation['projectKey'])
             from backend.local_api.domain.ai_artifacts import AiArtifacts
             service = AiArtifacts(self)
             if operation in {'artifact_get', 'report'}: return response(200, service.read(owner, conversation, payload))
             if run.get('queueId') and payload.get('controlRevision', 0) != run.get('controlRevision', 0):
                 fail(409, 'Read pending user direction before publishing.', 'AI_STEER_PENDING')
+            if operation == 'artifact_propose': return response(201, {'proposal': service.propose(owner, conversation, run, payload)})
             return response(201, {'artifact': service.publish(owner, conversation, run, payload, operation == 'artifact_update')})
         if operation == 'read':
             return response(200, self.resource(owner, conversation, str(payload.get('kind')), valid_id(payload.get('id'))))

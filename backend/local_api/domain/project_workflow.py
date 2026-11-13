@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from typing import Any
 from backend.local_api.domain.phynite_core import ApiError, json_safe, new_id, owner_partition, require_owner_item, require_project, response, storage_owner, utc_now
 WORKFLOW_PATH = re.compile('^/v1/projects/([A-Za-z0-9_-]+)/workflow(?:/(plan|runs|import)(?:/([A-Za-z0-9_-]+)(?:/(cancel))?)?)?$')
-PORTS = {'structure': (None, 'structure'), 'trajectory': (None, 'trajectory'), 'scf': ('structure', 'electronic'), 'relax': ('structure', 'structure'), 'bands': ('electronic', 'dataset'), 'dos': ('electronic', 'dataset'), 'phonon': ('electronic', 'dataset'), 'btp2': ('electronic', 'dataset'), 'md': ('structure', 'trajectory'), 'md-analysis': ('trajectory', 'dataset'), 'extract-frame': ('trajectory', 'structure'), 'figure': ('dataset', 'dataset'), 'legacy': (None, 'dataset')}
+PORTS = {'structure': (None, 'structure'), 'trajectory': (None, 'trajectory'), 'scf': ('structure', 'electronic'), 'relax': ('structure', 'structure'), 'bands': (('electronic', 'structure'), 'dataset'), 'dos': ('electronic', 'dataset'), 'phonon': ('electronic', 'dataset'), 'btp2': ('electronic', 'dataset'), 'md': ('structure', 'trajectory'), 'md-analysis': ('trajectory', 'dataset'), 'extract-frame': ('trajectory', 'structure'), 'figure': ('dataset', 'dataset'), 'legacy': (None, 'dataset')}
 JOB_KINDS = {'md': 'MD_SIMULATION', 'md-analysis': 'MD_ANALYSIS'}
 DFT_TYPES = {'scf': 'Total energy', 'relax': 'Structural relaxation', 'bands': 'Band structure', 'dos': 'Density of states', 'phonon': 'Phonon dispersion', 'btp2': 'Thermoelectric properties'}
 SUCCESS = {'completed', 'ready', 'reused'}
@@ -165,7 +165,8 @@ def validate_graph(value: Any, project_id: str) -> dict[str, Any]:
         source, target = (nodes[edge['source']], nodes[edge['target']])
         pair = (source['id'], target['id'])
         expected, output = (PORTS[target['kind']][0], PORTS[source['kind']][1])
-        if source['kind'] == 'figure' or source['id'] == target['id'] or pair in pairs or (not expected) or (edge.get('port') != expected) or (output != expected):
+        allowed = expected if isinstance(expected, tuple) else ((expected,) if expected else ())
+        if source['kind'] == 'figure' or source['id'] == target['id'] or pair in pairs or (not allowed) or (edge.get('port') not in allowed) or (output not in allowed) or (edge.get('port') != output):
             fail('These module inputs and outputs are incompatible.')
         if target['kind'] != 'figure' and target['id'] in incoming:
             fail('Disconnect the current input before choosing another source.')
@@ -188,8 +189,9 @@ def validate_graph(value: Any, project_id: str) -> dict[str, Any]:
     order(value)
     return copy.deepcopy(value)
 
-def canonical_configuration(configuration: dict[str, Any], kind: str | None=None) -> dict[str, Any]:
+def canonical_configuration(configuration: dict[str, Any], kind: str | None=None, inherits_scf: bool | None=None) -> dict[str, Any]:
     config = copy.deepcopy(configuration)
+    config.pop('standalone', None)
     if configuration.get('compilerVersion') == 1 or (kind in DFT_TYPES and isinstance(config.get('draft'), dict)) or (kind == 'md' and isinstance(config.get('components'), list)):
         config.pop('execution', None)
     for key in ('savedStructureSignature', 'configurationError', 'legacySource', 'preservedHistory', 'plotSettings', 'elementMapText', 'style', 'compilerVersion', 'estimatedComputeSeconds', 'formula', 'missingInputs', 'parameterStudy', 'pseudopotentialChecksums', 'computeTarget', 'cloudMode', 'computeProfileId', 'vcpus', 'memoryMiB', 'resolvedHpcCompute'):
@@ -218,7 +220,8 @@ def canonical_configuration(configuration: dict[str, Any], kind: str | None=None
             for draft_ui_key in ('calculations', 'plotYMin', 'plotYMax'):
                 value.pop(draft_ui_key, None)
             if kind in DFT_TYPES:
-                if kind in {'bands', 'dos', 'phonon', 'btp2'} and (not str(value.get('rawInput') or '').strip()):
+                is_branch = (kind in {'dos', 'phonon', 'btp2'}) or (kind == 'bands' and (inherits_scf if inherits_scf is not None else configuration.get('standalone') is not True))
+                if is_branch and (not str(value.get('rawInput') or '').strip()):
                     for draft_key in list(value):
                         if draft_key in DEFAULT_QE_DRAFT and draft_key not in WORKFLOW_BRANCH_FIELDS:
                             value.pop(draft_key, None)
@@ -255,7 +258,7 @@ def fingerprints(graph: dict[str, Any]) -> dict[str, str]:
     for node_id in order(graph):
         node = nodes[node_id]
         inputs = sorted(({'port': edge['port'], 'fingerprint': result[edge['source']]} for edge in graph['edges'] if edge['target'] == node_id), key=encoded)
-        config = canonical_configuration(node['configuration'], node['kind'])
+        config = canonical_configuration(node['configuration'], node['kind'], any(edge['target'] == node_id and edge['port'] == 'electronic' for edge in graph['edges']))
         resources = [{'kind': ref['kind'], 'id': ref['id'], **({'deviceOnly': True} if ref.get('deviceOnly') else {})} for ref in node['resources']]
         result[node_id] = digest({'kind': node['kind'], 'configuration': config, 'resources': resources, 'inputs': inputs})
     return result

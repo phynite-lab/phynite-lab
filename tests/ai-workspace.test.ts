@@ -541,3 +541,28 @@ test('pre-finish gate audits pending actions and appends unresolved verification
   assert.match(saved, /aia_pending: pending/); assert.match(saved, /not verified complete/);
   assert.ok(mock.calls.findIndex(c => c.operation === 'audit') < mock.calls.findIndex(c => c.operation === 'finish'));
 });
+
+test('viewport evidence reaches the provider as checksummed native pixels and revoked delivery removes pixels', async t => {
+  const png = new Uint8Array(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jG+0AAAAASUVORK5CYII=', 'base64'));
+  const sha256 = Buffer.from(await crypto.subtle.digest('SHA-256', png)).toString('hex');
+  t.mock.method(globalThis, 'fetch', async () => new Response(png));
+  for (const revoke of [false, true]) {
+    let checks = 0, modelRequests = 0;
+    const inputs: string[] = [], state = detail('chat');
+    const mock = backendMock(operation => operation === 'capture_request' ? { capture: { id: 'aiv_fixture', status: 'ready', attachmentId: 'aif_fixture' } }
+      : operation === 'capture_status' ? { capture: { status: revoke && ++checks >= 2 ? 'cancelled' : 'ready' } }
+        : operation === 'attachment_provider' ? { attachment: { id: 'aif_fixture', conversationId: state.conversation.id, filename: 'viewport.png', mediaType: 'image/png', visual: true, sha256, sizeBytes: png.length, status: 'ready' }, url: 'https://attachment.invalid/fixture' } : undefined);
+    await runAiAgent({ detail: state, backend: mock.backend, config, send() {}, signal: signal(), assertAttachment: () => {}, providerFetch: async (_url, init) => { inputs.push(String(init?.body)); return sse(events(++modelRequests === 1 ? { id: 'capture_call', name: 'capture_viewport', input: { sourceRef: { kind: 'node', id: 'source' } } } : undefined)); } });
+    assert.equal(inputs.length, 2);
+    assert.equal(inputs[1].includes('"type":"image"'), !revoke);
+    if (revoke) assert.match(inputs[1], /image was not delivered/);
+    else assert.ok(inputs[1].includes(Buffer.from(png).toString('base64')));
+  }
+});
+
+test('a provider without verified vision fails before a browser capture is requested', async () => {
+  const mock = backendMock(); let requests = 0;
+  await runAiAgent({ detail: detail('chat'), backend: mock.backend, config, send() {}, signal: signal(), assertAttachment: () => { throw new AiError(422, 'AI_IMAGE_UNSUPPORTED', 'Vision is unavailable.'); }, providerFetch: async () => sse(events(++requests === 1 ? { id: 'capture_call', name: 'capture_viewport', input: { sourceRef: { kind: 'node', id: 'source' } } } : undefined)) });
+  assert.ok(!mock.calls.some(call => call.operation === 'capture_request'));
+  assert.ok(mock.calls.some(call => call.operation === 'message' && String(call.payload?.text).includes('AI_IMAGE_UNSUPPORTED')));
+});

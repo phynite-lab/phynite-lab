@@ -678,3 +678,14 @@ body.workflow-dragging-tab .workflow-split-dropzones { display: grid; }
 .workflow-compute-plan li small { display:block; max-width:none; text-align:left; margin-top:2px; color:var(--muted-ink); line-height:1.35; }
 .workflow-compute-plan > p { margin:8px 0 0; color:var(--muted-ink); font-size:9px; }
 @media (max-width:720px) { .research-context-panel { right:8px; left:8px; top:78px; bottom:8px; width:auto; } }
+
+@media(max-width:600px) {
+  .research-workspace-header > .workflow-topbar {
+    display:grid; grid-template-columns:110px minmax(0,1fr); grid-template-rows:44px 44px; height:88px; gap:0;
+  }
+  .research-workspace-header .workflow-project-navigation { grid-area:1 / 1; width:110px; height:44px; }
+  .research-workspace-header .workflow-global-controls { grid-area:1 / 2; height:44px; }
+  .research-workspace-header .workflow-tab-strip { grid-area:2 / 1 / 3 / -1; width:100%; max-width:100%; height:44px; padding-inline:8px; border-top:1px solid var(--line); }
+  .research-workspace-header .workflow-tabs { flex:1 1 0; }
+  .research-workspace-header .workflow-tabs > .workflow-tab:not([data-foundation=true]) > [role=tab] { max-width:191px; }
+}
