@@ -394,7 +394,8 @@ class OrchestrationTests(unittest.TestCase):
         evidence = {'schemaVersion': 1, 'kind': 'synthetic', 'modelId': 'codex/gpt-5.4',
                     'platform': 'linux-x86_64', 'safetyPassed': True,
                     'evidenceQualityReviewed': True, 'overlapObserved': True,
-                    'runs': {'solo': {'status': 'completed'}, 'team': {'status': 'completed'}}}
+                    'runs': {'solo': {'status': 'completed'}, 'team': {'status': 'completed',
+                             'tasks': [{'status': 'completed'}, {'status': 'completed'}]}}}
 
         def save():
             raw = json.dumps(evidence).encode()
@@ -411,6 +412,14 @@ class OrchestrationTests(unittest.TestCase):
                 save()
                 self.assertTrue(self.authority.qualified(evidence['modelId']))
                 self.assertFalse(self.authority.qualified('another/model'))
+                for tasks in ([], [{'status': 'completed'}], [{'status': 'completed'}, {'status': 'failed'}],
+                              [{'status': 'completed'}, {'status': 'interrupted'}]):
+                    evidence['runs']['team']['tasks'] = tasks
+                    save()
+                    self.assertFalse(self.authority.qualified(evidence['modelId']))
+                evidence['runs']['team']['tasks'] = [{'status': 'completed'}, {'status': 'completed'}]
+                save()
+                self.assertTrue(self.authority.qualified(evidence['modelId']))
                 evidence_path.write_text('{}')
                 self.assertFalse(self.authority.qualified(evidence['modelId']))
                 save()

@@ -113,11 +113,14 @@ class AiOrchestration:
                 if len(raw) > 2_000_000 or hashlib.sha256(raw).hexdigest() != entry.get('evidenceSha256'):
                     continue
                 evidence = json.loads(raw)
+                tasks = evidence.get('runs', {}).get('team', {}).get('tasks', [])
                 if (evidence.get('schemaVersion') == 1 and evidence.get('kind') == 'native-provider'
                         and evidence.get('modelId') == model and evidence.get('platform') == target
                         and evidence.get('safetyPassed') is True
                         and evidence.get('evidenceQualityReviewed') is True
                         and evidence.get('overlapObserved') is True
+                        and isinstance(tasks, list) and 2 <= len(tasks) <= LIMITS['specialists']
+                        and all(isinstance(task, dict) and task.get('status') == 'completed' for task in tasks)
                         and all(evidence.get('runs', {}).get(strategy, {}).get('status') == 'completed'
                                 for strategy in ('solo', 'team'))):
                     return True

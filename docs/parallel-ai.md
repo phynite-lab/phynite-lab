@@ -114,11 +114,35 @@ intact. Partial/failed results are saved before another benchmark case starts.
 Team runs with observed overlap and review of those exact results. It writes
 one model entry; use separate files or deliberately combine reviewed entries to
 qualify additional models. A fake-provider test or machine label is insufficient.
+Every specialist must complete, with at least two specialists in the Team case.
+A completed synthesis that reports failed specialists cannot qualify a provider.
 
 No real provider, Linux/WSL2 or HPC qualification is implied by local mock/protocol
 tests. The implementation leaves Team off until this evidence exists. Connected
 Files filesystem replacement and real WSL2 `/home` versus `/mnt/c` tests have their
 own independent qualification requirements.
+
+## Actual qualification observations (2026-11-13)
+
+Actual Antigravity CLI 1.5.8 inference with `agy/gemini-3.8-flash-medium` on
+macOS ARM64 overlapped independent source readers in an isolated empty project.
+An initial case completed in 308,336 ms (Solo) and 706,488 ms (Team); Team was
+slower. Actual native checks also exercised two global slots, cancellation of a
+queued request before dispatch, cancellation during text, Stop/restart and refusal
+of late results. These checks do not measure scientific accuracy.
+
+A repeat with Node 22.23.5 and corrected startup/content call accounting completed
+Solo in 713,544 ms and the Team synthesis in 735,081 ms. Both specialists failed:
+one reached its five-minute limit, the other failed native protocol validation.
+The synthesis disclosed these failures. This repeat fails evidence qualification
+despite the parent status being `completed`; Team remains off. The initial result
+does not establish reliable speedup or override this later failed qualification.
+Usage, provider/core resource totals and cost were not measured.
+
+Codex CLI 0.162.1 with `codex/gpt-6-luna` also did not qualify: trials stopped at
+MCP catalogue validation (`UNSAFE_TOOLS`) or a native stream error. No safety check
+was relaxed. The installed newer Codex CLI was outside the supported version range.
+No WSL2 or HPC target was available; neither platform was qualified.
 
 ## Scope and verification
 

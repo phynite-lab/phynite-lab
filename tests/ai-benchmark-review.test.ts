@@ -16,14 +16,15 @@ function fixture() {
   // Contract-only fixture. No provider is called, and no application loads this index.
   const raw = JSON.stringify({ schemaVersion: 1, kind: 'native-provider', modelId: 'codex/test-only', platform: target,
     safetyPassed: false, evidenceQualityReviewed: false, overlapObserved: true,
-    runs: { solo: { status: 'completed', latencyMs: 1 }, team: { status: 'completed', latencyMs: 2 } } });
+    runs: { solo: { status: 'completed', latencyMs: 1 }, team: { status: 'completed', latencyMs: 2,
+      tasks: [{ status: 'completed' }, { status: 'completed' }] } } });
   writeFileSync(evidence, raw);
   writeFileSync(review, JSON.stringify({ modelId: 'codex/test-only', platform: target, evidenceSha256: sha(raw), safetyPassed: true, evidenceQualityReviewed: true }));
   const seal = (extra: string[] = []) => spawnSync(process.execPath, ['--experimental-strip-types', 'scripts/benchmark-ai-orchestration.mjs',
     '--review-existing', evidence, '--review', review, '--qualification', qualification, ...extra], {
     encoding: 'utf8', env: { ...process.env, PHYNITE_LOCAL_AI_URL: 'invalid-no-inference-must-run', PHYNITE_LOCAL_AI_TOKEN: '' },
   });
-  return { directory, evidence, qualification, raw, seal };
+  return { directory, evidence, review, qualification, raw, seal };
 }
 
 test('review seals the exact retained evidence without another inference or overwriting the original', () => {
@@ -52,4 +53,23 @@ test('changed evidence or a different selected model cannot inherit an earlier q
     assert.equal(other.status, 1); assert.match(other.stderr, /exact selected model/);
     assert.equal(existsSync(f.qualification), false);
   } finally { rmSync(f.directory, { recursive: true, force: true }); }
+});
+
+test('a completed synthesis cannot qualify missing or failed specialist results', () => {
+  for (const tasks of [[], [{ status: 'completed' }], [{ status: 'completed' }, { status: 'failed' }]]) {
+    const f = fixture();
+    try {
+      const evidence = JSON.parse(f.raw);
+      evidence.runs.team.tasks = tasks;
+      const raw = JSON.stringify(evidence);
+      writeFileSync(f.evidence, raw);
+      const review = JSON.parse(readFileSync(f.review, 'utf8'));
+      writeFileSync(f.review, JSON.stringify({ ...review, evidenceSha256: sha(raw) }));
+      const result = f.seal();
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /all specialists completed/);
+      assert.equal(existsSync(f.qualification), false);
+      assert.equal(readFileSync(f.evidence, 'utf8'), raw);
+    } finally { rmSync(f.directory, { recursive: true, force: true }); }
+  }
 });

@@ -100,7 +100,8 @@ if (value('--review')) {
 const encoded = JSON.stringify(report, null, 2) + '\n';
 await mkdir(dirname(output), { recursive: true }); await writeFile(output, encoded);
 if (value('--qualification')) {
-  if (!reviewing || !value('--review') || !native || !report.safetyPassed || !report.evidenceQualityReviewed || !report.overlapObserved || ['solo', 'team'].some(strategy => report.runs[strategy]?.status !== 'completed')) throw new Error('Benchmark saved; qualification requires actual native overlap, successful runs and review of this exact saved evidence.');
+  const tasks = report.runs.team?.tasks;
+  if (!reviewing || !value('--review') || !native || !report.safetyPassed || !report.evidenceQualityReviewed || !report.overlapObserved || ['solo', 'team'].some(strategy => report.runs[strategy]?.status !== 'completed') || !Array.isArray(tasks) || tasks.length < 2 || tasks.length > 6 || tasks.some(task => task?.status !== 'completed')) throw new Error('Benchmark saved; qualification requires actual native overlap, successful runs with all specialists completed and review of this exact saved evidence.');
   const qualification = resolve(value('--qualification'));
   await mkdir(dirname(qualification), { recursive: true });
   await writeFile(qualification, JSON.stringify({ schemaVersion: 1, entries: [{ modelId, platform: qualificationTarget, passed: true,
