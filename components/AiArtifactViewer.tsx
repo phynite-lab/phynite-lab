@@ -54,6 +54,7 @@ export function AiArtifactViewer({ summaries, selected, load, onSelect, onClose,
   const { t } = useLocale();
   const root = useRef<HTMLElement>(null), close = useRef<HTMLButtonElement>(null);
   const [data, setData] = useState<{ id: string; artifact?: AiArtifact; error?: string }>();
+  const [exporting, setExporting] = useState(false);
   const [compare, setCompare] = useState(false), [previous, setPrevious] = useState<AiArtifact>();
   const [sheet, setSheet] = useState(false), [svg, setSvg] = useState<{ id: string; text: string; node: ReactNode; error?: string }>(), [notice, setNotice] = useState('');
   const artifact = data?.id === selected ? data.artifact : undefined;
@@ -98,10 +99,12 @@ export function AiArtifactViewer({ summaries, selected, load, onSelect, onClose,
   }, [artifact]);
   const content = artifact?.content ?? artifact?.text ?? '';
   const exportArtifact = async (png = false) => {
-    if (!artifact) return;
+    if (!artifact || exporting) return;
+    setExporting(true);
     try {
       const name = `phynite-${artifact.id}-v${artifact.version ?? 1}`;
-      if (artifact.kind === 'table') download(aiArtifactCsv(artifact.structuredData as AiArtifactTable), name + '.csv', 'text/csv');
+      if (artifact.kind === 'manuscript') { const { downloadManuscript } = await import('@/lib/manuscript-download'); await downloadManuscript(artifact.structuredData as import('@/lib/manuscript').ManuscriptSnapshot); }
+      else if (artifact.kind === 'table') download(aiArtifactCsv(artifact.structuredData as AiArtifactTable), name + '.csv', 'text/csv');
       else if (artifact.kind === 'input_file') { const data = artifact.structuredData as AiArtifactInput; download(data.text, data.filename, 'text/plain'); }
       else if (artifact.kind === 'diff') { const data = artifact.structuredData as AiArtifactDiff; download(aiArtifactDiff(data.before, data.after, Number.MAX_SAFE_INTEGER).text, data.filename + '.diff', 'text/plain'); }
       else if (artifact.kind === 'figure_preview' && svg?.id === artifact.id && svg.text) {
@@ -113,10 +116,14 @@ export function AiArtifactViewer({ summaries, selected, load, onSelect, onClose,
           } finally { URL.revokeObjectURL(url); }
         }
       } else download(aiArtifactMarkdown(artifact), name + '.md', 'text/markdown');
-    } catch (error) { setNotice(error instanceof Error ? error.message : 'Export failed.'); }
+    } catch (error) { setNotice(error instanceof Error ? error.message : 'Export failed.'); } finally { setExporting(false); }
   };
   let body: ReactNode = artifact ? <AiResponseContent text={content} /> : <p role="status">{t('Reading saved artifact…', 'Membaca artifact tersimpan…')}</p>;
   if (artifact && compare && previous && aiArtifactGroup(previous) === aiArtifactGroup(artifact) && (previous.version ?? 1) === (artifact.version ?? 1) - 1) body = <Code text={aiArtifactDiff(aiArtifactComparable(previous), aiArtifactComparable(artifact)).text} />;
+  else if (artifact?.kind === 'manuscript') {
+    const draft = artifact.structuredData as import('@/lib/manuscript').ManuscriptSnapshot;
+    body = <><h2>{t('APS/PRB manuscript draft', 'Draft manuskrip APS/PRB')}</h2><p>{t('Export ZIP to review main.tex, verified references, vector figures, numerical tables and reproducibility sources.', 'Ekspor ZIP untuk meninjau main.tex, referensi terverifikasi, figur vektor, tabel numerik, dan sumber reproduksi.')}</p><p>{draft.jobs.length} {t('executed calculations', 'kalkulasi yang dijalankan')} · {draft.quantities.length} {t('bound quantities', 'kuantitas terikat')} · {draft.figures.length} {t('figures', 'figur')}</p><h3>{t('Missing information', 'Informasi belum lengkap')}</h3><ul>{draft.missingInformation.map((item, index) => <li key={index}>{item}</li>)}</ul><p>{t('The package remains a draft until the authors complete scientific and journal review.', 'Paket tetap berupa draft hingga penulis menyelesaikan tinjauan ilmiah dan persyaratan jurnal.')}</p></>;
+  }
   else if (artifact?.kind === 'table') body = <Table table={artifact.structuredData as AiArtifactTable} />;
   else if (artifact?.kind === 'input_file') { const input = artifact.structuredData as AiArtifactInput; body = <><Code text={input.text} />{input.validation && <p>{input.validation.note} {input.validation.issues.join(' ')}</p>}</>; }
   else if (artifact?.kind === 'diff') { const diff = artifact.structuredData as AiArtifactDiff; body = <Code text={aiArtifactDiff(diff.before, diff.after).text} />; }
@@ -126,7 +133,7 @@ export function AiArtifactViewer({ summaries, selected, load, onSelect, onClose,
     if (sheet && event.key === 'Tab') { const focusable = Array.from(root.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], [tabindex="0"], select') ?? []).filter(element => element.getClientRects().length); const index = focusable.indexOf(document.activeElement as HTMLElement); if (event.shiftKey && index <= 0 || !event.shiftKey && index === focusable.length - 1) { event.preventDefault(); focusable[event.shiftKey ? focusable.length - 1 : 0]?.focus(); } }
   }}><header><div><strong>{artifact?.title ?? summary?.title ?? t('Research artifact', 'Artifact riset')}</strong><small>{artifact?.kind ?? summary?.kind} · {artifact?.status ?? summary?.status}</small></div><button ref={close} type="button" onClick={onClose} aria-label={t('Close artifact', 'Tutup artifact')}><X size={18} /></button></header>
     <div className="ai-artifact-toolbar"><UiSelect compact ariaLabel={t('Artifact version', 'Versi artifact')} value={selected} options={versions.map(item => ({ value: item.id, label: `v${item.version ?? 1} · ${item.status}` }))} onChange={onSelect} />
-      <button type="button" disabled={versions.findIndex(item => item.id === selected) < 1} aria-pressed={compare} onClick={() => setCompare(value => !value)}><GitCompare size={15} />{t('Compare', 'Bandingkan')}</button><button type="button" disabled={!artifact} onClick={() => void exportArtifact()}><Download size={15} />{t('Export', 'Ekspor')}</button>{artifact?.kind === 'figure_preview' && <button type="button" onClick={() => void exportArtifact(true)}>PNG</button>}
+      <button type="button" disabled={versions.findIndex(item => item.id === selected) < 1} aria-pressed={compare} onClick={() => setCompare(value => !value)}><GitCompare size={15} />{t('Compare', 'Bandingkan')}</button><button type="button" disabled={!artifact || exporting} aria-busy={exporting} onClick={() => void exportArtifact()}><Download size={15} />{t('Export', 'Ekspor')}</button>{artifact?.kind === 'figure_preview' && <button type="button" onClick={() => void exportArtifact(true)}>PNG</button>}
       <button type="button" disabled={!artifact} onClick={() => { void navigator.clipboard.writeText(artifact?.kind === 'input_file' ? (artifact.structuredData as AiArtifactInput).text : content).then(() => setNotice(t('Copied', 'Disalin'))).catch(() => setNotice(t('Copy unavailable; use Export.', 'Salin tidak tersedia; gunakan Ekspor.'))); }} aria-label={t('Copy artifact', 'Salin artifact')}><Copy size={15} /></button></div>
     <div className="ai-artifact-body">{data?.id === selected && data.error ? <p role="alert">{data.error}</p> : body}{notice && <p role="status">{notice}</p>}{artifact && <details><summary>{t('Sources and provenance', 'Sumber dan provenance')}</summary><pre>{JSON.stringify({ sha256: artifact.sha256, sourceStamp: artifact.sourceStamp, modelId: artifact.modelId, context: artifact.contextManifest, evidence: artifact.evidence }, null, 2)}</pre></details>}</div>
     <footer><span>{t('Saved deliverable · does not apply or execute inputs', 'Hasil tersimpan · tidak menerapkan atau menjalankan input')}</span>{artifact?.kind === 'plan' && artifact.status === 'complete' && <button type="button" disabled={locked} onClick={() => onImplement(artifact)}>{t('Implement plan', 'Terapkan rencana')}</button>}{artifact && ['research', 'report'].includes(artifact.kind) && <button type="button" disabled={locked} onClick={() => onContinue(artifact)}>{t('Continue research', 'Lanjutkan riset')}</button>}</footer>

@@ -237,3 +237,13 @@ resource blocks are counted explicitly. All outputs remain untrusted evidence;
 MCP claims alone do not establish scientific validity. Errors are never recorded
 as successful mutating actions. A failed or interrupted mutation must be
 inspected before a new action is prepared.
+
+## APS/PRB manuscript archives
+
+`create_manuscript` prepares an immutable draft from selected completed DFT results,
+retained executed inputs/logs and source-bound scientific figures. Open the artifact
+and Export to obtain the REVTeX ZIP with vector figures, exact numerical tables,
+verified bibliography metadata, checksums, missing information and reproduction
+instructions. Project revisions and tool-call idempotency are enforced. Scientific
+and journal review remain the authors' responsibility; the app never executes TeX.
+See [APS/PRB manuscript archives](aps-prb-manuscript.md) for supported sources and limits.

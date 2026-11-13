@@ -9,7 +9,7 @@ import secrets
 from backend.local_api.domain.ai_workspace import clean, digest, fail, valid_id
 from backend.local_api.domain.phynite_core import json_safe, owner_partition, storage_owner, utc_now
 
-KINDS = {'report', 'plan', 'figure_preview', 'input_file', 'table', 'diff'}
+KINDS = {'report', 'plan', 'figure_preview', 'input_file', 'table', 'diff', 'manuscript'}
 STATUSES = {'draft', 'complete', 'partial'}
 MAX_BYTES = 2_000_000
 
@@ -110,7 +110,7 @@ class AiArtifacts:
             if any(layer.get('datasetId') not in ids for panel in figure['panels'] for layer in panel['layers']):
                 fail(400, 'Every figure layer needs its retained dataset.', 'AI_ARTIFACT_INVALID')
 
-    def publish(self, owner, conversation, run, request, update=False, *, evidence=None):
+    def publish(self, owner, conversation, run, request, update=False, *, evidence=None, manuscript=False):
         envelope = {'runId', 'lease', 'controlRevision', 'toolCallId', 'toolName'}
         fields(request, envelope | ({'artifactId', 'title', 'content', 'structuredData', 'status'} if update else {'artifactGroupId', 'kind', 'title', 'content', 'structuredData', 'status'}))
         call_id = request.get('toolCallId')
@@ -134,6 +134,7 @@ class AiArtifacts:
         if not isinstance(kind, str) or kind not in KINDS or not isinstance(status, str) or status not in STATUSES:
             fail(400, 'Choose a supported artifact kind and status.', 'AI_ARTIFACT_INVALID')
         if group and kind != group['kind']: fail(409, 'Artifact kind is fixed within its version group.', 'AI_ARTIFACT_CONFLICT')
+        if kind == 'manuscript' and not manuscript: fail(400, 'Use create_manuscript to bind an archive to executed evidence.', 'AI_MANUSCRIPT_UNVERIFIED')
         title = text(request.get('title', (parent or {}).get('title', 'Research artifact')), 'Artifact title', 200, False)
         content = text(request.get('content', (parent or {}).get('content', (parent or {}).get('text', ''))), 'Artifact content', 1_500_000)
         structured = json_safe(request.get('structuredData', (parent or {}).get('structuredData')))

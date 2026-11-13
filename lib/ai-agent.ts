@@ -218,7 +218,7 @@ export async function runAiAgent(options: {
             send({ type: 'activity', text: 'Scientific check recorded: units, species mapping, periodicity and convergence settings.' });
           }
           const output = await executeAiTool(call.name, call.input, permission, backend, signal, call.id, run.skillSnapshot?.allowedTools, mcp);
-          if (['publish_artifact', 'update_artifact'].includes(call.name) && output.result && typeof output.result === 'object' && 'artifact' in output.result) {
+          if (['publish_artifact', 'update_artifact', 'create_manuscript'].includes(call.name) && output.result && typeof output.result === 'object' && 'artifact' in output.result) {
             const a = (output.result as { artifact: import('./ai-workbench.ts').AiArtifact }).artifact;
             send({ type: 'artifact', artifact: { id: a.id, conversationId: a.conversationId, runId: a.runId, artifactGroupId: a.artifactGroupId, version: a.version, parentArtifactId: a.parentArtifactId, kind: a.kind, title: a.title, status: a.status, createdAt: a.createdAt, hasOverflow: a.hasOverflow, sha256: a.sha256 } });
           }

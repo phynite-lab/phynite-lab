@@ -65,6 +65,7 @@ const readTools = [
   definition('search_crystal_db', 'Alias of search_crystal_structures using the existing curated crystal database adapters. Choose an actual source (OQMD/AFLOW/JARVIS/Alexandria/NOMAD use OPTIMADE). Public queries only.', { query: str, source: { type: 'string', enum: crystalSourceIds }, offset: { type: 'integer', minimum: 0, maximum: 10000 } }, ['query']),
 ];
 const conversationTools = [
+  definition('create_manuscript', 'Create an immutable APS/PRB draft archive from completed project DFT calculations with verified final convergence and retained executed inputs/logs. Numeric tables bind to result fields; figures must retain exact executed CSV data. Verify only public DOI/arXiv identifiers. Missing author, method, bibliography or physical-validation information stays explicit. This publishes an artifact for ZIP download without applying inputs or running TeX.', { title: str, calculationIds: { type: 'array', items: str, maxItems: 12 }, figureIds: { type: 'array', items: str, maxItems: 8 }, authors: { type: 'array', maxItems: 30, items: { type: 'object', properties: { name: str, affiliation: str }, required: ['name', 'affiliation'], additionalProperties: false } }, references: { type: 'array', maxItems: 12, items: { type: 'object', properties: { doi: str, arxivId: str }, additionalProperties: false } }, materialsProjectStructureIds: { type: 'array', items: str, maxItems: 8 } }, ['title', 'calculationIds']),
   definition('publish_artifact', 'Publish a typed deliverable in this conversation without modifying project data or running inputs. Reports/plans use Markdown; tables, inputs/diffs and saved-dataset figure previews use structuredData. Cite actual source IDs and label draft/partial work. Returned card versions are immutable.', { kind: { type: 'string', enum: ['report', 'plan', 'figure_preview', 'input_file', 'table', 'diff'] }, title: { type: 'string', minLength: 1, maxLength: 200 }, artifactGroupId: str, content: str, structuredData: json, status: { type: 'string', enum: ['draft', 'complete', 'partial'] } }, ['kind', 'title', 'status']),
   definition('update_artifact', 'Publish the next immutable version of an existing conversation artifact. Use the latest artifactId. Does not apply an input, plan or diff to the project. Keep cited sources and explicitly mark incomplete work.', { artifactId: str, title: str, content: str, structuredData: json, status: { type: 'string', enum: ['draft', 'complete', 'partial'] } }, ['artifactId']),
   definition('read_artifact', 'Read a bounded JSON text window of a retained conversation artifact. Follow nextOffset; source checksum and coverage are explicit.', { id: str, offset: { type: 'integer', minimum: 0 } }, ['id']),
@@ -168,6 +169,10 @@ export async function executeAiTool(name: string, raw: unknown, mode: AiPermissi
       renderFigure(figure, datasets);
     }
     return { result: await backend(name === 'publish_artifact' ? 'artifact_publish' : 'artifact_update', { ...input, ...(toolCallId ? { toolCallId } : {}) }) };
+  }
+  if (name === 'create_manuscript') {
+    const context = await backend<{ stamp: string }>('context');
+    return { result: await backend('manuscript_create', { ...input, stamp: context.stamp, toolCallId }) };
   }
   if (name === 'read_artifact') return { result: await backend('artifact_get', input) };
   if (name === 'record_progress') return { result: await backend('ledger', { assessments: input.assessments }) };
