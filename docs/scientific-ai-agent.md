@@ -237,3 +237,19 @@ resource blocks are counted explicitly. All outputs remain untrusted evidence;
 MCP claims alone do not establish scientific validity. Errors are never recorded
 as successful mutating actions. A failed or interrupted mutation must be
 inspected before a new action is prepared.
+
+## Canvas layout and approval previews
+
+Canvas **Arrange selected** uses ELK 0.12.1 layered layout with the measured
+module sizes and ports. Selecting part of a group arranges that whole group;
+other modules retain their exact positions. **Arrange all** is one undoable edit.
+Layout changes only presentation coordinates, preserving inputs and resources.
+
+AI `edit_canvas` arranges the touched subgraph by default; `layout: "all"`
+requests the full DAG and `"none"` keeps explicit coordinates. The server action
+retains the resulting exact coordinates before review and never reruns layout
+at approval. Open **Review exact input → Preview on Canvas** for a noninteractive
+before/after ghost, including changed connections and groups. It does not change
+the graph or start a calculation. Dismissal, rejection, Stop AI, expiry or any
+local/saved graph revision change invalidates the preview. Approval still uses
+the existing owner/project checks, payload checksum and optimistic concurrency.
