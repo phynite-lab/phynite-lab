@@ -56,6 +56,11 @@ class DesktopApplication:
         self.pseudopotentials = PseudopotentialManager(self.data_dir)
         self.token = secrets.token_urlsafe(48)
         self.closed = threading.Event()
+        from backend.local_api.mlip_runtime import MlipRuntime
+        from backend.local_api.domain.ai_mlip import MlipJobs
+        self.mlip = MlipRuntime(self.data_dir, None)
+        self.services.mlip_runtime = self.mlip
+        self.mlip_jobs = MlipJobs(PhyniteApi(self.services), self.mlip)
         self.workers: list[subprocess.Popen] = []
         self.worker_slots: dict[subprocess.Popen, int] = {}
         self.worker_started: dict[subprocess.Popen, float] = {}
@@ -80,6 +85,7 @@ class DesktopApplication:
         else:
             manifest = ROOT / "backend/local_api/runtime-manifest.json"
             self.runtime = RuntimeManager(self.data_dir, manifest if manifest.is_file() else None)
+            self.mlip.base = self.runtime
             self.scheduler = ResourceScheduler(self.data_dir)
 
     def worker_job(self, headers, job_id: str) -> dict:
@@ -312,6 +318,7 @@ class DesktopApplication:
     def maintain(self):
         while not self.closed.wait(1):
             try:
+                self.mlip_jobs.tick()
                 self.maintain_hpc_workers()
                 hpc_ready = any(process.poll() is None for process in self.hpc_workers.values())
                 if not self.runtime or not self.scheduler:
@@ -422,6 +429,16 @@ class DesktopApplication:
             return response(200, self.materials_project.search(query.get('q'), limit, options))
         if path.startswith('/__local/materials-project/'):
             raise ApiError(404, 'Unknown Materials Project operation.', 'NOT_FOUND')
+        if path == '/__local/mlip' and method == 'GET':
+            return response(200, self.mlip.status())
+        if path == '/__local/mlip/install' and method == 'POST':
+            if payload != {'acceptModelLicense': True}:
+                raise ApiError(400, 'Review the separate MLIP installation and model license.', 'MLIP_SETUP_REQUIRED')
+            def install_mlip():
+                try: self.mlip.install()
+                except Exception: return  # precise failure is retained in setup progress
+            threading.Thread(target=install_mlip, daemon=True).start()
+            return response(202, {'accepted': True})
         if path == "/__local/runtime" and method == "GET":
             worker = self.services.get_item(self.services.owner, 'PERSONAL_WORKER', 'primary') or {}
             online = int(worker.get('lastSeenAtEpoch') or 0) > time.time() - 90
@@ -508,6 +525,8 @@ class DesktopApplication:
 
     def close(self):
         self.closed.set()
+        for process in self.mlip_jobs.processes.values():
+            if process.poll() is None: process.terminate()
         self.connections.close()
         self.stop_workers()
         if self.scheduler:
