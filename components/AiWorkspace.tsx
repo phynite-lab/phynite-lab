@@ -3,7 +3,7 @@ import { AiMcpServersModal } from './AiMcpServersModal';
 import { AiCustomSkillModal } from './AiCustomSkillModal';
 
 import { matchesShortcut } from '@/lib/keyboard-preferences';
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { ArrowDown, ArrowUp, LoaderCircle, BookOpen, FileSearch, FileText, ListChecks, ListEnd, CornerDownRight, Trash2, Paperclip, Pencil, Plus, Square, X } from 'lucide-react';
 import { PhyniteAiIcon } from '@/app/tool-icons';
 import Link from 'next/link';
@@ -178,6 +178,13 @@ function AiWorkspaceOwner({ owner, projectId, legacyProjectId, conversationId, v
     for (const action of data.actions) if (action.status === 'succeeded' && !notified.current.has(action.id)) { notified.current.add(action.id); if (!action.kind.startsWith('export')) callbacks.current.onProjectChange(); }
   }, [projectId, legacyProjectId, t]);
   const loadArtifact = useCallback(async (id: string) => { const conversation = current.current?.conversation.id; if (!conversation) throw new Error('Select a conversation first.'); return (await request<{ artifact: AiArtifact }>(`conversations/${conversation}/artifacts/${id}`)).artifact; }, []);
+  const artifactEditApi = useMemo<import('./AiArtifactEditing').AiArtifactEditApi>(() => ({
+    save: async edit => { const id = current.current?.conversation.id; if (!id) throw new Error('Select a conversation first.'); return (await request<{ artifact: AiArtifact }>(`conversations/${id}/artifact_edit`, edit)).artifact; },
+    patches: async artifactId => { const id = current.current?.conversation.id; if (!id) return []; return (await request<{ proposals: import('@/lib/ai-workbench').AiArtifactPatch[] }>(`conversations/${id}/artifact_patches/${artifactId}`)).proposals; },
+    decide: async (proposal, hunkId, decision, requestId) => { const id = current.current?.conversation.id; if (!id) throw new Error('Select a conversation first.'); return request(`conversations/${id}/artifact_decision`, { proposalId: proposal.id, baseRevision: proposal.revision, hunkId, decision, requestId }); },
+  }), []);
+  const artifactSaved = (artifact: AiArtifact) => { setArtifacts(items => [...items.filter(item => item.id !== artifact.id), artifact]); setArtifactId(artifact.id); };
+
   const load = useCallback(async (id: string) => { const data = await request<AiDetail>(`conversations/${id}`); applyDetail(data); return data; }, [applyDetail]);
   const refreshConnection = useCallback(async (id: string, signal?: AbortSignal) => {
     const epoch = connectionEpoch.current;
@@ -647,7 +654,7 @@ function AiWorkspaceOwner({ owner, projectId, legacyProjectId, conversationId, v
       <div ref={bottom} />
     </div>
     {awayFromLatest && <button type="button" className="ai-jump-latest" aria-label={t('Jump to latest message', 'Ke pesan terbaru')} title={t('Jump to latest message', 'Ke pesan terbaru')} onClick={() => { follow.current = true; if (transcript.current) transcript.current.scrollTop = transcript.current.scrollHeight; setAwayFromLatest(false); }}><ArrowDown size={19} /></button>}
-    {artifactId && <AiArtifactViewer locked={locked} summaries={artifacts} selected={artifactId} load={loadArtifact} onSelect={setArtifactId} onClose={() => setArtifactId(undefined)} onContinue={artifact => { setTaskMode('research'); setText(`Read artifact ${artifact.id} using read_artifact and continue the documented gaps. Cite actual new evidence.`); setArtifactId(undefined); input.current?.focus(); }} onImplement={artifact => { setSourcePlan(artifact.id); setTaskMode('work'); setText(t('Implement this plan. Validate the saved inputs and ask about missing scientific choices before changing anything.', 'Terapkan rencana ini. Validasi input tersimpan dan tanyakan pilihan ilmiah yang belum lengkap sebelum mengubah data.')); setArtifactId(undefined); input.current?.focus(); }} />}</div>
+    {artifactId && <AiArtifactViewer editApi={artifactEditApi} onSaved={artifactSaved} locked={locked} summaries={artifacts} selected={artifactId} load={loadArtifact} onSelect={setArtifactId} onClose={() => setArtifactId(undefined)} onContinue={artifact => { setTaskMode('research'); setText(`Read artifact ${artifact.id} using read_artifact and continue the documented gaps. Cite actual new evidence.`); setArtifactId(undefined); input.current?.focus(); }} onImplement={artifact => { setSourcePlan(artifact.id); setTaskMode('work'); setText(t('Implement this plan. Validate the saved inputs and ask about missing scientific choices before changing anything.', 'Terapkan rencana ini. Validasi input tersimpan dan tanyakan pilihan ilmiah yang belum lengkap sebelum mengubah data.')); setArtifactId(undefined); input.current?.focus(); }} />}</div>
     <div className="ai-composer">
       <div className="ai-composer-notices">
         {!composerOnly && <AiAgentOperatorPanel disabled={locked} onPreset={prompt => { setTaskMode('work'); setText(prompt); input.current?.focus(); }} />}

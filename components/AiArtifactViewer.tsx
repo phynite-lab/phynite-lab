@@ -1,11 +1,12 @@
 'use client';
 
-import { createElement, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createElement, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { X, Download, Copy, GitCompare } from 'lucide-react';
 import { AiResponseContent } from './AiResponseContent';
+import { AiArtifactEditing, AiArtifactPatchReview, type AiArtifactEditApi } from './AiArtifactEditing';
 import { UiSelect } from './UiSelect';
 import { useLocale } from '@/app/locale-provider';
-import { aiArtifactComparable, aiArtifactCsv, aiArtifactDiff, aiArtifactGroup, aiArtifactMarkdown } from '@/lib/ai-artifacts';
+import { aiArtifactComparable, aiArtifactEditableText, aiArtifactCsv, aiArtifactDiff, aiArtifactGroup, aiArtifactMarkdown } from '@/lib/ai-artifacts';
 import { figureIssues, renderFigure, validateDataset, validateFigure } from '@/lib/research-figures';
 import type { AiArtifact, AiArtifactSummary, AiArtifactDiff, AiArtifactFigure, AiArtifactInput, AiArtifactTable } from '@/lib/ai-workbench';
 
@@ -48,12 +49,17 @@ function Table({ table }: { table: AiArtifactTable }) {
   return <><div className="ai-table-scroll" tabIndex={0}><table><thead><tr>{table.columns.map(column => <th key={column.key} aria-sort={sort?.key === column.key ? sort.direction === 1 ? 'ascending' : 'descending' : 'none'}><button type="button" onClick={() => setSort(current => ({ key: column.key, direction: current?.key === column.key ? -current.direction : 1 }))}>{column.label}{column.unit ? ` (${column.unit})` : ''}</button></th>)}</tr></thead><tbody>{rows.slice(0, 500).map((row, i) => <tr key={i}>{table.columns.map(column => <td key={column.key}>{row[column.key] ?? '—'}</td>)}</tr>)}</tbody></table></div>{rows.length > 500 && <p>Preview: 500 of {rows.length} rows. CSV contains every row.</p>}<p>{table.sourceIds.join(' · ')}</p></>;
 }
 
-export function AiArtifactViewer({ summaries, selected, load, onSelect, onClose, onContinue, onImplement, locked }: {
-  locked?: boolean; summaries: AiArtifactSummary[]; selected: string; load: (id: string) => Promise<AiArtifact>; onSelect: (id: string) => void; onClose: () => void; onContinue: (artifact: AiArtifact) => void; onImplement: (artifact: AiArtifact) => void;
+export function AiArtifactViewer({ summaries, selected, load, onSelect, onClose, onContinue, onImplement, locked, editApi, onSaved }: {
+  editApi?: AiArtifactEditApi; onSaved?: (artifact: AiArtifact) => void; locked?: boolean; summaries: AiArtifactSummary[]; selected: string; load: (id: string) => Promise<AiArtifact>; onSelect: (id: string) => void; onClose: () => void; onContinue: (artifact: AiArtifact) => void; onImplement: (artifact: AiArtifact) => void;
 }) {
   const { t } = useLocale();
   const root = useRef<HTMLElement>(null), close = useRef<HTMLButtonElement>(null);
   const [data, setData] = useState<{ id: string; artifact?: AiArtifact; error?: string }>();
+  const [editing, setEditing] = useState(false), [dirty, setDirty] = useState(false);
+  const dirtyRef = useRef(false);
+  const markDirty = useCallback((value: boolean) => { dirtyRef.current = value; setDirty(value); }, []);
+  const guard = (action: () => void) => { if (dirtyRef.current) setNotice(t('Save or discard your edits before leaving this version.', 'Simpan atau buang perubahan sebelum meninggalkan versi ini.')); else action(); };
+  const saved = (artifact: AiArtifact) => { markDirty(false); setEditing(false); setNotice(''); onSaved?.(artifact); };
   const [compare, setCompare] = useState(false), [previous, setPrevious] = useState<AiArtifact>();
   const [sheet, setSheet] = useState(false), [svg, setSvg] = useState<{ id: string; text: string; node: ReactNode; error?: string }>(), [notice, setNotice] = useState('');
   const artifact = data?.id === selected ? data.artifact : undefined;
@@ -96,6 +102,7 @@ export function AiArtifactViewer({ summaries, selected, load, onSelect, onClose,
     } catch (error) { setSvg({ id: artifact.id, text: '', node: null, error: error instanceof Error ? error.message : 'Figure is invalid.' }); } });
     return () => { live = false; };
   }, [artifact]);
+  const canEdit = artifact && editApi && aiArtifactEditableText(artifact) !== null, latest = versions.at(-1)?.id === artifact?.id;
   const content = artifact?.content ?? artifact?.text ?? '';
   const exportArtifact = async (png = false) => {
     if (!artifact) return;
@@ -122,13 +129,13 @@ export function AiArtifactViewer({ summaries, selected, load, onSelect, onClose,
   else if (artifact?.kind === 'diff') { const diff = artifact.structuredData as AiArtifactDiff; body = <Code text={aiArtifactDiff(diff.before, diff.after).text} />; }
   else if (artifact?.kind === 'figure_preview') body = svg?.id !== artifact.id ? <p role="status">Rendering saved figure…</p> : svg?.error ? <p role="alert">{svg.error}</p> : <div className="ai-artifact-figure">{svg?.node}</div>;
   return <aside ref={root} className="ai-artifact-viewer" data-ui-portal data-sheet={sheet} role={sheet ? 'dialog' : 'complementary'} aria-modal={sheet || undefined} aria-label={t('Research artifact', 'Artifact riset')} tabIndex={-1} onKeyDown={event => {
-    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onClose(); }
+    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); guard(onClose); }
     if (sheet && event.key === 'Tab') { const focusable = Array.from(root.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], [tabindex="0"], select') ?? []).filter(element => element.getClientRects().length); const index = focusable.indexOf(document.activeElement as HTMLElement); if (event.shiftKey && index <= 0 || !event.shiftKey && index === focusable.length - 1) { event.preventDefault(); focusable[event.shiftKey ? focusable.length - 1 : 0]?.focus(); } }
-  }}><header><div><strong>{artifact?.title ?? summary?.title ?? t('Research artifact', 'Artifact riset')}</strong><small>{artifact?.kind ?? summary?.kind} · {artifact?.status ?? summary?.status}</small></div><button ref={close} type="button" onClick={onClose} aria-label={t('Close artifact', 'Tutup artifact')}><X size={18} /></button></header>
-    <div className="ai-artifact-toolbar"><UiSelect compact ariaLabel={t('Artifact version', 'Versi artifact')} value={selected} options={versions.map(item => ({ value: item.id, label: `v${item.version ?? 1} · ${item.status}` }))} onChange={onSelect} />
-      <button type="button" disabled={versions.findIndex(item => item.id === selected) < 1} aria-pressed={compare} onClick={() => setCompare(value => !value)}><GitCompare size={15} />{t('Compare', 'Bandingkan')}</button><button type="button" disabled={!artifact} onClick={() => void exportArtifact()}><Download size={15} />{t('Export', 'Ekspor')}</button>{artifact?.kind === 'figure_preview' && <button type="button" onClick={() => void exportArtifact(true)}>PNG</button>}
+  }}><header><div><strong>{artifact?.title ?? summary?.title ?? t('Research artifact', 'Artifact riset')}</strong><small>{artifact?.kind ?? summary?.kind} · {artifact?.status ?? summary?.status}</small></div><button ref={close} type="button" onClick={() => guard(onClose)} aria-label={t('Close artifact', 'Tutup artifact')}><X size={18} /></button></header>
+    <div className="ai-artifact-toolbar"><UiSelect compact ariaLabel={t('Artifact version', 'Versi artifact')} value={selected} options={versions.map(item => ({ value: item.id, label: `v${item.version ?? 1} · ${item.status}` }))} onChange={id => guard(() => { setEditing(false); onSelect(id); })} />
+      {canEdit && <button type="button" disabled={editing || !latest} onClick={() => { setCompare(false); setEditing(true); }}>{t('Edit', 'Edit')}</button>}<button type="button" disabled={editing || versions.findIndex(item => item.id === selected) < 1} aria-pressed={compare} onClick={() => setCompare(value => !value)}><GitCompare size={15} />{t('Compare', 'Bandingkan')}</button><button type="button" disabled={!artifact} onClick={() => void exportArtifact()}><Download size={15} />{t('Export', 'Ekspor')}</button>{artifact?.kind === 'figure_preview' && <button type="button" onClick={() => void exportArtifact(true)}>PNG</button>}
       <button type="button" disabled={!artifact} onClick={() => { void navigator.clipboard.writeText(artifact?.kind === 'input_file' ? (artifact.structuredData as AiArtifactInput).text : content).then(() => setNotice(t('Copied', 'Disalin'))).catch(() => setNotice(t('Copy unavailable; use Export.', 'Salin tidak tersedia; gunakan Ekspor.'))); }} aria-label={t('Copy artifact', 'Salin artifact')}><Copy size={15} /></button></div>
-    <div className="ai-artifact-body">{data?.id === selected && data.error ? <p role="alert">{data.error}</p> : body}{notice && <p role="status">{notice}</p>}{artifact && <details><summary>{t('Sources and provenance', 'Sumber dan provenance')}</summary><pre>{JSON.stringify({ sha256: artifact.sha256, sourceStamp: artifact.sourceStamp, modelId: artifact.modelId, context: artifact.contextManifest, evidence: artifact.evidence }, null, 2)}</pre></details>}</div>
-    <footer><span>{t('Saved deliverable · does not apply or execute inputs', 'Hasil tersimpan · tidak menerapkan atau menjalankan input')}</span>{artifact?.kind === 'plan' && artifact.status === 'complete' && <button type="button" disabled={locked} onClick={() => onImplement(artifact)}>{t('Implement plan', 'Terapkan rencana')}</button>}{artifact && ['research', 'report'].includes(artifact.kind) && <button type="button" disabled={locked} onClick={() => onContinue(artifact)}>{t('Continue research', 'Lanjutkan riset')}</button>}</footer>
+    <div className="ai-artifact-body">{data?.id === selected && data.error ? <p role="alert">{data.error}</p> : editing && canEdit ? <AiArtifactEditing key={artifact.id} artifact={artifact} latest={latest} api={editApi} onSaved={saved} onDirty={markDirty} onPreview={() => setEditing(false)} /> : body}{artifact && canEdit && <AiArtifactPatchReview key={artifact.artifactGroupId ?? artifact.id} artifact={artifact} api={editApi} disabled={dirty} onSaved={saved} />}{notice && <p role="status">{notice}</p>}{artifact && <details><summary>{t('Sources and provenance', 'Sumber dan provenance')}</summary><pre>{JSON.stringify({ sha256: artifact.sha256, sourceStamp: artifact.sourceStamp, modelId: artifact.modelId, author: artifact.author, change: artifact.change, context: artifact.contextManifest, evidence: artifact.evidence }, null, 2)}</pre></details>}</div>
+    <footer><span>{t('Saved deliverable · does not apply or execute inputs', 'Hasil tersimpan · tidak menerapkan atau menjalankan input')}</span>{artifact?.kind === 'plan' && artifact.status === 'complete' && <button type="button" disabled={locked || dirty} onClick={() => guard(() => onImplement(artifact))}>{t('Implement plan', 'Terapkan rencana')}</button>}{artifact && ['research', 'report'].includes(artifact.kind) && <button type="button" disabled={locked || dirty} onClick={() => guard(() => onContinue(artifact))}>{t('Continue research', 'Lanjutkan riset')}</button>}</footer>
   </aside>;
 }

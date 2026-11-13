@@ -442,3 +442,20 @@
 .ai-mcp-server code { overflow-wrap: anywhere; min-width: 0; }
 .ai-mcp-server li span { flex: none; color: var(--panel-muted, #666); }
 @media (max-width: 600px) { .ai-mcp-server li { flex-direction: column; gap: 3px; } }
+
+.ai-artifact-editing { display:grid; gap:12px; min-width:0; }
+.ai-artifact-edit-actions, .ai-artifact-edit-history, .ai-artifact-hunk-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.ai-artifact-edit-actions > strong { font-size:12px; margin-right:auto; }
+.ai-artifact-editing button, .ai-artifact-patches button { border:1px solid var(--panel-border); border-radius:6px; padding:6px 9px; background:var(--panel-raised); font:inherit; }
+.ai-artifact-text-editor { min-width:0; border:1px solid var(--panel-border); border-radius:8px; overflow:hidden; }
+.ai-artifact-edit-history { padding:8px; border-bottom:1px solid var(--panel-border); }
+.ai-artifact-edit-history small { margin-left:auto; }
+.ai-artifact-text-editor .cm-editor { max-height:55dvh; min-width:0; }
+.ai-artifact-text-editor .cm-scroller { min-height:0; }
+.ai-artifact-patches { margin-top:18px; padding-top:12px; border-top:1px solid var(--panel-border); }
+.ai-artifact-patches h3 { font-size:13px; }
+.ai-artifact-patches article { display:grid; gap:8px; padding:12px 0; border-top:1px solid var(--panel-border); }
+.ai-artifact-patches pre { margin:0; padding:8px; overflow:auto; max-height:240px; white-space:pre-wrap; overflow-wrap:anywhere; font:12px/1.6 var(--font-code); }
+.ai-artifact-patches pre[data-change=removed] { border-left:3px solid #b65555; }
+.ai-artifact-patches pre[data-change=added] { border-left:3px solid #348c62; }
+.ai-artifact-hunk-actions > span { margin-right:auto; color:var(--panel-muted); font-size:12px; }

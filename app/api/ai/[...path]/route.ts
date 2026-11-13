@@ -240,12 +240,14 @@ async function handle(request: NextRequest, context: Context): Promise<Response>
       || /^conversations\/aic_[a-z0-9]+$/.test(path) && ['GET', 'DELETE'].includes(method)
       || /^conversations\/aic_[a-z0-9]+\/references$/.test(path) && ['GET', 'POST'].includes(method)
       || /^conversations\/aic_[a-z0-9]+\/artifacts(?:\/aid_[a-z0-9]+)?$/.test(path) && method === 'GET'
+      || /^conversations\/aic_[a-z0-9]+\/(?:artifact_edit|artifact_decision)$/.test(path) && method === 'POST'
+      || /^conversations\/aic_[a-z0-9]+\/artifact_patches\/aid_[a-z0-9]+$/.test(path) && method === 'GET'
       || /^conversations\/aic_[a-z0-9]+\/settings$/.test(path) && method === 'PATCH'
       || /^conversations\/aic_[a-z0-9]+\/stop$/.test(path) && method === 'POST'
       || /^conversations\/aic_[a-z0-9]+\/actions\/aia_[a-z0-9]+$/.test(path) && ['GET', 'POST'].includes(method);
     const attachmentMetadata = /^conversations\/aic_[a-z0-9]+\/attachments$/.test(path) && method === 'POST';
     if (!allowed && !attachmentMetadata) throw new AiError(404, 'AI_NOT_FOUND', 'The AI route was not found.');
-    const payload = ['POST', 'PATCH'].includes(method) ? await readJsonBody<Record<string, unknown>>(request, 16000) : undefined;
+    const payload = ['POST', 'PATCH'].includes(method) ? await readJsonBody<Record<string, unknown>>(request, path.endsWith('/artifact_edit') ? 2_000_000 : 16000) : undefined;
     const query = new URLSearchParams();
     for (const key of ['before', 'export', 'q', 'nodeId']) if (request.nextUrl.searchParams.has(key)) query.set(key, request.nextUrl.searchParams.get(key)!);
     const result = await call(`${path}${query.size ? `?${query}` : ''}`, payload, method);

@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import hashlib
+import copy
 import json
 import math
 import re
 import secrets
+import time
 from backend.local_api.domain.ai_workspace import clean, digest, fail, valid_id
 from backend.local_api.domain.phynite_core import json_safe, owner_partition, storage_owner, utc_now
 
@@ -31,7 +33,7 @@ def fields(value, allowed, required=()):
 
 
 def summary(row):
-    return {key: clean(row[key]) for key in ('id', 'conversationId', 'runId', 'artifactGroupId', 'version', 'parentArtifactId', 'kind', 'title', 'status', 'createdAt', 'hasOverflow', 'sha256') if key in row}
+    return {key: clean(row[key]) for key in ('id', 'conversationId', 'runId', 'artifactGroupId', 'version', 'parentArtifactId', 'kind', 'title', 'status', 'createdAt', 'hasOverflow', 'sha256', 'author') if key in row}
 
 
 class AiArtifacts:
@@ -83,7 +85,7 @@ class AiArtifacts:
             fields(data, {'format', 'filename', 'text', 'validation'} if kind == 'input_file' else {'format', 'filename', 'before', 'after'}, {'format', 'filename', 'text'} if kind == 'input_file' else {'format', 'filename', 'before', 'after'})
             filename = text(data['filename'], 'Filename', 160, False)
             if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_. -]{0,159}', filename) or '..' in filename: fail(400, 'Use a plain filename without paths.', 'AI_ARTIFACT_INVALID')
-            if data['format'] not in {'qe', 'lammps', 'cif', 'poscar', 'json', 'text'}: fail(400, 'Choose a supported text format.', 'AI_ARTIFACT_INVALID')
+            if not isinstance(data['format'], str) or data['format'] not in {'qe', 'lammps', 'cif', 'poscar', 'json', 'text', 'markdown', 'python', 'latex'}: fail(400, 'Choose a supported text format.', 'AI_ARTIFACT_INVALID')
             for field in ('text',) if kind == 'input_file' else ('before', 'after'): text(data[field], field, 1_500_000)
             if 'validation' in data:
                 fields(data['validation'], {'valid', 'issues'}, {'valid', 'issues'})
@@ -110,13 +112,13 @@ class AiArtifacts:
             if any(layer.get('datasetId') not in ids for panel in figure['panels'] for layer in panel['layers']):
                 fail(400, 'Every figure layer needs its retained dataset.', 'AI_ARTIFACT_INVALID')
 
-    def publish(self, owner, conversation, run, request, update=False, *, evidence=None):
+    def publish(self, owner, conversation, run, request, update=False, *, evidence=None, author=None, change=None):
         envelope = {'runId', 'lease', 'controlRevision', 'toolCallId', 'toolName'}
         fields(request, envelope | ({'artifactId', 'title', 'content', 'structuredData', 'status'} if update else {'artifactGroupId', 'kind', 'title', 'content', 'structuredData', 'status'}))
         call_id = request.get('toolCallId')
         if call_id is not None and (not isinstance(call_id, str) or not re.fullmatch('[A-Za-z0-9_-]{1,200}', call_id)): fail(400, 'Invalid artifact call ID.', 'AI_ARTIFACT_INVALID')
         item_id = 'aid_' + (digest([run['id'], call_id])[:32] if call_id else secrets.token_hex(16))
-        request_hash = hashlib.sha256(encoded({k: v for k, v in request.items() if k not in envelope})).hexdigest()
+        request_hash = hashlib.sha256(encoded({'request': {k: v for k, v in request.items() if k not in envelope}, 'author': author, 'change': change})).hexdigest()
         existing = self.services.get_item(owner, 'AI_ARTIFACT', item_id)
         if existing:
             if existing.get('conversationId') != conversation['id'] or existing.get('requestHash') != request_hash: fail(409, 'Artifact call ID was already used for different content.', 'AI_ARTIFACT_CONFLICT')
@@ -128,6 +130,8 @@ class AiArtifacts:
         if group and (group.get('conversationId') != conversation['id'] or parent and group['latestId'] != parent['id']): fail(409, 'Update the latest artifact version in this conversation.', 'AI_ARTIFACT_CONFLICT')
         if not group and request.get('artifactGroupId'): fail(404, 'Artifact group not found.', 'AI_NOT_FOUND')
         if not parent and group: parent = self.get(owner, conversation, group['latestId'])
+        if parent and parent['kind'] in {'report', 'plan', 'input_file', 'diff', 'research', 'summary'} and author is None:
+            fail(409, 'Propose independent artifact hunks to edit existing text.', 'AI_ARTIFACT_REVIEW_REQUIRED')
         kind = request.get('kind', (parent or {}).get('kind'))
         if isinstance(kind, str): kind = {'research': 'report', 'summary': 'report'}.get(kind, kind)
         status = request.get('status', (parent or {}).get('status', 'complete'))
@@ -141,7 +145,8 @@ class AiArtifacts:
         if isinstance(structured, dict) and isinstance(structured.get('validation'), dict): structured['validation'].pop('note', None)
         self.validate(owner, conversation, kind, structured)
         if not content.strip() and structured is None: fail(400, 'Artifact needs content or typed data.', 'AI_ARTIFACT_INVALID')
-        payload = clean({'content': content, 'structuredData': structured, 'contextManifest': run.get('contextManifest', []), 'evidence': evidence if evidence is not None else (parent or {}).get('evidence', [])})
+        author = author or {'kind': 'ai', 'id': run['id'], 'modelId': run['modelId']}
+        payload = clean({'content': content, 'structuredData': structured, 'contextManifest': run.get('contextManifest', []), 'evidence': evidence if evidence is not None else (parent or {}).get('evidence', []), 'author': author, 'change': change or {'kind': 'publication'}})
         raw = encoded(payload)
         if len(raw) > MAX_BYTES: fail(413, 'Artifact exceeds the 2 MB deliverable limit.', 'AI_ARTIFACT_LIMIT')
         version = int((parent or {}).get('version', 1 if parent else 0)) + 1
@@ -149,7 +154,7 @@ class AiArtifacts:
         row = {'PK': owner_partition(owner), 'SK': 'AI_ARTIFACT#' + item_id, 'entityType': 'AI_ARTIFACT', 'ownerId': owner, 'id': item_id, 'revision': 0, 'schemaVersion': 2,
                'artifactGroupId': group_id, 'version': version, **({'parentArtifactId': parent['id']} if parent else {}), 'requestHash': request_hash,
                'conversationId': conversation['id'], 'projectKey': conversation.get('projectKey'), 'runId': run['id'], 'kind': kind, 'title': clean(title), 'status': status,
-               'createdAt': timestamp, 'sourceStamp': run.get('sourceStamp'), 'modelId': run['modelId'], 'providerId': run.get('providerId', 'local'), 'effort': run.get('effort', 'auto'),
+               'createdAt': timestamp, 'author': author, 'sourceStamp': run.get('sourceStamp'), 'modelId': run['modelId'], 'providerId': run.get('providerId', 'local'), 'effort': run.get('effort', 'auto'),
                'sha256': hashlib.sha256(raw).hexdigest(), 'hasOverflow': len(raw) > 32000}
         if row['hasOverflow']: self.services.s3.put_object(Bucket=self.services.bucket, Key=self.key(owner, conversation, row), Body=raw, ContentType='application/json', ServerSideEncryption='AES256')
         else: row['payload'] = payload
@@ -171,3 +176,131 @@ class AiArtifacts:
         body = json.dumps({key: row.get(key) for key in ('content', 'structuredData', 'text', 'contextManifest', 'evidence')}, ensure_ascii=False)
         return {'artifact': summary(row), 'section': body[offset:offset + 12000], 'offset': offset,
                 'nextOffset': offset + 12000 if offset + 12000 < len(body) else None, 'totalCharacters': len(body), 'readingLimit': 'This is a text window of retained artifact JSON, not scientific verification.'}
+
+    def editable_text(self, artifact):
+        if artifact.get('schemaVersion') != 2:
+            fail(400, 'Export legacy artifacts or publish a typed copy before editing.', 'AI_ARTIFACT_READ_ONLY')
+        if artifact['kind'] in {'report', 'plan'}: return artifact['content']
+        if artifact['kind'] in {'input_file', 'diff'}:
+            return artifact['structuredData']['after' if artifact['kind'] == 'diff' else 'text']
+        fail(400, 'This typed artifact is read-only in the text editor.', 'AI_ARTIFACT_READ_ONLY')
+
+    def edit_request(self, parent, content, call_id):
+        text(content, 'Edited text', 1_500_000)
+        request = {'artifactId': parent['id'], 'status': 'draft', 'toolCallId': call_id}
+        if parent['kind'] in {'report', 'plan'}: request['content'] = content
+        else:
+            data = copy.deepcopy(parent['structuredData'])
+            data['after' if parent['kind'] == 'diff' else 'text'] = content
+            data.pop('validation', None)  # An old assessment cannot validate edited input.
+            request['structuredData'] = data
+        return request
+
+    def source_run(self, parent):
+        return {**parent, 'id': parent['runId'], 'contextManifest': parent.get('contextManifest', [])}
+
+    def edit(self, owner, conversation, request):
+        fields(request, {'artifactId', 'baseSha256', 'text', 'requestId'}, {'artifactId', 'baseSha256', 'text', 'requestId'})
+        parent = self.get(owner, conversation, valid_id(request['artifactId']))
+        self.editable_text(parent)
+        if request['baseSha256'] != parent.get('sha256'):
+            fail(409, 'The editor source checksum changed. Reload before saving.', 'AI_ARTIFACT_CONFLICT')
+        request_id = valid_id(request['requestId'])
+        payload = self.edit_request(parent, request['text'], 'edit_' + request_id)
+        return self.publish(owner, conversation, self.source_run(parent), payload, True,
+                            author={'kind': 'researcher', 'id': owner},
+                            change={'kind': 'edit', 'baseArtifactId': parent['id'], 'baseSha256': parent['sha256']})
+
+    def patch(self, owner, conversation, item_id):
+        row = self.ai.row(owner, 'AI_ARTIFACT_PATCH', valid_id(item_id))
+        if row.get('conversationId') != conversation['id'] or row.get('projectKey') != conversation.get('projectKey'):
+            fail(404, 'This proposal is not in this conversation.', 'AI_NOT_FOUND')
+        return row
+
+    def public_patch(self, owner, conversation, row):
+        group = self.services.get_item(owner, 'AI_ARTIFACT_GROUP', row['artifactGroupId'])
+        pending = any(h['decision'] == 'pending' for h in row['hunks'])
+        stale = not group or group['latestId'] != row['expectedArtifactId']
+        status = 'stale' if stale else 'expired' if row['expiresAt'] <= time.time() else 'open' if pending else 'complete'
+        return {key: clean(row[key]) for key in ('id', 'revision', 'baseArtifactId', 'baseSha256', 'artifactGroupId', 'expectedArtifactId', 'hunks', 'author', 'createdAt', 'expiresAt')} | {'status': status}
+
+    def patches(self, owner, conversation, artifact_id):
+        artifact = self.get(owner, conversation, valid_id(artifact_id))
+        rows = self.services.list_owner_items(owner, 'AI_ARTIFACT_PATCH')
+        return [self.public_patch(owner, conversation, row) for row in rows if row.get('conversationId') == conversation['id'] and row.get('artifactGroupId') == artifact.get('artifactGroupId')]
+
+    def propose(self, owner, conversation, run, request):
+        envelope = {'runId', 'lease', 'controlRevision', 'toolCallId', 'toolName'}
+        fields(request, envelope | {'artifactId', 'baseSha256', 'hunks'}, {'artifactId', 'baseSha256', 'hunks', 'toolCallId'})
+        call_id = valid_id(request['toolCallId'])
+        item_id = 'aip_' + digest([run['id'], call_id])[:32]
+        request_hash = digest({k: v for k, v in request.items() if k not in envelope})
+        existing = self.services.get_item(owner, 'AI_ARTIFACT_PATCH', item_id)
+        if existing:
+            if existing.get('conversationId') != conversation['id'] or existing.get('requestHash') != request_hash:
+                fail(409, 'This proposal call ID already has different content.', 'AI_ARTIFACT_CONFLICT')
+            return self.public_patch(owner, conversation, existing)
+        base = self.get(owner, conversation, valid_id(request['artifactId']))
+        source = self.editable_text(base)
+        group = self.services.get_item(owner, 'AI_ARTIFACT_GROUP', base['artifactGroupId'])
+        if request['baseSha256'] != base['sha256'] or not group or group['latestId'] != base['id']:
+            fail(409, 'Read the latest artifact and checksum before proposing hunks.', 'AI_ARTIFACT_CONFLICT')
+        proposals = request['hunks']
+        if not isinstance(proposals, list) or not 1 <= len(proposals) <= 32:
+            fail(400, 'Propose 1–32 independent hunks.', 'AI_ARTIFACT_INVALID')
+        hunks = []
+        for index, proposal in enumerate(proposals):
+            fields(proposal, {'before', 'after', 'reason'}, {'before', 'after', 'reason'})
+            before, after = text(proposal['before'], 'Hunk source', 100000, False), text(proposal['after'], 'Hunk replacement', 100000)
+            reason = text(proposal['reason'], 'Hunk reason', 2000, False)
+            start = source.find(before)
+            if start < 0 or source.find(before, start + 1) >= 0 or before == after:
+                fail(409, 'Each hunk needs unique exact source text and a change. Include more context for repeated text.', 'AI_ARTIFACT_HUNK_INVALID')
+            end = start + len(before)
+            if any(start < h['end'] and end > h['start'] for h in hunks):
+                fail(400, 'Hunks must not overlap.', 'AI_ARTIFACT_HUNK_INVALID')
+            hunks.append({'id': 'aih_' + digest([item_id, index])[:24], 'start': start, 'end': end, 'before': before, 'after': after, 'reason': reason, 'decision': 'pending'})
+        if len(encoded(hunks)) > 1_500_000: fail(413, 'This proposal exceeds the review limit.', 'AI_ARTIFACT_LIMIT')
+        row = {'PK': owner_partition(owner), 'SK': 'AI_ARTIFACT_PATCH#' + item_id, 'entityType': 'AI_ARTIFACT_PATCH', 'ownerId': owner,
+               'id': item_id, 'revision': 0, 'conversationId': conversation['id'], 'projectKey': conversation.get('projectKey'),
+               'artifactGroupId': base['artifactGroupId'], 'baseArtifactId': base['id'], 'baseSha256': base['sha256'], 'expectedArtifactId': base['id'],
+               'hunks': hunks, 'author': {'kind': 'ai', 'id': run['id'], 'modelId': run['modelId']}, 'requestHash': request_hash,
+               'createdAt': utc_now(), 'expiresAt': int(time.time()) + 86400, 'decisions': {}}
+        # The SQLite transaction fences a racing editor save and duplicate model call.
+        with self.services.table.atomic():
+            latest = self.services.get_item(owner, 'AI_ARTIFACT_GROUP', base['artifactGroupId'])
+            if latest['latestId'] != base['id']: fail(409, 'The artifact changed while proposing hunks.', 'AI_ARTIFACT_CONFLICT')
+            if not self.services.commit_ai_records([(row, None)]): fail(409, 'The proposal changed. Read it again.', 'AI_ARTIFACT_CONFLICT')
+        return self.public_patch(owner, conversation, row)
+
+    def decide_patch(self, owner, conversation, request):
+        fields(request, {'proposalId', 'hunkId', 'decision', 'baseRevision', 'requestId'}, {'proposalId', 'hunkId', 'decision', 'baseRevision', 'requestId'})
+        if not isinstance(request['decision'], str) or request['decision'] not in {'accepted', 'rejected'} or type(request['baseRevision']) is not int:
+            fail(400, 'Choose accepted or rejected at the current proposal revision.', 'AI_ARTIFACT_INVALID')
+        request_id = valid_id(request['requestId'])
+        request_hash = digest(request)
+        with self.services.table.atomic():
+            row = self.patch(owner, conversation, request['proposalId'])
+            prior = row['decisions'].get(request_id)
+            if prior:
+                if prior['sha256'] != request_hash: fail(409, 'This review request ID already has a different decision.', 'AI_ARTIFACT_CONFLICT')
+                return {'proposal': self.public_patch(owner, conversation, row), 'artifact': self.get(owner, conversation, prior['artifactId']) if prior.get('artifactId') else None}
+            if row['revision'] != request['baseRevision'] or self.public_patch(owner, conversation, row)['status'] != 'open':
+                fail(409, 'This proposal is stale, expired or already reviewed. Read the latest artifact and proposal.', 'AI_ARTIFACT_CONFLICT')
+            hunk = next((h for h in row['hunks'] if h['id'] == request['hunkId']), None)
+            if not hunk or hunk['decision'] != 'pending': fail(409, 'This hunk was already reviewed or does not exist.', 'AI_ARTIFACT_CONFLICT')
+            hunk['decision'] = request['decision']
+            artifact = None
+            if request['decision'] == 'accepted':
+                base = self.get(owner, conversation, row['baseArtifactId'])
+                if base['sha256'] != row['baseSha256']: fail(409, 'The proposal source checksum changed.', 'AI_ARTIFACT_CONFLICT')
+                source = self.editable_text(base)
+                for accepted in sorted((h for h in row['hunks'] if h['decision'] == 'accepted'), key=lambda h: h['start'], reverse=True):
+                    source = source[:int(accepted['start'])] + accepted['after'] + source[int(accepted['end']):]
+                parent = self.get(owner, conversation, row['expectedArtifactId'])
+                artifact = self.publish(owner, conversation, self.source_run(parent), self.edit_request(parent, source, 'review_' + request_id), True,
+                                        author={'kind': 'researcher', 'id': owner}, change={'kind': 'accepted_hunk', 'proposalId': row['id'], 'hunkId': hunk['id'], 'proposer': row['author'], 'baseArtifactId': base['id'], 'baseSha256': base['sha256']})
+                row['expectedArtifactId'] = artifact['id']
+            decisions = {**row['decisions'], request_id: {'sha256': request_hash, 'artifactId': artifact['id'] if artifact else None}}
+            row = self.ai.update(owner, 'AI_ARTIFACT_PATCH', row, {'hunks': row['hunks'], 'expectedArtifactId': row['expectedArtifactId'], 'decisions': decisions})
+            return {'proposal': self.public_patch(owner, conversation, row), 'artifact': artifact}

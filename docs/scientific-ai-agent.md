@@ -237,3 +237,37 @@ resource blocks are counted explicitly. All outputs remain untrusted evidence;
 MCP claims alone do not establish scientific validity. Errors are never recorded
 as successful mutating actions. A failed or interrupted mutation must be
 inspected before a new action is prepared.
+
+## Collaborative artifact editing
+
+Open a report, plan, input file or diff card and choose **Edit** on its latest
+version. The CodeMirror 6 editor supports selection, undo/redo, Markdown, Python,
+LaTeX and scientific input text. Preview renders inert Markdown or escaped code;
+Phynite does not execute Python, compile user TeX or insert user HTML. Unsaved
+changes block version switching and closing the viewer; discard explicitly or
+export a draft to retain it before resolving a conflict. The browser also warns
+before leaving a page with an unsaved editor.
+
+**Save new version** creates an immutable draft attributed to the local researcher,
+retains the parent ID/checksum and scientific sources, and removes any old
+model-supplied input validation assessment. It never installs inputs or applies
+project settings. Two editors cannot overwrite the same base version. A retry
+uses the same request ID and returns the saved version instead of duplicating it.
+Legacy artifacts remain readable and exportable; publish a typed copy to edit one.
+
+AI text edits use `propose_artifact_patch`, with the exact source artifact ID and
+SHA-256 returned by `read_artifact`. Each hunk includes unique exact source text,
+a replacement and a reason; hunks cannot overlap. The researcher accepts or rejects
+each independently. Acceptance creates a new immutable draft with the proposer
+and decision provenance. Subsequent decisions on that proposal include prior
+accepted hunks without shifting original offsets. An intervening editor save or
+a different proposal's acceptance makes pending proposals stale; they cannot apply
+to a changed base. Proposals expire after 24 hours. Review requires the current
+proposal revision and an idempotent request ID. A decision and its artifact/group
+update commit in one local transaction, including across a crash.
+
+The model can propose hunks in any task mode but cannot call human Save or hunk
+review endpoints. Existing custom-skill tool subsets do not gain the new tool
+automatically. Table and figure updates retain their typed validators. Applying
+an artifact to a project or executing a scientific input still requires the
+separate validated action flow and its approval rules.

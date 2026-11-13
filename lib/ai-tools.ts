@@ -66,7 +66,8 @@ const readTools = [
 ];
 const conversationTools = [
   definition('publish_artifact', 'Publish a typed deliverable in this conversation without modifying project data or running inputs. Reports/plans use Markdown; tables, inputs/diffs and saved-dataset figure previews use structuredData. Cite actual source IDs and label draft/partial work. Returned card versions are immutable.', { kind: { type: 'string', enum: ['report', 'plan', 'figure_preview', 'input_file', 'table', 'diff'] }, title: { type: 'string', minLength: 1, maxLength: 200 }, artifactGroupId: str, content: str, structuredData: json, status: { type: 'string', enum: ['draft', 'complete', 'partial'] } }, ['kind', 'title', 'status']),
-  definition('update_artifact', 'Publish the next immutable version of an existing conversation artifact. Use the latest artifactId. Does not apply an input, plan or diff to the project. Keep cited sources and explicitly mark incomplete work.', { artifactId: str, title: str, content: str, structuredData: json, status: { type: 'string', enum: ['draft', 'complete', 'partial'] } }, ['artifactId']),
+  definition('update_artifact', 'Publish the next immutable version of a typed table or figure. For existing text, use propose_artifact_patch so the researcher can review each hunk. Use the latest artifactId. Does not apply an input, plan or diff to the project. Keep cited sources and explicitly mark incomplete work.', { artifactId: str, title: str, content: str, structuredData: json, status: { type: 'string', enum: ['draft', 'complete', 'partial'] } }, ['artifactId']),
+  definition('propose_artifact_patch', 'Propose 1–32 independent text hunks against the exact latest artifact ID and SHA-256 from read_artifact. Each before must match unique exact source text; include context for insertions or repeated lines. Hunks cannot overlap. Each hunk is reviewed separately by the researcher and never applies project settings or executes code.', { artifactId: str, baseSha256: str, hunks: { type: 'array', minItems: 1, maxItems: 32, items: object({ before: str, after: str, reason: str }) } }, ['artifactId', 'baseSha256', 'hunks']),
   definition('read_artifact', 'Read a bounded JSON text window of a retained conversation artifact. Follow nextOffset; source checksum and coverage are explicit.', { id: str, offset: { type: 'integer', minimum: 0 } }, ['id']),
 ];
 const writeTools = [
@@ -169,6 +170,7 @@ export async function executeAiTool(name: string, raw: unknown, mode: AiPermissi
     }
     return { result: await backend(name === 'publish_artifact' ? 'artifact_publish' : 'artifact_update', { ...input, ...(toolCallId ? { toolCallId } : {}) }) };
   }
+  if (name === 'propose_artifact_patch') return { result: await backend('artifact_propose', { ...input, toolCallId }) };
   if (name === 'read_artifact') return { result: await backend('artifact_get', input) };
   if (name === 'record_progress') return { result: await backend('ledger', { assessments: input.assessments }) };
   const readers: Record<string, string> = { list_job_artifacts: 'job_artifacts', read_job_file: 'job_file', query_dataset: 'dataset_query', search_md_potentials: 'potential_search', list_active_jobs: 'jobs', get_job_status: 'job_status', get_worker_status: 'worker_status' };

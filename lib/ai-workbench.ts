@@ -12,11 +12,15 @@ export type AiContextItem = { ref: AiContextRef; label: string; detail?: string 
 export type AiContextManifest = AiContextItem & { sourceId: string; sha256: string; value?: unknown };
 export type AiArtifactKind = 'report' | 'plan' | 'figure_preview' | 'input_file' | 'table' | 'diff';
 export type AiArtifactTable = { columns: Array<{ key: string; label: string; unit?: string; numeric?: boolean }>; rows: Array<Record<string, string | number | null>>; sourceIds: string[] };
-export type AiArtifactInput = { format: 'qe' | 'lammps' | 'cif' | 'poscar' | 'json' | 'text'; filename: string; text: string; validation?: { valid: boolean; issues: string[]; note?: string } };
+export type AiArtifactInput = { format: 'qe' | 'lammps' | 'cif' | 'poscar' | 'json' | 'text' | 'markdown' | 'python' | 'latex'; filename: string; text: string; validation?: { valid: boolean; issues: string[]; note?: string } };
 export type AiArtifactDiff = { format: string; filename: string; before: string; after: string };
 export type AiArtifactFigure = { figure: import('./research-figures.ts').FigureDocument; datasets: import('./research-figures.ts').ResearchDataset[] };
-export type AiArtifactSummary = { id: string; conversationId: string; runId: string; artifactGroupId?: string; version?: number; parentArtifactId?: string; kind: AiArtifactKind | 'research' | 'summary'; title?: string; status: 'draft' | 'complete' | 'partial'; createdAt: string; hasOverflow?: boolean; sha256?: string };
-export type AiArtifact = AiArtifactSummary & { schemaVersion?: 1 | 2; content?: string; structuredData?: AiArtifactTable | AiArtifactInput | AiArtifactDiff | AiArtifactFigure | null; text: string; sourceStamp: string; contextManifest: AiContextManifest[]; evidence: Array<Record<string, unknown>>; modelId: string };
+export type AiArtifactAuthor = { kind: 'ai' | 'researcher'; id: string; modelId?: string };
+export type AiArtifactSummary = { id: string; conversationId: string; runId: string; artifactGroupId?: string; version?: number; parentArtifactId?: string; kind: AiArtifactKind | 'research' | 'summary'; title?: string; status: 'draft' | 'complete' | 'partial'; createdAt: string; hasOverflow?: boolean; sha256?: string; author?: AiArtifactAuthor };
+export type AiArtifact = AiArtifactSummary & { schemaVersion?: 1 | 2; content?: string; structuredData?: AiArtifactTable | AiArtifactInput | AiArtifactDiff | AiArtifactFigure | null; text: string; sourceStamp: string; contextManifest: AiContextManifest[]; evidence: Array<Record<string, unknown>>; modelId: string; change?: Record<string, unknown> };
+export type AiArtifactEdit = { artifactId: string; baseSha256: string; text: string; requestId: string };
+export type AiArtifactHunk = { id: string; before: string; after: string; reason: string; decision: 'pending' | 'accepted' | 'rejected' };
+export type AiArtifactPatch = { id: string; revision: number; baseArtifactId: string; baseSha256: string; artifactGroupId: string; expectedArtifactId: string; hunks: AiArtifactHunk[]; author: AiArtifactAuthor; status: 'open' | 'stale' | 'expired' | 'complete'; createdAt: string; expiresAt: number };
 
 export function aiEffectivePermission(mode: AiPermissionMode, task: AiTaskMode = 'work'): AiPermissionMode { return task === 'work' ? mode : 'chat'; }
 export function aiContextKey(ref: AiContextRef): string { return JSON.stringify([ref.kind, ref.id, ref.kind === 'field' ? ref.path : ref.kind === 'atom' ? [ref.atomId, ref.image ?? [0, 0, 0]] : ref.kind === 'resource' ? ref.resourceKind : null]); }

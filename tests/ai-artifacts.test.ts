@@ -34,7 +34,7 @@ test('version comparisons retain actual typed values when the Markdown narrative
 test('conversation artifacts remain available in every task mode without project mutation approvals', async () => {
   for (const task of ['work', 'plan', 'research', 'summary'] as const) for (const mode of ['chat', 'approval', 'full'] as const) {
     const effective = aiEffectivePermission(mode, task), names = aiTools(effective, false).map(tool => tool.name);
-    for (const name of ['publish_artifact', 'update_artifact', 'read_artifact']) assert.ok(names.includes(name));
+    for (const name of ['publish_artifact', 'update_artifact', 'read_artifact', 'propose_artifact_patch']) assert.ok(names.includes(name));
     const calls: Array<[string, unknown]> = [];
     const backend: AiBackend = async <T,>(op: string, payload?: Record<string, unknown>) => { calls.push([op, payload]); return { artifact: artifact('new', 1) } as T; };
     await executeAiTool('publish_artifact', { kind: 'report', title: 'Evidence', content: 'C1', status: 'complete' }, effective, backend, new AbortController().signal, 'artifact_call');
@@ -42,4 +42,13 @@ test('conversation artifacts remain available in every task mode without project
     assert.equal((calls[0][1] as Record<string, unknown>).toolCallId, 'artifact_call');
     assert.ok(!names.includes('run_dft'));
   }
+});
+
+test('AI text editing can propose hunks but cannot invoke human saves or hunk decisions', async () => {
+  const calls: Array<[string, unknown]> = [];
+  const backend: AiBackend = async <T,>(op: string, payload?: Record<string, unknown>) => { calls.push([op, payload]); return { proposal: { id: 'aip_fixture' } } as T; };
+  const patch = { artifactId: 'aid_fixture', baseSha256: 'a'.repeat(64), hunks: [{ before: 'old 80 Ry', after: 'new 80 Ry', reason: 'Fixture' }] };
+  await executeAiTool('propose_artifact_patch', patch, 'chat', backend, new AbortController().signal, 'patch_call');
+  assert.equal(calls[0][0], 'artifact_propose'); assert.equal((calls[0][1] as Record<string, unknown>).toolCallId, 'patch_call');
+  for (const tool of ['artifact_edit', 'artifact_decision']) await assert.rejects(executeAiTool(tool, {}, 'full', backend, new AbortController().signal), /not available/);
 });

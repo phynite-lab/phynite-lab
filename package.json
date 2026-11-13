@@ -22,6 +22,13 @@
     "package:local": "node scripts/package-local.mjs"
   },
   "dependencies": {
+    "@codemirror/commands": "6.11.1",
+    "@codemirror/lang-markdown": "6.5.2",
+    "@codemirror/lang-python": "6.2.1",
+    "@codemirror/language": "6.13.1",
+    "@codemirror/legacy-modes": "6.5.5",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.15",
     "@noble/hashes": "2.4.0",
     "@radix-ui/react-collapsible": "^1.1.20",
     "@radix-ui/react-slider": "^1.4.7",
