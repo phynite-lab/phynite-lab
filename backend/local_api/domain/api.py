@@ -1900,7 +1900,7 @@ class PhyniteApi:
         require_project(self.services, user_id, project_id)
         with self.services.table.atomic():
             children = [item for item in self.services.list_project_items(project_id) if item.get('ownerId') == user_id]
-            if any((item.get('entityType') in {'CALCULATION', 'MD_ANALYSIS', 'MD_SIMULATION'} and item.get('status') in {'QUEUED', 'RUNNING', 'CANCEL_REQUESTED', 'PREPARING'} for item in children)):
+            if any((item.get('entityType') in {'CALCULATION', 'MD_ANALYSIS', 'MD_SIMULATION', 'MLIP_JOB', 'AI_DISCOVERY', 'AI_CAMPAIGN'} and item.get('status') in {'QUEUED', 'RUNNING', 'CANCEL_REQUESTED', 'PREPARING', 'queued', 'running', 'executing'} for item in children)):
                 raise ApiError(409, 'Cancel active jobs and wait for the worker to finish before deleting this project.', 'PROJECT_COMPUTE_ACTIVE')
             self.services.delete_s3_prefix(f'users/{storage_owner(user_id)}/projects/{project_id}/')
             self.services.delete_project(user_id, project_id, children)
@@ -1979,6 +1979,7 @@ class PhyniteApi:
     def delete_structure(self, user_id: str, structure_id: str) -> dict[str, Any]:
         item = require_owner_item(self.services, user_id, 'STRUCTURE', structure_id, 'STRUCTURE_NOT_FOUND')
         calculations = self.services.list_project_items(item['projectId'], 'CALCULATION')
+        calculations += [job for job in self.services.list_project_items(item['projectId'], 'MLIP_JOB') if job.get('status') in {'queued', 'running'}]
         active = [calc for calc in calculations if calc.get('structureId') == structure_id and calc.get('status') not in FINAL_JOB_STATES]
         if active:
             raise ApiError(409, 'Structure is connected to an active calculation.', 'STRUCTURE_IN_USE')

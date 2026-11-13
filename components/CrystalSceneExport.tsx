@@ -4,11 +4,14 @@ import { useThree } from '@react-three/fiber';
 import { useEffect, type RefObject } from 'react';
 import * as THREE from 'three';
 import { appearanceFor, type buildCrystalRenderModel, type CrystalDisplayStyle } from '@/lib/crystal-render-model';
+import { activeViewports, viewportChecksum } from '@/lib/ai-viewport';
+import { useAiViewportScope } from './AiViewportScope';
 import { LAB_VIEWPORT } from '@/lib/lab-camera';
 
 export type CrystalSceneExporter = (format: 'png' | 'glb') => Promise<Blob>;
 
-export function CrystalSceneExport({ exportRef, model, colors, showBonds, showCell, bondScale, displayStyle, rotation }: {
+export function CrystalSceneExport({ exportRef, model, colors, showBonds, showCell, bondScale, displayStyle, rotation, captureMetadata }: {
+  captureMetadata: Record<string, unknown>;
   exportRef?: RefObject<CrystalSceneExporter | null>;
   model: ReturnType<typeof buildCrystalRenderModel>;
   colors?: Map<string, string>;
@@ -16,6 +19,17 @@ export function CrystalSceneExport({ exportRef, model, colors, showBonds, showCe
   displayStyle: CrystalDisplayStyle; rotation: [number, number, number];
 }) {
   const { gl, scene, camera } = useThree();
+  const scope = useAiViewportScope();
+  useEffect(() => {
+    if (!scope) return;
+    return activeViewports.register({ scope, element: gl.domElement, capture: async signal => {
+      signal.throwIfAborted();
+      const cameraMetadata = { position: camera.position.toArray(), quaternion: camera.quaternion.toArray(), projectionMatrix: camera.projectionMatrix.toArray(), matrixWorld: camera.matrixWorld.toArray(), near: camera.near, far: camera.far, zoom: 'zoom' in camera ? camera.zoom : null };
+      gl.render(scene, camera);
+      const blob = await new Promise<Blob>((resolve, reject) => gl.domElement.toBlob(b => b ? resolve(b) : reject(new Error('Viewport capture failed.')), 'image/png'));
+      return { blob, metadata: { kind: 'crystal', camera: cameraMetadata, projection: camera.type, axes: ['a', 'b', 'c'], units: 'angstrom', energyReference: null, scientificRunId: scope.runId ?? null, ...captureMetadata, displaySha256: await viewportChecksum(captureMetadata) } };
+    } });
+  }, [scope, gl, scene, camera, captureMetadata]);
   useEffect(() => {
     if (!exportRef) return;
     exportRef.current = async (format) => {

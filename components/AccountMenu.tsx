@@ -6,7 +6,7 @@ import '@/app/workspace-utilities.css';
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Bell, BookOpen, ChevronUp, Cloud, CreditCard, HardDrive, LogOut, SlidersHorizontal, Tags } from 'lucide-react';
+import { Bell, BookOpen, ChevronUp, Settings, CreditCard, HardDrive, LogOut, SlidersHorizontal, Tags } from 'lucide-react';
 import { useResearchShell } from './ResearchShellContext';
 import { hasUserProfile, signOut, type PhyniteSession } from '@/app/auth-client';
 import { confirmUnsavedSettings } from '@/app/use-unsaved-settings';
@@ -54,13 +54,12 @@ export function AccountMenu({ session, variant = 'header', onNavigate }: { sessi
     return () => document.removeEventListener('pointerdown', outside);
   }, [open]);
   const close = () => { setOpen(false); onNavigate?.(); };
-  const localConnections = <div className={`lab-local-connection-actions${variant === 'rail' ? ' lab-local-connection-actions--rail' : ''}`} aria-label={t('Local connections', 'Koneksi lokal')}>
-    <Link href="/account/account#cloud" aria-label={t('Connect Phynite Cloud', 'Hubungkan Phynite Cloud')} onClick={onNavigate}><Cloud size={14} /><span className="lab-local-action-label">{t('Cloud login', 'Login cloud')}</span></Link>
+  const localConnections = <div className={`lab-local-connection-actions${variant === 'rail' ? ' lab-local-connection-actions--rail' : ''}`} data-account-variant={variant} aria-label={t('Workspace settings', 'Pengaturan workspace')}>
+    <Link href="/account/appearance" aria-label={t('Settings', 'Pengaturan')} title={t('Settings', 'Pengaturan')} onClick={onNavigate}><Settings size={16} aria-hidden="true" /><span className="lab-local-action-label">{t('Settings', 'Pengaturan')}</span></Link>
   </div>;
   if (shell && variant === 'header') return local && !hasUserProfile(session) ? localConnections : null;
-  // A local workspace has a device identity for ownership, not a user
-  // profile. Keep the avatar and profile menu out of the UI until cloud auth
-  // is actually connected.
+  // Local workspaces always expose device settings, including without a
+  // Cloud profile. Cloud connections remain available inside Settings.
   if (!hasUserProfile(session)) return local ? localConnections : null;
   return <div className={`lab-account-menu${variant === 'sidebar' ? ' lab-account-menu--sidebar' : variant === 'rail' ? ' lab-account-menu--rail' : variant === 'mobile' ? ' lab-account-menu--mobile' : ''}`} ref={container} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }} onKeyDown={event => {
     if (event.key === 'Escape' && open) { event.preventDefault(); setOpen(false); toggle.current?.focus(); return; }

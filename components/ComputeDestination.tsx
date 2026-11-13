@@ -16,6 +16,8 @@ import { LocalComputeReadiness } from './LocalComputeReadiness';
 import { LocalPseudopotentials } from './LocalPseudopotentials';
 import type { HpcClusterProfile } from '@/lib/hpc-profile';
 import { localRequest } from '@/lib/local-api';
+import { getComputeResourceAdvice } from '@/lib/compute-advisor';
+import { Laptop, Server, Sparkles } from 'lucide-react';
 import './compute-destination.css';
 
 type ComputeTarget = 'shared' | 'personal' | 'hpc';
@@ -31,6 +33,7 @@ export type LabComputeDestinationProps = {
   onStatus?: (status: PhyniteComputeStatus['compute'] | null) => void; ariaLabel?: string;
   scope?: 'run' | 'defaults' | 'draft'; selection?: ComputeSelection; onChange?: (selection: ComputeSelection) => void;
   account?: LabAccount | null; onAccount?: (account: LabAccount) => void;
+  atomCount?: number; kPoints?: [number, number, number] | number[] | number; calculationType?: string;
 };
 
 function PersonalResourceFields({ allocation, limit, disabled, onApply, live = false }: {
@@ -75,6 +78,7 @@ export function LabComputeDestination({
   sharedAvailable = true, requiredCapability = 'qe', fixedTarget, status: suppliedStatus, onStatus,
   ariaLabel = 'Compute destination', scope = 'defaults', selection, onChange,
   account: suppliedAccount, onAccount,
+  atomCount, kPoints, calculationType,
 }: LabComputeDestinationProps) {
   const { t, intlLocale } = useLocale();
   const { session } = useSession();
@@ -186,8 +190,47 @@ export function LabComputeDestination({
     else void persist(next);
   }
 
+  const advice = requiredCapability === 'qe' ? getComputeResourceAdvice({
+    atomCount,
+    kPoints,
+    calculationType,
+    isHpcConfigured: hpcClusters.length > 0,
+  }) : null;
+
   return <div className="workspace-compute-destination" data-compute-scope={scope}>
     <div className="workspace-compute-heading"><span>{t('Compute resources', 'Resource compute')}</span><Link href="/account/compute#your-computer">{t('Computer setup →', 'Hubungkan komputer →')}</Link></div>
+    {advice && (
+      <aside className={`compute-smart-advisor ${target === advice.recommendation ? 'compute-smart-advisor--applied' : ''}`} aria-label={t(advice.title.en, advice.title.id)}>
+        <div className="compute-smart-advisor-header">
+          <span className="compute-smart-advisor-title">
+            <Sparkles size={14} aria-hidden="true" />
+            <span>{t(advice.title.en, advice.title.id)}</span>
+          </span>
+          <span className="compute-smart-advisor-badge">
+            {t(advice.badge.en, advice.badge.id)}
+          </span>
+        </div>
+        <p className="compute-smart-advisor-reason">
+          {t(advice.reason.en, advice.reason.id)}
+        </p>
+        {target !== advice.recommendation && !fixedTarget && (
+          <div className="compute-smart-advisor-footer">
+            <button
+              type="button"
+              className="compute-smart-advisor-action"
+              disabled={!account || busy}
+              onClick={() => change({ computeTarget: advice.recommendation })}
+            >
+              {advice.recommendation === 'personal' ? (
+                <><Laptop size={13} aria-hidden="true" /><span>{t('Use Your computer', 'Gunakan Komputer Anda')}</span></>
+              ) : (
+                <><Server size={13} aria-hidden="true" /><span>{t('Use HPC Cluster', 'Gunakan Cluster HPC')}</span></>
+              )}
+            </button>
+          </div>
+        )}
+      </aside>
+    )}
     <UiSelect ariaLabel={ariaLabel} compact disabled={!account || busy || Boolean(fixedTarget)} value={target}
       options={[
         { value: 'personal', label: t('Your computer', 'Komputer Anda'), detail: (status?.status ?? account?.computer.status) === 'connected' ? t('Connected', 'Terhubung') : (status?.status ?? account?.computer.status) === 'offline' ? t('Worker offline', 'Worker offline') : t('Connect your worker', 'Hubungkan worker') },

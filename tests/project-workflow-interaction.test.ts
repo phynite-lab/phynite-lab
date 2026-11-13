@@ -21,8 +21,8 @@ test('canvas validates typed handles, occupied inputs, duplicate edges and cycle
 });
 
 test('module picker follows drag direction and every offered choice creates a valid graph', () => {
-  assert.deepEqual(workflowModuleChoices(graph, { nodeId: 's', type: 'source' }), ['scf', 'relax', 'md']);
-  assert.deepEqual(workflowModuleChoices(graph, { nodeId: 'bands', type: 'target' }), ['scf']);
+  assert.deepEqual(workflowModuleChoices(graph, { nodeId: 's', type: 'source' }), ['scf', 'relax', 'bands', 'md']);
+  assert.deepEqual(workflowModuleChoices(graph, { nodeId: 'bands', type: 'target' }), ['structure', 'scf', 'relax', 'extract-frame']);
   assert.deepEqual(workflowModuleChoices(graph, { nodeId: 'scf', type: 'target' }), ['structure', 'relax', 'extract-frame']);
   assert.deepEqual(workflowModuleChoices(graph, { nodeId: 'fig', type: 'source' }), []);
   assert.deepEqual(workflowModuleChoices(graph, { nodeId: 'missing', type: 'source' }), []);

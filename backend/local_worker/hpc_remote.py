@@ -39,7 +39,7 @@ SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.@-]{0,95}$")
 SAFE_MODULE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.+@:/-]{0,127}$")
 SAFE_SHA = re.compile(r"^[a-f0-9]{64}$")
 TERMINAL_STATES = {"COMPLETED", "FAILED", "TIMEOUT", "CANCELLED", "NODE_FAIL", "PREEMPTED", "OUT_OF_MEMORY", "BOOT_FAIL", "DEADLINE", "REVOKED", "C", "F", "E", "X"}
-MAX_HARVEST_BYTES = 64 * 1024 * 1024
+MAX_HARVEST_BYTES = 256 * 1024 * 1024
 
 
 class MonitoringDeferred(HpcError):
@@ -119,7 +119,7 @@ def is_sparse_harvest_target(filename: str, retain_wavefunctions: bool = False) 
 class HpcRemoteJobManager:
     """Manage one remote QE allocation over a multiplexed SSH connection."""
 
-    def __init__(self, connection: HpcSshConnection, profile: dict[str, Any], allocation: dict[str, Any] | None = None) -> None:
+    def __init__(self, connection: HpcSshConnection, profile: dict[str, Any], allocation: dict[str, Any] | None = None, settings: dict[str, Any] | None = None) -> None:
         self.connection = connection
         self.profile = profile
         self.scheduler = profile.get("scheduler", "slurm")
@@ -127,6 +127,7 @@ class HpcRemoteJobManager:
             raise HpcError("Scheduler must be slurm or pbs.")
         self.last_harvest_manifest_validated = False
         self.allocation = {**profile.get("defaults", {}), **(allocation or {})}
+        self.remote_scf_staged = False
         self.calculation_id: str | None = None
         self.calculation_type: str | None = None
 
@@ -250,6 +251,11 @@ class HpcRemoteJobManager:
             *[f"module load {shlex.quote(name)}" for name in self._modules()],
             *[f"export {key}={shlex.quote(value)}" for key, value in environment.items()],
             *python_setup,
+            *([f"{py_cmd} -c " + shlex.quote(
+                "import json, sys; from pathlib import Path; sys.path.insert(0, 'runners'); "
+                "from workflow_scf import stage_remote_scf_archive; "
+                "stage_remote_scf_archive(Path('.'), json.loads(Path('input.json').read_text())['settings']['sharedScf'])"
+            )] if self.remote_scf_staged else []),
             f"{py_cmd} runners/local_runner.py > runner.out 2>&1 || STATUS=$?",
             "STATUS=${STATUS:-0}",
             "mkdir -p results",
@@ -286,10 +292,59 @@ class HpcRemoteJobManager:
             raise HpcSshError("SSH connection failed while creating remote scratch.")
         if code != 0:
             raise HpcError(f"Could not create remote scratch directory: {stderr.strip()}")
-        script_content = self.render_remote_script(calculation_id, remote_work_dir)
+
+        # Reuse only the exact immutable bundle admitted by the local worker.
+        # An existing tmp directory or a scheduler receipt is not SCF evidence.
+        self.remote_scf_staged = False
+        source_calc_id = None
+        raw_input = input_files.get("input.json")
+        reference = None
+        if raw_input is not None:
+            raw_input = raw_input.read_bytes() if isinstance(raw_input, Path) else raw_input
+            try:
+                payload = json.loads(raw_input)
+                settings = payload.get("settings", {}) if isinstance(payload, dict) else {}
+                reference = settings.get("sharedScf") if isinstance(settings, dict) else None
+            except (TypeError, ValueError):
+                raise HpcError("Remote input.json must contain valid JSON.")
+        files_to_upload = dict(input_files)
+        if isinstance(reference, dict):
+            source_calc_id = reference.get("calculationId")
+            expected_sha = reference.get("bundleSha256")
+            archive = input_files.get("dependency-0.tar.gz")
+            if (isinstance(source_calc_id, str) and SAFE_ID.fullmatch(source_calc_id)
+                    and source_calc_id != calculation_id and isinstance(expected_sha, str)
+                    and SAFE_SHA.fullmatch(expected_sha) and archive is not None):
+                digest = hashlib.sha256()
+                if isinstance(archive, Path):
+                    with archive.open("rb") as stream:
+                        for block in iter(lambda: stream.read(1024 * 1024), b""):
+                            digest.update(block)
+                else:
+                    digest.update(archive.encode() if isinstance(archive, str) else archive)
+                if digest.hexdigest() != expected_sha:
+                    raise HpcError("Shared SCF archive checksum verification failed before staging.")
+                source = f"{scratch_root}/{owner_id}/{source_calc_id}/results/scf-state.tar.gz"
+                target = f"{remote_work_dir}/dependency-0.tar.gz"
+                # Copy the archive, never hardlink mutable QE state. Verify the
+                # copy before omitting any upload, then recheck in the job.
+                command = (
+                    f"test -f {shlex.quote(source)} && test ! -L {shlex.quote(source)} && "
+                    f"test ! -L {shlex.quote(target)} && cp -- {shlex.quote(source)} {shlex.quote(target)} && "
+                    f"printf '%s  %s\\n' {shlex.quote(expected_sha)} {shlex.quote(target)} | sha256sum -c - >/dev/null"
+                )
+                code, _, _ = self.connection.run_command(["sh", "-c", command])
+                if code == 255:
+                    raise HpcSshError("SSH connection failed while verifying retained SCF state.")
+                if code == 0:
+                    self.remote_scf_staged = True
+                    files_to_upload = {name: data for name, data in files_to_upload.items()
+                                       if name != "dependency-0.tar.gz" and not name.startswith("dependencies/scf/")}
+        files_to_upload["submit.sh"] = self.render_remote_script(calculation_id, remote_work_dir)
+
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
-            for filename, data in {**input_files, "submit.sh": script_content}.items():
+            for filename, data in files_to_upload.items():
                 path = root / filename; path.parent.mkdir(parents=True, exist_ok=True)
                 if isinstance(data, Path):
                     import shutil
@@ -307,8 +362,21 @@ class HpcRemoteJobManager:
         if before_submit is not None:
             before_submit()
         content = self.render_remote_script(calculation_id, remote_work_dir)
-        receipt = {"version": 1, "calculationId": calculation_id, "scheduler": self.scheduler, "profileSha256": profile_sha256(self.profile), "allocation": self.allocation, "scriptSha256": hashlib.sha256(content.encode()).hexdigest(), "remoteWorkDir": remote_work_dir, "state": "submission-uncertain"}
+        receipt = {
+            "version": 1,
+            "calculationId": calculation_id,
+            "scheduler": self.scheduler,
+            "profileSha256": profile_sha256(self.profile),
+            "allocation": self.allocation,
+            "scriptSha256": hashlib.sha256(content.encode()).hexdigest(),
+            "remoteWorkDir": remote_work_dir,
+            "state": "submission-uncertain",
+            "remoteScratchRetained": self.remote_scf_staged,
+            **({"sourceCalculationId": source_calc_id} if self.remote_scf_staged else {}),
+        }
         self._receipt(receipt_path, receipt, overwrite=False)
+        # Workflow admission waits for verified upstream scientific results;
+        # each stage receives its own allocation and durable receipt.
         submit_cmd = ["sbatch", "--parsable", f"{remote_work_dir}/submit.sh"] if self.scheduler == "slurm" else ["qsub", f"{remote_work_dir}/submit.sh"]
         try:
             code, stdout, stderr = self._scheduler_command(submit_cmd)
@@ -366,7 +434,7 @@ class HpcRemoteJobManager:
             if size_code == 0:
                 try:
                     size = int(size_out.strip())
-                    if not 0 <= size <= MAX_HARVEST_BYTES or total + size > 256 * 1024 * 1024:
+                    if not 0 <= size <= MAX_HARVEST_BYTES or total + size > 512 * 1024 * 1024:
                         continue
                 except ValueError:
                     continue

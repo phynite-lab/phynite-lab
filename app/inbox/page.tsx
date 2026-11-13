@@ -1,3 +1,5 @@
+import { redirect } from 'next/navigation';
+import { localAppMode } from '@/lib/local-runtime';
 import type { Metadata } from 'next';
 import { InboxExperience } from './inbox-experience';
 import { ResearchAccessGate } from '../research-access-gate';
@@ -9,5 +11,6 @@ export const metadata: Metadata = {
 };
 
 export default function InboxPage() {
+  if (localAppMode()) redirect('/account/notifications');
   return <ResearchAccessGate><InboxExperience /></ResearchAccessGate>;
 }

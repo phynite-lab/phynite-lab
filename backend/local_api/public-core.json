@@ -27,6 +27,7 @@
     "backend/local_api/domain/__init__.py",
     "backend/local_api/domain/account.py",
     "backend/local_api/domain/ai_attachments.py",
+    "backend/local_api/domain/ai_viewport.py",
     "backend/local_api/domain/ai_paper_index.py",
     "backend/local_api/domain/ai_readers.py",
     "backend/local_api/domain/ai_domain_actions.py",
@@ -102,7 +103,17 @@
     "backend/local_worker/ai_operator.py",
     "backend/compute/hpc_manifest.py",
     "backend/local_api/domain/ai_custom_skills.py",
-    "backend/local_api/domain/ai_mcp.py"
+    "backend/local_api/domain/ai_mcp.py",
+    "backend/local_api/mlip_runtime.py",
+    "backend/local_api/domain/ai_mlip.py",
+    "backend/mlip/__init__.py",
+    "backend/mlip/contract.py",
+    "backend/mlip/runner.py",
+    "backend/mlip/qualify.py",
+    "backend/local_api/domain/ai_campaign.py",
+    "backend/local_worker/ai_discovery.py",
+    "backend/local_api/domain/ai_discovery.py",
+    "backend/local_api/domain/ai_manuscript.py"
   ],
   "dataFiles": [
     "backend/local_api/runtime-manifest.json",
@@ -111,7 +122,10 @@
     "data/sssp/SSSP_1.3.0_PBE_precision.json",
     "data/sssp/SSSP_1.3.0_PBE_efficiency.json",
     "data/sssp/LICENSE.txt",
-    "data/sssp/README.md"
+    "data/sssp/README.md",
+    "backend/mlip/requirements-darwin-arm64.lock",
+    "backend/mlip/build.lock",
+    "backend/mlip/MODEL-LICENSE.txt"
   ],
   "generatedDataFiles": [
     "backend/local_api/domain/workflow_compiler_bundle.js",
@@ -144,6 +158,7 @@
     "backend/local_api/domain/__init__.py",
     "backend/local_api/domain/account.py",
     "backend/local_api/domain/ai_attachments.py",
+    "backend/local_api/domain/ai_viewport.py",
     "backend/local_api/domain/ai_paper_index.py",
     "backend/local_api/domain/ai_readers.py",
     "backend/local_api/domain/ai_domain_actions.py",
@@ -192,7 +207,8 @@
     "backend/local_worker/hpc_remote.py",
     "backend/local_worker/hpc_ssh.py",
     "backend/local_worker/ai_operator.py",
-    "backend/local_api/domain/ai_mcp.py"
+    "backend/local_api/domain/ai_mcp.py",
+    "backend/local_api/domain/ai_manuscript.py"
   ],
   "runnerSources": [
     "backend/local_api/__init__.py",
@@ -227,7 +243,12 @@
     "backend/md_studio/__init__.py",
     "backend/md_studio/geometry.py",
     "backend/md_studio/main.py",
-    "backend/compute/hpc_manifest.py"
+    "backend/compute/hpc_manifest.py",
+    "backend/mlip/runner.py",
+    "backend/mlip/qualify.py",
+    "backend/mlip/contract.py",
+    "backend/mlip/__init__.py",
+    "backend/local_worker/ai_discovery.py"
   ],
   "hiddenImports": [
     "quickjs",
@@ -250,7 +271,9 @@
     "spglib",
     "BoltzTraP2",
     "backend.functions",
-    "backend.md_compute"
+    "backend.md_compute",
+    "torch",
+    "mace"
   ],
   "portableTests": [
     "backend/tests/test_local_ai_observation.py",
@@ -279,6 +302,10 @@
     "backend/tests/test_ai_memory.py",
     "backend/tests/test_ai_artifacts.py",
     "backend/tests/test_ai_custom_skills.py",
-    "backend/tests/test_ai_mcp.py"
+    "backend/tests/test_ai_mcp.py",
+    "backend/tests/test_mlip.py",
+    "backend/tests/test_ai_campaign.py",
+    "backend/tests/test_ai_discovery.py",
+    "backend/tests/test_ai_manuscript.py"
   ]
 }

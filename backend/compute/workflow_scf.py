@@ -19,6 +19,39 @@ def file_sha(path: Path) -> str:
     return sha.hexdigest()
 
 
+def stage_remote_scf_archive(work: Path, reference: dict[str, Any]) -> None:
+    """Extract an exact remote copy into fresh private state without shell tar."""
+    archive = work / "dependency-0.tar.gz"
+    if archive.is_symlink() or file_sha(archive) != reference.get("bundleSha256"):
+        raise ValueError("Retained SCF archive checksum verification failed.")
+    destination = work / "dependencies/scf"
+    if destination.exists() or destination.is_symlink() or destination.parent.is_symlink():
+        raise ValueError("Retained SCF state requires a fresh dependency directory.")
+    with tarfile.open(archive, "r:gz") as bundle:
+        members = []
+        names: set[str] = set()
+        size = 0
+        for member in bundle:
+            path = Path(member.name)
+            if (not member.isfile() or path.is_absolute() or ".." in path.parts
+                    or str(path) != member.name or member.name in names
+                    or not (member.name == "scf-state.json" or path.parts[0] in {"tmp", "evidence"})):
+                raise ValueError("Retained SCF archive contains an unsafe member.")
+            size += member.size
+            if size > 2 * 1024**3 or len(members) >= 100_000:
+                raise ValueError("Retained SCF archive exceeds extraction limits.")
+            names.add(member.name)
+            members.append(member)
+        if "scf-state.json" not in names:
+            raise ValueError("Retained SCF archive is missing its manifest.")
+        destination.mkdir(parents=True, mode=0o700)
+        for member in members:
+            target = destination / member.name
+            target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            with bundle.extractfile(member) as source, target.open("xb") as output:
+                shutil.copyfileobj(source, output, 1024 * 1024)
+
+
 def runtime_identity(pseudo: Path) -> dict[str, Any]:
     identity = qe_runtime_identity(pseudo)
     return {"architecture": platform.machine(), "system": platform.system(), "pseudopotentials": identity["pseudopotentials"], "pw": next((item for item in identity["solverExecutables"] if item["name"] == "pw.x"), None)}

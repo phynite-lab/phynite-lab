@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Server, Plus, Trash2, RefreshCw, CheckCircle2, XCircle, Pencil, Star } from 'lucide-react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { Server, Plus, Trash2, RefreshCw, CheckCircle2, XCircle, Pencil, Star, Sparkles, X } from 'lucide-react';
 import { useLocale } from '../locale-provider';
 import type { HpcAuthKind, HpcClusterProfile, HpcScheduler } from '@/lib/hpc-profile';
 import { localRequest } from '@/lib/local-api';
@@ -41,9 +41,23 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const modal = useRef<HTMLDialogElement>(null);
+  const modalTitle = useId();
+  useEffect(() => {
+    if (!showModal) return;
+    const dialog = modal.current;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialog?.showModal();
+    dialog?.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true });
+    return () => { dialog?.close(); if (previous?.isConnected) previous.focus({ preventScroll: true }); };
+  }, [showModal]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const editingIdRef = useRef(editingId);
+  useEffect(() => { editingIdRef.current = editingId; }, [editingId]);
   const [probeResults, setProbeResults] = useState<Record<string, ProbeResult | null>>({});
   const [probing, setProbing] = useState<Record<string, boolean>>({});
+  const [settingUpVenv, setSettingUpVenv] = useState<Record<string, boolean>>({});
+  const [setupVenvStatus, setSetupVenvStatus] = useState<Record<string, { ok: boolean; message: string } | null>>({});
 
   // Form state
   const [name, setName] = useState('');
@@ -99,6 +113,47 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
       }));
     } finally {
       setProbing(prev => ({ ...prev, [id]: false }));
+    }
+  };
+
+  const handleAutoSetupVenv = async (id: string) => {
+    setSettingUpVenv(prev => ({ ...prev, [id]: true }));
+    setSetupVenvStatus(prev => ({ ...prev, [id]: null }));
+    try {
+      const data = await localRequest<{
+        ok: boolean;
+        pythonExecutable?: string;
+        probe?: ProbeResult;
+        cluster?: HpcClusterProfile;
+        error?: string;
+        packages?: string[];
+      }>(`hpc/clusters/${id}/setup-venv`, 'POST');
+      if (data.ok && data.cluster) {
+        if (data.probe) setProbeResults(prev => ({ ...prev, [id]: data.probe! }));
+        setClusters(prev => prev.map(c => c.id === id ? data.cluster! : c));
+        if (data.pythonExecutable && editingIdRef.current === id) {
+          setPythonExecutable(data.pythonExecutable);
+        }
+        setSetupVenvStatus(prev => ({
+          ...prev,
+          [id]: {
+            ok: true,
+            message: t(`Python environment configured: ${data.pythonExecutable}`, `Environment Python siap: ${data.pythonExecutable}`),
+          },
+        }));
+      } else {
+        throw new Error(data.error || t('Venv setup failed.', 'Setup venv gagal.'));
+      }
+    } catch (err) {
+      setSetupVenvStatus(prev => ({
+        ...prev,
+        [id]: {
+          ok: false,
+          message: err instanceof Error ? err.message : t('Venv setup failed.', 'Setup venv gagal.'),
+        },
+      }));
+    } finally {
+      setSettingUpVenv(prev => ({ ...prev, [id]: false }));
     }
   };
 
@@ -357,6 +412,16 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
                   </button>
                   <button
                     type="button"
+                    className="lab-button"
+                    disabled={settingUpVenv[c.id]}
+                    onClick={() => void handleAutoSetupVenv(c.id)}
+                    title={t('Set up isolated Python virtualenv with ase, pymatgen, seekpath, spglib on cluster', 'Siapkan venv Python terisolasi dengan ase, pymatgen, seekpath, spglib di cluster')}
+                  >
+                    <Sparkles size={13} className={settingUpVenv[c.id] ? 'animate-spin' : ''} />
+                    {settingUpVenv[c.id] ? t('Setting up venv…', 'Menyiapkan venv…') : t('Auto Setup Venv', 'Auto Setup Venv')}
+                  </button>
+                  <button
+                    type="button"
                     className="lab-button lab-button-danger"
                     onClick={() => void handleDelete(c.id)}
                     aria-label={t('Delete cluster', 'Hapus kluster')}
@@ -424,7 +489,19 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
                       )}
                     </div>
                   )}
+                  {setupVenvStatus[c.id] && (
+                    <div className={`hpc-probe-result ${setupVenvStatus[c.id]!.ok ? 'hpc-probe-ok' : 'hpc-probe-fail'}`} role={setupVenvStatus[c.id]!.ok ? 'status' : 'alert'}>
+                      {setupVenvStatus[c.id]!.ok ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
+                      <span>{setupVenvStatus[c.id]!.message}</span>
+                    </div>
+                  )}
                 </>
+              )}
+              {!probe && setupVenvStatus[c.id] && (
+                <div className={`hpc-probe-result ${setupVenvStatus[c.id]!.ok ? 'hpc-probe-ok' : 'hpc-probe-fail'}`} role={setupVenvStatus[c.id]!.ok ? 'status' : 'alert'} style={{ marginTop: '8px' }}>
+                  {setupVenvStatus[c.id]!.ok ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
+                  <span>{setupVenvStatus[c.id]!.message}</span>
+                </div>
               )}
             </div>
           );
@@ -432,11 +509,21 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
       </div>
 
       {showModal && (
-        <div className="lab-modal-overlay">
+        <dialog ref={modal} className="lab-modal-overlay lab-modal-dialog" aria-labelledby={modalTitle}
+          onCancel={event => { if (saving) event.preventDefault(); }}
+          onClose={() => { resetForm(); setShowModal(false); }}
+          onClick={event => { if (event.target === event.currentTarget && !saving) modal.current?.close(); }}
+          onKeyDown={event => {
+            if (event.key !== 'Tab') return;
+            const items = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href]')).filter(item => item.getClientRects().length);
+            const first = items[0], last = items.at(-1);
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+          }}>
           <div className="lab-modal-content">
             <header className="lab-modal-header">
-              <h3>{editingId ? t('Edit HPC Cluster Profile', 'Edit Profil Kluster HPC') : t('Add HPC Cluster Profile', 'Tambah Profil Kluster HPC')}</h3>
-              <button type="button" className="lab-button lab-button-quiet" onClick={() => { resetForm(); setShowModal(false); }}>✕</button>
+              <h3 id={modalTitle}>{editingId ? t('Edit HPC Cluster Profile', 'Edit Profil Kluster HPC') : t('Add HPC Cluster Profile', 'Tambah Profil Kluster HPC')}</h3>
+              <button type="button" className="lab-button lab-button-quiet" disabled={saving} aria-label={t('Close HPC profile', 'Tutup profil HPC')} onClick={() => modal.current?.close()}><X size={16} aria-hidden="true" /></button>
             </header>
             <form onSubmit={handleSaveCluster} className="hpc-modal-form">
               {formError && <p className="settings-notice" role="alert">{formError}</p>}
@@ -581,12 +668,39 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
                   <small style={{ color: 'var(--muted, #666)', fontSize: '11px', marginTop: '2px' }}>
                     {t('Requires Python 3.10+ with numpy, scipy, matplotlib, seekpath, and spglib. Leave empty to auto-detect from modules or Conda.', 'Memerlukan Python 3.10+ dengan numpy, scipy, matplotlib, seekpath, dan spglib. Kosongkan untuk deteksi otomatis dari modul atau Conda.')}
                   </small>
+                  {editingId && (
+                    <div style={{ marginTop: '8px' }}>
+                      <button
+                        type="button"
+                        className="lab-button"
+                        disabled={settingUpVenv[editingId]}
+                        onClick={() => void handleAutoSetupVenv(editingId)}
+                      >
+                        <Sparkles size={13} className={settingUpVenv[editingId] ? 'animate-spin' : ''} />
+                        {settingUpVenv[editingId]
+                          ? t('Configuring venv on cluster…', 'Menyiapkan venv di kluster…')
+                          : t('1-Click Auto Setup Venv (ase, pymatgen, seekpath)', '1-Click Auto Setup Venv (ase, pymatgen, seekpath)')}
+                      </button>
+                      {setupVenvStatus[editingId] && (
+                        <p
+                          style={{
+                            fontSize: '12px',
+                            color: setupVenvStatus[editingId]!.ok ? 'var(--accent, #10b981)' : 'var(--danger, #ef4444)',
+                            marginTop: '4px',
+                          }}
+                          role={setupVenvStatus[editingId]!.ok ? 'status' : 'alert'}
+                        >
+                          {setupVenvStatus[editingId]!.message}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </label>
               </div>
 
               <div className="lab-modal-footer">
-                <button type="button" className="lab-button" onClick={() => { resetForm(); setShowModal(false); }}>{t('Cancel', 'Batal')}</button>
-                <button type="submit" className="lab-button lab-button-primary" disabled={saving || detectingScratch}>
+                <button type="button" className="lab-button" disabled={saving} onClick={() => modal.current?.close()}>{t('Cancel', 'Batal')}</button>
+                <button type="submit" className="lab-button lab-button-primary" disabled={saving || detectingScratch || Boolean(editingId && settingUpVenv[editingId])}>
                   {saving
                     ? (!scratchRoot.trim()
                         ? t('Detecting scratch & saving…', 'Mendeteksi scratch & menyimpan…')
@@ -598,7 +712,7 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
               </div>
             </form>
           </div>
-        </div>
+        </dialog>
       )}
     </div>
   );

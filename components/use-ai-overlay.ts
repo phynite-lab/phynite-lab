@@ -17,8 +17,8 @@ export function aiOverlayViewport(insets = { top: 0, right: 0, bottom: 0, left: 
 }
 
 /** Measures width before natural content height. Track passive motion only while mounted/open. */
-export function useAiOverlayPosition({ open = true, anchorRef, rootRef, align = 'start' }: {
-  open?: boolean; anchorRef: RefObject<HTMLElement | null>; rootRef: RefObject<HTMLElement | null>; align?: 'start' | 'end';
+export function useAiOverlayPosition({ open = true, anchorRef, rootRef, align = 'start', keepComposerVisible = false }: {
+  open?: boolean; anchorRef: RefObject<HTMLElement | null>; rootRef: RefObject<HTMLElement | null>; align?: 'start' | 'end'; keepComposerVisible?: boolean;
 }) {
   const [placement, setPlacement] = useState<{ style: CSSProperties; sheet: boolean }>({ style: { visibility: 'hidden' }, sheet: false });
   useLayoutEffect(() => {
@@ -33,7 +33,9 @@ export function useAiOverlayPosition({ open = true, anchorRef, rootRef, align = 
     const place = () => {
       if (!anchor.isConnected || !root.isConnected) return;
       const safe = getComputedStyle(probe), viewport = aiOverlayViewport({ top: parseFloat(safe.paddingTop) || 0, right: parseFloat(safe.paddingRight) || 0, bottom: parseFloat(safe.paddingBottom) || 0, left: parseFloat(safe.paddingLeft) || 0 });
+      if (keepComposerVisible && composer) viewport.bottom = Math.max(viewport.top, Math.min(viewport.bottom, composer.getBoundingClientRect().top - 8));
       const box = pane.getBoundingClientRect(), button = anchor.getBoundingClientRect(), compact = pane.dataset.presentation === 'composer';
+      const anchorBox = keepComposerVisible && composer ? { left: button.left, right: button.right, width: button.width, top: composer.getBoundingClientRect().top, bottom: composer.getBoundingClientRect().top } : button;
       const bounds = (compact ? panes : pane)?.getBoundingClientRect() ?? box;
       const width = viewport.right - viewport.left < 480 ? Math.min(400, viewport.right - viewport.left) : aiOverlayWidth(viewport, box);
       if (root.style.width !== `${width}px`) root.style.width = `${width}px`;
@@ -41,11 +43,11 @@ export function useAiOverlayPosition({ open = true, anchorRef, rootRef, align = 
       const chrome = scroll ? root.offsetHeight - scroll.offsetHeight : root.offsetHeight;
       const contentHeight = scroll ? chrome + scroll.scrollHeight : root.scrollHeight;
       const row = scroll?.querySelector<HTMLElement>('button:not(:disabled)');
-      let result = placeAiOverlay({ viewport, pane: box, bounds, anchor: button, compact, headerBottom: pane.dataset.presentation === 'floating' ? pane.querySelector('.ai-panel-header')?.getBoundingClientRect().bottom : undefined, align, rtl: getComputedStyle(anchor).direction === 'rtl', contentHeight, minimumHeight: chrome + (row?.offsetHeight ?? 40) });
+      let result = placeAiOverlay({ viewport, pane: box, bounds, anchor: anchorBox, compact, headerBottom: pane.dataset.presentation === 'floating' ? pane.querySelector('.ai-panel-header')?.getBoundingClientRect().bottom : undefined, align, rtl: getComputedStyle(anchor).direction === 'rtl', contentHeight, minimumHeight: chrome + (row?.offsetHeight ?? 40) });
       if (result.width !== width) {
         root.style.width = `${result.width}px`;
         const adjustedChrome = scroll ? root.offsetHeight - scroll.offsetHeight : root.offsetHeight;
-        result = placeAiOverlay({ viewport, pane: box, bounds, anchor: button, compact, headerBottom: pane.dataset.presentation === 'floating' ? pane.querySelector('.ai-panel-header')?.getBoundingClientRect().bottom : undefined, align, rtl: getComputedStyle(anchor).direction === 'rtl', contentHeight: scroll ? adjustedChrome + scroll.scrollHeight : root.scrollHeight, minimumHeight: adjustedChrome + (row?.offsetHeight ?? 40) });
+        result = placeAiOverlay({ viewport, pane: box, bounds, anchor: anchorBox, compact, headerBottom: pane.dataset.presentation === 'floating' ? pane.querySelector('.ai-panel-header')?.getBoundingClientRect().bottom : undefined, align, rtl: getComputedStyle(anchor).direction === 'rtl', contentHeight: scroll ? adjustedChrome + scroll.scrollHeight : root.scrollHeight, minimumHeight: adjustedChrome + (row?.offsetHeight ?? 40) });
       }
       const next = { sheet: result.side === 'sheet', style: { ...aiOverlayTheme(anchor), position: 'fixed', margin: 0, left: result.left, top: result.top, bottom: 'auto', width: result.width, maxHeight: result.maxHeight, visibility: 'visible' } as CSSProperties };
       const signature = JSON.stringify(next);
@@ -66,7 +68,7 @@ export function useAiOverlayPosition({ open = true, anchorRef, rootRef, align = 
     place(); tracking = requestAnimationFrame(track);
     window.addEventListener('resize', schedule); window.addEventListener('scroll', schedule, true); window.visualViewport?.addEventListener('resize', schedule); window.visualViewport?.addEventListener('scroll', schedule);
     return () => { cancelAnimationFrame(frame); cancelAnimationFrame(tracking); observer.disconnect(); content.disconnect(); theme.disconnect(); probe.remove(); window.removeEventListener('resize', schedule); window.removeEventListener('scroll', schedule, true); window.visualViewport?.removeEventListener('resize', schedule); window.visualViewport?.removeEventListener('scroll', schedule); };
-  }, [open, anchorRef, rootRef, align]);
+  }, [open, anchorRef, rootRef, align, keepComposerVisible]);
   return placement;
 }
 

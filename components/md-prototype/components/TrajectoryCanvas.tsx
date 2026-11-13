@@ -9,6 +9,8 @@ import {
   X,
 } from 'lucide-react';
 import type { FrameData } from '../types/trajectory';
+import { activeViewports, viewportChecksum } from '@/lib/ai-viewport';
+import { useAiViewportScope } from '@/components/AiViewportScope';
 import { exportMdScene, type MdSceneExport } from '@/lib/md-scene-export';
 import { CanvasToolbar, type CanvasToolId } from './CanvasToolbar';
 import { colormapGradient, sampleColormap } from '../utils/colormaps';
@@ -274,6 +276,7 @@ export const TrajectoryCanvas: React.FC<TrajectoryCanvasProps> = ({
   const cameraKeyRef = useRef(cameraStorageKey);
   const restoredCameraRef = useRef(false);
   useEffect(() => { cameraKeyRef.current = cameraStorageKey; restoredCameraRef.current = false; }, [cameraStorageKey]);
+  const captureScope = useAiViewportScope();
   const persistCameras = useCallback(() => {
     if (!cameraKeyRef.current || !restoredCameraRef.current) return;
     try {
@@ -1203,6 +1206,19 @@ export const TrajectoryCanvas: React.FC<TrajectoryCanvasProps> = ({
     };
     return () => { exportRef.current = null; };
   }, [exportRef, frameData, sliceActive]);
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!captureScope || !element || !frameData) return;
+    return activeViewports.register({ scope: captureScope, element, capture: async signal => {
+      signal.throwIfAborted();
+      const renderer = rendererRef.current, atoms = instancedMeshRef.current;
+      if (!renderer || !atoms) throw new Error('The trajectory viewport is not ready.');
+      const cameras = Object.fromEntries(Object.entries(camerasRef.current ?? {}).map(([id, camera]) => [id, { position: camera.position.toArray(), quaternion: camera.quaternion.toArray(), projectionMatrix: camera.projectionMatrix.toArray(), near: camera.near, far: camera.far, zoom: camera.zoom }]));
+      renderNowRef.current();
+      const blob = await exportMdScene('png', renderer, atoms, [], frameData.frame ?? 0);
+      return { blob, metadata: { kind: 'trajectory', camera: cameras, projection: 'orthographic', layout: viewLayout, selection: pickedAtom ? [pickedAtom] : [], periodicImages: { repeats: [1, 1, 1], pbc: frameData.cell.pbc, cell: frameData.cell.matrix }, axes: ['x', 'y', 'z'], units: 'angstrom', energyReference: null, frame: frameData.frame, scientificRunId: captureScope.runId ?? null, slice: { active: sliceActive, axis: sliceAxis, distance: sliceDistance, invert: sliceInvert }, displaySha256: await viewportChecksum(frameData) } };
+    } });
+  }, [captureScope, frameData, viewLayout, pickedAtom, sliceActive, sliceAxis, sliceDistance, sliceInvert]);
   const frameIds = frameData?.ids;
   useEffect(() => {
     const ids = isMeasureMode ? activeMeasurePoints.map(point => frameIds?.[point.index]).filter((id): id is string => !!id) : activePickedAtom && frameIds?.[activePickedAtom.index] ? [frameIds[activePickedAtom.index]] : [];

@@ -12,6 +12,9 @@ import { readSourcePackage } from '@/lib/research-package';
 import { createFigure, datasetFromText, figureTemplate, finite, instantiateTemplate, migratePlotSettings, newLayer, newPanel, newResearchId, renderFigure, replaceLayerDataset, replacementPanelTitle, researchHash, scientificPlotSettingsFromFigure, sourceScientificPlotSettings, validateDataset, updateFigurePanel, templateSourceCount, FIGURE_COLORS, type FigureDocument, type FigureLayer, type FigurePanel, type FigureTemplate, type ResearchDataset } from '@/lib/research-figures';
 import { acceptCloudFigure, cloudFigureRevision, deleteResearchFigure, loadFigureDrafts, loadResearch, markResearchConflict, saveFigureDraft, saveFigureResearch, saveResearch, type ResearchRecord } from '@/lib/research-storage';
 import { importRunDatasets, type FigureJob } from '@/lib/research-import';
+import { activeViewports, viewportChecksum } from '@/lib/ai-viewport';
+import { useAiViewportScope } from './AiViewportScope';
+import { renderPlotPngBlob } from '@/lib/plot-download';
 import { useFigurePreview } from '@/lib/use-figure-preview';
 import { resolveFigureEntry, type FigureEntry } from '@/lib/research-figure-entry';
 import type { WorkspaceSaveState } from '@/components/WorkspaceIdentity';
@@ -164,6 +167,18 @@ export function FiguresWorkspace({ embedded = false, initialFigureId, onWorkflow
     return completed ? `Completed ${formatRunDate(completed)}` : started ? `Started ${formatRunDate(started)}` : `Imported ${formatRunDate(dataset.createdAt)}`;
   };
   const rendered = useFigurePreview(figure, datasets);
+  const captureScope = useAiViewportScope();
+  useEffect(() => {
+    const element = viewport.current;
+    if (!captureScope || !element || !figure || !rendered.svg || rendered.pending) return;
+    return activeViewports.register({ scope: captureScope, element, capture: async signal => {
+      signal.throwIfAborted();
+      const width = Math.min(2048, Math.round(figure.widthMm / 25.4 * 150)), height = Math.round(width * figure.heightMm / figure.widthMm);
+      const blob = await renderPlotPngBlob(rendered.svg, width, height, 1);
+      return { blob, metadata: { kind: 'figure', camera: null, projection: '2d', selection: [], periodicImages: null, axes: figure.panels, units: datasets.map(d => ({ id: d.id, metadata: d.metadata, xLabel: d.data.xLabel, yLabels: d.data.quantities.map(q => q.yLabel) })), energyReference: datasets.map(d => ({ id: d.id, reference: d.data.energyReference ?? 'unknown' })), scientificRunId: captureScope.runId ?? null, datasetSources: datasets.map(d => ({ id: d.id, sha256: d.source.sha256 })), displaySha256: await viewportChecksum({ figure, datasets }) } };
+    } });
+  }, [captureScope, figure, datasets, rendered.svg, rendered.pending]);
+
   const figureId = figure?.id;
   const aspectRatio = figure ? figure.widthMm / figure.heightMm : 1;
   useEffect(() => {

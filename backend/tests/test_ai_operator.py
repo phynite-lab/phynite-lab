@@ -81,7 +81,7 @@ class AiOperatorTests(unittest.TestCase):
         self.assertFalse(repair["scientificIdentityChanged"])
         with self.assertRaises(OperatorError):
             validate_repair({"kind": "lower_mixing_beta", "value": 0.2, "cutoff": 20}, current={"mixing_beta": 0.7}, allowed=["lower_mixing_beta"])
-        with self.assertRaisesRegex(OperatorError, "metallic"):
+        with self.assertRaisesRegex(OperatorError, "keputusan"):
             validate_repair({"kind": "metallic_smearing", "value": "mv"}, allowed=["metallic_smearing"], diagnostics={})
 
     def test_sparse_manifest_keeps_wavefunctions_as_references(self):

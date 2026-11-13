@@ -263,3 +263,9 @@
 /* Settings has its own category navigation and return action. */
 .research-app-shell[data-settings='true'] { --research-rail-width: 0px; }
 .research-app-shell[data-settings='true'] .research-home-account-actions { display: none; }
+
+/* On phones, reserve a separate row for tabs instead of shrinking them to zero. */
+@media(max-width:600px) {
+  .research-workspace-header { height:88px; }
+  .research-app-shell[data-project-header='true'] { grid-template-rows:88px minmax(0,1fr); }
+}

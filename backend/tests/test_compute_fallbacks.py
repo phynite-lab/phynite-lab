@@ -128,6 +128,32 @@ K_POINTS automatic
         self.assertNotEqual(inputs["nscfbands.in"], _CRYSTAL_B_INPUT)
         self.assertEqual(inputs["nscfbands.in"].split("K_POINTS crystal_b\n")[1].splitlines()[1].split("!")[0].split()[-1], "200")
 
+    def test_qe_resource_preflight_input_expands_band_path_without_gamma_undercount(self):
+        preflight = self.scientific_runner.qe_resource_preflight_input(_CRYSTAL_B_INPUT, "bands-nscf")
+        self.assertIn("calculation = 'scf'", preflight)
+        self.assertIn("K_POINTS crystal\n47\n", preflight)
+        self.assertNotIn("K_POINTS gamma", preflight)
+        self.assertNotIn("crystal_b", preflight)
+
+    def test_preflight_preserves_cards_after_the_path_and_accepts_qe_delimiters(self):
+        trailing = "CELL_PARAMETERS angstrom\n1 0 0\n0 1 0\n0 0 1\nATOMIC_POSITIONS crystal\nSi 0 0 0\nHUBBARD atomic\nU Si-3p 1.0\n"
+        for option, explicit in (("{crystal_b}", "crystal"), ("(tpiba_b)", "tpiba")):
+            source = _CRYSTAL_B_INPUT.replace('crystal_b', option) + trailing
+            result = self.scientific_runner.qe_resource_preflight_input(source, 'bands')
+            self.assertIn(f'K_POINTS {explicit}\n47\n', result)
+            self.assertTrue(result.endswith(trailing))
+            self.assertIn(option, source)
+
+    def test_failed_preflight_never_launches_the_solver(self):
+        runner = self.scientific_runner
+        with tempfile.TemporaryDirectory() as folder, patch.object(runner, 'WORK', Path(folder)), \
+                patch.object(runner, '_configured_memory_limit_mib', return_value=1024), \
+                patch.object(runner, '_run_process', side_effect=runner.QeConvergenceError('preflight killed', {'exitCode': -9})) as run:
+            with self.assertRaisesRegex(runner.QeConvergenceError, 'preflight killed'):
+                runner.run_qe_step('scf', 'pw.x', 'scf.in', _SCF_INPUT, 2)
+            self.assertEqual(run.call_count, 1)
+            self.assertEqual(run.call_args.args[0], 'preflight-scf')
+
     def test_software_version_uses_devnull_and_retries_once_with_single_rank_mpi_launcher(self):
         direct_ok = MagicMock(returncode=0, stdout="Program PWSCF v.7.2 starts on 11Nov2026\n", stderr="")
         with patch.object(self.qe_model.shutil, "which", return_value="/opt/qe/bin/pw.x"), \

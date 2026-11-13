@@ -33,6 +33,7 @@ import {
   type LabCameraBounds,
   type LabVectorTuple,
 } from '@/lib/lab-camera';
+import { millerPlane } from '@/lib/miller-plane';
 import { cellVectorsFromLattice } from '@/lib/structure-parsers';
 import { CrystalSceneExport, type CrystalSceneExporter } from './CrystalSceneExport';
 import { useResearchShell } from './ResearchShellContext';
@@ -360,7 +361,9 @@ export function CrystalEditorViewport({
   exportRef,
   fitKey,
   cameraStorageKey,
+  miller,
 }: {
+  miller?: { indices: Point; offset: number };
   atoms: CustomAtom[];
   lattice: LatticeParameters;
   supercell: [number, number, number];
@@ -450,8 +453,14 @@ export function CrystalEditorViewport({
     onSelectAtom(null);
   }, [onSelectAtom]);
 
+  const captureMetadata = useMemo(() => ({ atoms, lattice, periodicImages: model.repeats, selection: selectedEditorAtom ? [{ atomId: selectedEditorAtom.id, image: selectedEditorAtom.cellOffset }] : [], objectRotation, displayStyle, showBonds, showCell, bondCutoff, miller: miller ?? null }), [atoms, lattice, model.repeats, selectedEditorAtom, objectRotation, displayStyle, showBonds, showCell, bondCutoff, miller]);
+  const millerPoints = useMemo(() => {
+    if (!miller) return [];
+    try { return millerPlane(cellVectorsFromLattice(lattice), miller.indices, miller.offset, model.repeats).vertices.map(model.fractionalToWorld); } catch { return []; }
+  }, [miller, lattice, model]);
   const crystal = (
     <group ref={registerCrystal} rotation={objectRotation.map((value) => THREE.MathUtils.degToRad(value)) as [number, number, number]}>
+      {millerPoints.length >= 3 && <Line points={[...millerPoints, millerPoints[0]]} color="#e5a340" lineWidth={2.5} />}
       {showCell && model.edges.map(([start, end], index) => (
         <Line key={`cell-${index}`} points={[start, end]} color={cellColor} lineWidth={0.8} transparent opacity={lightTheme ? LAB_VIEWPORT.cell.lightOpacity : LAB_VIEWPORT.cell.darkOpacity} />
       ))}
@@ -504,7 +513,7 @@ export function CrystalEditorViewport({
       <directionalLight position={LAB_VIEWPORT.fillLight.position} intensity={LAB_VIEWPORT.fillLight.intensity} color={LAB_VIEWPORT.fillLight.color} />
 
       {crystal}
-      <CrystalSceneExport exportRef={exportRef} model={model} colors={atomColors} showBonds={showBonds} showCell={showCell} bondScale={bondScale} displayStyle={displayStyle} rotation={objectRotation} />
+      <CrystalSceneExport captureMetadata={captureMetadata} exportRef={exportRef} model={model} colors={atomColors} showBonds={showBonds} showCell={showCell} bondScale={bondScale} displayStyle={displayStyle} rotation={objectRotation} />
 
       {activeTool === 'rotate' && crystalObject && (
         <TransformControls

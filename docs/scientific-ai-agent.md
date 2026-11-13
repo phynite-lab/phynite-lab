@@ -1,7 +1,8 @@
 # Scientific AI Agent operator contract
 
-The local operator keeps the researcher workflow bounded and restartable.  Its
-durable state is separate from the browser session:
+The local operator foundation defines bounded, restartable researcher workflows.
+Its contract models durable state separately from the browser session; a persistent
+supervisor is not yet connected to the chat:
 
 ```text
 planning → awaiting approval → executing → observing → validating → completed
@@ -28,11 +29,21 @@ suggests a terminal installation command.
 
 ## Pinned memory and long local turns
 
+The flask button in the composer opens **Discovery presets**, including in the
+floating composer. Desktop uses an anchored popover and constrained windows use
+a sheet with a scrolling body. Both keep the composer reachable. Discovery shares
+the single active overlay with context, model and permissions. Escape restores
+focus to its trigger; choosing a preset closes it and focuses a **Plan** draft.
+Preset selection never sends a message or submits calculations. The evidence
+retention checkbox describes the requested plan; it does not change execution
+settings or grant a repair policy. Persistent campaigns require a qualified local
+supervisor before the application can claim they continue after a tab closes.
+
 Short turns retain the six-tool foreground budget and twelve-step hard ceiling.
 The explicit **Multistage** composer option permits up to 40 tools and 30 model
-rounds. This public application runs through the active local connection: keep
-the tab open. It does not deploy a hosted worker or poll scientific jobs in the
-background. Pending approval still stops execution before subsequent tools.
+rounds. Conversation turns run through the active local connection: keep the tab open
+for the chat. Explicitly approved persistent campaigns use the local application
+supervisor described below and have their own lifetime. Pending approval still stops execution before subsequent tools.
 
 Pinned memory retains exact user requirements with source message IDs, selected
 source values/checksums, recorded action outcomes and gaps. Model assessments are
@@ -237,3 +248,117 @@ resource blocks are counted explicitly. All outputs remain untrusted evidence;
 MCP claims alone do not establish scientific validity. Errors are never recorded
 as successful mutating actions. A failed or interrupted mutation must be
 inspected before a new action is prepared.
+
+## Collaborative artifact editing
+
+Open a report, plan, input file or diff card and choose **Edit** on its latest
+version. The CodeMirror 6 editor supports selection, undo/redo, Markdown, Python,
+LaTeX and scientific input text. Preview renders inert Markdown or escaped code;
+Phynite does not execute Python, compile user TeX or insert user HTML. Unsaved
+changes block version switching and closing the viewer; discard explicitly or
+export a draft to retain it before resolving a conflict. The browser also warns
+before leaving a page with an unsaved editor.
+
+**Save new version** creates an immutable draft attributed to the local researcher,
+retains the parent ID/checksum and scientific sources, and removes any old
+model-supplied input validation assessment. It never installs inputs or applies
+project settings. Two editors cannot overwrite the same base version. A retry
+uses the same request ID and returns the saved version instead of duplicating it.
+Legacy artifacts remain readable and exportable; publish a typed copy to edit one.
+
+AI text edits use `propose_artifact_patch`, with the exact source artifact ID and
+SHA-256 returned by `read_artifact`. Each hunk includes unique exact source text,
+a replacement and a reason; hunks cannot overlap. The researcher accepts or rejects
+each independently. Acceptance creates a new immutable draft with the proposer
+and decision provenance. Subsequent decisions on that proposal include prior
+accepted hunks without shifting original offsets. An intervening editor save or
+a different proposal's acceptance makes pending proposals stale; they cannot apply
+to a changed base. Proposals expire after 24 hours. Review requires the current
+proposal revision and an idempotent request ID. A decision and its artifact/group
+update commit in one local transaction, including across a crash.
+
+The model can propose hunks in any task mode but cannot call human Save or hunk
+review endpoints. Existing custom-skill tool subsets do not gain the new tool
+automatically. Table and figure updates retain their typed validators. Applying
+an artifact to a project or executing a scientific input still requires the
+separate validated action flow and its approval rules.
+
+## Viewport evidence
+
+Enable **Allow capture** in one conversation to permit `capture_viewport` for
+a saved Canvas node. Keep the source open and visible. The indicator changes
+while capturing. Revoke permission at any time to cancel pending requests;
+images already delivered remain in that conversation. Other conversations and
+older saved chats have no capture permission by default.
+
+Crystal, trajectory and Figure Lab renderers supply PNG images through the
+existing verified provider image transport. Text-only providers fail explicitly.
+Hidden/unavailable viewports, unsaved sources, changed revisions, stopped turns,
+expired requests and revoked consent cannot deliver a pending capture. Images
+retain their checksum plus source revision/checksum, scientific/chat run IDs,
+camera/projection, selected atom and periodic image, frame/clipping, and plot
+axes/units/energy reference. Missing energy references remain unknown.
+
+Crystal Builder offers a Miller `(hkl)` plane and fractional offset satisfying
+`h*u + k*v + l*w = offset`. Its normal and spacing use the true reciprocal
+lattice, including oblique cells. It is a display overlay and does not edit the
+structure. A plane outside the displayed cell has no visible intersection.
+Visual hypotheses require numerical checks: screenshots do not establish
+topology, band gaps or convergence.
+
+## Canvas layout and approval previews
+
+Canvas **Arrange selected** uses ELK 0.12.1 layered layout with the measured
+module sizes and ports. Selecting part of a group arranges that whole group;
+other modules retain their exact positions. **Arrange all** is one undoable edit.
+Layout changes only presentation coordinates, preserving inputs and resources.
+
+AI `edit_canvas` arranges the touched subgraph by default; `layout: "all"`
+requests the full DAG and `"none"` keeps explicit coordinates. The server action
+retains the resulting exact coordinates before review and never reruns layout
+at approval. Open **Review exact input → Preview on Canvas** for a noninteractive
+before/after ghost, including changed connections and groups. It does not change
+the graph or start a calculation. Dismissal, rejection, Stop AI, expiry or any
+local/saved graph revision change invalidates the preview. Approval still uses
+the existing owner/project checks, payload checksum and optimistic concurrency.
+
+## Persistent campaigns and numerical healing
+
+In Work with **Ask for approval**, `start_campaign` reviews one to five independent
+saved Canvas SCF/relaxation targets, their frozen inputs, queue/runtime limits,
+expiry and node-hours. The first supervisor supports direct saved structure inputs;
+review multi-calculation prerequisites separately. It never changes the Canvas.
+The campaign reserves the worst-case allocation for every permitted attempt.
+
+The installed app's local monitor drives the existing workers independently of
+chat leases. Closing the browser leaves it running while the app/worker is active.
+Closing the application stops supervision; on restart it reconciles deterministic
+receipts before monitoring. Intent is persisted before submission. A missing or
+uncertain receipt requires manual inspection and is never resubmitted automatically.
+Legacy campaign records acquire no new execution authority.
+
+Approve at most two exact repair steps per candidate: lower mixing beta, change
+mixing mode/diagonalization, or increase electron iterations. Every attempt retains
+immutable before/after inputs, reason, admission fingerprint and verified result/log
+checksums. Final positive numerical convergence wins over isolated `c_bands` warnings.
+Unverified/missing output stops healing. Smearing, occupations, spin, cutoff, k-grid,
+timestep, ensemble and pre-minimization require a new approval. Lost-atoms evidence
+produces a diagnosis and review proposal preserving all atoms; it never authorizes
+atom deletion or automatic minimization.
+
+The campaign card exposes status, reserved budget, exact retained inputs and an
+explicit **Cancel campaign and current job** control. **Stop AI** stops the chat
+only. Queue/runtime budgets are separate; expiry prevents further submissions while
+existing confirmed work remains monitored. Runtime/queue overruns request cancellation.
+No new submission occurs after Canvas revision drift, budget exhaustion or a
+numerical policy/receipt/checksum mismatch. `get_campaign_status` is a read only snapshot.
+
+## APS/PRB manuscript archives
+
+`create_manuscript` prepares an immutable draft from selected completed DFT results,
+retained executed inputs/logs and source-bound scientific figures. Open the artifact
+and Export to obtain the REVTeX ZIP with vector figures, exact numerical tables,
+verified bibliography metadata, checksums, missing information and reproduction
+instructions. Project revisions and tool-call idempotency are enforced. Scientific
+and journal review remain the authors' responsibility; the app never executes TeX.
+See [APS/PRB manuscript archives](aps-prb-manuscript.md) for supported sources and limits.

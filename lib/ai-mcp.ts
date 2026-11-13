@@ -23,5 +23,7 @@ export async function executeAiMcpTool(tool: AiMcpTool, input: Record<string, un
 
 /** Covers discovery, repeated capability validation and one bounded tool call. No retries. */
 export function aiMcpControlPlaneTimeout(path: string, local: boolean): number {
+  // Up to three batches of fixed-host bibliography lookups plus evidence validation.
+  if (local && /^conversations\/aic_[a-z0-9]+\/manuscript_create$/.test(path)) return 90_000;
   return local && /^conversations\/aic_[a-z0-9]+\/(?:mcp_tools|mcp_call|prepare|execute|actions\/aia_[a-z0-9]+)(?:\?.*)?$/.test(path) ? 150_000 : 20_000;
 }

@@ -34,3 +34,11 @@ export function aiArtifactComparable(artifact: AiArtifact): string {
   if (artifact.kind === 'diff') return (artifact.structuredData as import('./ai-workbench.ts').AiArtifactDiff).after;
   return artifact.structuredData ? JSON.stringify(artifact.structuredData, null, 2) : artifact.content ?? artifact.text;
 }
+
+/** Only typed text artifacts can be edited; scientific data tables remain structured. */
+export function aiArtifactEditableText(artifact: AiArtifact): string | null {
+  if (artifact.schemaVersion !== 2) return null;
+  if (artifact.kind === 'input_file') return (artifact.structuredData as import('./ai-workbench.ts').AiArtifactInput).text;
+  if (artifact.kind === 'diff') return (artifact.structuredData as import('./ai-workbench.ts').AiArtifactDiff).after;
+  return artifact.kind === 'report' || artifact.kind === 'plan' ? artifact.content ?? artifact.text : null;
+}
