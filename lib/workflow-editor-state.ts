@@ -7,6 +7,7 @@ export const isWorkflowAiTab = (id: string) => id === workflowAiTab || /^tool:ai
 export const aiConversationTab = (id: string) => { if (!/^aic_[a-z0-9]+$/.test(id)) throw new Error('Invalid AI conversation.'); return `${workflowAiTab}:${id}`; };
 export const aiConversationFromTab = (id: string) => /^tool:ai:(aic_[a-z0-9]+)$/.exec(id)?.[1];
 export const workflowStudyTab = 'tool:study';
+export const workflowNotesTab = 'tool:notes';
 export type WorkflowEditorState = { version: 2; paneOrderVersion?: 1; tabs: string[]; activeTab: string; canvasClosed?: boolean; tabsHidden?: boolean; pinnedTabs?: string[]; layout: 'full' | 'split'; splitAxis?: 'horizontal' | 'vertical'; aiPanel?: { id: string; presentation: 'floating' | 'composer' | 'minimized'; x?: number; y?: number; bottom?: number; width?: number; height?: number }; aiPanelBounds?: { x?: number; y?: number; bottom?: number; width?: number; height?: number }; lastChat?: string; lastModule?: string; splitTabs?: [string, string]; tabPanes?: Record<string, 0 | 1>; paneTabsHidden?: [boolean, boolean]; splitRatio: number; tool: 'select' | 'hand'; snapToGrid?: boolean; showGuides?: boolean; viewport?: { x: number; y: number; zoom: number }; edgeAnchors?: Record<string, WorkflowEdgeAnchors> };
 export const initialWorkflowEditorState: WorkflowEditorState = { version: 2, paneOrderVersion: 1, tabs: [], activeTab: 'canvas', pinnedTabs: ['canvas'], layout: 'full', splitRatio: .65, tool: 'select' };
 export type WorkflowEditorAction = { type: 'toggle-split'; id?: string } | { type: 'maximize'; id: string } | { type: 'pane-tabs-hidden'; pane: 0 | 1; hidden: boolean } | { type: 'tabs-hidden'; hidden: boolean } | { type: 'split'; id: string; beside: string; direction?: 'left' | 'right' | 'top' | 'bottom' } | { type: 'swap' } | { type: 'axis'; axis: 'horizontal' | 'vertical' } | { type: 'ai-presentation'; id: string; presentation: 'tab' | 'floating' | 'composer' | 'minimized' } | { type: 'panel-position'; x: number; y: number; bottom?: number } | { type: 'panel-size'; width: number; height: number } | { type: 'restore'; state: WorkflowEditorState } | { type: 'open' | 'close' | 'pin'; id: string; pane?: 0 | 1 } | { type:'close-all' } | { type: 'reconcile'; ids: string[] } | { type: 'reorder'; id: string; before: string } | {type:'resolve-launcher';tabId:string;nodeId:string} | { type: 'layout'; layout: 'full' | 'split' } | { type: 'ratio'; ratio: number } | { type: 'tool'; tool: 'select' | 'hand' } | { type: 'viewport'; viewport: NonNullable<WorkflowEditorState['viewport']> } | { type: 'snapping'; grid: boolean; guides: boolean } | { type: 'edge-anchors'; id: string; anchors: WorkflowEdgeAnchors };
@@ -212,7 +213,7 @@ function reduceWorkflowEditor(state: WorkflowEditorState, action: WorkflowEditor
     }
     case 'close-all': return { ...state, aiPanel: undefined, tabPanes: undefined, paneTabsHidden: undefined, tabs: [], activeTab: 'canvas', layout: 'full', splitTabs: undefined, canvasClosed: false, pinnedTabs: ['canvas'] };
     case 'reconcile': {
-      const ids = new Set([...action.ids, workflowAiTab, workflowStudyTab]), tabs = state.tabs.filter(id => id !== 'canvas' && (ids.has(id)||isWorkflowLauncherTab(id)||isWorkflowAiTab(id)));
+      const ids = new Set([...action.ids, workflowAiTab, workflowStudyTab, workflowNotesTab]), tabs = state.tabs.filter(id => id !== 'canvas' && (ids.has(id)||isWorkflowLauncherTab(id)||isWorkflowAiTab(id)));
       if (tabs.length === state.tabs.length && workflowEditorTabs(state).includes(state.activeTab) && !state.canvasClosed && (!state.splitTabs || state.splitTabs.every(id => id === 'canvas' || tabs.includes(id)))) return state;
       return availableEditorView({ ...state, canvasClosed: false, tabs, pinnedTabs: ['canvas', ...(state.pinnedTabs ?? []).filter(id => id !== 'canvas' && tabs.includes(id))] });
     }
@@ -235,7 +236,7 @@ function reduceWorkflowEditor(state: WorkflowEditorState, action: WorkflowEditor
   }
 }
 export function restoreWorkflowEditor(raw: unknown, ids: string[], search: string, edgeIds?: string[]): WorkflowEditorState {
-  const saved = raw && typeof raw === 'object' ? raw as Omit<Partial<WorkflowEditorState>, 'aiPanel'> & { aiPanel?: Omit<NonNullable<WorkflowEditorState['aiPanel']>, 'presentation'> & { presentation: string } } : {}, available = new Set([...ids, workflowAiTab, workflowStudyTab]);
+  const saved = raw && typeof raw === 'object' ? raw as Omit<Partial<WorkflowEditorState>, 'aiPanel'> & { aiPanel?: Omit<NonNullable<WorkflowEditorState['aiPanel']>, 'presentation'> & { presentation: string } } : {}, available = new Set([...ids, workflowAiTab, workflowStudyTab, workflowNotesTab]);
   const tabs = [...new Set(Array.isArray(saved.tabs) ? saved.tabs.filter(id => typeof id === 'string' && id !== 'canvas' && (available.has(id)||isWorkflowLauncherTab(id)||isWorkflowAiTab(id))) : [])];
   const params = new URLSearchParams(search);
   let requested = params.get('tab') ?? params.get('popup');

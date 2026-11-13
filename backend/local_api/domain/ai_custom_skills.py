@@ -30,7 +30,7 @@ READ_OPERATIONS = {
     'list_active_jobs': {'jobs'}, 'get_job_status': {'job_status'}, 'get_worker_status': {'worker_status'},
     'diagnose_calculation': {'calculation_diagnosis'}, 'preview_md_input': {'md_preview'},
     'create_manuscript': {'manuscript_create'}, 'read_report': {'report'}, 'read_artifact': {'artifact_get'}, 'publish_artifact': {'artifact_publish'},
-    'update_artifact': {'artifact_update'}, 'propose_artifact_patch': {'artifact_propose'}, 'read_attachment': {'attachment_read'}, 'search_attachment': {'attachment_search'},
+    'update_artifact': {'artifact_update'}, 'propose_artifact_patch': {'artifact_propose'}, 'propose_note_patch': {'note_propose'}, 'read_attachment': {'attachment_read'}, 'search_attachment': {'attachment_search'},
     'read_resource': {'read'}, 'read_canvas': {'canvas'},
 }
 TOOL_NAMES = set(READ_OPERATIONS) | set().union(*ACTION_TOOLS.values()) | {

@@ -490,7 +490,7 @@ function AiWorkspaceOwner({ owner, projectId, legacyProjectId, conversationId, v
     const message = text.trim(), selected = files;
     const workbench = { executionMode: multistage ? 'multistage' : 'foreground', taskMode, contextRefs: contexts.map(item => item.ref), sourceArtifactId: sourcePlan, skillRef };
     if (skillRef && !skills.some(skill => skill.id === skillRef.id && skill.version === skillRef.version) && !editing) { setError(t('This skill version is unavailable. Choose the skill again or remove it; your draft is kept.', 'Versi skill ini tidak tersedia. Pilih ulang skill atau hapus; draf Anda tetap tersimpan.')); return; }
-    if ((contexts.some(item => item.ref.kind !== 'attachment') || sourcePlan) && !savedContext) { setError(t('Save Canvas changes before sending selected context.', 'Simpan perubahan Kanvas sebelum mengirim konteks terpilih.')); return; } stopRequested.current = false; enqueueLock.current = true; setEnqueueBusy(true); setError(''); setText(''); setFiles([]); setContexts([]); setSourcePlan(undefined); follow.current = true;
+    if ((contexts.some(item => item.ref.kind !== 'attachment' && !(item.ref.kind === 'resource' && item.ref.resourceKind === 'note_snapshot')) || sourcePlan) && !savedContext) { setError(t('Save Canvas changes before sending selected context.', 'Simpan perubahan Kanvas sebelum mengirim konteks terpilih.')); return; } stopRequested.current = false; enqueueLock.current = true; setEnqueueBusy(true); setError(''); setText(''); setFiles([]); setContexts(current => current.filter(item => item.ref.kind === 'resource' && item.ref.resourceKind === 'note_snapshot')); setSourcePlan(undefined); follow.current = true;
     let accepted = false;
     try {
       const conversation = await ensureConversation();

@@ -388,6 +388,11 @@ class DesktopApplication:
         if archive_part and method == 'PUT':
             return response(200, self.archives.upload(archive_part[1], int(archive_part[2]), raw))
         payload = json.loads(raw or b"{}")
+        if path.startswith('/__local/notes/'):
+            from backend.local_api.notes import ProjectNotes
+            if not isinstance(payload, dict):
+                raise ApiError(400, 'Invalid Notes payload.', 'NOTE_INVALID')
+            return response(200, ProjectNotes(self.services).handle(self.services.owner, method, path[len('/__local/notes/'):].split('/'), payload))
         if path.startswith("/__local/hpc"):
             return self.hpc_request(method, path, raw, headers, query)
         recovery_status = re.fullmatch(r'/__local/jobs/([A-Za-z0-9_-]+)/recovery', path)

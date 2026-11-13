@@ -3,6 +3,7 @@
   "pythonModules": [
     "backend/local_api/__init__.py",
     "backend/local_api/archives.py",
+    "backend/local_api/notes.py",
     "backend/local_api/bundles.py",
     "backend/local_api/cloud_client.py",
     "backend/local_api/cloud_compute.py",

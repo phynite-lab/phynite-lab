@@ -21,6 +21,8 @@ from backend.local_api.domain.phynite_core import owner_partition, storage_owner
 from backend.local_api.domain.project_sync import MAX_CHUNK_BYTES, validate_snapshot
 
 
+# Cloud Sync and local archives have distinct allowlists. Notes never sync in v1.
+NOTE_KINDS = {'PROJECT_NOTE', 'NOTE_REVISION', 'NOTE_DRAFT', 'NOTE_PROPOSAL', 'NOTE_CONTEXT'}
 PROJECT_KINDS = {"PROJECT", "STRUCTURE", "CALCULATION", "CALCULATION_CONFIGURATION", "CALCULATION_COMPONENT", "MD_TRAJECTORY", "MD_ANALYSIS", "MD_SIMULATION", "MD_POTENTIAL", "MD_CONFIGURATION", "PROJECT_WORKFLOW", "PROJECT_RUN", "WORKFLOW_ATTEMPT", "PROJECT_VIEW_STATE", "DATASET", "FIGURE", "FIGURE_TEMPLATE", "AI_CONVERSATION", "AI_MESSAGE", "AI_RUN", "AI_ACTION", "AI_ATTACHMENT", "AI_ARTIFACT"}
 TERMINAL = {"draft", "completed", "failed", "cancelled", "canceled", "ready", "stopped"}
 SENSITIVE_FIELDS = {"accessToken", "refreshToken", "idToken", "password", "token", "workerToken", "workerTokenHash", "workerId", "localWorkerId", "batchJobId", "leaseExpiresAtEpoch", "leaseToken", "pendingCalls", "credential", "credentials", "apiKey", "authorization"}
@@ -65,7 +67,7 @@ def _owner_records(services: Any, owner: str) -> list[dict[str, Any]]:
     return records
 
 
-def build_project_snapshot(services: Any, owner: str, project_id: str, staging_dir: Path, *, allow_asset: Callable[[str, dict[str, Any]], bool] | None = None, deleted: bool = False) -> tuple[dict[str, Any], dict[str, Path]]:
+def build_project_snapshot(services: Any, owner: str, project_id: str, staging_dir: Path, *, allow_asset: Callable[[str, dict[str, Any]], bool] | None = None, deleted: bool = False, local_archive: bool = False) -> tuple[dict[str, Any], dict[str, Path]]:
     """Return sync manifest + immutable local chunk files (digest -> path).
 
     Caller must serialize this operation with project edits and job launches. A
@@ -75,7 +77,8 @@ def build_project_snapshot(services: Any, owner: str, project_id: str, staging_d
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", project_id):
         raise ValueError("Project identity is invalid.")
     all_records = _owner_records(services, owner)
-    selected = [record for record in all_records if record.get("entityType") in PROJECT_KINDS and (record.get("projectId") == project_id or record.get("entityType") in {"PROJECT", "PROJECT_WORKFLOW", "PROJECT_VIEW_STATE"} and record.get("id") == project_id or record.get("entityType") == "AI_CONVERSATION" and record.get("projectKey") in {"project:" + project_id, "md:" + project_id, "dft:" + project_id})]
+    kinds = PROJECT_KINDS | NOTE_KINDS if local_archive else PROJECT_KINDS
+    selected = [record for record in all_records if record.get("entityType") in kinds and (record.get("projectId") == project_id or record.get("entityType") in {"PROJECT", "PROJECT_WORKFLOW", "PROJECT_VIEW_STATE"} and record.get("id") == project_id or record.get("entityType") == "AI_CONVERSATION" and record.get("projectKey") in {"project:" + project_id, "md:" + project_id, "dft:" + project_id})]
     if not any(record.get("entityType") == "PROJECT" and record.get("id") == project_id for record in selected):
         raise CloudError(404, "LOCAL_PROJECT_NOT_FOUND", "Choose a saved local project before exporting or syncing.")
     conversations = {record["id"] for record in selected if record.get("entityType") == "AI_CONVERSATION"}

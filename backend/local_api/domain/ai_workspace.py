@@ -16,7 +16,7 @@ from backend.local_api.domain.phynite_core import ApiError, json_safe, owner_par
 MODES = {'chat', 'approval', 'full'}
 RESOURCE_KINDS = {'structure': 'STRUCTURE', 'calculation': 'CALCULATION', 'trajectory': 'MD_TRAJECTORY', 'simulation': 'MD_SIMULATION', 'analysis': 'MD_ANALYSIS', 'md_configuration': 'MD_CONFIGURATION', 'potential': 'MD_POTENTIAL', 'dataset': 'DATASET', 'figure': 'FIGURE'}
 ACTIONS = {'start_discovery', 'cancel_discovery', 'start_campaign', 'cancel_campaign', 'run_mlip', 'cancel_mlip', 'mcp_call', 'modify_structure', 'import_md_potential', 'derive_structure', 'import_structure', 'save_dft', 'run_dft', 'save_md', 'run_md', 'run_analysis', 'cancel_job', 'save_figure', 'export_figure', 'save_workflow', 'run_workflow', 'cancel_workflow'}
-PATH = re.compile('^/v1/ai/conversations(?:/([a-z0-9_]+)(?:/(detail|settings|start|resume|renew|stop|context|compute|read|canvas|step|message|finish|prepare|execute|actions|queue|steer|continue|events|control|mcp_tools|mcp_call|job_artifacts|job_file|dataset_query|potential_search|jobs|job_status|worker_status|calculation_diagnosis|md_preview|attachment_read|attachment_search|attachment_provider|ledger|audit|save_plan|complete_call|replay|references|artifacts|artifact_publish|artifact_update|artifact_get|manuscript_create|artifact_edit|artifact_patches|artifact_decision|artifact_propose|report|discovery_status|discovery|campaign_status|campaigns|capture_request|capture_status|viewport|captures|mlip_runtime|mlip_result|mlip_promotions|mlip)(?:/([a-z0-9_]+))?)?)?$')
+PATH = re.compile('^/v1/ai/conversations(?:/([a-z0-9_]+)(?:/(detail|settings|start|resume|renew|stop|context|compute|read|canvas|step|message|finish|prepare|execute|actions|queue|steer|continue|events|control|mcp_tools|mcp_call|job_artifacts|job_file|dataset_query|potential_search|jobs|job_status|worker_status|calculation_diagnosis|md_preview|attachment_read|attachment_search|attachment_provider|ledger|audit|save_plan|complete_call|replay|references|artifacts|artifact_publish|artifact_update|artifact_get|manuscript_create|artifact_edit|artifact_patches|artifact_decision|artifact_propose|note_propose|report|discovery_status|discovery|campaign_status|campaigns|capture_request|capture_status|viewport|captures|mlip_runtime|mlip_result|mlip_promotions|mlip)(?:/([a-z0-9_]+))?)?)?$')
 
 def router_models(provider: str='9router') -> list[str]:
     try:
@@ -276,6 +276,11 @@ class AiWorkspace:
         project = context['project']
         if not project:
             fail(409, 'Select a project before accessing research data.', 'AI_PROJECT_REQUIRED')
+        if kind in {'project_note_revision', 'note_snapshot'}:
+            from backend.local_api.notes import ProjectNotes
+            service = ProjectNotes(self.services)
+            row = service.row(owner, project['id'], 'NOTE_REVISION' if kind == 'project_note_revision' else 'NOTE_CONTEXT', item_id)
+            return {'item': service.read(row), 'revision': row['revision']}
         if kind == 'research':
             if project['kind'] != 'canvas' or item_id != project['id']:
                 fail(404, 'This research context is not in the selected project.', 'AI_NOT_FOUND')
@@ -1150,6 +1155,13 @@ class AiWorkspace:
             from backend.local_api.domain.ai_manuscript import AiManuscripts
             if run.get('queueId') and payload.get('controlRevision', 0) != run.get('controlRevision', 0): fail(409, 'Read pending user direction before publishing.', 'AI_STEER_PENDING')
             return response(201, {'artifact': AiManuscripts(self).create(owner, conversation, run, payload)})
+        if operation == 'note_propose':
+            from backend.local_api.notes import ProjectNotes
+            project = self.scope(owner, conversation['projectKey'])
+            if run.get('queueId') and payload.get('controlRevision', 0) != run.get('controlRevision', 0):
+                fail(409, 'Read pending user direction before proposing.', 'AI_STEER_PENDING')
+            project_id = project['remoteId']
+            return response(201, {'proposal': ProjectNotes(self.services).propose(owner, project_id, payload, {'kind': 'ai', 'conversationId': conversation['id'], 'runId': run['id'], 'modelId': run.get('modelId'), 'controlRevision': run.get('controlRevision', 0)})})
         if operation in {'artifact_publish', 'artifact_update', 'artifact_get', 'artifact_propose', 'report'}:
             self.scope(owner, conversation['projectKey'])
             from backend.local_api.domain.ai_artifacts import AiArtifacts
