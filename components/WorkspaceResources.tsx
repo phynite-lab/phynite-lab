@@ -26,9 +26,10 @@ import '@/app/workspace-resources.css';
 type JobDetails = { startedAt?: string; completedAt?: string; status?: string; computePhase?: string; computeSeconds?: number; vcpus?: number; memoryMiB?: number };
 type ResourceScopeProps = { scope: 'workspace'; projectId?: never; selection?: never; onChange?: never }
   | { scope: 'project'; projectId: string; selection: ComputeSelection; onChange: (selection: ComputeSelection) => void };
-export function WorkspaceResources({ owner, workload, selection = {}, onChange = () => undefined, jobs, open, onOpen, onClose, scope, projectId }: {
+export function WorkspaceResources({ owner, workload, selection = {}, onChange = () => undefined, jobs, open, onOpen, onClose, scope, projectId, atomCount, kPoints, calculationType }: {
   open: boolean; onOpen: () => void; onClose: () => void;
   owner: string; workload: ComputeWorkload; jobs: WorkspaceJob[];
+  atomCount?: number; kPoints?: [number, number, number] | number[] | number; calculationType?: string;
 } & ResourceScopeProps) {
   const { t, intlLocale } = useLocale();
   const resource = useLabAccount(owner), account = resource.account;
@@ -183,7 +184,7 @@ export function WorkspaceResources({ owner, workload, selection = {}, onChange =
         {(resource.error || computeUsage.error || jobError) && <button type="button" className="lab-button" onClick={() => { void refreshAccount(); void computeUsage.refresh().catch(() => undefined); setJobRetry(value => value + 1); }}><RefreshCw size={14} />{t('Refresh resources', 'Perbarui resource')}</button>}
       </div> : <>
         {scope === 'workspace' ? <p className="workspace-resource-scope">{t('Workspace compute defaults apply to new runs. Open Compute settings to change them.', 'Default compute workspace berlaku untuk run baru. Buka pengaturan Compute untuk mengubahnya.')}</p> : <><p className="workspace-resource-scope">{t('Applies to this run configuration. Use Make default to save preferences for new runs.', 'Berlaku untuk konfigurasi run ini. Gunakan Jadikan default untuk menyimpan preferensi run baru.')}</p>
-        <LabComputeDestination scope="run" requiredCapability={workload} sharedAvailable={workload === 'qe'} fixedTarget={workload === 'qe' ? undefined : 'personal'} selection={selection} onChange={onChange} account={account} onAccount={resource.setAccount} /></>}
+        <LabComputeDestination scope="run" requiredCapability={workload} sharedAvailable={workload === 'qe'} fixedTarget={workload === 'qe' ? undefined : 'personal'} selection={selection} onChange={onChange} account={account} onAccount={resource.setAccount} atomCount={atomCount} kPoints={kPoints} calculationType={calculationType} /></>}
         <div className="workspace-resource-guidance"><p className="workspace-resource-note">{t('CPU and RAM are job allocations, not measurements of installed hardware. More cores do not always make a calculation faster.', 'CPU dan RAM adalah alokasi job, bukan pengukuran perangkat terpasang. Lebih banyak core tidak selalu mempercepat kalkulasi.')}</p><Link className="workspace-resource-detail-link" href={scope === 'workspace' ? '/account/compute' : '/account/compute#your-computer'}>{t('Compute settings and worker setup', 'Pengaturan compute dan setup worker')}<ArrowUpRight size={13} /></Link></div>
       </>}
     </LabConfigurationDrawer></div>, panelHost)}

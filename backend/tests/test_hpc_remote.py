@@ -308,6 +308,64 @@ class TestHpcRemoteHardening(unittest.TestCase):
             self.assertIn("nscf.in", uploaded_names)
             self.assertIn("submit.sh", uploaded_names)
 
+    def test_pipeline_fusing_and_job_chaining(self):
+        with tempfile.TemporaryDirectory() as folder:
+            receipts_dir = Path(folder) / "receipts"
+            receipts_dir.mkdir(parents=True)
+            # Upstream active SCF job receipt
+            (receipts_dir / "scf-calc-1.json").write_text(json.dumps({
+                "scheduler": "slurm",
+                "schedulerJobId": "112233",
+                "state": "submitted",
+            }))
+
+            profile = {
+                "id": "cluster-a", "ownerId": "owner-a", "scheduler": "slurm",
+                "connection": {}, "storage": {"scratchRoot": "/scratch/work", "purgeWavefunctions": False},
+                "runtime": {"pythonExecutable": "/usr/bin/python3"},
+                "defaults": {"nodes": 1, "ranksPerNode": 4, "wallSeconds": 300, "memoryMiBPerNode": 1024},
+            }
+            connection = MagicMock(spec=HpcSshConnection)
+            connection.run_command.return_value = (0, "", "")
+            manager = HpcRemoteJobManager(connection, profile)
+            manager.poll_job = MagicMock(return_value={"schedulerJobId": "112233", "state": "RUNNING", "terminal": False})
+            manager._scheduler_command = MagicMock(return_value=(0, "45679", ""))
+
+            input_files = {
+                "input.json": json.dumps({"settings": {"fusedPipeline": True, "scfSourceCalculationId": "scf-calc-1"}}),
+                "nscf.in": "&CONTROL /",
+            }
+            receipt = manager.submit_job("bands-calc-2", input_files, receipts_dir)
+            self.assertTrue(receipt["fusedPipeline"])
+            self.assertEqual(receipt["chainedToJobId"], "112233")
+            # Verify Slurm sbatch was called with --dependency=afterok:112233
+            manager._scheduler_command.assert_called_once_with([
+                "sbatch", "--parsable", "--dependency=afterok:112233", "/scratch/work/owner-a/bands-calc-2/submit.sh"
+            ])
+            # Verify script content has fused pipeline marker
+            rendered = manager.render_remote_script("bands-calc-2", "/scratch/work/owner-a/bands-calc-2")
+            self.assertIn("# phynite:fused-pipeline=true", rendered)
+
+            # Test PBS job chaining
+            pbs_profile = {**profile, "scheduler": "pbs"}
+            pbs_manager = HpcRemoteJobManager(connection, pbs_profile)
+            pbs_manager.poll_job = MagicMock(return_value={"schedulerJobId": "112233", "state": "R", "terminal": False})
+            pbs_manager._scheduler_command = MagicMock(return_value=(0, "45680", ""))
+            (receipts_dir / "scf-calc-pbs.json").write_text(json.dumps({
+                "scheduler": "pbs",
+                "schedulerJobId": "112233",
+                "state": "submitted",
+            }))
+            pbs_receipt = pbs_manager.submit_job("bands-calc-pbs", {
+                "input.json": json.dumps({"settings": {"fusedPipeline": True, "scfSourceCalculationId": "scf-calc-pbs"}}),
+                "nscf.in": "&CONTROL /",
+            }, receipts_dir)
+            self.assertTrue(pbs_receipt["fusedPipeline"])
+            self.assertEqual(pbs_receipt["chainedToJobId"], "112233")
+            pbs_manager._scheduler_command.assert_called_once_with([
+                "qsub", "-W", "depend=afterok:112233", "/scratch/work/owner-a/bands-calc-pbs/submit.sh"
+            ])
+
     def probe_fixture(self, modules=None, *, module_body=":", capabilities=True, truncate=False, code_override=None):
         """Execute the generated probe body with synthetic tools and login noise."""
         import subprocess

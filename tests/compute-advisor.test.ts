@@ -92,3 +92,16 @@ test('Smart Resource Advisor: Invalid or missing inputs return null', () => {
   assert.equal(getComputeResourceAdvice({ atomCount: NaN }), null);
   assert.equal(getComputeResourceAdvice({ atomCount: Infinity }), null);
 });
+
+test('Smart Resource Advisor: Edge cases like negative or non-integer k-points/atoms are sanitized', () => {
+  const sanitizedAdvice = getComputeResourceAdvice({
+    atomCount: 2.4, // rounded to 2
+    kPoints: [-4, 4, 4], // absolute value 4x4x4 = 64 <= 512
+    calculationType: 'Total energy',
+    isHpcConfigured: true,
+  });
+  assert.ok(sanitizedAdvice);
+  assert.equal(sanitizedAdvice.recommendation, 'personal');
+  assert.equal(sanitizedAdvice.metrics.atomCount, 2);
+  assert.equal(sanitizedAdvice.metrics.kPointProduct, 64);
+});

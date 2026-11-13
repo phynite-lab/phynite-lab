@@ -45,7 +45,7 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
   const [probeResults, setProbeResults] = useState<Record<string, ProbeResult | null>>({});
   const [probing, setProbing] = useState<Record<string, boolean>>({});
   const [settingUpVenv, setSettingUpVenv] = useState<Record<string, boolean>>({});
-  const [setupVenvMessage, setSetupVenvMessage] = useState<Record<string, string>>({});
+  const [setupVenvStatus, setSetupVenvStatus] = useState<Record<string, { ok: boolean; message: string } | null>>({});
 
   // Form state
   const [name, setName] = useState('');
@@ -106,7 +106,7 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
 
   const handleAutoSetupVenv = async (id: string) => {
     setSettingUpVenv(prev => ({ ...prev, [id]: true }));
-    setSetupVenvMessage(prev => ({ ...prev, [id]: '' }));
+    setSetupVenvStatus(prev => ({ ...prev, [id]: null }));
     try {
       const data = await localRequest<{
         ok: boolean;
@@ -119,17 +119,26 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
       if (data.ok && data.cluster) {
         if (data.probe) setProbeResults(prev => ({ ...prev, [id]: data.probe! }));
         setClusters(prev => prev.map(c => c.id === id ? data.cluster! : c));
-        setSetupVenvMessage(prev => ({
+        if (data.pythonExecutable && editingId === id) {
+          setPythonExecutable(data.pythonExecutable);
+        }
+        setSetupVenvStatus(prev => ({
           ...prev,
-          [id]: t(`Python environment configured: ${data.pythonExecutable}`, `Environment Python siap: ${data.pythonExecutable}`),
+          [id]: {
+            ok: true,
+            message: t(`Python environment configured: ${data.pythonExecutable}`, `Environment Python siap: ${data.pythonExecutable}`),
+          },
         }));
       } else {
         throw new Error(data.error || t('Venv setup failed.', 'Setup venv gagal.'));
       }
     } catch (err) {
-      setSetupVenvMessage(prev => ({
+      setSetupVenvStatus(prev => ({
         ...prev,
-        [id]: err instanceof Error ? err.message : t('Venv setup failed.', 'Setup venv gagal.'),
+        [id]: {
+          ok: false,
+          message: err instanceof Error ? err.message : t('Venv setup failed.', 'Setup venv gagal.'),
+        },
       }));
     } finally {
       setSettingUpVenv(prev => ({ ...prev, [id]: false }));
@@ -468,18 +477,18 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
                       )}
                     </div>
                   )}
-                  {setupVenvMessage[c.id] && (
-                    <div className="hpc-probe-result hpc-probe-ok" role="status">
-                      <CheckCircle2 size={15} />
-                      <span>{setupVenvMessage[c.id]}</span>
+                  {setupVenvStatus[c.id] && (
+                    <div className={`hpc-probe-result ${setupVenvStatus[c.id]!.ok ? 'hpc-probe-ok' : 'hpc-probe-fail'}`} role={setupVenvStatus[c.id]!.ok ? 'status' : 'alert'}>
+                      {setupVenvStatus[c.id]!.ok ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
+                      <span>{setupVenvStatus[c.id]!.message}</span>
                     </div>
                   )}
                 </>
               )}
-              {!probe && setupVenvMessage[c.id] && (
-                <div className="hpc-probe-result hpc-probe-ok" role="status" style={{ marginTop: '8px' }}>
-                  <CheckCircle2 size={15} />
-                  <span>{setupVenvMessage[c.id]}</span>
+              {!probe && setupVenvStatus[c.id] && (
+                <div className={`hpc-probe-result ${setupVenvStatus[c.id]!.ok ? 'hpc-probe-ok' : 'hpc-probe-fail'}`} role={setupVenvStatus[c.id]!.ok ? 'status' : 'alert'} style={{ marginTop: '8px' }}>
+                  {setupVenvStatus[c.id]!.ok ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
+                  <span>{setupVenvStatus[c.id]!.message}</span>
                 </div>
               )}
             </div>
@@ -643,20 +652,23 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
                         type="button"
                         className="lab-button"
                         disabled={settingUpVenv[editingId]}
-                        onClick={async () => {
-                          await handleAutoSetupVenv(editingId);
-                          const updated = clusters.find(item => item.id === editingId);
-                          if (updated?.runtime?.pythonExecutable) setPythonExecutable(updated.runtime.pythonExecutable);
-                        }}
+                        onClick={() => void handleAutoSetupVenv(editingId)}
                       >
                         <Sparkles size={13} className={settingUpVenv[editingId] ? 'animate-spin' : ''} />
                         {settingUpVenv[editingId]
                           ? t('Configuring venv on cluster…', 'Menyiapkan venv di kluster…')
                           : t('1-Click Auto Setup Venv (ase, pymatgen, seekpath)', '1-Click Auto Setup Venv (ase, pymatgen, seekpath)')}
                       </button>
-                      {setupVenvMessage[editingId] && (
-                        <p style={{ fontSize: '12px', color: 'var(--accent, #10b981)', marginTop: '4px' }}>
-                          {setupVenvMessage[editingId]}
+                      {setupVenvStatus[editingId] && (
+                        <p
+                          style={{
+                            fontSize: '12px',
+                            color: setupVenvStatus[editingId]!.ok ? 'var(--accent, #10b981)' : 'var(--danger, #ef4444)',
+                            marginTop: '4px',
+                          }}
+                          role={setupVenvStatus[editingId]!.ok ? 'status' : 'alert'}
+                        >
+                          {setupVenvStatus[editingId]!.message}
                         </p>
                       )}
                     </div>

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createDefaultQeDraft } from '../lib/qe-defaults.ts';
 import { compileWorkflowDft, workflowQeDraft } from '../lib/project-workflow-compiler.ts';
-import { emptyProjectWorkflow, parseProjectWorkflow, workflowConnectionError, workflowFingerprints, workflowOrder, copyWorkflowNodes, pasteWorkflowNodes, type ProjectWorkflow, type WorkflowNode } from '../lib/project-workflow.ts';
+import { emptyProjectWorkflow, parseProjectWorkflow, scientificWorkflowConfiguration, workflowConnectionError, workflowFingerprints, workflowOrder, copyWorkflowNodes, pasteWorkflowNodes, type ProjectWorkflow, type WorkflowNode } from '../lib/project-workflow.ts';
 
 const node = (id: string, kind: WorkflowNode['kind']): WorkflowNode => ({ id, kind, name: id, position: { x: 0, y: 0 }, configuration: {}, resources: [] });
 function branched(): ProjectWorkflow {
@@ -177,4 +177,21 @@ test('standalone band structure node can connect directly to crystal structure w
   assert.ok('nscfbands.in' in inputFiles);
   assert.ok('bands.in' in inputFiles);
   assert.match(inputFiles['scf.in'], /ecutwfc\s*=\s*80/);
+
+  // Test scientificWorkflowConfiguration draft preservation
+  const standaloneConfig = scientificWorkflowConfiguration({
+    standalone: true,
+    draft: { ...createDefaultQeDraft(), functional: 'PBEsol', cutoffPolicy: 'manual', cutoff: 80 },
+  }, 'bands');
+  assert.equal(standaloneConfig.standalone, true);
+  assert.equal((standaloneConfig.draft as Record<string, unknown>)?.functional, 'PBEsol');
+  assert.equal((standaloneConfig.draft as Record<string, unknown>)?.cutoff, 80);
+
+  const branchConfig = scientificWorkflowConfiguration({
+    standalone: false,
+    draft: { ...createDefaultQeDraft(), functional: 'PBEsol', cutoffPolicy: 'manual', cutoff: 80 },
+  }, 'bands');
+  assert.equal(branchConfig.standalone, false);
+  // Branch config should have functional stripped since it inherits from SCF
+  assert.equal((branchConfig.draft as Record<string, unknown>)?.functional, undefined);
 });

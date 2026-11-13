@@ -456,6 +456,8 @@ def setup_cluster_venv(store: HpcProfileStore, profile_id: str, custom_venv_path
         runtime = profile.get("runtime", {})
         modules = runtime.get("environmentModules", [])
         base_python = runtime.get("pythonExecutable")
+        if base_python and (".phynite-venv" in base_python or (custom_venv_path and custom_venv_path in base_python)):
+            base_python = None
         result = client.setup_python_venv(modules=modules, venv_path=custom_venv_path, base_python=base_python)
         if not result.get("ok"):
             return result

@@ -219,7 +219,7 @@ def canonical_configuration(configuration: dict[str, Any], kind: str | None=None
             for draft_ui_key in ('calculations', 'plotYMin', 'plotYMax'):
                 value.pop(draft_ui_key, None)
             if kind in DFT_TYPES:
-                is_branch = kind in {'bands', 'dos', 'phonon', 'btp2'} and config.get('standalone') is not True
+                is_branch = (kind in {'dos', 'phonon', 'btp2'}) or (kind == 'bands' and config.get('standalone') is not True)
                 if is_branch and (not str(value.get('rawInput') or '').strip()):
                     for draft_key in list(value):
                         if draft_key in DEFAULT_QE_DRAFT and draft_key not in WORKFLOW_BRANCH_FIELDS:
@@ -872,12 +872,12 @@ class ProjectWorkflowApi:
         payload = copy.deepcopy(node['configuration'].get('execution') or {})
         payload['idempotencyKey'] = 'wf_' + hashlib.sha256(attempt_id.encode()).hexdigest()[:60]
         kind = node['kind']
+        run = self.services.get_item(owner, 'PROJECT_RUN', run_id)
+        snapshot = self.read_json(run['objectKey'], run['sha256']) if run else None
+        frozen = snapshot['workflow'] if snapshot else None
         if kind in DFT_TYPES and node['configuration'].get('compilerVersion') == 1:
             from backend.local_api.domain.workflow_compiler import invoke
             from backend.local_api.domain.workflow_structure import source_structure
-            run = self.services.get_item(owner, 'PROJECT_RUN', run_id)
-            snapshot = self.read_json(run['objectKey'], run['sha256'])
-            frozen = snapshot['workflow']
             structure = source_structure(self, owner, project, inputs[0])
             if inputs[0].get('jobKind') == 'CALCULATION':
                 predecessor = self.services.get_item(owner, 'CALCULATION', inputs[0]['jobId'])
@@ -894,6 +894,15 @@ class ProjectWorkflowApi:
                 settings = {**payload.get('settings', {}), **compute['settings']}
                 if inputs and inputs[0].get('jobId'):
                     settings['scfSourceCalculationId'] = inputs[0]['jobId']
+                    payload['scfSourceCalculationId'] = inputs[0]['jobId']
+                if frozen:
+                    scf_source = next((edge['source'] for edge in frozen.get('edges', []) if edge.get('target') == node['id'] and edge.get('port') == 'electronic'), None)
+                    if scf_source:
+                        source_node = next((n for n in frozen.get('nodes', []) if n.get('id') == scf_source), None)
+                        if source_node and source_node.get('configuration', {}).get('computeTarget') == 'hpc':
+                            if source_node.get('configuration', {}).get('hpc', {}).get('clusterId') == node['configuration'].get('hpc', {}).get('clusterId'):
+                                settings['fusedPipeline'] = True
+                                settings['fusedWithNodeId'] = scf_source
                 payload = {**payload, **compute, 'settings': settings}
                 payload.pop('hpc', None)
             # Canvas DFT nodes use the same owner-scoped local calculation

@@ -119,7 +119,7 @@ def is_sparse_harvest_target(filename: str, retain_wavefunctions: bool = False) 
 class HpcRemoteJobManager:
     """Manage one remote QE allocation over a multiplexed SSH connection."""
 
-    def __init__(self, connection: HpcSshConnection, profile: dict[str, Any], allocation: dict[str, Any] | None = None) -> None:
+    def __init__(self, connection: HpcSshConnection, profile: dict[str, Any], allocation: dict[str, Any] | None = None, settings: dict[str, Any] | None = None) -> None:
         self.connection = connection
         self.profile = profile
         self.scheduler = profile.get("scheduler", "slurm")
@@ -127,6 +127,7 @@ class HpcRemoteJobManager:
             raise HpcError("Scheduler must be slurm or pbs.")
         self.last_harvest_manifest_validated = False
         self.allocation = {**profile.get("defaults", {}), **(allocation or {})}
+        self.settings = dict(settings or {})
         self.calculation_id: str | None = None
         self.calculation_type: str | None = None
 
@@ -248,9 +249,10 @@ class HpcRemoteJobManager:
             "",
             *([
                 "# Phynite Lab Pipeline Fusing: Fused single-job chained execution",
+                "# phynite:fused-pipeline=true",
                 "printf '%s\\n' '[PHYNITE] Fused HPC pipeline stage executing in shared allocation' >&2",
                 "",
-            ] if defaults.get("fusedPipeline") else []),
+            ] if (defaults.get("fusedPipeline") or self.settings.get("fusedPipeline")) else []),
             "# Load verified module names",
             *[f"module load {shlex.quote(name)}" for name in self._modules()],
             *[f"export {key}={shlex.quote(value)}" for key, value in environment.items()],
@@ -301,16 +303,20 @@ class HpcRemoteJobManager:
                 payload_json = json.loads(raw_json)
                 st = payload_json.get("settings", {}) if isinstance(payload_json, dict) else {}
                 if isinstance(st, dict):
-                    source_calc_id = (st.get("sharedScf", {}) or {}).get("calculationId") or st.get("scfSourceCalculationId")
+                    source_calc_id = (st.get("sharedScf", {}) or {}).get("calculationId") or st.get("scfSourceCalculationId") or payload_json.get("scfSourceCalculationId")
+                    if st.get("fusedPipeline"):
+                        self.settings["fusedPipeline"] = True
             except Exception:
                 pass
         if not source_calc_id and isinstance(self.allocation, dict):
             source_calc_id = self.allocation.get("scfSourceCalculationId") or self.allocation.get("sourceCalculationId")
 
         remote_scratch_retained = False
+        upstream_scheduler_job_id = None
+        active_upstream = False
         if source_calc_id and isinstance(source_calc_id, str) and SAFE_ID.fullmatch(source_calc_id):
             source_scratch = f"{scratch_root}/{owner_id}/{source_calc_id}"
-            probe_cmd = ["sh", "-c", f"test -f {shlex.quote(source_scratch)}/results/scf-state.tar.gz || test -f {shlex.quote(source_scratch)}/scf-state.tar.gz || test -d {shlex.quote(source_scratch)}/dependencies/scf"]
+            probe_cmd = ["sh", "-c", f"test -f {shlex.quote(source_scratch)}/results/scf-state.tar.gz || test -f {shlex.quote(source_scratch)}/scf-state.tar.gz || test -d {shlex.quote(source_scratch)}/dependencies/scf || test -d {shlex.quote(source_scratch)}/tmp"]
             probe_code, _, _ = self.connection.run_command(probe_cmd)
             if probe_code == 0:
                 link_cmd = [
@@ -321,12 +327,29 @@ class HpcRemoteJobManager:
                     f"elif [ -f {shlex.quote(source_scratch)}/scf-state.tar.gz ]; then "
                     f"  tar -xzf {shlex.quote(source_scratch)}/scf-state.tar.gz -C {shlex.quote(remote_work_dir)}/dependencies/scf; "
                     f"elif [ -d {shlex.quote(source_scratch)}/dependencies/scf ]; then "
-                    f"  cp -r {shlex.quote(source_scratch)}/dependencies/scf/* {shlex.quote(remote_work_dir)}/dependencies/scf/; "
+                    f"  cp -lr {shlex.quote(source_scratch)}/dependencies/scf/. {shlex.quote(remote_work_dir)}/dependencies/scf/ 2>/dev/null || cp -r {shlex.quote(source_scratch)}/dependencies/scf/. {shlex.quote(remote_work_dir)}/dependencies/scf/; "
                     f"fi"
                 ]
                 link_code, _, _ = self.connection.run_command(link_cmd)
                 if link_code == 0:
                     remote_scratch_retained = True
+
+            # Pipeline Fusing / Single-Job Chaining: check for active upstream scheduler job on same cluster
+            source_receipt_path = receipt_root / f"{source_calc_id}.json"
+            if source_receipt_path.exists():
+                try:
+                    s_receipt = json.loads(source_receipt_path.read_text(encoding="utf-8"))
+                    if s_receipt.get("scheduler") == self.scheduler and s_receipt.get("schedulerJobId"):
+                        candidate_up = job_id(str(s_receipt["schedulerJobId"]), self.scheduler)
+                        try:
+                            status_probe = self.poll_job(candidate_up)
+                            if not status_probe.get("terminal"):
+                                upstream_scheduler_job_id = candidate_up
+                                active_upstream = True
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
 
         script_content = self.render_remote_script(calculation_id, remote_work_dir)
         files_to_upload = {**input_files, "submit.sh": script_content}
@@ -366,10 +389,22 @@ class HpcRemoteJobManager:
             "remoteWorkDir": remote_work_dir,
             "state": "submission-uncertain",
             "remoteScratchRetained": remote_scratch_retained,
+            "fusedPipeline": bool(self.settings.get("fusedPipeline") or self.allocation.get("fusedPipeline")),
             **({"sourceCalculationId": source_calc_id} if remote_scratch_retained else {}),
+            **({"chainedToJobId": upstream_scheduler_job_id} if active_upstream and upstream_scheduler_job_id else {}),
         }
         self._receipt(receipt_path, receipt, overwrite=False)
-        submit_cmd = ["sbatch", "--parsable", f"{remote_work_dir}/submit.sh"] if self.scheduler == "slurm" else ["qsub", f"{remote_work_dir}/submit.sh"]
+        submit_cmd: list[str]
+        if self.scheduler == "slurm":
+            submit_cmd = ["sbatch", "--parsable"]
+            if active_upstream and upstream_scheduler_job_id:
+                submit_cmd.append(f"--dependency=afterok:{upstream_scheduler_job_id}")
+            submit_cmd.append(f"{remote_work_dir}/submit.sh")
+        else:
+            submit_cmd = ["qsub"]
+            if active_upstream and upstream_scheduler_job_id:
+                submit_cmd.extend(["-W", f"depend=afterok:{upstream_scheduler_job_id}"])
+            submit_cmd.append(f"{remote_work_dir}/submit.sh")
         try:
             code, stdout, stderr = self._scheduler_command(submit_cmd)
             if code != 0:
@@ -617,7 +652,10 @@ class HpcRemoteWorker:
             if (int(allocation["nodes"]) * int(allocation["ranksPerNode"]) != int(job["vcpus"])
                     or int(allocation["nodes"]) * int(allocation["memoryMiBPerNode"]) != int(job["memoryMiB"])):
                 raise HpcError("The frozen HPC allocation differs from the accepted job resources.")
-            manager = self.manager_factory(connection, profile, allocation)
+            try:
+                manager = self.manager_factory(connection, profile, allocation, settings=payload.get("settings"))
+            except TypeError:
+                manager = self.manager_factory(connection, profile, allocation)
             manager.calculation_id = _safe_calculation_id(job["calculationId"])
             manager.calculation_type = str(payload.get("calculationType", ""))
             if self.workspace_builder is None:

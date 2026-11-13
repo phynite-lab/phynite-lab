@@ -622,22 +622,27 @@ class HpcSshConnection:
         for name in safe_modules:
             script_lines.append(f"module load {shlex.quote(name)} >/dev/null 2>&1 || :")
 
+        script_lines.append('_ph_base=""')
         if custom_base:
-            script_lines.append(f'_ph_base={shlex.quote(custom_base)}')
-        else:
             script_lines.append(
-                '_ph_base="$(command -v python3 2>/dev/null || :)"\n'
-                'if [ -z "$_ph_base" ] || ! "$_ph_base" -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)" >/dev/null 2>&1; then\n'
-                f'  for _ph_c in {" ".join(PYTHON_CANDIDATE_GLOBS)}; do\n'
-                '    if [ -x "$_ph_c" ] && "$_ph_c" -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)" >/dev/null 2>&1; then\n'
-                '      _ph_base="$_ph_c"\n'
-                '      break\n'
-                '    fi\n'
-                '  done\n'
+                f'if [ -x {shlex.quote(custom_base)} ] && {shlex.quote(custom_base)} -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)" >/dev/null 2>&1; then\n'
+                f'  _ph_base={shlex.quote(custom_base)}\n'
                 'fi'
             )
-
         script_lines.append(
+            'if [ -z "$_ph_base" ]; then\n'
+            '  _ph_sys_py="$(command -v python3 2>/dev/null || :)"\n'
+            '  if [ -n "$_ph_sys_py" ] && "$_ph_sys_py" -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)" >/dev/null 2>&1; then\n'
+            '    _ph_base="$_ph_sys_py"\n'
+            '  else\n'
+            f'    for _ph_c in {" ".join(PYTHON_CANDIDATE_GLOBS)}; do\n'
+            '      if [ -x "$_ph_c" ] && "$_ph_c" -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)" >/dev/null 2>&1; then\n'
+            '        _ph_base="$_ph_c"\n'
+            '        break\n'
+            '      fi\n'
+            '    done\n'
+            '  fi\n'
+            'fi\n'
             'if [ -z "$_ph_base" ] || [ ! -x "$_ph_base" ]; then\n'
             f'  printf \'error=%s\\n\' "No Python >= 3.10 executable found on cluster. Load a Python module or specify base python."\n'
             f'  printf \'%s\\n\' {shlex.quote(end)}\n'

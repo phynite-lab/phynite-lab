@@ -757,9 +757,17 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
   const connect = (connection: Connection) => {
     const current = latestGraph.current, edge = workflowCanvasConnection(current, connection);
     const edgeId = id();
-    if (edge && change({ ...current, edges: [...current.edges, { ...edge, id: edgeId }] })) {
-      editor.dispatch({ type: 'edge-anchors', id: edgeId, anchors: workflowConnectionAnchors(connection) });
-      setMessage('');
+    if (edge) {
+      let nextNodes = current.nodes;
+      const targetNode = current.nodes.find(n => n.id === edge.target);
+      if (targetNode && targetNode.kind === 'bands') {
+        const isStandalone = edge.port === 'structure';
+        nextNodes = current.nodes.map(n => n.id === targetNode.id ? { ...n, configuration: { ...n.configuration, standalone: isStandalone } } : n);
+      }
+      if (change({ ...current, nodes: nextNodes, edges: [...current.edges, { ...edge, id: edgeId }] })) {
+        editor.dispatch({ type: 'edge-anchors', id: edgeId, anchors: workflowConnectionAnchors(connection) });
+        setMessage('');
+      }
     }
   };
   const addNode = (kind: WorkflowNode['kind']) => {
@@ -772,6 +780,9 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
       const edge = workflowNewNodeConnection(current, node, picker.anchor);
       if (!edge) { setPickerError(t('This connection changed. Close the picker and connect the module again.', 'Koneksi ini telah berubah. Tutup pemilih dan sambungkan modul kembali.')); return; }
       addedEdgeId = id();
+      if (node.kind === 'bands') {
+        node.configuration = { ...node.configuration, standalone: edge.port === 'structure' };
+      }
       next = { ...next, edges: [...next.edges, { ...edge, id: addedEdgeId }] };
     }
     if (!change(next)) return;
@@ -976,7 +987,7 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
   }) : [];
   const reviewResourceNode = reviewResourceNodes.find(node => node.id === reviewResourceId) ?? reviewResourceNodes[0];
   const reviewMaterial = reviewResourceNode ? workflowMaterial(workflowStructure(graph, reviewResourceNode.id), project?.name ?? 'Project') : null;
-  const reviewDraft = reviewResourceNode?.configuration.draft as Partial<JobDraft> | undefined;
+  const reviewDraft = reviewResourceNode ? (workflowQeDraft(graph, reviewResourceNode) as Partial<JobDraft> | undefined) : undefined;
   const reviewKPoints: [number, number, number] | undefined = reviewDraft && typeof reviewDraft.kPoint === 'number' && typeof reviewDraft.kPointY === 'number' && typeof reviewDraft.kPointZ === 'number' ? [reviewDraft.kPoint, reviewDraft.kPointY, reviewDraft.kPointZ] : undefined;
   const runCompute = plan ? workflowComputeRequirements(graph, plan) : null;
   const runComputeSummary = plan?.compute.hasSharedCompute
@@ -996,7 +1007,10 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
     if (plan) { runDialog.current?.close(); setPlan(null); }
   };
   const [resourcesOpen, setResourcesOpen] = useState(false);
-  const resourcePanel = <WorkspaceResources open={resourcesOpen} onOpen={() => setResourcesOpen(true)} onClose={() => setResourcesOpen(false)} owner={owner} workload={workloadForNode(resourceNode)} selection={runSelection} onChange={changeRunCompute} jobs={activeWorkspaceJobs(runs, graph.nodes)} scope="project" projectId={projectId} />;
+  const resourceMaterial = resourceNode ? workflowMaterial(workflowStructure(graph, resourceNode.id), project?.name ?? 'Project') : null;
+  const resourceDraft = resourceNode ? (workflowQeDraft(graph, resourceNode) as Partial<JobDraft> | undefined) : undefined;
+  const resourceKPoints: [number, number, number] | undefined = resourceDraft && typeof resourceDraft.kPoint === 'number' && typeof resourceDraft.kPointY === 'number' && typeof resourceDraft.kPointZ === 'number' ? [resourceDraft.kPoint, resourceDraft.kPointY, resourceDraft.kPointZ] : undefined;
+  const resourcePanel = <WorkspaceResources open={resourcesOpen} onOpen={() => setResourcesOpen(true)} onClose={() => setResourcesOpen(false)} owner={owner} workload={workloadForNode(resourceNode)} selection={runSelection} onChange={changeRunCompute} jobs={activeWorkspaceJobs(runs, graph.nodes)} scope="project" projectId={projectId} atomCount={resourceMaterial?.atomCount} kPoints={resourceKPoints} calculationType={resourceNode ? workflowCalculationTypes[resourceNode.kind] : undefined} />;
 
   return <main ref={root} className="project-workflow" data-theme={theme} onKeyDown={event => {
     if (event.key === 'Escape') setMenu(null);
