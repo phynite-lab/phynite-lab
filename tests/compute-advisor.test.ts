@@ -12,11 +12,11 @@ test('Smart Resource Advisor: Small unit cell (<= 10 atoms) recommends local CPU
 
   assert.ok(siliconAdvice);
   assert.equal(siliconAdvice.recommendation, 'personal');
-  assert.equal(siliconAdvice.confidence, 'high');
+  assert.equal(siliconAdvice.confidence, 'medium');
   assert.equal(siliconAdvice.metrics.complexity, 'light');
   assert.equal(siliconAdvice.metrics.atomCount, 2);
-  assert.match(siliconAdvice.badge.en, /Local CPU/);
-  assert.match(siliconAdvice.reason.en, /Small unit cell/);
+  assert.match(siliconAdvice.badge.en, /local CPU/);
+  assert.match(siliconAdvice.reason.en, /workload heuristic/);
 
   // Boundary: exactly 10 atoms
   const boundaryAdvice = getComputeResourceAdvice({
@@ -40,10 +40,10 @@ test('Smart Resource Advisor: Complex unit cell (> 10 atoms) recommends HPC when
 
   assert.ok(supercellAdvice);
   assert.equal(supercellAdvice.recommendation, 'hpc');
-  assert.equal(supercellAdvice.confidence, 'high');
+  assert.equal(supercellAdvice.confidence, 'medium');
   assert.equal(supercellAdvice.metrics.complexity, 'heavy');
-  assert.match(supercellAdvice.badge.en, /HPC Cluster/);
-  assert.match(supercellAdvice.reason.en, /O\(N³\)/);
+  assert.match(supercellAdvice.badge.en, /HPC/);
+  assert.match(supercellAdvice.reason.en, /CPU time and memory/);
 
   // When HPC is not configured, advises personal CPU with high workload warning
   const noHpcAdvice = getComputeResourceAdvice({
@@ -55,7 +55,7 @@ test('Smart Resource Advisor: Complex unit cell (> 10 atoms) recommends HPC when
 
   assert.ok(noHpcAdvice);
   assert.equal(noHpcAdvice.recommendation, 'personal');
-  assert.match(noHpcAdvice.badge.en, /Compute Intensive/);
+  assert.match(noHpcAdvice.badge.en, /Compute intensive/);
 });
 
 test('Smart Resource Advisor: Phonon dispersion recommends HPC even for small cells', () => {
@@ -69,7 +69,7 @@ test('Smart Resource Advisor: Phonon dispersion recommends HPC even for small ce
   assert.ok(phononAdvice);
   assert.equal(phononAdvice.recommendation, 'hpc');
   assert.equal(phononAdvice.metrics.complexity, 'heavy');
-  assert.match(phononAdvice.reason.en, /Phonon dispersion requires multiple DFPT/);
+  assert.match(phononAdvice.reason.en, /Phonon dispersion can require many DFPT/);
 });
 
 test('Smart Resource Advisor: Dense k-points trigger heavy complexity and HPC recommendation', () => {
@@ -93,15 +93,13 @@ test('Smart Resource Advisor: Invalid or missing inputs return null', () => {
   assert.equal(getComputeResourceAdvice({ atomCount: Infinity }), null);
 });
 
-test('Smart Resource Advisor: Edge cases like negative or non-integer k-points/atoms are sanitized', () => {
-  const sanitizedAdvice = getComputeResourceAdvice({
-    atomCount: 2.4, // rounded to 2
-    kPoints: [-4, 4, 4], // absolute value 4x4x4 = 64 <= 512
-    calculationType: 'Total energy',
-    isHpcConfigured: true,
-  });
-  assert.ok(sanitizedAdvice);
-  assert.equal(sanitizedAdvice.recommendation, 'personal');
-  assert.equal(sanitizedAdvice.metrics.atomCount, 2);
-  assert.equal(sanitizedAdvice.metrics.kPointProduct, 64);
+test('advisor rejects invalid scientific counts instead of silently changing them', () => {
+  for (const atomCount of [0, -5, NaN, Infinity, 2.4]) assert.equal(getComputeResourceAdvice({ atomCount }), null);
+  for (const kPoints of [[-4, 4, 4], [4.2, 4, 4], [4, 4], [4, Infinity, 4], [4, NaN, 4], 0, Infinity]) {
+    assert.equal(getComputeResourceAdvice({ atomCount: 2, kPoints }), null);
+  }
+  const unknown = getComputeResourceAdvice({ atomCount: 2 });
+  assert.equal(unknown?.metrics.kPointProduct, null);
+  assert.equal(unknown?.metrics.complexity, 'moderate');
+  assert.doesNotMatch(unknown!.reason.en, /in seconds|speedup|instant/i);
 });

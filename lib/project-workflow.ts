@@ -163,13 +163,14 @@ export async function workflowFingerprints(graph: ProjectWorkflow): Promise<Reco
     const node = graph.nodes.find(item => item.id === id)!;
     const inputs = graph.edges.filter(edge => edge.target === id).map(edge => ({ port: edge.port, fingerprint: fingerprints[edge.source] })).sort((a, b) => stableWorkflowJson(a).localeCompare(stableWorkflowJson(b)));
     const resources = node.resources.map(ref => ({ kind: ref.kind, id: ref.id, ...(ref.deviceOnly ? { deviceOnly: true } : {}) }));
-    const bytes = new TextEncoder().encode(stableWorkflowJson({ kind: node.kind, configuration: scientificWorkflowConfiguration(node.configuration, node.kind), resources, inputs }));
+    const bytes = new TextEncoder().encode(stableWorkflowJson({ kind: node.kind, configuration: scientificWorkflowConfiguration(node.configuration, node.kind, graph.edges.some(edge => edge.target === id && edge.port === 'electronic')), resources, inputs }));
     fingerprints[id] = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), byte => byte.toString(16).padStart(2, '0')).join('');
   }
   return fingerprints;
 }
-export function scientificWorkflowConfiguration(configuration: Record<string, unknown>, kind?: WorkflowKind): Record<string, unknown> {
+export function scientificWorkflowConfiguration(configuration: Record<string, unknown>, kind?: WorkflowKind, inheritsScf?: boolean): Record<string, unknown> {
   const result = structuredClone(configuration);
+  delete result.standalone;
   if (configuration.compilerVersion === 1 || kind && DFT_WORKFLOW_KINDS.has(kind) && record(configuration.draft) || kind === 'md' && Array.isArray(configuration.components)) delete result.execution;
   for (const key of ['savedStructureSignature', 'configurationError', 'legacySource', 'preservedHistory', 'plotSettings', 'elementMapText', 'style', 'compilerVersion', 'estimatedComputeSeconds', 'formula', 'missingInputs', 'parameterStudy', 'pseudopotentialChecksums', 'computeTarget', 'cloudMode', 'computeProfileId', 'vcpus', 'memoryMiB', 'resolvedHpcCompute']) delete result[key];
   for (const key of ['structure', 'draft', 'execution']) {
@@ -191,7 +192,7 @@ export function scientificWorkflowConfiguration(configuration: Record<string, un
     if (key === 'draft') {
       for (const draftUiKey of ['calculations', 'plotYMin', 'plotYMax']) delete value[draftUiKey];
       if (kind && DFT_WORKFLOW_KINDS.has(kind)) {
-        const isBranch = DFT_BRANCH_KINDS.has(kind) && configuration.standalone !== true;
+        const isBranch = DFT_BRANCH_KINDS.has(kind) && (kind !== 'bands' || (inheritsScf ?? configuration.standalone !== true));
         if (isBranch && !String(value.rawInput ?? '').trim()) {
           for (const draftKey of Object.keys(value)) {
             if (draftKey in DEFAULT_QE_DRAFT && !WORKFLOW_BRANCH_FIELDS.has(draftKey)) delete value[draftKey];

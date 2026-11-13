@@ -450,3 +450,20 @@ class StandaloneBandStructureTests(unittest.TestCase):
         self.assertEqual(len(validated['edges']), 1)
         self.assertEqual(validated['edges'][0]['port'], 'structure')
 
+
+class StandaloneFingerprintTests(unittest.TestCase):
+    def test_actual_graph_ports_control_standalone_physics_fingerprint(self):
+        from backend.local_api.domain.project_workflow import fingerprints
+        graph = {'nodes': [
+            {'id': 's', 'kind': 'structure', 'configuration': {}, 'resources': []},
+            {'id': 'b', 'kind': 'bands', 'configuration': {'draft': {'cutoff': 60}}, 'resources': []},
+        ], 'edges': [{'source': 's', 'target': 'b', 'port': 'structure'}]}
+        before = fingerprints(graph)
+        graph['nodes'][1]['configuration']['standalone'] = False
+        self.assertEqual(fingerprints(graph), before)
+        graph['nodes'][1]['configuration']['draft']['cutoff'] = 80
+        self.assertNotEqual(fingerprints(graph)['b'], before['b'])
+        graph['nodes'][0]['kind'] = 'scf'; graph['edges'][0]['port'] = 'electronic'
+        inherited = fingerprints(graph)
+        graph['nodes'][1]['configuration'] = {'standalone': True, 'draft': {'cutoff': 200}}
+        self.assertEqual(fingerprints(graph), inherited)

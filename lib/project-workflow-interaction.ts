@@ -16,7 +16,7 @@ export function workflowCanvasConnection(graph: ProjectWorkflow, connection: Can
   const allowed = workflowAllowedInputs(target.kind);
   const output = workflowModules[source.kind].output;
   if (!allowed.includes(output)) return null;
-  const targetPort = connection.targetHandle ? allowed.find(p => [p, `${p}:top`].includes(connection.targetHandle!)) : workflowModules[target.kind].input;
+  const targetPort = connection.targetHandle ? allowed.find(p => [p, `${p}:top`].includes(connection.targetHandle!)) : output;
   if (!targetPort || targetPort !== output) return null;
   if (![output, `${output}:bottom`].includes(connection.sourceHandle ?? '')
     || (connection.targetHandle && ![targetPort, `${targetPort}:top`].includes(connection.targetHandle))
@@ -30,7 +30,7 @@ export function workflowNewNodeConnection(graph: ProjectWorkflow, node: Workflow
   const target = anchor.type === 'target' ? graph.nodes.find(item => item.id === anchor.nodeId) : node;
   if (!source || !target) return null;
   return workflowCanvasConnection({ ...graph, nodes: [...graph.nodes, node] }, {
-    source: source.id, target: target.id, sourceHandle: workflowModules[source.kind].output, targetHandle: workflowModules[target.kind].input,
+    source: source.id, target: target.id, sourceHandle: workflowModules[source.kind].output, targetHandle: workflowModules[source.kind].output,
   });
 }
 

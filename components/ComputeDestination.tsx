@@ -190,12 +190,12 @@ export function LabComputeDestination({
     else void persist(next);
   }
 
-  const advice = getComputeResourceAdvice({
+  const advice = requiredCapability === 'qe' ? getComputeResourceAdvice({
     atomCount,
     kPoints,
     calculationType,
     isHpcConfigured: hpcClusters.length > 0,
-  });
+  }) : null;
 
   return <div className="workspace-compute-destination" data-compute-scope={scope}>
     <div className="workspace-compute-heading"><span>{t('Compute resources', 'Resource compute')}</span><Link href="/account/compute#your-computer">{t('Computer setup →', 'Hubungkan komputer →')}</Link></div>
@@ -213,17 +213,18 @@ export function LabComputeDestination({
         <p className="compute-smart-advisor-reason">
           {t(advice.reason.en, advice.reason.id)}
         </p>
-        {target !== advice.recommendation && (
+        {target !== advice.recommendation && !fixedTarget && (
           <div className="compute-smart-advisor-footer">
             <button
               type="button"
               className="compute-smart-advisor-action"
+              disabled={!account || busy}
               onClick={() => change({ computeTarget: advice.recommendation })}
             >
               {advice.recommendation === 'personal' ? (
-                <><Laptop size={13} aria-hidden="true" /><span>{t('Switch to Local CPU (Instant start)', 'Ganti ke CPU Lokal (Mulai instan)')}</span></>
+                <><Laptop size={13} aria-hidden="true" /><span>{t('Use Your computer', 'Gunakan Komputer Anda')}</span></>
               ) : (
-                <><Server size={13} aria-hidden="true" /><span>{t('Switch to HPC Cluster (Parallel speedup)', 'Ganti ke Cluster HPC (Akselerasi paralel)')}</span></>
+                <><Server size={13} aria-hidden="true" /><span>{t('Use HPC Cluster', 'Gunakan Cluster HPC')}</span></>
               )}
             </button>
           </div>

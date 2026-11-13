@@ -1,112 +1,49 @@
-/**
- * Smart Resource Advisor: Scientific heuristic advisor for Local CPU vs HPC Cluster execution.
- * AGPL-3.0-only.
- */
-
+/** Qualitative QE workload hints; these are not hardware or runtime estimates. */
 export type ComputeResourceAdvice = {
   recommendation: 'personal' | 'hpc';
-  confidence: 'high' | 'medium';
+  confidence: 'medium';
   title: { en: string; id: string };
   reason: { en: string; id: string };
   badge: { en: string; id: string };
-  metrics: {
-    atomCount: number;
-    kPointProduct: number;
-    complexity: 'light' | 'moderate' | 'heavy';
-  };
+  metrics: { atomCount: number; kPointProduct: number | null; complexity: 'light' | 'moderate' | 'heavy' };
 };
-
 export type ComputeAdvisorParams = {
   atomCount?: number;
   kPoints?: [number, number, number] | number[] | number;
   calculationType?: string;
   isHpcConfigured?: boolean;
 };
+const positiveInteger = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
 
-export function getComputeResourceAdvice(params: ComputeAdvisorParams): ComputeResourceAdvice | null {
-  const { atomCount, kPoints, calculationType, isHpcConfigured = false } = params;
-  if (!atomCount || atomCount <= 0 || !Number.isFinite(atomCount)) {
-    return null;
+export function getComputeResourceAdvice({ atomCount, kPoints, calculationType, isHpcConfigured = false }: ComputeAdvisorParams): ComputeResourceAdvice | null {
+  if (!positiveInteger(atomCount)) return null;
+  let kPointProduct: number | null = null;
+  if (kPoints !== undefined) {
+    const mesh = typeof kPoints === 'number' ? [kPoints, kPoints, kPoints] : kPoints;
+    if (!Array.isArray(mesh) || mesh.length !== 3 || !mesh.every(positiveInteger)) return null;
+    kPointProduct = mesh.reduce((a, b) => a * b, 1);
+    if (!Number.isSafeInteger(kPointProduct)) return null;
   }
-  const normalizedAtomCount = Math.max(1, Math.round(atomCount));
-
-  let kProduct = 64; // default 4x4x4 or 8x8x8
-  if (Array.isArray(kPoints)) {
-    const kx = Math.max(1, Math.round(Math.abs(Number(kPoints[0]) || 1)));
-    const ky = Math.max(1, Math.round(Math.abs(Number(kPoints[1]) || 1)));
-    const kz = Math.max(1, Math.round(Math.abs(Number(kPoints[2]) || 1)));
-    kProduct = kx * ky * kz;
-  } else if (typeof kPoints === 'number' && Number.isFinite(kPoints) && kPoints > 0) {
-    const k = Math.max(1, Math.round(Math.abs(kPoints)));
-    kProduct = k * k * k;
-  }
-
-  // Small unit cell: <= 10 atoms (e.g. primitive Si, GaAs, Graphene, FCC Cu)
-  if (normalizedAtomCount <= 10 && kProduct <= 512 && calculationType !== 'Phonon dispersion') {
-    return {
-      recommendation: 'personal',
-      confidence: 'high',
-      badge: { en: 'Instant Local CPU', id: 'CPU Lokal Instan' },
-      title: {
-        en: 'Smart Advisor: Local CPU Recommended',
-        id: 'Smart Advisor: Disarankan CPU Lokal',
-      },
-      reason: {
-        en: `Small unit cell (${normalizedAtomCount} atoms). SCF converges in seconds on your CPU; submitting to HPC incurs queue overhead (minutes to hours) that dwarfs execution time.`,
-        id: `Struktur kecil (${normalizedAtomCount} atom). SCF selesai dalam hitungan detik di CPU lokal; mengirim ke HPC menambah waktu tunggu antrean (menit hingga jam) yang jauh melebihi durasi komputasi.`,
-      },
-      metrics: {
-        atomCount: normalizedAtomCount,
-        kPointProduct: kProduct,
-        complexity: 'light',
-      },
-    };
-  }
-
-  // Complex or heavy structure: > 10 atoms, dense k-points, or phonon dispersion
-  if (normalizedAtomCount > 10 || kProduct > 512 || calculationType === 'Phonon dispersion') {
-    const isPhonon = calculationType === 'Phonon dispersion';
-    return {
-      recommendation: isHpcConfigured ? 'hpc' : 'personal',
-      confidence: 'high',
-      badge: { en: isHpcConfigured ? 'HPC Cluster Recommended' : 'Compute Intensive', id: isHpcConfigured ? 'Disarankan HPC Cluster' : 'Komputasi Intensif' },
-      title: {
-        en: isHpcConfigured ? 'Smart Advisor: HPC Cluster Recommended' : 'Smart Advisor: High Workload Detected',
-        id: isHpcConfigured ? 'Smart Advisor: Disarankan Cluster HPC' : 'Smart Advisor: Beban Kerja Tinggi Terdeteksi',
-      },
-      reason: {
-        en: isPhonon
-          ? `Phonon dispersion requires multiple DFPT linear response iterations. Parallel MPI execution on HPC prevents laptop CPU throttling and finishes significantly faster.`
-          : `With ${normalizedAtomCount} atoms (scaling as O(N³)), parallel MPI execution across HPC nodes avoids overloading your laptop CPU/RAM and provides massive wall-clock speedup.`,
-        id: isPhonon
-          ? `Dispersi fonon memerlukan iterasi linear-response DFPT yang berat. Eksekusi paralel MPI di HPC mencegah laptop kepanasan/throttling dan selesai jauh lebih cepat.`
-          : `Dengan ${normalizedAtomCount} atom (kompleksitas O(N³)), eksekusi paralel MPI di node HPC mencegah kehabisan RAM/CPU di laptop dan memberikan akselerasi signifikan.`,
-      },
-      metrics: {
-        atomCount: normalizedAtomCount,
-        kPointProduct: kProduct,
-        complexity: 'heavy',
-      },
-    };
-  }
-
-  // Moderate workload
+  const phonon = calculationType === 'Phonon dispersion';
+  const heavy = atomCount > 10 || (kPointProduct !== null && kPointProduct > 512) || phonon;
+  const complexity = heavy ? 'heavy' : kPointProduct === null ? 'moderate' : 'light';
+  const recommendation = heavy && isHpcConfigured ? 'hpc' : 'personal';
+  const qualification = {
+    en: 'This is a workload heuristic. Cutoffs, band count, convergence, available RAM and queue conditions determine the actual cost; review the resource checks before running.',
+    id: 'Ini perkiraan beban kerja. Cutoff, jumlah pita, konvergensi, RAM tersedia dan antrean menentukan biaya aktual; periksa validasi resource sebelum menjalankan.',
+  };
+  const reason = heavy ? {
+    en: phonon ? 'Phonon dispersion can require many DFPT response calculations. Consider a compatible HPC allocation.' : `A ${atomCount}-atom structure or dense k-mesh can require substantial CPU time and memory. Consider HPC when available.`,
+    id: phonon ? 'Dispersi fonon dapat memerlukan banyak kalkulasi respons DFPT. Pertimbangkan alokasi HPC yang kompatibel.' : `Struktur ${atomCount} atom atau k-mesh rapat dapat memerlukan CPU dan memori besar. Pertimbangkan HPC bila tersedia.`,
+  } : {
+    en: `A ${atomCount}-atom cell may be practical on Your computer when its runtime and memory checks pass.`,
+    id: `Sel ${atomCount} atom mungkin cocok di Komputer Anda jika pemeriksaan runtime dan memori lolos.`,
+  };
   return {
-    recommendation: 'personal',
-    confidence: 'medium',
-    badge: { en: 'Balanced Workload', id: 'Beban Seimbang' },
-    title: {
-      en: 'Smart Advisor: Local or HPC Suitable',
-      id: 'Smart Advisor: Cocok untuk Lokal atau HPC',
-    },
-    reason: {
-      en: `Moderate workload (${normalizedAtomCount} atoms). Run locally for an immediate start without queue latency, or choose HPC for multi-node speedup.`,
-      id: `Beban kerja moderat (${normalizedAtomCount} atom). Jalankan di lokal untuk mulai seketika tanpa antrean, atau pilih HPC untuk akselerasi multi-node.`,
-    },
-    metrics: {
-      atomCount: normalizedAtomCount,
-      kPointProduct: kProduct,
-      complexity: 'moderate',
-    },
+    recommendation, confidence: 'medium',
+    badge: recommendation === 'hpc' ? { en: 'Consider HPC', id: 'Pertimbangkan HPC' } : heavy ? { en: 'Compute intensive', id: 'Komputasi intensif' } : { en: 'Consider local CPU', id: 'Pertimbangkan CPU lokal' },
+    title: recommendation === 'hpc' ? { en: 'Compute advisor: consider HPC', id: 'Saran compute: pertimbangkan HPC' } : { en: 'Compute advisor: review local resources', id: 'Saran compute: periksa resource lokal' },
+    reason: { en: `${reason.en} ${qualification.en}`, id: `${reason.id} ${qualification.id}` },
+    metrics: { atomCount, kPointProduct, complexity },
   };
 }

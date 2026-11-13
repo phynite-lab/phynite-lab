@@ -183,7 +183,7 @@ test('standalone band structure node can connect directly to crystal structure w
     standalone: true,
     draft: { ...createDefaultQeDraft(), functional: 'PBEsol', cutoffPolicy: 'manual', cutoff: 80 },
   }, 'bands');
-  assert.equal(standaloneConfig.standalone, true);
+  assert.equal(standaloneConfig.standalone, undefined);
   assert.equal((standaloneConfig.draft as Record<string, unknown>)?.functional, 'PBEsol');
   assert.equal((standaloneConfig.draft as Record<string, unknown>)?.cutoff, 80);
 
@@ -191,7 +191,21 @@ test('standalone band structure node can connect directly to crystal structure w
     standalone: false,
     draft: { ...createDefaultQeDraft(), functional: 'PBEsol', cutoffPolicy: 'manual', cutoff: 80 },
   }, 'bands');
-  assert.equal(branchConfig.standalone, false);
+  assert.equal(branchConfig.standalone, undefined);
   // Branch config should have functional stripped since it inherits from SCF
   assert.equal((branchConfig.draft as Record<string, unknown>)?.functional, undefined);
+});
+
+test('standalone band fingerprints use actual edges even with absent or stale UI flags', async () => {
+  const graph: ProjectWorkflow = { ...emptyProjectWorkflow('test'), nodes: [node('structure', 'structure'), node('bands', 'bands')], edges: [{ id: 'e', source: 'structure', target: 'bands', port: 'structure' }] };
+  graph.nodes[1].configuration = { draft: { cutoff: 60, functional: 'PBEsol' } };
+  const initial = await workflowFingerprints(graph);
+  graph.nodes[1].configuration.standalone = false;
+  assert.deepEqual(await workflowFingerprints(graph), initial);
+  graph.nodes[1].configuration.draft = { cutoff: 80, functional: 'PBEsol' };
+  assert.notEqual((await workflowFingerprints(graph)).bands, initial.bands);
+  const inherited = branched();
+  const before = await workflowFingerprints(inherited);
+  inherited.nodes.find(n => n.kind === 'bands')!.configuration = { standalone: true, draft: { cutoff: 200, functional: 'PBEsol' } };
+  assert.deepEqual(await workflowFingerprints(inherited), before);
 });

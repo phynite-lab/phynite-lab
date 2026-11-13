@@ -42,6 +42,8 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const editingIdRef = useRef(editingId);
+  useEffect(() => { editingIdRef.current = editingId; }, [editingId]);
   const [probeResults, setProbeResults] = useState<Record<string, ProbeResult | null>>({});
   const [probing, setProbing] = useState<Record<string, boolean>>({});
   const [settingUpVenv, setSettingUpVenv] = useState<Record<string, boolean>>({});
@@ -119,7 +121,7 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
       if (data.ok && data.cluster) {
         if (data.probe) setProbeResults(prev => ({ ...prev, [id]: data.probe! }));
         setClusters(prev => prev.map(c => c.id === id ? data.cluster! : c));
-        if (data.pythonExecutable && editingId === id) {
+        if (data.pythonExecutable && editingIdRef.current === id) {
           setPythonExecutable(data.pythonExecutable);
         }
         setSetupVenvStatus(prev => ({
@@ -678,7 +680,7 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
 
               <div className="lab-modal-footer">
                 <button type="button" className="lab-button" onClick={() => { resetForm(); setShowModal(false); }}>{t('Cancel', 'Batal')}</button>
-                <button type="submit" className="lab-button lab-button-primary" disabled={saving || detectingScratch}>
+                <button type="submit" className="lab-button lab-button-primary" disabled={saving || detectingScratch || Boolean(editingId && settingUpVenv[editingId])}>
                   {saving
                     ? (!scratchRoot.trim()
                         ? t('Detecting scratch & saving…', 'Mendeteksi scratch & menyimpan…')

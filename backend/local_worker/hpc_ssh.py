@@ -595,6 +595,9 @@ class HpcSshConnection:
             if value not in safe_modules:
                 safe_modules.append(value)
 
+        allowed_packages = {"numpy", "scipy", "matplotlib", "seekpath", "spglib", "ase", "pymatgen"}
+        if packages is not None and (not isinstance(packages, list) or not packages or any(not isinstance(p, str) or p not in allowed_packages for p in packages)):
+            raise HpcSshError("Choose supported scientific packages for the managed venv.")
         target_packages = list(packages or ["numpy", "scipy", "matplotlib", "seekpath", "spglib", "ase", "pymatgen"])
         target_packages_str = " ".join(shlex.quote(p) for p in target_packages)
         check_modules_code = "\n".join([
@@ -612,15 +615,20 @@ class HpcSshConnection:
         marker = "PHYNITE_VENV_" + uuid.uuid4().hex
         begin, end = marker + "_BEGIN", marker + "_END"
 
-        custom_venv = _valid_remote_dir(venv_path) if venv_path else None
-        custom_base = _valid_remote_executable(base_python) if base_python else None
+        custom_venv = _valid_remote_executable(venv_path) if venv_path is not None else None
+        custom_base = _valid_remote_executable(base_python) if base_python is not None else None
+        if venv_path is not None and not custom_venv:
+            raise HpcSshError("Venv path must be a safe absolute path.")
+        if base_python is not None and not custom_base:
+            raise HpcSshError("Base Python must be a safe absolute executable path.")
 
         script_lines = [
             f"printf '%s\\n' {shlex.quote(begin)}",
             "set -e",
+            "umask 077",
         ]
         for name in safe_modules:
-            script_lines.append(f"module load {shlex.quote(name)} >/dev/null 2>&1 || :")
+            script_lines.append(f"module load {shlex.quote(name)} >&2 || exit 1")
 
         script_lines.append('_ph_base=""')
         if custom_base:
@@ -657,11 +665,17 @@ class HpcSshConnection:
                 'if [ -n "${HOME:-}" ] && [ -d "$HOME" ] && [ -w "$HOME" ]; then\n'
                 '  _ph_venv="$HOME/.phynite-venv"\n'
                 'else\n'
-                f'  {_SCRATCH_DETECT_SNIPPET}\n'
-                '  _ph_venv="${scratch_dir:-/tmp}/.phynite-venv"\n'
+                '  printf \'%s\\n\' "Set a writable HOME or an explicit venv path." >&2\n'
+                '  exit 1\n'
                 'fi'
             )
 
+        script_lines.extend([
+            'if [ -L "$_ph_venv" ] || { [ -e "$_ph_venv" ] && [ ! -f "$_ph_venv/pyvenv.cfg" ]; }; then printf \'%s\\n\' "Refusing an unmanaged directory or symlink at the venv path." >&2; exit 1; fi',
+            'mkdir -p "$(dirname "$_ph_venv")"',
+            'if ! mkdir "$_ph_venv.phynite-setup.lock" 2>/dev/null; then printf \'%s\\n\' "Venv setup is already running, or its lock needs inspection." >&2; exit 1; fi',
+            "trap 'rmdir \"$_ph_venv.phynite-setup.lock\"' EXIT",
+        ])
         script_lines.append(
             'if [ -x "$_ph_venv/bin/python" ]; then\n'
             f'  _ph_check=$("$_ph_venv/bin/python" -c {shlex.quote(check_modules_call)} 2>/dev/null || :)\n'
@@ -692,8 +706,7 @@ class HpcSshConnection:
         )
 
         script_lines.append(
-            f'"$_ph_venv/bin/pip" install --no-cache-dir {target_packages_str} >/dev/null 2>&1 || '
-            f'"$_ph_venv/bin/python" -m pip install --no-cache-dir {target_packages_str} >/dev/null 2>&1 || :\n'
+            f'"$_ph_venv/bin/python" -m pip install --disable-pip-version-check --no-input --timeout 30 --retries 1 --no-cache-dir {target_packages_str} >&2 || :\n'
             f'_ph_final_check=$("$_ph_venv/bin/python" -c {shlex.quote(check_modules_call)} 2>/dev/null || :)\n'
             'case "$_ph_final_check" in\n'
             '  3.[1-9][0-9].*\\|)\n'
@@ -718,17 +731,29 @@ class HpcSshConnection:
         )
 
         full_script = "\n".join(script_lines)
-        code, out, err = self.run_command(["bash", "-lc" if safe_modules else "-c", full_script], timeout=timeout)
+        # Send this trusted generated script on stdin. Command arguments remain
+        # single-line, as required by run_command's SSH boundary.
+        deadline = _deadline(timeout)
+        self.ensure_master(timeout=_remaining(deadline))
+        command = shlex.join(["bash", "-ls" if safe_modules else "-s"])
+        result = self._run_ssh_tool(
+            ["ssh", *self._base_ssh_args(), self.target, command],
+            input=full_script, timeout=_remaining(deadline),
+        )
+        code, out, err = result.returncode, result.stdout, result.stderr
         records = _extract_framed_records(
             out, begin, end,
             {"ok", "error", "python_executable", "venv_dir", "version", "packages", "missing_packages", "already_configured"}
         )
         if records is None:
             return {"ok": False, "error": f"Venv setup returned incomplete output: {err.strip()[:500] or out.strip()[:500]}"}
-        if records.get("ok") == "1":
+        if code == 0 and records.get("ok") == "1":
+            executable = _valid_remote_executable(records.get("python_executable"))
+            if not executable or not _version_at_least(records.get("version", "")):
+                return {"ok": False, "error": "Venv setup returned an invalid Python executable or version."}
             return {
                 "ok": True,
-                "pythonExecutable": records.get("python_executable"),
+                "pythonExecutable": executable,
                 "venvDir": records.get("venv_dir"),
                 "version": records.get("version"),
                 "packages": [p for p in (records.get("packages") or "").split(",") if p],

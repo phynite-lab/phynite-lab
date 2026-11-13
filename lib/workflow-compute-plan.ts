@@ -69,30 +69,11 @@ export function buildWorkflowComputePlan(graph: ProjectWorkflow, plan: WorkflowP
         : item.error || 'Resolve the module inputs and review a valid cluster profile and allocation before submitting.',
     });
   }
-  // Detect fused pipeline opportunities across chained HPC nodes on the same cluster
-  const hpcChains: Array<{ source: WorkflowNode; target: WorkflowNode }> = [];
-  for (const targetNode of hpc) {
-    const planItem = plan.nodes.find(item => item.nodeId === targetNode.id);
-    if (planItem?.sourceScfNodeId) {
-      const sourceNode = hpc.find(n => n.id === planItem.sourceScfNodeId);
-      if (sourceNode) {
-        const sourceSel = workflowComputeSelection(sourceNode).hpc;
-        const targetSel = workflowComputeSelection(targetNode).hpc;
-        if (sourceSel?.clusterId && sourceSel.clusterId === targetSel?.clusterId) {
-          hpcChains.push({ source: sourceNode, target: targetNode });
-        }
-      }
-    }
-  }
-  if (hpcChains.length > 0) {
-    const chainDesc = hpcChains.map(c => `${c.source.name} → ${c.target.name}`).join(', ');
-    result.checks.push({
-      id: 'hpc:pipeline-fusing',
-      label: 'Pipeline Fusing · Single-Job Chaining',
-      status: 'ready',
-      detail: `Chained HPC modules (${chainDesc}) share cluster scratch and allocation. Single-job Slurm chaining cuts intermediate queue wait times by ~50%.`,
-    });
-  }
+  const chained = hpc.filter(node => plan.nodes.find(item => item.nodeId === node.id)?.sourceScfNodeId);
+  if (chained.length) result.checks.push({
+    id: 'hpc:scf-reuse', label: 'Shared SCF state', status: 'ready',
+    detail: 'Downstream stages wait for verified SCF results and use separate scheduler jobs. Retained cluster state can avoid repeat uploads only when its bundle checksum matches.',
+  });
   if (plan.errors.length) result.checks.push({ id: 'modules', label: 'Module inputs', status: 'blocked', detail: 'Resolve the module errors below before starting a run.' });
   result.ready = result.checks.every(check => check.status === 'ready');
   return result;

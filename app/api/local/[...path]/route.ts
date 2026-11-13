@@ -31,9 +31,10 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
       return NextResponse.json({ error: 'Invalid local job operation.' }, { status: 404 });
     }
     const body = ['GET', 'HEAD'].includes(request.method) ? undefined : await readBodyBytes(request, requestBodyLimit(request.nextUrl.pathname));
+    const setupVenv = path.length === 4 && path[0] === 'hpc' && path[1] === 'clusters' && path[3] === 'setup-venv' && request.method === 'POST';
     const upstream = await backendFetch(`/__local/${path.join('/')}${request.nextUrl.search}`, accessTokenFrom(request), {
       method: request.method, body, headers: body ? { 'Content-Type': request.headers.get('Content-Type') ?? 'application/json' } : undefined,
-    });
+    }, setupVenv ? 400_000 : undefined);
     const headers = new Headers({ 'Content-Type': upstream.headers.get('Content-Type') ?? 'application/json', 'Cache-Control': 'no-store' });
     const disposition = upstream.headers.get('Content-Disposition');
     if (disposition) headers.set('Content-Disposition', disposition);

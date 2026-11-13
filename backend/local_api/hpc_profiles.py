@@ -288,10 +288,12 @@ class HpcProfileStore:
                         return True
         return False
 
-    def save(self, raw: Any, identifier: str | None = None) -> dict[str, Any]:
+    def save(self, raw: Any, identifier: str | None = None, *, expected_checksum: str | None = None) -> dict[str, Any]:
         transaction = self.services.table.atomic() if hasattr(self.services.table, "atomic") else nullcontext()
         with transaction:
             existing = self.get(identifier) if identifier else None
+            if expected_checksum is not None and (not existing or existing.get('profileSha256') != expected_checksum):
+                raise ApiError(409, 'HPC profile changed during venv setup. Reload the profile before applying the Python path.', 'HPC_PROFILE_CHANGED')
             profile = validate_profile(raw, self.owner_id, profile_id=identifier, created_at=existing.get("createdAt") if existing else None)
             if profile.get("isDefault"):
                 for item in self.list():
@@ -465,7 +467,7 @@ def setup_cluster_venv(store: HpcProfileStore, profile_id: str, custom_venv_path
         if py_exec:
             updated = copy.deepcopy(profile)
             updated.setdefault("runtime", {})["pythonExecutable"] = py_exec
-            saved_profile = store.save(updated, profile_id)
+            saved_profile = store.save(updated, profile_id, expected_checksum=profile["profileSha256"])
             probe = probe_profile(saved_profile)
             return {**result, "probe": probe, "cluster": saved_profile}
         return result

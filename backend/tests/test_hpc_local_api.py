@@ -379,6 +379,26 @@ class HpcDesktopProtocolTests(unittest.TestCase):
             finally:
                 app.close()
 
+    def test_venv_setup_does_not_overwrite_concurrent_profile_edits_or_recreate_deleted_profiles(self):
+        from backend.local_api.desktop_server import DesktopApplication
+        from backend.local_api.hpc_profiles import HpcProfileStore, setup_cluster_venv
+        from backend.local_api.domain.phynite_core import ApiError
+        for delete in (False, True):
+            with self.subTest(delete=delete), tempfile.TemporaryDirectory() as directory:
+                app = DesktopApplication(Path(directory), 8792, 'http://127.0.0.1:3000')
+                try:
+                    store = HpcProfileStore(app.services); saved = store.save(profile(), 'cl-race')
+                    def setup(**kwargs):
+                        if delete: store.delete(saved['id'])
+                        else: store.save({**saved, 'name': 'edited concurrently'}, saved['id'])
+                        return {'ok': True, 'pythonExecutable': '/home/researcher/.phynite-venv/bin/python'}
+                    with patch('backend.local_api.hpc_profiles._ssh_client') as ssh:
+                        ssh.return_value.setup_python_venv.side_effect = setup
+                        with self.assertRaises(ApiError) as caught: setup_cluster_venv(store, saved['id'])
+                        self.assertEqual(caught.exception.code, 'HPC_PROFILE_CHANGED')
+                    self.assertIsNone(store.get(saved['id'])) if delete else self.assertEqual(store.get(saved['id'])['name'], 'edited concurrently')
+                finally: app.close()
+
 
 if __name__ == '__main__': unittest.main()
 

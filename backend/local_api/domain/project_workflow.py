@@ -189,8 +189,9 @@ def validate_graph(value: Any, project_id: str) -> dict[str, Any]:
     order(value)
     return copy.deepcopy(value)
 
-def canonical_configuration(configuration: dict[str, Any], kind: str | None=None) -> dict[str, Any]:
+def canonical_configuration(configuration: dict[str, Any], kind: str | None=None, inherits_scf: bool | None=None) -> dict[str, Any]:
     config = copy.deepcopy(configuration)
+    config.pop('standalone', None)
     if configuration.get('compilerVersion') == 1 or (kind in DFT_TYPES and isinstance(config.get('draft'), dict)) or (kind == 'md' and isinstance(config.get('components'), list)):
         config.pop('execution', None)
     for key in ('savedStructureSignature', 'configurationError', 'legacySource', 'preservedHistory', 'plotSettings', 'elementMapText', 'style', 'compilerVersion', 'estimatedComputeSeconds', 'formula', 'missingInputs', 'parameterStudy', 'pseudopotentialChecksums', 'computeTarget', 'cloudMode', 'computeProfileId', 'vcpus', 'memoryMiB', 'resolvedHpcCompute'):
@@ -219,7 +220,7 @@ def canonical_configuration(configuration: dict[str, Any], kind: str | None=None
             for draft_ui_key in ('calculations', 'plotYMin', 'plotYMax'):
                 value.pop(draft_ui_key, None)
             if kind in DFT_TYPES:
-                is_branch = (kind in {'dos', 'phonon', 'btp2'}) or (kind == 'bands' and config.get('standalone') is not True)
+                is_branch = (kind in {'dos', 'phonon', 'btp2'}) or (kind == 'bands' and (inherits_scf if inherits_scf is not None else configuration.get('standalone') is not True))
                 if is_branch and (not str(value.get('rawInput') or '').strip()):
                     for draft_key in list(value):
                         if draft_key in DEFAULT_QE_DRAFT and draft_key not in WORKFLOW_BRANCH_FIELDS:
@@ -257,7 +258,7 @@ def fingerprints(graph: dict[str, Any]) -> dict[str, str]:
     for node_id in order(graph):
         node = nodes[node_id]
         inputs = sorted(({'port': edge['port'], 'fingerprint': result[edge['source']]} for edge in graph['edges'] if edge['target'] == node_id), key=encoded)
-        config = canonical_configuration(node['configuration'], node['kind'])
+        config = canonical_configuration(node['configuration'], node['kind'], any(edge['target'] == node_id and edge['port'] == 'electronic' for edge in graph['edges']))
         resources = [{'kind': ref['kind'], 'id': ref['id'], **({'deviceOnly': True} if ref.get('deviceOnly') else {})} for ref in node['resources']]
         result[node_id] = digest({'kind': node['kind'], 'configuration': config, 'resources': resources, 'inputs': inputs})
     return result
@@ -660,14 +661,7 @@ class ProjectWorkflowApi:
             if error:
                 errors.append({'nodeId': node_id, 'message': error})
             scf_source = next((edge['source'] for edge in input_edges if edge['port'] == 'electronic'), None)
-            is_fused = False
-            if scf_source and hpc_compute:
-                source_node = next((n for n in graph['nodes'] if n['id'] == scf_source), None)
-                if source_node and source_node.get('configuration', {}).get('computeTarget') == 'hpc':
-                    source_cluster = source_node.get('configuration', {}).get('hpc', {}).get('clusterId')
-                    if source_cluster and source_cluster == node['configuration'].get('hpc', {}).get('clusterId'):
-                        is_fused = True
-            planned.append({'nodeId': node_id, 'fingerprint': hashes[node_id], 'action': action, 'force': node_id in forced, 'validationDeferred': deferred, **({'compute': {'target': 'hpc', 'clusterId': node['configuration']['hpc']['clusterId'], **hpc_compute}} if hpc_compute else {}), **({'sourceScfNodeId': scf_source} if scf_source else {}), **({'fusedPipeline': True, 'fusedWith': scf_source} if is_fused else {}), **({'sourceAttemptId': reusable['id']} if reusable else {}), **({'error': error} if error else {})})
+            planned.append({'nodeId': node_id, 'fingerprint': hashes[node_id], 'action': action, 'force': node_id in forced, 'validationDeferred': deferred, **({'compute': {'target': 'hpc', 'clusterId': node['configuration']['hpc']['clusterId'], **hpc_compute}} if hpc_compute else {}), **({'sourceScfNodeId': scf_source} if scf_source else {}), **({'sourceAttemptId': reusable['id']} if reusable else {}), **({'error': error} if error else {})})
         compiler_sha = None
         if needs_compiler:
             from backend.local_api.domain.workflow_compiler import compiler_source
@@ -872,12 +866,12 @@ class ProjectWorkflowApi:
         payload = copy.deepcopy(node['configuration'].get('execution') or {})
         payload['idempotencyKey'] = 'wf_' + hashlib.sha256(attempt_id.encode()).hexdigest()[:60]
         kind = node['kind']
-        run = self.services.get_item(owner, 'PROJECT_RUN', run_id)
-        snapshot = self.read_json(run['objectKey'], run['sha256']) if run else None
-        frozen = snapshot['workflow'] if snapshot else None
         if kind in DFT_TYPES and node['configuration'].get('compilerVersion') == 1:
             from backend.local_api.domain.workflow_compiler import invoke
             from backend.local_api.domain.workflow_structure import source_structure
+            run = self.services.get_item(owner, 'PROJECT_RUN', run_id)
+            snapshot = self.read_json(run['objectKey'], run['sha256'])
+            frozen = snapshot['workflow']
             structure = source_structure(self, owner, project, inputs[0])
             if inputs[0].get('jobKind') == 'CALCULATION':
                 predecessor = self.services.get_item(owner, 'CALCULATION', inputs[0]['jobId'])
@@ -891,19 +885,7 @@ class ProjectWorkflowApi:
                 compute = node['configuration'].get('resolvedHpcCompute')
                 if not compute:
                     raise ApiError(409, 'Review a fresh run plan to freeze the HPC allocation.', 'HPC_ALLOCATION_REQUIRED')
-                settings = {**payload.get('settings', {}), **compute['settings']}
-                if inputs and inputs[0].get('jobId'):
-                    settings['scfSourceCalculationId'] = inputs[0]['jobId']
-                    payload['scfSourceCalculationId'] = inputs[0]['jobId']
-                if frozen:
-                    scf_source = next((edge['source'] for edge in frozen.get('edges', []) if edge.get('target') == node['id'] and edge.get('port') == 'electronic'), None)
-                    if scf_source:
-                        source_node = next((n for n in frozen.get('nodes', []) if n.get('id') == scf_source), None)
-                        if source_node and source_node.get('configuration', {}).get('computeTarget') == 'hpc':
-                            if source_node.get('configuration', {}).get('hpc', {}).get('clusterId') == node['configuration'].get('hpc', {}).get('clusterId'):
-                                settings['fusedPipeline'] = True
-                                settings['fusedWithNodeId'] = scf_source
-                payload = {**payload, **compute, 'settings': settings}
+                payload = {**payload, **compute, 'settings': {**payload.get('settings', {}), **compute['settings']}}
                 payload.pop('hpc', None)
             # Canvas DFT nodes use the same owner-scoped local calculation
             # admission as the standalone DFT form.  The workflow runner used

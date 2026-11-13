@@ -5,6 +5,7 @@ from scf_reuse import create_bundle, restore_bundle, digest as scf_bundle_digest
 
 import hashlib
 import json
+import math
 import os
 import re
 import shutil
@@ -112,6 +113,55 @@ def normalize_pw_continuation_input(input_text: str) -> str:
     )
 
 
+
+def qe_preflight_explicit_path(input_text: str) -> str:
+    """Expand only a disposable band-path card; keep its actual sampling size.
+
+    SCF initialization cannot use QE's *_b path shorthand. Gamma alone would
+    underestimate its memory, so retain the interpolated path as explicit k's.
+    """
+    lines = input_text.splitlines(keepends=True)
+    for start, line in enumerate(lines):
+        match = re.match(r"^[ \t]*K_POINTS[ \t]+[({]?[ \t]*(crystal|tpiba)_b\b", line, re.I)
+        if not match:
+            continue
+        index = start + 1
+        def record() -> list[str]:
+            nonlocal index
+            while index < len(lines):
+                fields = lines[index].split("!", 1)[0].split()
+                index += 1
+                if fields:
+                    return fields
+            raise ValueError("The preflight band path is incomplete.")
+        try:
+            count_fields = record()
+            count = int(count_fields[0])
+            if len(count_fields) != 1 or not 2 <= count <= 10_000:
+                raise ValueError("Invalid band-path vertex count.")
+            vertices = []
+            for _ in range(count):
+                fields = record()
+                point = tuple(float(value.replace("d", "e").replace("D", "e")) for value in fields[:3])
+                steps = int(fields[3])
+                if len(fields) != 4 or not all(math.isfinite(value) for value in point) or not 0 <= steps <= 100_000:
+                    raise ValueError("Invalid band-path vertex.")
+                vertices.append((point, steps))
+            if sum(max(1, steps) for _, steps in vertices[:-1]) + 1 > 100_000:
+                raise ValueError("The preflight band path exceeds 100000 points.")
+            points = []
+            for (point, steps), (following, _) in zip(vertices, vertices[1:]):
+                for step in range(max(1, steps)):
+                    points.append(tuple(a + (b - a) * step / max(1, steps) for a, b in zip(point, following)))
+            points.append(vertices[-1][0])
+        except (ValueError, IndexError) as exc:
+            raise ValueError(f"Cannot estimate band-path resources: {exc}") from exc
+        replacement = f"K_POINTS {match[1].lower()}\n{len(points)}\n"
+        replacement += "".join(" ".join(format(value, ".16g") for value in point) + " 1\n" for point in points)
+        return "".join(lines[:start]) + replacement + "".join(lines[index:])
+    return input_text
+
+
 def qe_resource_preflight_input(input_text: str, name: str) -> str:
     """Build a non-destructive input used only to estimate pw.x resources.
 
@@ -135,13 +185,7 @@ def qe_resource_preflight_input(input_text: str, name: str) -> str:
             preflight_source,
             count=1,
         )
-        if re.search(r"(?im)^\s*K_POINTS\s+(?:crystal_b|tpiba_b)\b", preflight_source):
-            preflight_source = re.sub(
-                r"(?ims)^\s*K_POINTS\s+(?:crystal_b|tpiba_b)\b.*$",
-                "K_POINTS gamma\n",
-                preflight_source,
-                count=1,
-            )
+        preflight_source = qe_preflight_explicit_path(preflight_source)
     return qe_dry_run_input(preflight_source, f"./preflight-{name}-tmp")
 
 
@@ -582,40 +626,35 @@ def run_qe_step(name: str, executable: str, input_name: str, input_text: str, vc
             qe_resource_preflight_input(input_text, name),
             encoding="utf-8",
         )
-        try:
-            preflight_command = qe_mpi_command(executable, preflight_input_path, ranks)
-            preflight = _run_process(preflight_name, preflight_command, preflight_input_name)
-            preflight_seconds += preflight["elapsedSeconds"]
-            preflight_output = (LOGS / f"{preflight_name}.out").read_text(
-                encoding="utf-8", errors="replace"
+        preflight_command = qe_mpi_command(executable, preflight_input_path, ranks)
+        preflight = _run_process(preflight_name, preflight_command, preflight_input_name)
+        preflight_seconds += preflight["elapsedSeconds"]
+        preflight_output = (LOGS / f"{preflight_name}.out").read_text(
+            encoding="utf-8", errors="replace"
+        )
+        estimated_mib = parse_qe_memory_estimate_mib(preflight_output)
+        if estimated_mib is not None and estimated_mib > memory_limit_mib:
+            raise QeConvergenceError(insufficient_memory_message(name, estimated_mib, memory_limit_mib),
+                                     {**preflight, "status": "failed", "resourceValidation": "insufficient-memory", "memoryEstimateMiB": estimated_mib})
+        candidate_pools = qe_kpoint_pools(ranks, preflight_output) if parallel_mode == "auto" else 1
+        # Pooling replicates some arrays. Check the actual proposed layout,
+        # not the (potentially much smaller) single-pool memory estimate.
+        if candidate_pools > 1 and estimated_mib is not None and not re.search(r"(?im)^[ \t]*K_POINTS[ \t]+[({]?[ \t]*(?:crystal_b|tpiba_b)\b", input_text):
+            candidate_name = f"{preflight_name}-pooled"
+            candidate = _run_process(
+                candidate_name,
+                qe_mpi_command(executable, preflight_input_path, ranks, candidate_pools),
+                preflight_input_name,
             )
-            estimated_mib = parse_qe_memory_estimate_mib(preflight_output)
-            if estimated_mib is not None and estimated_mib > memory_limit_mib:
-                raise QeConvergenceError(insufficient_memory_message(name, estimated_mib, memory_limit_mib),
-                                         {**preflight, "status": "failed", "resourceValidation": "insufficient-memory", "memoryEstimateMiB": estimated_mib})
-            candidate_pools = qe_kpoint_pools(ranks, preflight_output) if parallel_mode == "auto" else 1
-            # Pooling replicates some arrays. Check the actual proposed layout,
-            # not the (potentially much smaller) single-pool memory estimate.
-            if candidate_pools > 1 and estimated_mib is not None and not re.search(r"(?im)^\s*K_POINTS\s+(?:crystal_b|tpiba_b)\b", input_text):
-                candidate_name = f"{preflight_name}-pooled"
-                candidate = _run_process(
-                    candidate_name,
-                    qe_mpi_command(executable, preflight_input_path, ranks, candidate_pools),
-                    preflight_input_name,
-                )
-                preflight_seconds += candidate["elapsedSeconds"]
-                candidate_mib = parse_qe_memory_estimate_mib(
-                    (LOGS / f"{candidate_name}.out").read_text(encoding="utf-8", errors="replace")
-                )
-                if candidate_mib is not None and candidate_mib <= memory_limit_mib * 0.8:
-                    pools, estimated_mib = candidate_pools, candidate_mib
-                    parallel_reason = "Dense k-mesh; pooled memory estimate fits with 20% headroom"
-                else:
-                    parallel_reason = "Single pool retained: pooled memory estimate unavailable or too large"
-        except QeConvergenceError as preflight_exc:
-            if preflight_exc.step.get("resourceValidation") == "insufficient-memory":
-                raise
-            parallel_reason = f"Single pool retained: resource preflight check encountered {preflight_exc}"
+            preflight_seconds += candidate["elapsedSeconds"]
+            candidate_mib = parse_qe_memory_estimate_mib(
+                (LOGS / f"{candidate_name}.out").read_text(encoding="utf-8", errors="replace")
+            )
+            if candidate_mib is not None and candidate_mib <= memory_limit_mib * 0.8:
+                pools, estimated_mib = candidate_pools, candidate_mib
+                parallel_reason = "Dense k-mesh; pooled memory estimate fits with 20% headroom"
+            else:
+                parallel_reason = "Single pool retained: pooled memory estimate unavailable or too large"
     command = qe_mpi_command(executable, input_path, ranks, pools)
     mode = pw_calculation_mode(input_text) if executable == "pw.x" else "phonon" if executable == "ph.x" else None
     try:

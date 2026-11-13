@@ -127,7 +127,7 @@ class HpcRemoteJobManager:
             raise HpcError("Scheduler must be slurm or pbs.")
         self.last_harvest_manifest_validated = False
         self.allocation = {**profile.get("defaults", {}), **(allocation or {})}
-        self.settings = dict(settings or {})
+        self.remote_scf_staged = False
         self.calculation_id: str | None = None
         self.calculation_type: str | None = None
 
@@ -247,16 +247,15 @@ class HpcRemoteJobManager:
             "umask 077",
             f"cd {shlex.quote(remote_work_dir)}",
             "",
-            *([
-                "# Phynite Lab Pipeline Fusing: Fused single-job chained execution",
-                "# phynite:fused-pipeline=true",
-                "printf '%s\\n' '[PHYNITE] Fused HPC pipeline stage executing in shared allocation' >&2",
-                "",
-            ] if (defaults.get("fusedPipeline") or self.settings.get("fusedPipeline")) else []),
             "# Load verified module names",
             *[f"module load {shlex.quote(name)}" for name in self._modules()],
             *[f"export {key}={shlex.quote(value)}" for key, value in environment.items()],
             *python_setup,
+            *([f"{py_cmd} -c " + shlex.quote(
+                "import json, sys; from pathlib import Path; sys.path.insert(0, 'runners'); "
+                "from workflow_scf import stage_remote_scf_archive; "
+                "stage_remote_scf_archive(Path('.'), json.loads(Path('input.json').read_text())['settings']['sharedScf'])"
+            )] if self.remote_scf_staged else []),
             f"{py_cmd} runners/local_runner.py > runner.out 2>&1 || STATUS=$?",
             "STATUS=${STATUS:-0}",
             "mkdir -p results",
@@ -294,70 +293,54 @@ class HpcRemoteJobManager:
         if code != 0:
             raise HpcError(f"Could not create remote scratch directory: {stderr.strip()}")
 
-        # Remote Scratch Retention: Check if upstream dependency exists on this cluster
+        # Reuse only the exact immutable bundle admitted by the local worker.
+        # An existing tmp directory or a scheduler receipt is not SCF evidence.
+        self.remote_scf_staged = False
         source_calc_id = None
-        input_json_data = input_files.get("input.json")
-        if input_json_data:
+        raw_input = input_files.get("input.json")
+        reference = None
+        if raw_input is not None:
+            raw_input = raw_input.read_bytes() if isinstance(raw_input, Path) else raw_input
             try:
-                raw_json = input_json_data.read_text(encoding="utf-8") if isinstance(input_json_data, Path) else (input_json_data.decode("utf-8") if isinstance(input_json_data, bytes) else str(input_json_data))
-                payload_json = json.loads(raw_json)
-                st = payload_json.get("settings", {}) if isinstance(payload_json, dict) else {}
-                if isinstance(st, dict):
-                    source_calc_id = (st.get("sharedScf", {}) or {}).get("calculationId") or st.get("scfSourceCalculationId") or payload_json.get("scfSourceCalculationId")
-                    if st.get("fusedPipeline"):
-                        self.settings["fusedPipeline"] = True
-            except Exception:
-                pass
-        if not source_calc_id and isinstance(self.allocation, dict):
-            source_calc_id = self.allocation.get("scfSourceCalculationId") or self.allocation.get("sourceCalculationId")
-
-        remote_scratch_retained = False
-        upstream_scheduler_job_id = None
-        active_upstream = False
-        if source_calc_id and isinstance(source_calc_id, str) and SAFE_ID.fullmatch(source_calc_id):
-            source_scratch = f"{scratch_root}/{owner_id}/{source_calc_id}"
-            probe_cmd = ["sh", "-c", f"test -f {shlex.quote(source_scratch)}/results/scf-state.tar.gz || test -f {shlex.quote(source_scratch)}/scf-state.tar.gz || test -d {shlex.quote(source_scratch)}/dependencies/scf || test -d {shlex.quote(source_scratch)}/tmp"]
-            probe_code, _, _ = self.connection.run_command(probe_cmd)
-            if probe_code == 0:
-                link_cmd = [
-                    "sh", "-c",
-                    f"mkdir -p {shlex.quote(remote_work_dir)}/dependencies/scf && "
-                    f"if [ -f {shlex.quote(source_scratch)}/results/scf-state.tar.gz ]; then "
-                    f"  tar -xzf {shlex.quote(source_scratch)}/results/scf-state.tar.gz -C {shlex.quote(remote_work_dir)}/dependencies/scf; "
-                    f"elif [ -f {shlex.quote(source_scratch)}/scf-state.tar.gz ]; then "
-                    f"  tar -xzf {shlex.quote(source_scratch)}/scf-state.tar.gz -C {shlex.quote(remote_work_dir)}/dependencies/scf; "
-                    f"elif [ -d {shlex.quote(source_scratch)}/dependencies/scf ]; then "
-                    f"  cp -lr {shlex.quote(source_scratch)}/dependencies/scf/. {shlex.quote(remote_work_dir)}/dependencies/scf/ 2>/dev/null || cp -r {shlex.quote(source_scratch)}/dependencies/scf/. {shlex.quote(remote_work_dir)}/dependencies/scf/; "
-                    f"fi"
-                ]
-                link_code, _, _ = self.connection.run_command(link_cmd)
-                if link_code == 0:
-                    remote_scratch_retained = True
-
-            # Pipeline Fusing / Single-Job Chaining: check for active upstream scheduler job on same cluster
-            source_receipt_path = receipt_root / f"{source_calc_id}.json"
-            if source_receipt_path.exists():
-                try:
-                    s_receipt = json.loads(source_receipt_path.read_text(encoding="utf-8"))
-                    if s_receipt.get("scheduler") == self.scheduler and s_receipt.get("schedulerJobId"):
-                        candidate_up = job_id(str(s_receipt["schedulerJobId"]), self.scheduler)
-                        try:
-                            status_probe = self.poll_job(candidate_up)
-                            if not status_probe.get("terminal"):
-                                upstream_scheduler_job_id = candidate_up
-                                active_upstream = True
-                        except Exception:
-                            pass
-                except Exception:
-                    pass
-
-        script_content = self.render_remote_script(calculation_id, remote_work_dir)
-        files_to_upload = {**input_files, "submit.sh": script_content}
-        if remote_scratch_retained:
-            files_to_upload = {
-                k: v for k, v in files_to_upload.items()
-                if not (k.startswith("dependencies/scf/") or k.startswith("dependencies/dependency-") or k.startswith("dependency-"))
-            }
+                payload = json.loads(raw_input)
+                settings = payload.get("settings", {}) if isinstance(payload, dict) else {}
+                reference = settings.get("sharedScf") if isinstance(settings, dict) else None
+            except (TypeError, ValueError):
+                raise HpcError("Remote input.json must contain valid JSON.")
+        files_to_upload = dict(input_files)
+        if isinstance(reference, dict):
+            source_calc_id = reference.get("calculationId")
+            expected_sha = reference.get("bundleSha256")
+            archive = input_files.get("dependency-0.tar.gz")
+            if (isinstance(source_calc_id, str) and SAFE_ID.fullmatch(source_calc_id)
+                    and source_calc_id != calculation_id and isinstance(expected_sha, str)
+                    and SAFE_SHA.fullmatch(expected_sha) and archive is not None):
+                digest = hashlib.sha256()
+                if isinstance(archive, Path):
+                    with archive.open("rb") as stream:
+                        for block in iter(lambda: stream.read(1024 * 1024), b""):
+                            digest.update(block)
+                else:
+                    digest.update(archive.encode() if isinstance(archive, str) else archive)
+                if digest.hexdigest() != expected_sha:
+                    raise HpcError("Shared SCF archive checksum verification failed before staging.")
+                source = f"{scratch_root}/{owner_id}/{source_calc_id}/results/scf-state.tar.gz"
+                target = f"{remote_work_dir}/dependency-0.tar.gz"
+                # Copy the archive, never hardlink mutable QE state. Verify the
+                # copy before omitting any upload, then recheck in the job.
+                command = (
+                    f"test -f {shlex.quote(source)} && test ! -L {shlex.quote(source)} && "
+                    f"test ! -L {shlex.quote(target)} && cp -- {shlex.quote(source)} {shlex.quote(target)} && "
+                    f"printf '%s  %s\\n' {shlex.quote(expected_sha)} {shlex.quote(target)} | sha256sum -c - >/dev/null"
+                )
+                code, _, _ = self.connection.run_command(["sh", "-c", command])
+                if code == 255:
+                    raise HpcSshError("SSH connection failed while verifying retained SCF state.")
+                if code == 0:
+                    self.remote_scf_staged = True
+                    files_to_upload = {name: data for name, data in files_to_upload.items()
+                                       if name != "dependency-0.tar.gz" and not name.startswith("dependencies/scf/")}
+        files_to_upload["submit.sh"] = self.render_remote_script(calculation_id, remote_work_dir)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -388,23 +371,13 @@ class HpcRemoteJobManager:
             "scriptSha256": hashlib.sha256(content.encode()).hexdigest(),
             "remoteWorkDir": remote_work_dir,
             "state": "submission-uncertain",
-            "remoteScratchRetained": remote_scratch_retained,
-            "fusedPipeline": bool(self.settings.get("fusedPipeline") or self.allocation.get("fusedPipeline")),
-            **({"sourceCalculationId": source_calc_id} if remote_scratch_retained else {}),
-            **({"chainedToJobId": upstream_scheduler_job_id} if active_upstream and upstream_scheduler_job_id else {}),
+            "remoteScratchRetained": self.remote_scf_staged,
+            **({"sourceCalculationId": source_calc_id} if self.remote_scf_staged else {}),
         }
         self._receipt(receipt_path, receipt, overwrite=False)
-        submit_cmd: list[str]
-        if self.scheduler == "slurm":
-            submit_cmd = ["sbatch", "--parsable"]
-            if active_upstream and upstream_scheduler_job_id:
-                submit_cmd.append(f"--dependency=afterok:{upstream_scheduler_job_id}")
-            submit_cmd.append(f"{remote_work_dir}/submit.sh")
-        else:
-            submit_cmd = ["qsub"]
-            if active_upstream and upstream_scheduler_job_id:
-                submit_cmd.extend(["-W", f"depend=afterok:{upstream_scheduler_job_id}"])
-            submit_cmd.append(f"{remote_work_dir}/submit.sh")
+        # Workflow admission waits for verified upstream scientific results;
+        # each stage receives its own allocation and durable receipt.
+        submit_cmd = ["sbatch", "--parsable", f"{remote_work_dir}/submit.sh"] if self.scheduler == "slurm" else ["qsub", f"{remote_work_dir}/submit.sh"]
         try:
             code, stdout, stderr = self._scheduler_command(submit_cmd)
             if code != 0:
@@ -652,10 +625,7 @@ class HpcRemoteWorker:
             if (int(allocation["nodes"]) * int(allocation["ranksPerNode"]) != int(job["vcpus"])
                     or int(allocation["nodes"]) * int(allocation["memoryMiBPerNode"]) != int(job["memoryMiB"])):
                 raise HpcError("The frozen HPC allocation differs from the accepted job resources.")
-            try:
-                manager = self.manager_factory(connection, profile, allocation, settings=payload.get("settings"))
-            except TypeError:
-                manager = self.manager_factory(connection, profile, allocation)
+            manager = self.manager_factory(connection, profile, allocation)
             manager.calculation_id = _safe_calculation_id(job["calculationId"])
             manager.calculation_type = str(payload.get("calculationType", ""))
             if self.workspace_builder is None:

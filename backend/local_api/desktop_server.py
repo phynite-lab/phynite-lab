@@ -136,7 +136,9 @@ class DesktopApplication:
             return response(200, {"probe": probe_profile(profile)})
         if setup_venv and method == "POST":
             payload = json.loads(raw or b"{}") if raw else {}
-            custom_path = payload.get("venvPath") if isinstance(payload, dict) else None
+            if not isinstance(payload, dict) or set(payload) - {'venvPath'}:
+                raise ApiError(400, 'Setup accepts only an optional absolute venvPath.', 'INVALID_HPC_PROFILE')
+            custom_path = payload.get("venvPath")
             return response(200, setup_cluster_venv(store, setup_venv[1], custom_venv_path=custom_path))
         if not member:
             raise ApiError(404, "HPC route was not found.", "NOT_FOUND")
