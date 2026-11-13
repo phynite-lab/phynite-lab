@@ -1,4 +1,6 @@
+import { waitExecutor } from '../packages/phynite-lab/lib/executor-ready.mjs';
 /** Start the SQLite/filesystem desktop core, local AI bridge and Vite UI for source testing. */
+import { buildAiExecutor } from './build-ai-executor.mjs';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
 import { access, mkdir, readFile } from 'node:fs/promises';
@@ -126,6 +128,8 @@ try {
   const baseEnvironment = {
     ...cleanEnvironment(),
     PHYNITE_APP_MODE: 'local',
+    ...Object.fromEntries(['PHYNITE_PROJECT_NOTES', 'PHYNITE_CONNECTED_FILES'].filter(key => ['0', '1'].includes(process.env[key])).map(key => [key, process.env[key]])),
+    ...(process.env.PHYNITE_AI_TEAM === '1' ? { PHYNITE_AI_TEAM: '1', PHYNITE_AI_TEAM_QUALIFICATION: process.env.PHYNITE_AI_TEAM_QUALIFICATION } : {}),
     PHYNITE_LOCAL_API_URL: apiOrigin,
     PHYNITE_LOCAL_UI_ORIGIN: uiOrigin,
     PHYNITE_LOCAL_AI_URL: aiServer.origin,
@@ -147,8 +151,14 @@ try {
   const service = JSON.parse(await readFile(join(options.dataDir, 'core-service.json'), 'utf8'));
   if (service.origin !== apiOrigin || service.uiOrigin !== uiOrigin || typeof service.token !== 'string' || service.token.length < 32) throw new Error('The local core did not publish a valid private service session.');
 
+  const executorEntry = join(root, 'work', 'ai-executor.mjs');
+  await buildAiExecutor(executorEntry);
+  const executor = childProcess(process.execPath, [executorEntry], { ...baseEnvironment, PHYNITE_LOCAL_SERVICE_TOKEN: service.token });
+  children.push(executor);
+  await waitExecutor(apiOrigin, service.token, executor);
+
   const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-  const web = childProcess(npm, ['run', 'dev', '--', '--host', '127.0.0.1', '--port', String(options.port)], { ...baseEnvironment, PHYNITE_LOCAL_SERVICE_TOKEN: service.token });
+  const web = childProcess(npm, ['run', 'dev', '--', '--host', '127.0.0.1', '--port', String(options.port)], { ...baseEnvironment, PHYNITE_LOCAL_SERVICE_TOKEN: service.token, PHYNITE_LOCAL_EXECUTOR: '1' });
   children.push(web);
   await waitFor(`${uiOrigin}/api/auth/session`, web, 'The local UI', 60_000);
   console.log(`\nPhynite local development workspace: ${uiOrigin}`);

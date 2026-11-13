@@ -1,4 +1,5 @@
 /** Assemble launcher and native npm packages. Never publishes or downloads. */
+import { buildAiExecutor } from './build-ai-executor.mjs';
 import { createHash } from 'node:crypto';
 import { cp, mkdir, readFile, readdir, stat, writeFile, chmod, lstat, realpath, rm } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -84,12 +85,15 @@ if (!assetNotices.trim()) throw new Error('Application and asset attribution not
 if (!license.includes('GNU AFFERO GENERAL PUBLIC LICENSE') || !license.includes('Version 3, 19 November 2007')) throw new Error('The complete GNU AGPL v3 license must be present before packaging.');
 const launcher = join(output, 'phynite-lab');
 await mkdir(launcher);
+const executorManifest = await buildAiExecutor(join(root, 'work', 'ai-executor.mjs'));
 for (const item of ['bin', 'lib', 'README.md']) await cp(join(template, item), join(launcher, item), { recursive: true });
+await cp(join(root, 'work', 'ai-executor.mjs'), join(launcher, 'lib', 'ai-executor.mjs'));
+await cp(join(root, 'work', 'ai-executor.mjs.json'), join(launcher, 'lib', 'ai-executor.mjs.json'));
 await writeFile(join(launcher, 'LICENSE'), license);
 await writeFile(join(launcher, 'THIRD_PARTY_NOTICES.md'), '# Third-party notices\n\nPhynite Lab code is licensed under GNU AGPL v3 only. Native application dependencies retain the licenses and notices included in each platform package.\n\n' + assetNotices);
 const optionalDependencies = Object.fromEntries(DISTRIBUTION_TARGETS.map(target => [platformPackageName(target), version]));
 await writeFile(join(launcher, 'package.json'), `${JSON.stringify({ ...packageTemplate, optionalDependencies }, null, 2)}\n`);
-await writeFile(join(launcher, 'distribution.json'), `${JSON.stringify({ schemaVersion: 2, kind: 'launcher', version, source,
+await writeFile(join(launcher, 'distribution.json'), `${JSON.stringify({ schemaVersion: 2, kind: 'launcher', version, source, executor: { schemaVersion: 1, path: 'lib/ai-executor.mjs', sha256: executorManifest.sha256 },
   targets: Object.fromEntries(DISTRIBUTION_TARGETS.map(target => [target, { package: platformPackageName(target), version }])), ...(cloud ? { cloud } : {}) }, null, 2)}\n`);
 await chmod(join(launcher, 'bin', 'phynite-lab.mjs'), 0o755);
 await checkDistribution(launcher);

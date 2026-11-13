@@ -16,3 +16,7 @@ playwright-report/
 test-results/
 backend/.venv*/
 .agent-state/
+
+# Launcher executor build output
+/work/ai-executor.mjs
+/work/ai-executor.mjs.json

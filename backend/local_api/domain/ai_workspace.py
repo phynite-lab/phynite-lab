@@ -326,6 +326,9 @@ class AiWorkspace:
             fail(409, 'This AI turn is no longer active.', 'AI_RUN_INACTIVE')
         if run['status'] not in {'running', 'awaiting_approval'} or int(run['expiresAt']) <= time.time():
             fail(409, 'This AI turn expired or stopped. Start a new message.', 'AI_RUN_EXPIRED')
+        if lease and run.get('orchestrationId'):
+            parent = self.row(owner, 'AI_ORCHESTRATION', run['orchestrationId'])
+            if parent['generation'] != payload.get('executorGeneration') or parent['status'] != 'running' or parent['leaseUntil'] < time.time(): fail(409, 'This executor generation expired.', 'AI_EXECUTOR_FENCED')
         if lease and (run['status'] != 'running' and (not (allow_waiting and run['status'] == 'awaiting_approval')) or not secrets.compare_digest(run['leaseHash'], digest(payload.get('lease', '')))):
             fail(409, 'This AI turn has another active connection.', 'AI_RUN_INACTIVE')
         return run
@@ -394,6 +397,8 @@ class AiWorkspace:
 
     def prepare(self, owner: str, conversation: dict, run: dict, payload: dict) -> dict:
         from backend.local_api.domain.ai_workbench import assert_work
+        if run.get('orchestrationId') and run['mode'] == 'full':
+            run = {**run, 'mode': 'approval'}
         from backend.local_api.domain.ai_custom_skills import enforce_tools
         enforce_tools(run.get('skillSnapshot'), 'prepare', payload)
         assert_work(run)
@@ -490,9 +495,11 @@ class AiWorkspace:
             current = next((c for c in context['resources'].get('md_configuration', []) if c.get('id') == data.get('configurationId')), None)
             before['workflow'] = current.get('workflow') if current else None
             after['workflow'] = data['workflow']
+        if run.get('orchestrationId'):
+            self.run(owner, self.row(owner, 'AI_CONVERSATION', conversation['id']), payload)
         action = self.put(owner, 'AI_ACTION', action_id, {'conversationId': conversation['id'], 'runId': run['id'], 'kind': kind, 'title': title, 'status': 'pending', 'stamp': context['stamp'], 'workspaceRevision': context['workspaceRevision'], 'payloadKey': key, 'payloadHash': digest(data), 'scientificCheck': clean(check), 'before': bounded(before), 'after': bounded(after), 'expiresAt': run['expiresAt'], 'controlRevision': run.get('controlRevision', 0)})
-        if conversation['mode'] == 'approval':
-            self.update(owner, 'AI_RUN', run, {'status': 'awaiting_approval'})
+        if conversation['mode'] == 'approval' or run.get('orchestrationId'):
+            self.update(owner, 'AI_RUN', self.row(owner, 'AI_RUN', run['id']), {'status': 'awaiting_approval'})
         return action
 
     @staticmethod
@@ -679,6 +686,14 @@ class AiWorkspace:
                 fail(400, 'Choose SVG, PNG, PDF, or ZIP.')
 
     def execute(self, owner: str, conversation: dict, action: dict, expected_hash: Any) -> dict:
+        authority = getattr(self.services, 'ai_orchestration', None)
+        if authority:
+            with authority.project_writer(conversation.get('projectKey')):
+                # Every queued proposal revalidates state after the preceding writer.
+                return self.execute_serial(owner, self.row(owner, 'AI_CONVERSATION', conversation['id']), self.row(owner, 'AI_ACTION', action['id']), expected_hash)
+        return self.execute_serial(owner, conversation, action, expected_hash)
+
+    def execute_serial(self, owner: str, conversation: dict, action: dict, expected_hash: Any) -> dict:
         if action['conversationId'] != conversation['id']:
             fail(404, 'The action was not found.', 'AI_NOT_FOUND')
         if action['status'] == 'succeeded':
@@ -990,6 +1005,9 @@ class AiWorkspace:
                 self.scope(owner, conversation['projectKey'])
                 from backend.local_api.domain.ai_runtime import AiRuntime
                 return response(200, AiRuntime(self.api).claim(owner, conversation, foreground=True, queue_id=payload['queueId']))
+            saved_run = self.services.get_item(owner, 'AI_RUN', conversation.get('activeRunId') or 'none')
+            if saved_run and saved_run.get('orchestrationId') and operation == 'resume':
+                fail(409, 'Continue this turn from Tasks; the launcher owns its lease.', 'AI_EXECUTOR_REQUIRED')
             lease = secrets.token_hex(32)
             if operation == 'resume':
                 run = self.run(owner, conversation, payload, lease=False)
@@ -1030,6 +1048,11 @@ class AiWorkspace:
             for action in self.services.list_owner_items(owner, 'AI_ACTION'):
                 if action.get('runId') == run['id'] and action['status'] == 'pending':
                     self.update(owner, 'AI_ACTION', action, {'status': 'rejected', 'error': 'The user stopped this turn.'})
+            authority = getattr(self.services, 'ai_orchestration', None)
+            if authority:
+                if run.get('orchestrationId'):
+                    authority.stop_parent(run['id'])
+                authority.reconcile()
             return response(200, {'stopped': True})
         if method == 'POST' and operation == 'actions' and action_id:
             action = self.row(owner, 'AI_ACTION', action_id)
@@ -1040,7 +1063,7 @@ class AiWorkspace:
                     fail(409, 'This action is no longer pending.')
                 action = self.update(owner, 'AI_ACTION', action, {'status': 'rejected'})
             elif payload.get('decision') == 'approve':
-                if conversation['mode'] != 'approval':
+                if conversation['mode'] != 'approval' and not self.row(owner, 'AI_RUN', action['runId']).get('orchestrationId'):
                     fail(403, 'This action does not use approval mode.', 'AI_PERMISSION_DENIED')
                 action = self.execute(owner, conversation, action, payload.get('payloadHash'))
             else:
@@ -1166,7 +1189,7 @@ class AiWorkspace:
             call_id = payload.get('toolCallId')
             if call_id and call_id in called:
                 return response(200, {'run': clean(run)})
-            if run['steps'] >= (40 if run.get('executionMode') == 'multistage' else 12):
+            if run['steps'] >= (40 if run.get('executionMode') == 'multistage' or run.get('orchestrationId') else 12):
                 fail(409, 'This turn reached its tool limit. Continue from the saved checkpoint.', 'AI_STEP_LIMIT')
             return response(200, {'run': clean(self.update(owner, 'AI_RUN', run, {'steps': run['steps'] + 1, 'countedCalls': called + ([call_id] if call_id else [])}))})
         if operation == 'message':

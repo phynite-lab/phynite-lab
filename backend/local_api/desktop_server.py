@@ -42,6 +42,10 @@ class DesktopApplication:
         self.services = LocalServices(self.data_dir, self.origin, self.ui_origin)
         from backend.local_api.archives import ProjectArchives
         self.archives = ProjectArchives(self.services)
+        from backend.local_api.ai_orchestration import AiOrchestration
+        from backend.local_api.domain.api import PhyniteApi
+        self.ai_orchestration = AiOrchestration(PhyniteApi(self.services))
+        self.services.ai_orchestration = self.ai_orchestration
         from backend.local_api.connections import DesktopConnections
         self.connections = DesktopConnections(self.data_dir, self.services)
         from backend.local_api.materials_project import MaterialsProjectConnection
@@ -388,6 +392,15 @@ class DesktopApplication:
         if archive_part and method == 'PUT':
             return response(200, self.archives.upload(archive_part[1], int(archive_part[2]), raw))
         payload = json.loads(raw or b"{}")
+        if path.startswith('/__local/ai-executor/'):
+            if method != 'POST': raise ApiError(405, 'Executor operations require POST.', 'METHOD_NOT_ALLOWED')
+            if not isinstance(payload, dict): raise ApiError(400, 'Use a structured executor request.', 'AI_INVALID_REQUEST')
+            return response(200, self.ai_orchestration.private(path.rsplit('/', 1)[1], payload))
+        if path.startswith('/__local/orchestration/'):
+            if not isinstance(payload, dict): raise ApiError(400, 'Use a structured task request.', 'AI_INVALID_REQUEST')
+            parts = path[len('/__local/orchestration/'):].split('/')
+            if len(parts) != 2 or not (method == 'GET' and parts[1] == 'status' or method == 'POST' and parts[1] in {'stop', 'retry', 'continue'}): raise ApiError(404, 'Task route not found.', 'NOT_FOUND')
+            return response(200, self.ai_orchestration.public_request(parts[0], parts[1], payload))
         if path.startswith("/__local/hpc"):
             return self.hpc_request(method, path, raw, headers, query)
         recovery_status = re.fullmatch(r'/__local/jobs/([A-Za-z0-9_-]+)/recovery', path)

@@ -10,16 +10,18 @@
     "dev:local": "node scripts/start-local-dev.mjs",
     "prepare:workflow": "node scripts/build-workflow-compiler.mjs --local",
     "prepare:downloads": "node --experimental-strip-types scripts/build-user-guide.mjs",
-    "prebuild": "npm run prepare:workflow && npm run prepare:downloads",
+    "prebuild": "npm run prepare:workflow && npm run prepare:downloads && npm run prepare:executor",
     "predev": "npm run prepare:workflow",
     "build": "PHYNITE_APP_MODE=local vinext build --config vite.local.config.ts",
     "build:local": "npm run build",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern work",
     "typecheck": "tsc --noEmit --incremental false",
     "test:structures": "node --experimental-strip-types --test tests/*.test.ts",
-    "test:native-ai": "node --test tests/native-ai.test.mjs tests/native-ai-claude.test.mjs tests/local-mcp.test.mjs",
+    "test:native-ai": "node --test tests/native-ai.test.mjs tests/native-ai-claude.test.mjs tests/local-mcp.test.mjs tests/inference-admission.test.mjs",
     "build:core": "python3 scripts/build-local-core.py",
-    "package:local": "node scripts/package-local.mjs"
+    "package:local": "node scripts/package-local.mjs",
+    "test:ai-executor": "node --experimental-strip-types --test tests/ai-executor.integration.mjs",
+    "prepare:executor": "node scripts/build-ai-executor.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "6.11.1",
