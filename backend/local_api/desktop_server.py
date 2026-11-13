@@ -56,6 +56,8 @@ class DesktopApplication:
         self.pseudopotentials = PseudopotentialManager(self.data_dir)
         self.token = secrets.token_urlsafe(48)
         self.closed = threading.Event()
+        from backend.local_api.domain.ai_discovery import DiscoverySupervisor
+        self.discovery = DiscoverySupervisor(PhyniteApi(self.services))
         self.workers: list[subprocess.Popen] = []
         self.worker_slots: dict[subprocess.Popen, int] = {}
         self.worker_started: dict[subprocess.Popen, float] = {}
@@ -80,6 +82,7 @@ class DesktopApplication:
         else:
             manifest = ROOT / "backend/local_api/runtime-manifest.json"
             self.runtime = RuntimeManager(self.data_dir, manifest if manifest.is_file() else None)
+            self.services.discovery_runtime = self.runtime
             self.scheduler = ResourceScheduler(self.data_dir)
 
     def worker_job(self, headers, job_id: str) -> dict:
@@ -312,6 +315,7 @@ class DesktopApplication:
     def maintain(self):
         while not self.closed.wait(1):
             try:
+                self.discovery.tick()
                 self.maintain_hpc_workers()
                 hpc_ready = any(process.poll() is None for process in self.hpc_workers.values())
                 if not self.runtime or not self.scheduler:

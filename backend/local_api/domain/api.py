@@ -1900,7 +1900,7 @@ class PhyniteApi:
         require_project(self.services, user_id, project_id)
         with self.services.table.atomic():
             children = [item for item in self.services.list_project_items(project_id) if item.get('ownerId') == user_id]
-            if any((item.get('entityType') in {'CALCULATION', 'MD_ANALYSIS', 'MD_SIMULATION'} and item.get('status') in {'QUEUED', 'RUNNING', 'CANCEL_REQUESTED', 'PREPARING'} for item in children)):
+            if any((item.get('entityType') in {'CALCULATION', 'MD_ANALYSIS', 'MD_SIMULATION', 'AI_DISCOVERY'} and item.get('status') in {'QUEUED', 'RUNNING', 'CANCEL_REQUESTED', 'PREPARING', 'executing'} for item in children)):
                 raise ApiError(409, 'Cancel active jobs and wait for the worker to finish before deleting this project.', 'PROJECT_COMPUTE_ACTIVE')
             self.services.delete_s3_prefix(f'users/{storage_owner(user_id)}/projects/{project_id}/')
             self.services.delete_project(user_id, project_id, children)

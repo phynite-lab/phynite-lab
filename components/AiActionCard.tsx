@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { ArrowRight, Check, CheckCircle2, ChevronRight, CircleDashed, Download, FileCode2, GitCompareArrows, Layers, Play, X } from 'lucide-react';
+import { AiDiscoveryStatus } from './AiDiscoveryStatus';
 import { useLocale } from '@/app/locale-provider';
 import { aiFieldChanges, aiFieldLabel } from '@/lib/ai-action-summary';
 import type { AiAction } from '@/lib/ai-contract';
@@ -64,6 +65,7 @@ export function AiActionCard({ action, conversationId, locked, onDecision, onCan
       {preview !== undefined && <Disclosure title={t('Input and parameters', 'Input dan parameter')} icon={<FileCode2 size={15} />} open><PreviewValues value={preview} /><details className="ai-raw-data"><summary>{t('Exact payload · SHA-256', 'Payload lengkap · SHA-256')}</summary><code>{action.payloadHash}</code><pre>{JSON.stringify(preview, null, 2)}</pre></details></Disclosure>}
       {action.result && <Disclosure title={t('Execution result', 'Hasil eksekusi')} icon={<Play size={15} />}><DataValue value={action.result} /></Disclosure>}
     </div>
+    {action.status === 'succeeded' && action.kind === 'start_discovery' && typeof action.result?.discoveryId === 'string' && <AiDiscoveryStatus conversationId={conversationId} discoveryId={action.result.discoveryId} />}
     <footer className="ai-action-footer"><button className="ai-review-button" onClick={() => void review()} disabled={loading}><FileCode2 size={14} />{t('Review exact input', 'Tinjau input lengkap')}</button>
       {action.status === 'succeeded' && action.kind === 'save_workflow' && Array.isArray(action.result?.nodeIds) && <button className="ai-review-button" onClick={() => onCanvas?.((action.result!.nodeIds as unknown[]).filter((id): id is string => typeof id === 'string'))}>{t('Show changes on Canvas', 'Lihat perubahan di Kanvas')}<ArrowRight size={14} /></button>}
       {action.status === 'succeeded' && action.kind === 'export_figure' && <button className="ai-button" disabled={loading} onClick={() => void download()}><Download size={14} />{t('Download figure', 'Unduh figure')}</button>}
