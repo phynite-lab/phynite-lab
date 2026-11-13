@@ -596,20 +596,27 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
       if (!response.ok || !data.conversation) throw new Error(data.error || 'Could not create the research conversation.');
       addAiChat(data.conversation);
       const tabId = aiConversationTab(data.conversation.id);
-      if (floating) { setFocusedTab(tabId); changeAiPresentation(tabId, 'floating'); } else openEditor(tabId);
+      const companion = workflowSplitTabs(editor.state)?.every(id => !isWorkflowAiTab(id));
+      if (floating || companion) { setFocusedTab(tabId); changeAiPresentation(tabId, floating ? 'floating' : 'composer'); } else openEditor(tabId);
       try { localStorage.setItem(`phynite:ai-current:${owner}:${projectId}`, data.conversation.id); } catch { /* The server conversation remains open if device storage is unavailable. */ }
       return aiConversationTab(data.conversation.id);
     } catch (failure) { setMessage((failure as Error).message); }
     finally { creatingAi.current = false; setAiCreating(false); }
-  }, [project, projectId, owner, session, t, openEditor, changeAiPresentation, setMessage, addAiChat]);
+  }, [project, projectId, owner, session, t, openEditor, changeAiPresentation, setMessage, addAiChat, editor.state]);
   const openProjectAi = useCallback(async () => {
     if (!project) return;
+    const reveal = (id: string) => {
+      const pair = workflowSplitTabs(editor.state);
+      if (editor.state.aiPanel?.id === id || pair?.every(tab => !isWorkflowAiTab(tab))) changeAiPresentation(id, 'composer');
+      else openEditor(id);
+      return id;
+    };
     const existing = workflowPreferredAiTab(editor.state);
-    if (existing) { openEditor(existing); return existing; }
-    try { const chats = await refreshAiChats(); if (chats[0]) { openEditor(aiConversationTab(chats[0].id)); return aiConversationTab(chats[0].id); } }
+    if (existing) return reveal(existing);
+    try { const chats = await refreshAiChats(); if (chats[0]) return reveal(aiConversationTab(chats[0].id)); }
     catch { setMessage(t('Chat history could not be loaded. Retry before opening a conversation.', 'Riwayat chat belum dapat dimuat. Coba lagi sebelum membuka percakapan.')); return; }
     return newAiChat();
-  }, [project, editor.state, openEditor, refreshAiChats, newAiChat, setMessage, t]);
+  }, [project, editor.state, openEditor, refreshAiChats, newAiChat, setMessage, t, changeAiPresentation]);
   const toggleAiVisibility = () => {
     const id = effectivePanel?.id ?? workflowPreferredAiTab(editor.state);
     if (!id) { void openProjectAi(); return; }
