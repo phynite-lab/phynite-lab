@@ -238,6 +238,7 @@ async function handle(request: NextRequest, context: Context): Promise<Response>
       || /^skills\/usr_[a-f0-9]{16}$/.test(path) && ['PATCH', 'DELETE'].includes(method)
       || path === 'conversations' && ['GET', 'POST'].includes(method)
       || /^conversations\/aic_[a-z0-9]+$/.test(path) && ['GET', 'DELETE'].includes(method)
+      || /^conversations\/aic_[a-z0-9]+\/mlip\/mlip_[a-z0-9]+$/.test(path) && ['GET', 'POST'].includes(method)
       || /^conversations\/aic_[a-z0-9]+\/references$/.test(path) && ['GET', 'POST'].includes(method)
       || /^conversations\/aic_[a-z0-9]+\/artifacts(?:\/aid_[a-z0-9]+)?$/.test(path) && method === 'GET'
       || /^conversations\/aic_[a-z0-9]+\/settings$/.test(path) && method === 'PATCH'
