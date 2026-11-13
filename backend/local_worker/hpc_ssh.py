@@ -565,6 +565,176 @@ class HpcSshConnection:
         records = _extract_framed_records(out, begin, end, {"writable"})
         return bool(records and records.get("writable") == "1")
 
+    def setup_python_venv(
+        self,
+        modules: list[str] | None = None,
+        *,
+        venv_path: str | None = None,
+        base_python: str | None = None,
+        packages: list[str] | None = None,
+        timeout: float = 300,
+    ) -> dict[str, Any]:
+        """Automatically create and configure a Python virtual environment on the cluster.
+
+        Installs scientific packages (numpy, scipy, matplotlib, seekpath, spglib, ase, pymatgen)
+        into a dedicated venv and returns the verified pythonExecutable.
+        """
+        safe_modules: list[str] = []
+        if modules is not None and not isinstance(modules, list):
+            raise HpcSshError("Environment modules are invalid; expected a list of module names.")
+        for raw in modules or []:
+            if not isinstance(raw, str):
+                raise HpcSshError("Environment modules are invalid; expected module names.")
+            value = raw.strip()
+            if value == "module purge":
+                continue
+            if value.startswith("module load "):
+                value = value[len("module load "):].strip()
+            if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.+@:/-]{0,127}", value):
+                raise HpcSshError("Environment modules must be safe module names.")
+            if value not in safe_modules:
+                safe_modules.append(value)
+
+        target_packages = list(packages or ["numpy", "scipy", "matplotlib", "seekpath", "spglib", "ase", "pymatgen"])
+        target_packages_str = " ".join(shlex.quote(p) for p in target_packages)
+        check_modules_code = "\n".join([
+            "import importlib, sys",
+            "missing = []",
+            f"for name in {target_packages!r}:",
+            "    try:",
+            "        importlib.import_module(name)",
+            "    except Exception:",
+            "        missing.append(name)",
+            'print("%d.%d.%d|%s" % (sys.version_info[:3] + (",".join(missing),)))',
+        ])
+        check_modules_call = f"exec({check_modules_code!r})"
+
+        marker = "PHYNITE_VENV_" + uuid.uuid4().hex
+        begin, end = marker + "_BEGIN", marker + "_END"
+
+        custom_venv = _valid_remote_dir(venv_path) if venv_path else None
+        custom_base = _valid_remote_executable(base_python) if base_python else None
+
+        script_lines = [
+            f"printf '%s\\n' {shlex.quote(begin)}",
+            "set -e",
+        ]
+        for name in safe_modules:
+            script_lines.append(f"module load {shlex.quote(name)} >/dev/null 2>&1 || :")
+
+        if custom_base:
+            script_lines.append(f'_ph_base={shlex.quote(custom_base)}')
+        else:
+            script_lines.append(
+                '_ph_base="$(command -v python3 2>/dev/null || :)"\n'
+                'if [ -z "$_ph_base" ] || ! "$_ph_base" -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)" >/dev/null 2>&1; then\n'
+                f'  for _ph_c in {" ".join(PYTHON_CANDIDATE_GLOBS)}; do\n'
+                '    if [ -x "$_ph_c" ] && "$_ph_c" -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)" >/dev/null 2>&1; then\n'
+                '      _ph_base="$_ph_c"\n'
+                '      break\n'
+                '    fi\n'
+                '  done\n'
+                'fi'
+            )
+
+        script_lines.append(
+            'if [ -z "$_ph_base" ] || [ ! -x "$_ph_base" ]; then\n'
+            f'  printf \'error=%s\\n\' "No Python >= 3.10 executable found on cluster. Load a Python module or specify base python."\n'
+            f'  printf \'%s\\n\' {shlex.quote(end)}\n'
+            '  exit 0\n'
+            'fi'
+        )
+
+        if custom_venv:
+            script_lines.append(f'_ph_venv={shlex.quote(custom_venv)}')
+        else:
+            script_lines.append(
+                'if [ -n "${HOME:-}" ] && [ -d "$HOME" ] && [ -w "$HOME" ]; then\n'
+                '  _ph_venv="$HOME/.phynite-venv"\n'
+                'else\n'
+                f'  {_SCRATCH_DETECT_SNIPPET}\n'
+                '  _ph_venv="${scratch_dir:-/tmp}/.phynite-venv"\n'
+                'fi'
+            )
+
+        script_lines.append(
+            'if [ -x "$_ph_venv/bin/python" ]; then\n'
+            f'  _ph_check=$("$_ph_venv/bin/python" -c {shlex.quote(check_modules_call)} 2>/dev/null || :)\n'
+            '  case "$_ph_check" in\n'
+            '    3.[1-9][0-9].*\\|)\n'
+            '      printf \'ok=1\\n\'\n'
+            '      printf \'already_configured=1\\n\'\n'
+            '      printf \'python_executable=%s/bin/python\\n\' "$_ph_venv"\n'
+            '      printf \'venv_dir=%s\\n\' "$_ph_venv"\n'
+            '      printf \'version=%s\\n\' "${_ph_check%%|*}"\n'
+            f'      printf \'packages=%s\\n\' "{",".join(target_packages)}"\n'
+            f'      printf \'%s\\n\' {shlex.quote(end)}\n'
+            '      exit 0\n'
+            '      ;;\n'
+            '  esac\n'
+            'fi'
+        )
+
+        script_lines.append(
+            'mkdir -p "$(dirname "$_ph_venv")"\n'
+            'if [ ! -x "$_ph_venv/bin/python" ]; then\n'
+            '  "$_ph_base" -m venv "$_ph_venv" 2>&1 || virtualenv -p "$_ph_base" "$_ph_venv" 2>&1 || {\n'
+            f'    printf \'error=%s\\n\' "Failed to create virtual environment using $_ph_base."\n'
+            f'    printf \'%s\\n\' {shlex.quote(end)}\n'
+            '    exit 0\n'
+            '  }\n'
+            'fi'
+        )
+
+        script_lines.append(
+            f'"$_ph_venv/bin/pip" install --no-cache-dir {target_packages_str} >/dev/null 2>&1 || '
+            f'"$_ph_venv/bin/python" -m pip install --no-cache-dir {target_packages_str} >/dev/null 2>&1 || :\n'
+            f'_ph_final_check=$("$_ph_venv/bin/python" -c {shlex.quote(check_modules_call)} 2>/dev/null || :)\n'
+            'case "$_ph_final_check" in\n'
+            '  3.[1-9][0-9].*\\|)\n'
+            '    printf \'ok=1\\n\'\n'
+            '    printf \'python_executable=%s/bin/python\\n\' "$_ph_venv"\n'
+            '    printf \'venv_dir=%s\\n\' "$_ph_venv"\n'
+            '    printf \'version=%s\\n\' "${_ph_final_check%%|*}"\n'
+            f'    printf \'packages=%s\\n\' "{",".join(target_packages)}"\n'
+            '    ;;\n'
+            '  *\\|*)\n'
+            '    _ph_miss="${_ph_final_check#*|}"\n'
+            '    printf \'ok=0\\n\'\n'
+            '    printf \'error=Could not install required packages: %s\\n\' "$_ph_miss"\n'
+            '    printf \'missing_packages=%s\\n\' "$_ph_miss"\n'
+            '    ;;\n'
+            '  *)\n'
+            '    printf \'ok=0\\n\'\n'
+            '    printf \'error=%s\\n\' "Virtual environment verification failed."\n'
+            '    ;;\n'
+            'esac\n'
+            f"printf '%s\\n' {shlex.quote(end)}"
+        )
+
+        full_script = "\n".join(script_lines)
+        code, out, err = self.run_command(["bash", "-lc" if safe_modules else "-c", full_script], timeout=timeout)
+        records = _extract_framed_records(
+            out, begin, end,
+            {"ok", "error", "python_executable", "venv_dir", "version", "packages", "missing_packages", "already_configured"}
+        )
+        if records is None:
+            return {"ok": False, "error": f"Venv setup returned incomplete output: {err.strip()[:500] or out.strip()[:500]}"}
+        if records.get("ok") == "1":
+            return {
+                "ok": True,
+                "pythonExecutable": records.get("python_executable"),
+                "venvDir": records.get("venv_dir"),
+                "version": records.get("version"),
+                "packages": [p for p in (records.get("packages") or "").split(",") if p],
+                "alreadyConfigured": records.get("already_configured") == "1",
+            }
+        return {
+            "ok": False,
+            "error": records.get("error", "Venv setup failed."),
+            "missingPackages": [p for p in (records.get("missing_packages") or "").split(",") if p],
+        }
+
     def _run_sftp_batch(self, batch: str, action: str, *, deadline: float) -> None:
         cmd = ["sftp", "-b", "-", *self._base_ssh_args(sftp=True), self.target]
         try:

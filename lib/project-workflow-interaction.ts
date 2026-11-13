@@ -1,4 +1,4 @@
-import { workflowConnectionError, workflowKinds, workflowModules, type ProjectWorkflow, type WorkflowEdge, type WorkflowKind, type WorkflowNode } from './project-workflow.ts';
+import { workflowAllowedInputs, workflowConnectionError, workflowKinds, workflowModules, type ProjectWorkflow, type WorkflowEdge, type WorkflowKind, type WorkflowNode } from './project-workflow.ts';
 
 export type WorkflowEdgeAnchors = { source: 'right' | 'bottom'; target: 'left' | 'top' };
 export type WorkflowConnectionAnchor = { nodeId: string; type: 'source' | 'target'; side?: 'left' | 'right' | 'top' | 'bottom' };
@@ -13,11 +13,15 @@ export function workflowConnectionAnchors(connection: Pick<CanvasConnection, 'so
 export function workflowCanvasConnection(graph: ProjectWorkflow, connection: CanvasConnection): Omit<WorkflowEdge, 'id'> | null {
   const source = graph.nodes.find(node => node.id === connection.source), target = graph.nodes.find(node => node.id === connection.target);
   if (!source || !target) return null;
-  const port = workflowModules[target.kind].input;
+  const allowed = workflowAllowedInputs(target.kind);
   const output = workflowModules[source.kind].output;
-  if (!port || ![output, `${output}:bottom`].includes(connection.sourceHandle ?? '') || ![port, `${port}:top`].includes(connection.targetHandle ?? '')
+  if (!allowed.includes(output)) return null;
+  const targetPort = connection.targetHandle ? allowed.find(p => [p, `${p}:top`].includes(connection.targetHandle!)) : workflowModules[target.kind].input;
+  if (!targetPort || targetPort !== output) return null;
+  if (![output, `${output}:bottom`].includes(connection.sourceHandle ?? '')
+    || (connection.targetHandle && ![targetPort, `${targetPort}:top`].includes(connection.targetHandle))
     || graph.edges.some(edge => edge.source === source.id && edge.target === target.id)) return null;
-  const edge = { source: source.id, target: target.id, port };
+  const edge = { source: source.id, target: target.id, port: targetPort };
   return workflowConnectionError(graph, edge) ? null : edge;
 }
 

@@ -246,6 +246,11 @@ class HpcRemoteJobManager:
             "umask 077",
             f"cd {shlex.quote(remote_work_dir)}",
             "",
+            *([
+                "# Phynite Lab Pipeline Fusing: Fused single-job chained execution",
+                "printf '%s\\n' '[PHYNITE] Fused HPC pipeline stage executing in shared allocation' >&2",
+                "",
+            ] if defaults.get("fusedPipeline") else []),
             "# Load verified module names",
             *[f"module load {shlex.quote(name)}" for name in self._modules()],
             *[f"export {key}={shlex.quote(value)}" for key, value in environment.items()],
@@ -286,10 +291,54 @@ class HpcRemoteJobManager:
             raise HpcSshError("SSH connection failed while creating remote scratch.")
         if code != 0:
             raise HpcError(f"Could not create remote scratch directory: {stderr.strip()}")
+
+        # Remote Scratch Retention: Check if upstream dependency exists on this cluster
+        source_calc_id = None
+        input_json_data = input_files.get("input.json")
+        if input_json_data:
+            try:
+                raw_json = input_json_data.read_text(encoding="utf-8") if isinstance(input_json_data, Path) else (input_json_data.decode("utf-8") if isinstance(input_json_data, bytes) else str(input_json_data))
+                payload_json = json.loads(raw_json)
+                st = payload_json.get("settings", {}) if isinstance(payload_json, dict) else {}
+                if isinstance(st, dict):
+                    source_calc_id = (st.get("sharedScf", {}) or {}).get("calculationId") or st.get("scfSourceCalculationId")
+            except Exception:
+                pass
+        if not source_calc_id and isinstance(self.allocation, dict):
+            source_calc_id = self.allocation.get("scfSourceCalculationId") or self.allocation.get("sourceCalculationId")
+
+        remote_scratch_retained = False
+        if source_calc_id and isinstance(source_calc_id, str) and SAFE_ID.fullmatch(source_calc_id):
+            source_scratch = f"{scratch_root}/{owner_id}/{source_calc_id}"
+            probe_cmd = ["sh", "-c", f"test -f {shlex.quote(source_scratch)}/results/scf-state.tar.gz || test -f {shlex.quote(source_scratch)}/scf-state.tar.gz || test -d {shlex.quote(source_scratch)}/dependencies/scf"]
+            probe_code, _, _ = self.connection.run_command(probe_cmd)
+            if probe_code == 0:
+                link_cmd = [
+                    "sh", "-c",
+                    f"mkdir -p {shlex.quote(remote_work_dir)}/dependencies/scf && "
+                    f"if [ -f {shlex.quote(source_scratch)}/results/scf-state.tar.gz ]; then "
+                    f"  tar -xzf {shlex.quote(source_scratch)}/results/scf-state.tar.gz -C {shlex.quote(remote_work_dir)}/dependencies/scf; "
+                    f"elif [ -f {shlex.quote(source_scratch)}/scf-state.tar.gz ]; then "
+                    f"  tar -xzf {shlex.quote(source_scratch)}/scf-state.tar.gz -C {shlex.quote(remote_work_dir)}/dependencies/scf; "
+                    f"elif [ -d {shlex.quote(source_scratch)}/dependencies/scf ]; then "
+                    f"  cp -r {shlex.quote(source_scratch)}/dependencies/scf/* {shlex.quote(remote_work_dir)}/dependencies/scf/; "
+                    f"fi"
+                ]
+                link_code, _, _ = self.connection.run_command(link_cmd)
+                if link_code == 0:
+                    remote_scratch_retained = True
+
         script_content = self.render_remote_script(calculation_id, remote_work_dir)
+        files_to_upload = {**input_files, "submit.sh": script_content}
+        if remote_scratch_retained:
+            files_to_upload = {
+                k: v for k, v in files_to_upload.items()
+                if not (k.startswith("dependencies/scf/") or k.startswith("dependencies/dependency-") or k.startswith("dependency-"))
+            }
+
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
-            for filename, data in {**input_files, "submit.sh": script_content}.items():
+            for filename, data in files_to_upload.items():
                 path = root / filename; path.parent.mkdir(parents=True, exist_ok=True)
                 if isinstance(data, Path):
                     import shutil
@@ -307,7 +356,18 @@ class HpcRemoteJobManager:
         if before_submit is not None:
             before_submit()
         content = self.render_remote_script(calculation_id, remote_work_dir)
-        receipt = {"version": 1, "calculationId": calculation_id, "scheduler": self.scheduler, "profileSha256": profile_sha256(self.profile), "allocation": self.allocation, "scriptSha256": hashlib.sha256(content.encode()).hexdigest(), "remoteWorkDir": remote_work_dir, "state": "submission-uncertain"}
+        receipt = {
+            "version": 1,
+            "calculationId": calculation_id,
+            "scheduler": self.scheduler,
+            "profileSha256": profile_sha256(self.profile),
+            "allocation": self.allocation,
+            "scriptSha256": hashlib.sha256(content.encode()).hexdigest(),
+            "remoteWorkDir": remote_work_dir,
+            "state": "submission-uncertain",
+            "remoteScratchRetained": remote_scratch_retained,
+            **({"sourceCalculationId": source_calc_id} if remote_scratch_retained else {}),
+        }
         self._receipt(receipt_path, receipt, overwrite=False)
         submit_cmd = ["sbatch", "--parsable", f"{remote_work_dir}/submit.sh"] if self.scheduler == "slurm" else ["qsub", f"{remote_work_dir}/submit.sh"]
         try:

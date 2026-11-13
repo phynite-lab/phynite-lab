@@ -279,6 +279,35 @@ class TestHpcRemoteHardening(unittest.TestCase):
             self.assertTrue(manager.purge_wavefunctions_after_completion("/scratch/job", {"terminal": True, "state": "COMPLETED", "exitCode": "0"}, True))
             self.assertEqual(connection.run_command.call_args.args[0][0], "find")
 
+    def test_remote_scratch_retention_and_symlinking(self):
+        with tempfile.TemporaryDirectory() as folder:
+            profile = {
+                "id": "cluster-a", "ownerId": "owner-a", "scheduler": "slurm",
+                "connection": {}, "storage": {"scratchRoot": "/scratch/work", "purgeWavefunctions": False},
+                "runtime": {"pythonExecutable": "/usr/bin/python3"},
+                "defaults": {"nodes": 1, "ranksPerNode": 4, "wallSeconds": 300, "memoryMiBPerNode": 1024},
+            }
+            connection = MagicMock(spec=HpcSshConnection)
+            connection.run_command.return_value = (0, "", "")
+            uploaded_files = []
+            connection.sftp_upload.side_effect = lambda local_p, remote_path: uploaded_files.append(remote_path)
+            manager = HpcRemoteJobManager(connection, profile)
+            manager._scheduler_command = MagicMock(return_value=(0, "45678", ""))
+
+            input_files = {
+                "input.json": json.dumps({"settings": {"scfSourceCalculationId": "scf-calc-1"}}),
+                "nscf.in": "&CONTROL /",
+                "dependencies/scf/scf-state.tar.gz": b"large-binary-archive-content-100mb",
+            }
+            receipt = manager.submit_job("bands-calc-2", input_files, Path(folder) / "receipts")
+            self.assertTrue(receipt["remoteScratchRetained"])
+            self.assertEqual(receipt["sourceCalculationId"], "scf-calc-1")
+            uploaded_names = [Path(p).name for p in uploaded_files]
+            self.assertNotIn("scf-state.tar.gz", uploaded_names)
+            self.assertIn("input.json", uploaded_names)
+            self.assertIn("nscf.in", uploaded_names)
+            self.assertIn("submit.sh", uploaded_names)
+
     def probe_fixture(self, modules=None, *, module_body=":", capabilities=True, truncate=False, code_override=None):
         """Execute the generated probe body with synthetic tools and login noise."""
         import subprocess

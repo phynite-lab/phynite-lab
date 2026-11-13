@@ -137,3 +137,44 @@ test('workflowFingerprints canonicalizes structure geometry, resource hashes, DF
 
   assert.deepEqual(await workflowFingerprints(full), await workflowFingerprints(minimal));
 });
+
+test('standalone band structure node can connect directly to crystal structure without SCF intermediate', () => {
+  const base = {
+    ...emptyProjectWorkflow('prj_standalone'),
+    nodes: [
+      node('structure_1', 'structure'),
+      node('bands_1', 'bands'),
+    ],
+    edges: [],
+  };
+  assert.equal(workflowConnectionError(base, { source: 'structure_1', target: 'bands_1', port: 'structure' }), null);
+  const graph = {
+    ...base,
+    edges: [
+      { id: 'edge_sb', source: 'structure_1', target: 'bands_1', port: 'structure' as const },
+    ],
+  };
+  const parsed = parseProjectWorkflow(graph);
+  assert.equal(parsed.edges.length, 1);
+  assert.equal(parsed.edges[0].port, 'structure');
+
+  graph.nodes[0].configuration.structure = {
+    name: 'Si Crystal',
+    atoms: [{ species: 'Si', x: 0, y: 0, z: 0 }, { species: 'Si', x: 1.35, y: 1.35, z: 1.35 }],
+    lattice: { a: 5.43, b: 5.43, c: 5.43, alpha: 90, beta: 90, gamma: 90 },
+  };
+  graph.nodes[0].resources = [{ kind: 'structure', id: 'str_si' }];
+  graph.nodes[1].configuration = {
+    standalone: true,
+    draft: { ...createDefaultQeDraft(), functional: 'PBEsol', cutoffPolicy: 'manual', cutoff: 80 },
+  };
+
+  const compiled = compileWorkflowDft(graph, graph.nodes[1], 'standalone-test');
+  assert.equal(compiled.calculationType, 'Band structure');
+  assert.equal(compiled.structureId, 'str_si');
+  const inputFiles = compiled.inputFiles as Record<string, string>;
+  assert.ok('scf.in' in inputFiles);
+  assert.ok('nscfbands.in' in inputFiles);
+  assert.ok('bands.in' in inputFiles);
+  assert.match(inputFiles['scf.in'], /ecutwfc\s*=\s*80/);
+});

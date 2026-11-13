@@ -442,3 +442,31 @@ def probe_profile(profile: dict[str, Any]) -> dict[str, Any]:
         return result
     except (HpcSshError, OSError, ValueError) as exc:
         return {"ok": False, "latencyMs": 0, "error": str(exc), "solvers": {}, "schedulers": {}}
+
+
+def setup_cluster_venv(store: HpcProfileStore, profile_id: str, custom_venv_path: str | None = None) -> dict[str, Any]:
+    """Execute 1-click automatic venv creation and package installation on the cluster."""
+    import copy
+    from backend.local_worker.hpc_ssh import HpcSshError
+    profile = store.get(profile_id)
+    if not profile:
+        raise ApiError(404, "HPC profile was not found.", "HPC_PROFILE_NOT_FOUND")
+    try:
+        client = _ssh_client(profile["connection"])
+        runtime = profile.get("runtime", {})
+        modules = runtime.get("environmentModules", [])
+        base_python = runtime.get("pythonExecutable")
+        result = client.setup_python_venv(modules=modules, venv_path=custom_venv_path, base_python=base_python)
+        if not result.get("ok"):
+            return result
+        py_exec = result.get("pythonExecutable")
+        if py_exec:
+            updated = copy.deepcopy(profile)
+            updated.setdefault("runtime", {})["pythonExecutable"] = py_exec
+            saved_profile = store.save(updated, profile_id)
+            probe = probe_profile(saved_profile)
+            return {**result, "probe": probe, "cluster": saved_profile}
+        return result
+    except (HpcSshError, OSError, ValueError) as exc:
+        return {"ok": False, "error": str(exc)}
+

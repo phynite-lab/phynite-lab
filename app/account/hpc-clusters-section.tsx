@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Server, Plus, Trash2, RefreshCw, CheckCircle2, XCircle, Pencil, Star } from 'lucide-react';
+import { Server, Plus, Trash2, RefreshCw, CheckCircle2, XCircle, Pencil, Star, Sparkles } from 'lucide-react';
 import { useLocale } from '../locale-provider';
 import type { HpcAuthKind, HpcClusterProfile, HpcScheduler } from '@/lib/hpc-profile';
 import { localRequest } from '@/lib/local-api';
@@ -44,6 +44,8 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [probeResults, setProbeResults] = useState<Record<string, ProbeResult | null>>({});
   const [probing, setProbing] = useState<Record<string, boolean>>({});
+  const [settingUpVenv, setSettingUpVenv] = useState<Record<string, boolean>>({});
+  const [setupVenvMessage, setSetupVenvMessage] = useState<Record<string, string>>({});
 
   // Form state
   const [name, setName] = useState('');
@@ -99,6 +101,38 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
       }));
     } finally {
       setProbing(prev => ({ ...prev, [id]: false }));
+    }
+  };
+
+  const handleAutoSetupVenv = async (id: string) => {
+    setSettingUpVenv(prev => ({ ...prev, [id]: true }));
+    setSetupVenvMessage(prev => ({ ...prev, [id]: '' }));
+    try {
+      const data = await localRequest<{
+        ok: boolean;
+        pythonExecutable?: string;
+        probe?: ProbeResult;
+        cluster?: HpcClusterProfile;
+        error?: string;
+        packages?: string[];
+      }>(`hpc/clusters/${id}/setup-venv`, 'POST');
+      if (data.ok && data.cluster) {
+        if (data.probe) setProbeResults(prev => ({ ...prev, [id]: data.probe! }));
+        setClusters(prev => prev.map(c => c.id === id ? data.cluster! : c));
+        setSetupVenvMessage(prev => ({
+          ...prev,
+          [id]: t(`Python environment configured: ${data.pythonExecutable}`, `Environment Python siap: ${data.pythonExecutable}`),
+        }));
+      } else {
+        throw new Error(data.error || t('Venv setup failed.', 'Setup venv gagal.'));
+      }
+    } catch (err) {
+      setSetupVenvMessage(prev => ({
+        ...prev,
+        [id]: err instanceof Error ? err.message : t('Venv setup failed.', 'Setup venv gagal.'),
+      }));
+    } finally {
+      setSettingUpVenv(prev => ({ ...prev, [id]: false }));
     }
   };
 
@@ -357,6 +391,16 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
                   </button>
                   <button
                     type="button"
+                    className="lab-button"
+                    disabled={settingUpVenv[c.id]}
+                    onClick={() => void handleAutoSetupVenv(c.id)}
+                    title={t('Set up isolated Python virtualenv with ase, pymatgen, seekpath, spglib on cluster', 'Siapkan venv Python terisolasi dengan ase, pymatgen, seekpath, spglib di cluster')}
+                  >
+                    <Sparkles size={13} className={settingUpVenv[c.id] ? 'animate-spin' : ''} />
+                    {settingUpVenv[c.id] ? t('Setting up venv…', 'Menyiapkan venv…') : t('Auto Setup Venv', 'Auto Setup Venv')}
+                  </button>
+                  <button
+                    type="button"
                     className="lab-button lab-button-danger"
                     onClick={() => void handleDelete(c.id)}
                     aria-label={t('Delete cluster', 'Hapus kluster')}
@@ -424,7 +468,19 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
                       )}
                     </div>
                   )}
+                  {setupVenvMessage[c.id] && (
+                    <div className="hpc-probe-result hpc-probe-ok" role="status">
+                      <CheckCircle2 size={15} />
+                      <span>{setupVenvMessage[c.id]}</span>
+                    </div>
+                  )}
                 </>
+              )}
+              {!probe && setupVenvMessage[c.id] && (
+                <div className="hpc-probe-result hpc-probe-ok" role="status" style={{ marginTop: '8px' }}>
+                  <CheckCircle2 size={15} />
+                  <span>{setupVenvMessage[c.id]}</span>
+                </div>
               )}
             </div>
           );
@@ -581,6 +637,30 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
                   <small style={{ color: 'var(--muted, #666)', fontSize: '11px', marginTop: '2px' }}>
                     {t('Requires Python 3.10+ with numpy, scipy, matplotlib, seekpath, and spglib. Leave empty to auto-detect from modules or Conda.', 'Memerlukan Python 3.10+ dengan numpy, scipy, matplotlib, seekpath, dan spglib. Kosongkan untuk deteksi otomatis dari modul atau Conda.')}
                   </small>
+                  {editingId && (
+                    <div style={{ marginTop: '8px' }}>
+                      <button
+                        type="button"
+                        className="lab-button"
+                        disabled={settingUpVenv[editingId]}
+                        onClick={async () => {
+                          await handleAutoSetupVenv(editingId);
+                          const updated = clusters.find(item => item.id === editingId);
+                          if (updated?.runtime?.pythonExecutable) setPythonExecutable(updated.runtime.pythonExecutable);
+                        }}
+                      >
+                        <Sparkles size={13} className={settingUpVenv[editingId] ? 'animate-spin' : ''} />
+                        {settingUpVenv[editingId]
+                          ? t('Configuring venv on cluster…', 'Menyiapkan venv di kluster…')
+                          : t('1-Click Auto Setup Venv (ase, pymatgen, seekpath)', '1-Click Auto Setup Venv (ase, pymatgen, seekpath)')}
+                      </button>
+                      {setupVenvMessage[editingId] && (
+                        <p style={{ fontSize: '12px', color: 'var(--accent, #10b981)', marginTop: '4px' }}>
+                          {setupVenvMessage[editingId]}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </label>
               </div>
 

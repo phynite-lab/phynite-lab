@@ -96,7 +96,7 @@ class DesktopApplication:
     def hpc_request(self, method: str, path: str, raw: bytes, headers, query: dict) -> dict:
         """Serve owner-scoped HPC profiles and immutable worker snapshots."""
         import re
-        from backend.local_api.hpc_profiles import HpcProfileStore, detect_scratch_root, probe_profile, resolve_scratch_root
+        from backend.local_api.hpc_profiles import HpcProfileStore, detect_scratch_root, probe_profile, resolve_scratch_root, setup_cluster_venv
 
         store = HpcProfileStore(self.services)
         detect_scratch = path == "/__local/hpc/clusters/detect-scratch"
@@ -120,6 +120,7 @@ class DesktopApplication:
 
         collection = path == "/__local/hpc/clusters"
         probe = re.fullmatch(r"/__local/hpc/clusters/([A-Za-z0-9][A-Za-z0-9_.@-]{0,95})/probe", path)
+        setup_venv = re.fullmatch(r"/__local/hpc/clusters/([A-Za-z0-9][A-Za-z0-9_.@-]{0,95})/setup-venv", path)
         if collection and method == "GET":
             return response(200, {"clusters": store.list()})
         if collection and method == "POST":
@@ -133,6 +134,10 @@ class DesktopApplication:
             if not profile:
                 raise ApiError(404, "HPC profile was not found.", "HPC_PROFILE_NOT_FOUND")
             return response(200, {"probe": probe_profile(profile)})
+        if setup_venv and method == "POST":
+            payload = json.loads(raw or b"{}") if raw else {}
+            custom_path = payload.get("venvPath") if isinstance(payload, dict) else None
+            return response(200, setup_cluster_venv(store, setup_venv[1], custom_venv_path=custom_path))
         if not member:
             raise ApiError(404, "HPC route was not found.", "NOT_FOUND")
         identifier = member[1]

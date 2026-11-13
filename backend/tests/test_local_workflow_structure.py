@@ -426,3 +426,27 @@ class WorkflowStructureReviewFindingsTests(unittest.TestCase):
         result = self.source(self.xml([("Sa", "Sb.pbe.UPF")], ["Sa"]))
         self.assertEqual(result["atoms"][0]["species"], "Sb")
         self.assertEqual(result["atoms"][0]["label"], "Sa")
+
+
+class StandaloneBandStructureTests(unittest.TestCase):
+    def test_standalone_band_structure_port_and_graph_validation(self):
+        from backend.local_api.domain.project_workflow import validate_graph, PORTS
+        self.assertIn('structure', PORTS['bands'][0])
+        self.assertIn('electronic', PORTS['bands'][0])
+
+        graph = {
+            'version': 1,
+            'projectId': 'prj_1',
+            'nodes': [
+                {'id': 'n_str', 'kind': 'structure', 'name': 'Si Structure', 'position': {'x': 0, 'y': 0}, 'configuration': {}, 'resources': [{'kind': 'structure', 'id': 'str_1'}]},
+                {'id': 'n_bands', 'kind': 'bands', 'name': 'Band structure', 'position': {'x': 250, 'y': 0}, 'configuration': {'standalone': True, 'draft': {'functional': 'PBE', 'cutoff': 80}}, 'resources': []}
+            ],
+            'edges': [
+                {'id': 'e1', 'source': 'n_str', 'target': 'n_bands', 'port': 'structure'}
+            ],
+            'groups': []
+        }
+        validated = validate_graph(graph, 'prj_1')
+        self.assertEqual(len(validated['edges']), 1)
+        self.assertEqual(validated['edges'][0]['port'], 'structure')
+

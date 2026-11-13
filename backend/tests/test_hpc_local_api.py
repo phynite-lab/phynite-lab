@@ -335,5 +335,50 @@ class HpcDesktopProtocolTests(unittest.TestCase):
                 '2026-11-11T09:30:00Z',
             ))
 
+    def test_setup_venv_endpoint_and_profile_update(self):
+        from backend.local_api.desktop_server import DesktopApplication
+        from backend.local_api.hpc_profiles import HpcProfileStore
+        with tempfile.TemporaryDirectory() as directory:
+            app = DesktopApplication(Path(directory), 8792, 'http://127.0.0.1:3000')
+            try:
+                headers = {'Authorization': 'Bearer ' + app.token}
+                store = HpcProfileStore(app.services)
+                saved = store.save(profile(), 'cl-setup-test')
+                cluster_id = saved['id']
+
+                with patch('backend.local_worker.hpc_ssh.HpcSshConnection') as connection:
+                    connection.return_value.setup_python_venv.return_value = {
+                        'ok': True,
+                        'pythonExecutable': '/home/researcher/.phynite-venv/bin/python',
+                        'venvDir': '/home/researcher/.phynite-venv',
+                        'version': '3.11.4',
+                        'packages': ['numpy', 'scipy', 'matplotlib', 'seekpath', 'spglib', 'ase', 'pymatgen'],
+                    }
+                    connection.return_value.probe_connection.return_value = {
+                        'ok': True, 'latencyMs': 6.0, 'system': 'Linux x86_64',
+                        'schedulers': {'slurm': True, 'pbs': False},
+                        'solvers': {'qe': '/usr/bin/pw.x', 'lammps': None},
+                    }
+                    connection.return_value.check_writable_path.return_value = True
+
+                    response_raw = app.dispatch(
+                        'POST',
+                        f'/__local/hpc/clusters/{cluster_id}/setup-venv',
+                        json.dumps({'venvPath': '/home/researcher/.phynite-venv'}).encode(),
+                        headers,
+                        {},
+                    )
+                    self.assertEqual(response_raw['statusCode'], 200)
+                    body = json.loads(response_raw['body'])
+                    self.assertTrue(body['ok'])
+                    self.assertEqual(body['pythonExecutable'], '/home/researcher/.phynite-venv/bin/python')
+
+                    # Check that the profile in store was updated with the new pythonExecutable
+                    updated_profile = store.get(cluster_id)
+                    self.assertEqual(updated_profile['runtime']['pythonExecutable'], '/home/researcher/.phynite-venv/bin/python')
+            finally:
+                app.close()
+
 
 if __name__ == '__main__': unittest.main()
+

@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from typing import Any
 from backend.local_api.domain.phynite_core import ApiError, json_safe, new_id, owner_partition, require_owner_item, require_project, response, storage_owner, utc_now
 WORKFLOW_PATH = re.compile('^/v1/projects/([A-Za-z0-9_-]+)/workflow(?:/(plan|runs|import)(?:/([A-Za-z0-9_-]+)(?:/(cancel))?)?)?$')
-PORTS = {'structure': (None, 'structure'), 'trajectory': (None, 'trajectory'), 'scf': ('structure', 'electronic'), 'relax': ('structure', 'structure'), 'bands': ('electronic', 'dataset'), 'dos': ('electronic', 'dataset'), 'phonon': ('electronic', 'dataset'), 'btp2': ('electronic', 'dataset'), 'md': ('structure', 'trajectory'), 'md-analysis': ('trajectory', 'dataset'), 'extract-frame': ('trajectory', 'structure'), 'figure': ('dataset', 'dataset'), 'legacy': (None, 'dataset')}
+PORTS = {'structure': (None, 'structure'), 'trajectory': (None, 'trajectory'), 'scf': ('structure', 'electronic'), 'relax': ('structure', 'structure'), 'bands': (('electronic', 'structure'), 'dataset'), 'dos': ('electronic', 'dataset'), 'phonon': ('electronic', 'dataset'), 'btp2': ('electronic', 'dataset'), 'md': ('structure', 'trajectory'), 'md-analysis': ('trajectory', 'dataset'), 'extract-frame': ('trajectory', 'structure'), 'figure': ('dataset', 'dataset'), 'legacy': (None, 'dataset')}
 JOB_KINDS = {'md': 'MD_SIMULATION', 'md-analysis': 'MD_ANALYSIS'}
 DFT_TYPES = {'scf': 'Total energy', 'relax': 'Structural relaxation', 'bands': 'Band structure', 'dos': 'Density of states', 'phonon': 'Phonon dispersion', 'btp2': 'Thermoelectric properties'}
 SUCCESS = {'completed', 'ready', 'reused'}
@@ -165,7 +165,8 @@ def validate_graph(value: Any, project_id: str) -> dict[str, Any]:
         source, target = (nodes[edge['source']], nodes[edge['target']])
         pair = (source['id'], target['id'])
         expected, output = (PORTS[target['kind']][0], PORTS[source['kind']][1])
-        if source['kind'] == 'figure' or source['id'] == target['id'] or pair in pairs or (not expected) or (edge.get('port') != expected) or (output != expected):
+        allowed = expected if isinstance(expected, tuple) else ((expected,) if expected else ())
+        if source['kind'] == 'figure' or source['id'] == target['id'] or pair in pairs or (not allowed) or (edge.get('port') not in allowed) or (output not in allowed) or (edge.get('port') != output):
             fail('These module inputs and outputs are incompatible.')
         if target['kind'] != 'figure' and target['id'] in incoming:
             fail('Disconnect the current input before choosing another source.')
@@ -218,7 +219,8 @@ def canonical_configuration(configuration: dict[str, Any], kind: str | None=None
             for draft_ui_key in ('calculations', 'plotYMin', 'plotYMax'):
                 value.pop(draft_ui_key, None)
             if kind in DFT_TYPES:
-                if kind in {'bands', 'dos', 'phonon', 'btp2'} and (not str(value.get('rawInput') or '').strip()):
+                is_branch = kind in {'bands', 'dos', 'phonon', 'btp2'} and config.get('standalone') is not True
+                if is_branch and (not str(value.get('rawInput') or '').strip()):
                     for draft_key in list(value):
                         if draft_key in DEFAULT_QE_DRAFT and draft_key not in WORKFLOW_BRANCH_FIELDS:
                             value.pop(draft_key, None)
@@ -658,7 +660,14 @@ class ProjectWorkflowApi:
             if error:
                 errors.append({'nodeId': node_id, 'message': error})
             scf_source = next((edge['source'] for edge in input_edges if edge['port'] == 'electronic'), None)
-            planned.append({'nodeId': node_id, 'fingerprint': hashes[node_id], 'action': action, 'force': node_id in forced, 'validationDeferred': deferred, **({'compute': {'target': 'hpc', 'clusterId': node['configuration']['hpc']['clusterId'], **hpc_compute}} if hpc_compute else {}), **({'sourceScfNodeId': scf_source} if scf_source else {}), **({'sourceAttemptId': reusable['id']} if reusable else {}), **({'error': error} if error else {})})
+            is_fused = False
+            if scf_source and hpc_compute:
+                source_node = next((n for n in graph['nodes'] if n['id'] == scf_source), None)
+                if source_node and source_node.get('configuration', {}).get('computeTarget') == 'hpc':
+                    source_cluster = source_node.get('configuration', {}).get('hpc', {}).get('clusterId')
+                    if source_cluster and source_cluster == node['configuration'].get('hpc', {}).get('clusterId'):
+                        is_fused = True
+            planned.append({'nodeId': node_id, 'fingerprint': hashes[node_id], 'action': action, 'force': node_id in forced, 'validationDeferred': deferred, **({'compute': {'target': 'hpc', 'clusterId': node['configuration']['hpc']['clusterId'], **hpc_compute}} if hpc_compute else {}), **({'sourceScfNodeId': scf_source} if scf_source else {}), **({'fusedPipeline': True, 'fusedWith': scf_source} if is_fused else {}), **({'sourceAttemptId': reusable['id']} if reusable else {}), **({'error': error} if error else {})})
         compiler_sha = None
         if needs_compiler:
             from backend.local_api.domain.workflow_compiler import compiler_source
@@ -882,7 +891,10 @@ class ProjectWorkflowApi:
                 compute = node['configuration'].get('resolvedHpcCompute')
                 if not compute:
                     raise ApiError(409, 'Review a fresh run plan to freeze the HPC allocation.', 'HPC_ALLOCATION_REQUIRED')
-                payload = {**payload, **compute, 'settings': {**payload.get('settings', {}), **compute['settings']}}
+                settings = {**payload.get('settings', {}), **compute['settings']}
+                if inputs and inputs[0].get('jobId'):
+                    settings['scfSourceCalculationId'] = inputs[0]['jobId']
+                payload = {**payload, **compute, 'settings': settings}
                 payload.pop('hpc', None)
             # Canvas DFT nodes use the same owner-scoped local calculation
             # admission as the standalone DFT form.  The workflow runner used

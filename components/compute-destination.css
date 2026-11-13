@@ -51,3 +51,79 @@
   .hpc-modal-form .lab-modal-footer { flex-wrap: wrap; }
 }
 .hpc-selection-fields { display: grid; gap: 10px; margin-top: 10px; padding: 12px; background: var(--surface-subtle); border-radius: 6px; border: 1px solid var(--line); }
+
+/* Smart Resource Advisor Styles */
+.compute-smart-advisor {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--quanta-blue, #3b82f6) 8%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--quanta-blue, #3b82f6) 24%, var(--line));
+  font-size: 12px;
+  line-height: 1.5;
+}
+.compute-smart-advisor--applied {
+  background: color-mix(in srgb, var(--status-success, #22c55e) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--status-success, #22c55e) 24%, var(--line));
+}
+.compute-smart-advisor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.compute-smart-advisor-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--ink);
+  font-size: 13px;
+}
+.compute-smart-advisor-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--quanta-blue, #3b82f6) 16%, var(--surface));
+  color: var(--quanta-blue, #3b82f6);
+  border: 1px solid color-mix(in srgb, var(--quanta-blue, #3b82f6) 30%, transparent);
+}
+.compute-smart-advisor--applied .compute-smart-advisor-badge {
+  background: color-mix(in srgb, var(--status-success, #22c55e) 16%, var(--surface));
+  color: var(--status-success, #16a34a);
+  border-color: color-mix(in srgb, var(--status-success, #22c55e) 30%, transparent);
+}
+.compute-smart-advisor-reason {
+  margin: 0;
+  color: var(--muted-ink);
+  font-size: 12px;
+}
+.compute-smart-advisor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+.compute-smart-advisor-action {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+.compute-smart-advisor-action:hover {
+  background: var(--surface-subtle);
+  border-color: var(--quanta-blue, #3b82f6);
+}
