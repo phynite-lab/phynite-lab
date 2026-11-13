@@ -1,7 +1,8 @@
 # Scientific AI Agent operator contract
 
-The local operator keeps the researcher workflow bounded and restartable.  Its
-durable state is separate from the browser session:
+The local operator foundation defines bounded, restartable researcher workflows.
+Its contract models durable state separately from the browser session; a persistent
+supervisor is not yet connected to the chat:
 
 ```text
 planning → awaiting approval → executing → observing → validating → completed
@@ -27,6 +28,16 @@ the researcher-facing message specified by the product contract and never
 suggests a terminal installation command.
 
 ## Pinned memory and long local turns
+
+The flask button in the composer opens **Discovery presets**, including in the
+floating composer. Desktop uses an anchored popover and constrained windows use
+a sheet with a scrolling body. Both keep the composer reachable. Discovery shares
+the single active overlay with context, model and permissions. Escape restores
+focus to its trigger; choosing a preset closes it and focuses a **Plan** draft.
+Preset selection never sends a message or submits calculations. The evidence
+retention checkbox describes the requested plan; it does not change execution
+settings or grant a repair policy. Persistent campaigns require a qualified local
+supervisor before the application can claim they continue after a tab closes.
 
 Short turns retain the six-tool foreground budget and twelve-step hard ceiling.
 The explicit **Multistage** composer option permits up to 40 tools and 30 model

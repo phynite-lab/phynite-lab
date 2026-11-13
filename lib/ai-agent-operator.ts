@@ -48,11 +48,11 @@ export function validateAiAgentBudget(value: AiAgentBudget): AiAgentBudget {
   return value;
 }
 
-export type AiPreset = { id: 'quick-convergence-sweep' | 'overnight-discovery' | 'self-healing-relax'; label: string; description: string; contract: Partial<AiCampaignContract> };
+export type AiPreset = { id: 'quick-convergence-sweep' | 'overnight-discovery' | 'self-healing-relax'; label: string; description: string; descriptionEn: string; contract: Partial<AiCampaignContract> };
 export const aiAgentPresets: readonly AiPreset[] = [
-  { id: 'quick-convergence-sweep', label: 'Quick Convergence Sweep', description: '3 kandidat cutoff, standar tervalidasi tetap dijaga, dan maksimal 1 jam komputasi.', contract: { maxCandidates: 3, totalNodeHours: 1, repairPolicy: ['lower_mixing_beta', 'switch_solver', 'raise_electron_maxstep'] } },
-  { id: 'overnight-discovery', label: 'Overnight Discovery', description: 'Hingga 5 kandidat variasi kisi dengan validasi geometry dan provenance lengkap.', contract: { maxCandidates: 5, totalNodeHours: 6, repairPolicy: ['lower_mixing_beta', 'switch_solver', 'raise_electron_maxstep', 'metallic_smearing'] } },
-  { id: 'self-healing-relax', label: 'Self-Healing Relax', description: 'Cell relaxation dengan repair yang diizinkan dan checkpoint yang dipertahankan.', contract: { maxCandidates: 1, repairPolicy: ['lower_mixing_beta', 'switch_solver', 'raise_electron_maxstep', 'metallic_smearing', 'extend_walltime'] } },
+  { id: 'quick-convergence-sweep', label: 'Quick Convergence Sweep', descriptionEn: '3 cutoff candidates, preserving validated settings, with up to 1 hour of computation.', description: '3 kandidat cutoff, standar tervalidasi tetap dijaga, dan maksimal 1 jam komputasi.', contract: { maxCandidates: 3, totalNodeHours: 1, repairPolicy: ['lower_mixing_beta', 'switch_solver', 'raise_electron_maxstep'] } },
+  { id: 'overnight-discovery', label: 'Overnight Discovery', descriptionEn: 'Up to 5 lattice candidates with geometry validation and retained provenance.', description: 'Hingga 5 kandidat variasi kisi dengan validasi geometry dan provenance lengkap.', contract: { maxCandidates: 5, totalNodeHours: 6, repairPolicy: ['lower_mixing_beta', 'switch_solver', 'raise_electron_maxstep', 'metallic_smearing'] } },
+  { id: 'self-healing-relax', label: 'Self-Healing Relax', descriptionEn: 'Cell relaxation with explicitly approved repairs and retained checkpoints.', description: 'Cell relaxation dengan repair yang diizinkan dan checkpoint yang dipertahankan.', contract: { maxCandidates: 1, repairPolicy: ['lower_mixing_beta', 'switch_solver', 'raise_electron_maxstep', 'metallic_smearing', 'extend_walltime'] } },
 ];
 
 export function aiCampaignSummary(contract: Partial<AiCampaignContract> & { clusterLabel?: string }): string {
