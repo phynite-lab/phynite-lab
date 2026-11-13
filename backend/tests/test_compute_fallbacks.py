@@ -128,6 +128,12 @@ K_POINTS automatic
         self.assertNotEqual(inputs["nscfbands.in"], _CRYSTAL_B_INPUT)
         self.assertEqual(inputs["nscfbands.in"].split("K_POINTS crystal_b\n")[1].splitlines()[1].split("!")[0].split()[-1], "200")
 
+    def test_qe_resource_preflight_input_converts_crystal_b_to_gamma(self):
+        preflight = self.scientific_runner.qe_resource_preflight_input(_CRYSTAL_B_INPUT, "bands-nscf")
+        self.assertIn("calculation = 'scf'", preflight)
+        self.assertIn("K_POINTS gamma", preflight)
+        self.assertNotIn("crystal_b", preflight)
+
     def test_software_version_uses_devnull_and_retries_once_with_single_rank_mpi_launcher(self):
         direct_ok = MagicMock(returncode=0, stdout="Program PWSCF v.7.2 starts on 11Nov2026\n", stderr="")
         with patch.object(self.qe_model.shutil, "which", return_value="/opt/qe/bin/pw.x"), \

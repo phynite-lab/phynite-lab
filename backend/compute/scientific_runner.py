@@ -135,6 +135,13 @@ def qe_resource_preflight_input(input_text: str, name: str) -> str:
             preflight_source,
             count=1,
         )
+        if re.search(r"(?im)^\s*K_POINTS\s+(?:crystal_b|tpiba_b)\b", preflight_source):
+            preflight_source = re.sub(
+                r"(?ims)^\s*K_POINTS\s+(?:crystal_b|tpiba_b)\b.*$",
+                "K_POINTS gamma\n",
+                preflight_source,
+                count=1,
+            )
     return qe_dry_run_input(preflight_source, f"./preflight-{name}-tmp")
 
 
@@ -575,35 +582,40 @@ def run_qe_step(name: str, executable: str, input_name: str, input_text: str, vc
             qe_resource_preflight_input(input_text, name),
             encoding="utf-8",
         )
-        preflight_command = qe_mpi_command(executable, preflight_input_path, ranks)
-        preflight = _run_process(preflight_name, preflight_command, preflight_input_name)
-        preflight_seconds += preflight["elapsedSeconds"]
-        preflight_output = (LOGS / f"{preflight_name}.out").read_text(
-            encoding="utf-8", errors="replace"
-        )
-        estimated_mib = parse_qe_memory_estimate_mib(preflight_output)
-        if estimated_mib is not None and estimated_mib > memory_limit_mib:
-            raise QeConvergenceError(insufficient_memory_message(name, estimated_mib, memory_limit_mib),
-                                     {**preflight, "status": "failed", "resourceValidation": "insufficient-memory", "memoryEstimateMiB": estimated_mib})
-        candidate_pools = qe_kpoint_pools(ranks, preflight_output) if parallel_mode == "auto" else 1
-        # Pooling replicates some arrays. Check the actual proposed layout,
-        # not the (potentially much smaller) single-pool memory estimate.
-        if candidate_pools > 1 and estimated_mib is not None:
-            candidate_name = f"{preflight_name}-pooled"
-            candidate = _run_process(
-                candidate_name,
-                qe_mpi_command(executable, preflight_input_path, ranks, candidate_pools),
-                preflight_input_name,
+        try:
+            preflight_command = qe_mpi_command(executable, preflight_input_path, ranks)
+            preflight = _run_process(preflight_name, preflight_command, preflight_input_name)
+            preflight_seconds += preflight["elapsedSeconds"]
+            preflight_output = (LOGS / f"{preflight_name}.out").read_text(
+                encoding="utf-8", errors="replace"
             )
-            preflight_seconds += candidate["elapsedSeconds"]
-            candidate_mib = parse_qe_memory_estimate_mib(
-                (LOGS / f"{candidate_name}.out").read_text(encoding="utf-8", errors="replace")
-            )
-            if candidate_mib is not None and candidate_mib <= memory_limit_mib * 0.8:
-                pools, estimated_mib = candidate_pools, candidate_mib
-                parallel_reason = "Dense k-mesh; pooled memory estimate fits with 20% headroom"
-            else:
-                parallel_reason = "Single pool retained: pooled memory estimate unavailable or too large"
+            estimated_mib = parse_qe_memory_estimate_mib(preflight_output)
+            if estimated_mib is not None and estimated_mib > memory_limit_mib:
+                raise QeConvergenceError(insufficient_memory_message(name, estimated_mib, memory_limit_mib),
+                                         {**preflight, "status": "failed", "resourceValidation": "insufficient-memory", "memoryEstimateMiB": estimated_mib})
+            candidate_pools = qe_kpoint_pools(ranks, preflight_output) if parallel_mode == "auto" else 1
+            # Pooling replicates some arrays. Check the actual proposed layout,
+            # not the (potentially much smaller) single-pool memory estimate.
+            if candidate_pools > 1 and estimated_mib is not None and not re.search(r"(?im)^\s*K_POINTS\s+(?:crystal_b|tpiba_b)\b", input_text):
+                candidate_name = f"{preflight_name}-pooled"
+                candidate = _run_process(
+                    candidate_name,
+                    qe_mpi_command(executable, preflight_input_path, ranks, candidate_pools),
+                    preflight_input_name,
+                )
+                preflight_seconds += candidate["elapsedSeconds"]
+                candidate_mib = parse_qe_memory_estimate_mib(
+                    (LOGS / f"{candidate_name}.out").read_text(encoding="utf-8", errors="replace")
+                )
+                if candidate_mib is not None and candidate_mib <= memory_limit_mib * 0.8:
+                    pools, estimated_mib = candidate_pools, candidate_mib
+                    parallel_reason = "Dense k-mesh; pooled memory estimate fits with 20% headroom"
+                else:
+                    parallel_reason = "Single pool retained: pooled memory estimate unavailable or too large"
+        except QeConvergenceError as preflight_exc:
+            if preflight_exc.step.get("resourceValidation") == "insufficient-memory":
+                raise
+            parallel_reason = f"Single pool retained: resource preflight check encountered {preflight_exc}"
     command = qe_mpi_command(executable, input_path, ranks, pools)
     mode = pw_calculation_mode(input_text) if executable == "pw.x" else "phonon" if executable == "ph.x" else None
     try:
