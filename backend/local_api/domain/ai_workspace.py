@@ -276,6 +276,12 @@ class AiWorkspace:
         project = context['project']
         if not project:
             fail(409, 'Select a project before accessing research data.', 'AI_PROJECT_REQUIRED')
+        if kind == 'file_snapshot':
+            from backend.local_api.connected_files import ConnectedFiles
+            service = getattr(self.services, 'connected_files', None)
+            if service is None:
+                fail(409, 'Open connected files in the local application.', 'FILES_DISABLED')
+            return service.read_snapshot(project['remoteId'], item_id)
         if kind == 'research':
             if project['kind'] != 'canvas' or item_id != project['id']:
                 fail(404, 'This research context is not in the selected project.', 'AI_NOT_FOUND')

@@ -42,6 +42,9 @@ class DesktopApplication:
         self.services = LocalServices(self.data_dir, self.origin, self.ui_origin)
         from backend.local_api.archives import ProjectArchives
         self.archives = ProjectArchives(self.services)
+        from backend.local_api.connected_files import ConnectedFiles
+        self.connected_files = ConnectedFiles(self.services)
+        self.services.connected_files = self.connected_files
         from backend.local_api.connections import DesktopConnections
         self.connections = DesktopConnections(self.data_dir, self.services)
         from backend.local_api.materials_project import MaterialsProjectConnection
@@ -388,6 +391,11 @@ class DesktopApplication:
         if archive_part and method == 'PUT':
             return response(200, self.archives.upload(archive_part[1], int(archive_part[2]), raw))
         payload = json.loads(raw or b"{}")
+        if path.startswith('/__local/files/'):
+            if not isinstance(payload, dict):
+                raise ApiError(400, 'Invalid file operation.', 'FILES_INVALID')
+            parts = path[len('/__local/files/'):].split('/')
+            return response(200, self.connected_files.handle(parts[0], method, parts[1:], payload))
         if path.startswith("/__local/hpc"):
             return self.hpc_request(method, path, raw, headers, query)
         recovery_status = re.fullmatch(r'/__local/jobs/([A-Za-z0-9_-]+)/recovery', path)
@@ -544,6 +552,7 @@ class DesktopApplication:
 
     def close(self):
         self.closed.set()
+        self.connected_files.close()
         for process in self.mlip_jobs.processes.values():
             if process.poll() is None: process.terminate()
         self.connections.close()

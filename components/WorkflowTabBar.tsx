@@ -8,7 +8,7 @@ import { useResearchShell } from './ResearchShellContext';
 import { PhyniteAiIcon } from '@/app/tool-icons';
 import { useLocale } from '@/app/locale-provider';
 import type { WorkflowNode } from '@/lib/project-workflow';
-import { isWorkflowLauncherTab, isWorkflowAiTab, aiConversationFromTab, workflowStudyTab, workflowEditorTabs, workflowSplitTabs, workflowPaneViews, workflowSplitPeer, type WorkflowEditorAction, type WorkflowEditorState } from '@/lib/workflow-editor-state';
+import { isWorkflowLauncherTab, isWorkflowAiTab, aiConversationFromTab, workflowStudyTab, workflowFilesTab, workflowEditorTabs, workflowSplitTabs, workflowPaneViews, workflowSplitPeer, type WorkflowEditorAction, type WorkflowEditorState } from '@/lib/workflow-editor-state';
 
 type Props = { state: WorkflowEditorState; nodes: WorkflowNode[]; chatTitles?: Record<string, string>; projectName: string; dispatch: (action: WorkflowEditorAction) => void; onAdd: (pane?: 0 | 1) => void; onOpenSidebar?: () => void; status: string; disabled?: boolean; splitWidth?: number; splitVisible?: boolean; splitAvailable?: boolean; secondaryOnly?: boolean; targetId?: string; floatingId?: string; onTarget?: (id: string) => void; aiControl?: ReactNode };
 export function WorkflowTabBar({ state, nodes, projectName, chatTitles = {}, dispatch, onAdd, onOpenSidebar, status, disabled = false, splitWidth, splitVisible = false, splitAvailable = true, secondaryOnly = false, targetId, floatingId, onTarget, aiControl }: Props) {
@@ -19,7 +19,7 @@ export function WorkflowTabBar({ state, nodes, projectName, chatTitles = {}, dis
   const target = targetId && allTabs.includes(targetId) ? targetId : state.activeTab;
   const targetPane = (pair?.indexOf(target) === 1 ? 1 : 0) as 0 | 1;
   const pinned = new Set(['canvas', ...(state.pinnedTabs ?? [])]);
-  const nameFor = (id: string) => id === 'canvas' ? t('Canvas', 'Kanvas') : isWorkflowAiTab(id) ? chatTitles[aiConversationFromTab(id) ?? ''] || 'Phynite AI' : id === workflowStudyTab ? t('Parameter study', 'Studi parameter') : isWorkflowLauncherTab(id) ? t('New tab', 'Tab baru') : nodes.find(node => node.id === id)?.name ?? t('Module', 'Modul');
+  const nameFor = (id: string) => id === 'canvas' ? t('Canvas', 'Kanvas') : isWorkflowAiTab(id) ? chatTitles[aiConversationFromTab(id) ?? ''] || 'Phynite AI' : id === workflowFilesTab ? t('Files', 'Berkas') : id === workflowStudyTab ? t('Parameter study', 'Studi parameter') : isWorkflowLauncherTab(id) ? t('New tab', 'Tab baru') : nodes.find(node => node.id === id)?.name ?? t('Module', 'Modul');
   const floatingTarget = (floatingId ?? (state.aiPanel?.presentation !== 'minimized' ? state.aiPanel?.id : undefined)) === target && !views.some(view => view.id === target);
   const restoring = !splitVisible && !floatingTarget && Boolean(state.splitTabs);
   const layoutLabel = splitVisible || floatingTarget ? t('Full view', 'Tampilan penuh') : restoring ? t('Restore split', 'Pulihkan split') : t('Split view', 'Tampilan split');

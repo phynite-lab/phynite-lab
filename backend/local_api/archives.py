@@ -14,9 +14,9 @@ from typing import Any
 
 from backend.local_api.domain.phynite_core import ApiError, owner_partition, storage_owner, utc_now
 from backend.local_api.domain.project_sync import canonical, validate_snapshot, MAX_MANIFEST_BYTES
-from .snapshots import build_project_snapshot, PROJECT_KINDS, TERMINAL
+from .snapshots import build_project_snapshot, PROJECT_KINDS, FILE_KINDS, TERMINAL
 
-REFERENCE_FIELDS = {'id', 'projectId', 'structureId', 'trajectoryId', 'calculationId', 'simulationId', 'analysisId', 'sourceId', 'sourceSimulationId', 'sourceCalculationId', 'scfSourceCalculationId', 'conversationId', 'runId', 'actionId', 'attachmentId', 'artifactId', 'figureId', 'datasetId', 'potentialAssetId', 'assetId', 'resourceId', 'dependsOnCalculationIds', 'nodeId', 'nodeIds', 'source', 'target', 'jobId'}
+REFERENCE_FIELDS = {'rootId', 'transferId', 'imports', 'id', 'projectId', 'structureId', 'trajectoryId', 'calculationId', 'simulationId', 'analysisId', 'sourceId', 'sourceSimulationId', 'sourceCalculationId', 'scfSourceCalculationId', 'conversationId', 'runId', 'actionId', 'attachmentId', 'artifactId', 'figureId', 'datasetId', 'potentialAssetId', 'assetId', 'resourceId', 'dependsOnCalculationIds', 'nodeId', 'nodeIds', 'source', 'target', 'jobId'}
 MAX_ARCHIVE_BYTES = 64 * 1024**3
 PART_BYTES = 4 * 1024**2
 
@@ -25,7 +25,7 @@ def invalid(message: str):
     raise ApiError(400, message, 'INVALID_PROJECT_ARCHIVE')
 
 
-def restore_snapshot(services, snapshot: dict, sources: dict[str, Path], *, as_copy: bool = False) -> dict:
+def restore_snapshot(services, snapshot: dict, sources: dict[str, Path], *, as_copy: bool = False, local_archive: bool = False) -> dict:
     """Verify all bytes before publishing records in a single SQLite transaction.
 
     A normal restore can replace only this project's records and never an active
@@ -39,12 +39,17 @@ def restore_snapshot(services, snapshot: dict, sources: dict[str, Path], *, as_c
         invalid('Choose a Phynite project archive version 1.')
     if snapshot.get('deleted'):
         invalid('Restore this project from Trash before importing its contents.')
+    allowed_kinds = PROJECT_KINDS | FILE_KINDS if local_archive else PROJECT_KINDS
     records = copy.deepcopy(document['records'])
+    for record in records:
+        if record.get('entityType') == 'CONNECTED_ROOT': record.update(active=False, write=False, capabilityRevision=int(record.get('capabilityRevision', 0)) + 1)
+        if record.get('entityType') == 'FILE_TRANSFER' and record.get('status') in {'queued', 'running'}: record.update(status='interrupted', error='Reconnect the source and explicitly start a new transfer.')
+        if record.get('entityType') == 'FILE_EDIT': record['status'] = 'restored-no-authority'
     identities = set()
     for record in records:
         kind, identifier = record.get('entityType'), record.get('id')
         expected_key = f'{kind}#{identifier}' if kind != 'AI_MESSAGE' else f'AI_MESSAGE#{record.get("conversationId")}#{identifier}'
-        if kind not in PROJECT_KINDS or not isinstance(identifier, str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,200}', identifier) or record.get('SK') != expected_key or (kind, identifier) in identities:
+        if kind not in allowed_kinds or not isinstance(identifier, str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,200}', identifier) or record.get('SK') != expected_key or (kind, identifier) in identities:
             invalid('Project archive contains an invalid or duplicate record.')
         if record.get('projectId') not in {None, project_id}:
             invalid('A record belongs to another project.')
@@ -154,7 +159,7 @@ def restore_snapshot(services, snapshot: dict, sources: dict[str, Path], *, as_c
                 if prior and (as_copy or not same_project):
                     invalid('An imported identity conflicts with another project. Import as a copy.')
             imported_keys = {record['SK'] for record in prepared}
-            for kind in PROJECT_KINDS:
+            for kind in allowed_kinds:
                 for prior in services.list_owner_items(services.owner, kind):
                     if prior.get('projectId') == target_project and prior['SK'] not in imported_keys:
                         services.table.delete_item(Key=prior)
@@ -185,7 +190,7 @@ class ProjectArchives:
         identifier = secrets.token_hex(16)
         with tempfile.TemporaryDirectory(prefix='.export-', dir=self.root) as directory:
             with self.services.table.atomic():
-                snapshot, sources = build_project_snapshot(self.services, self.services.owner, project_id, Path(directory))
+                snapshot, sources = build_project_snapshot(self.services, self.services.owner, project_id, Path(directory), local_archive=True)
             path = self.root / (identifier + '.phynite')
             try:
                 with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED, allowZip64=True) as archive:
@@ -274,6 +279,6 @@ class ProjectArchives:
                         while chunk := incoming.read(1024**2):
                             output.write(chunk)
                     sources[digest] = source
-                return restore_snapshot(self.services, snapshot, sources, as_copy=descriptor['asCopy'])
+                return restore_snapshot(self.services, snapshot, sources, as_copy=descriptor['asCopy'], local_archive=True)
         except (zipfile.BadZipFile, KeyError, ValueError, TypeError) as error:
             raise ApiError(400, 'The project archive is incomplete or invalid.', 'INVALID_PROJECT_ARCHIVE') from error

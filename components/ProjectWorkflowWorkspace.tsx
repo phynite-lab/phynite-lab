@@ -23,11 +23,12 @@ import type { ComputeSelection } from '@/lib/compute-selection';
 import { useLocale } from '@/app/locale-provider';
 import { useSiteTheme } from '@/app/use-site-theme';
 import { useWorkflowEditor, workflowEditorCamera } from '@/app/use-workflow-editor';
-import { isWorkflowLauncherTab, isWorkflowAiTab, aiConversationTab, aiConversationFromTab, workflowAiTab, workflowStudyTab, workflowSplitTabs, workflowPaneViews, workflowPreferredAiTab, vacantWorkflowPosition, type WorkflowEditorAction } from '@/lib/workflow-editor-state';
+import { isWorkflowLauncherTab, isWorkflowAiTab, aiConversationTab, aiConversationFromTab, workflowAiTab, workflowStudyTab, workflowFilesTab, workflowSplitTabs, workflowPaneViews, workflowPreferredAiTab, vacantWorkflowPosition, type WorkflowEditorAction } from '@/lib/workflow-editor-state';
 import { workflowPaneDrag, workflowPaneGeometry } from '@/lib/workflow-pane-layout';
 import { workflowFloatingPanelPosition, workflowPanelMotionDuration } from '@/lib/workflow-floating-panel';
 import { AiPanelHeader, AiPanelResize } from './AiPanelHeader';
 import type { AiContextItem } from '@/lib/ai-workbench';
+import { ConnectedFilesWorkspace } from './ConnectedFilesWorkspace';
 import { AiWorkspace, type AiWorkspaceStatus } from './AiWorkspace';
 import { WorkflowPanelBoundary } from './WorkflowPanelBoundary';
 import { useProjectAiHistory } from '@/app/use-project-ai-history';
@@ -1116,6 +1117,7 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
       {historyError && <p role="alert">{historyError}</p>}
       <footer><button type="button" disabled={historyBusy} onClick={() => historyDialog.current?.close()}>{t('Cancel', 'Batal')}</button><button type="button" disabled={historyBusy} onClick={() => void deleteHistory()}>{historyBusy ? t('Deleting…', 'Menghapus…') : historyAction.all ? t('Clear history', 'Bersihkan riwayat') : t('Delete chat', 'Hapus chat')}</button></footer>
     </dialog>}
+    <section className="workflow-editor workflow-files-editor" role="tabpanel" aria-label={t('Files','Berkas')} data-pane-tab={workflowFilesTab} data-pane={pane(workflowFilesTab)} hidden={!visibleTabs.includes(workflowFilesTab)}><ConnectedFilesWorkspace projectId={projectId} visible={visibleTabs.includes(workflowFilesTab)} onAttach={item => { void openProjectAi().then(tabId => { if (tabId) setContextRequest({ tabId, nonce: Date.now(), items: [item] }); }); }} /></section>
     {editor.state.tabs.includes(workflowStudyTab) && <section className="workflow-editor workflow-study-editor" data-workflow-editor role="tabpanel" aria-label={t('Parameter study','Studi parameter')} data-pane-tab={workflowStudyTab} data-pane={pane(workflowStudyTab)} hidden={!visibleTabs.includes(workflowStudyTab)}><WorkflowPanelBoundary label={t('Parameter study', 'Studi parameter')} onCanvas={() => dispatchWorkspace({ type: 'open', id: 'canvas' })}><ParameterStudyWorkspace onShowCases={ids => { setSelected(ids); setSelectedEdges([]); setStudyReveal(ids); dispatchWorkspace({type:'open',id:'canvas'}); }} graph={graph} attempts={runs.flatMap(run => run.attempts)} disabled={busy || !canPrepareRun} onCanvas={() => dispatchWorkspace({type:'open',id:'canvas'})} onOpen={openEditor} onRun={targets => void prepareRun(targets)} onApply={result => { if (busy || !canPrepareRun || stableWorkflowJson(latestGraph.current) !== result.baseSignature) return false; if (!change(result.workflow)) return false; setSelected(result.nodeIds); setSelectedEdges([]); return true; }} /></WorkflowPanelBoundary></section>}
     {split && <div className="workflow-splitter" role="separator" tabIndex={0} aria-label={t('Resize editor','Ubah lebar editor')} aria-orientation={vertical ? 'horizontal' : 'vertical'} aria-valuenow={Math.round(editorWidth)} aria-valuemin={primaryMinimum} aria-valuemax={Math.round(containerExtent-secondaryMinimum)} onKeyDown={event => {
       if (event.key === 'Escape' && splitDrag.current) { event.preventDefault(); event.stopPropagation(); clearSplitDrag(); return; }
