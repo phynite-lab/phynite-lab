@@ -5,7 +5,7 @@ export type FileTransfer = { id: string; rootId: string; status: string; sizeByt
 export type ProjectFile = { id: string; name: string; sizeBytes: number; sha256: string; path: string; sourceRevision: string };
 export type FileInventory = { roots: ConnectedRoot[]; transfers: FileTransfer[]; files: ProjectFile[] };
 export type FileText = { text: string; sha256?: string; windowSha256: string; identity: string; truncated: boolean; sizeBytes: number };
-export type FileEdit = { id: string; diff: string; diffTruncated: boolean; target: string; sha256: string; status: string };
+export type FileEdit = { id: string; diff: string; diffTruncated: boolean; target: string; sha256: string; status: string; mode: 'copy' | 'replace' };
 export function selectedImportIssue(entries: FileEntry[]): string | null {
   if (!entries.length || entries.length > 20) return 'Select 1–20 regular files per import.';
   if (entries.some(e => e.kind !== 'file')) return 'Only regular files can be transferred.';

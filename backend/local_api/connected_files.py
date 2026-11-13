@@ -30,6 +30,8 @@ def valid_id(value):
 class ConnectedFiles:
     def __init__(self, services):
         self.s = services
+        self.qualification_session = secrets.token_hex(16)
+        self.helper_sha256 = hashlib.sha256(Path(__file__).with_name('file_protocol.py').read_bytes()).hexdigest()
         self.lock = threading.RLock(); self.closed = threading.Event(); self.cancellations = {}; self.running = set(); self.active_sources = set(); self.threads = set()
         self.temp = services.data_dir / 'connected-transfers'; self.temp.mkdir(mode=0o700, exist_ok=True)
         for row in self.s.list_owner_items(self.s.owner, 'FILE_TRANSFER'):
@@ -59,7 +61,28 @@ class ConnectedFiles:
     def root(self, project, key):
         root = self.row(project, 'CONNECTED_ROOT', key)
         if not root.get('active'): fail('This connected folder was revoked. Reconnect it before accessing new content.', 'FILE_ROOT_REVOKED', 409)
-        return root
+        return {**root, 'replaceQualified': self.replacement_qualified(root)}
+
+    def replacement_qualified(self, root):
+        proof = root.get('replacementQualification') or {}
+        return bool(root.get('active') and root.get('write') and proof.get('session') == self.qualification_session
+                    and proof.get('helperSha256') == self.helper_sha256
+                    and proof.get('capabilityRevision') == root.get('capabilityRevision')
+                    and proof.get('rootIdentity') == root.get('rootIdentity') and proof.get('passed') is True)
+
+    def qualify(self, project, root, payload):
+        with self.lock:
+            self.validate_capability(project, root, True)
+            if payload.get('capabilityRevision') != root['capabilityRevision']:
+                fail('Folder permissions changed. Refresh before testing replacement.', 'FILE_CAPABILITY_CHANGED', 409)
+            report = self.source(root, 'qualify')
+            if report.get('passed') is not True or report.get('rootIdentity') != root['rootIdentity']:
+                fail('The filesystem did not pass replacement checks.', 'FILE_QUALIFICATION_FAILED', 409)
+            self.validate_capability(project, root, True)
+            proof = {**report, 'helperSha256': self.helper_sha256, 'session': self.qualification_session,
+                     'capabilityRevision': root['capabilityRevision'], 'checkedAt': utc_now()}
+            saved = self.s.update_item(self.s.owner, 'CONNECTED_ROOT', root['id'], {'replacementQualification': proof})
+            return public_item({**saved, 'replaceQualified': self.replacement_qualified(saved)})
 
     def remote(self, root, request, cancel=None):
         from .hpc_profiles import HpcProfileStore, _ssh_client
@@ -108,9 +131,9 @@ class ConnectedFiles:
                 if stream and not stream.closed: stream.close()
 
     def source(self, root, operation, values=None, cancel=None):
-        fields = {'list': {'path', 'cursor', 'filter'}, 'read': {'path', 'identity', 'limit'}, 'edit': {'path', 'identity'}, 'hash': {'path', 'identity'}, 'chunk': {'path', 'identity', 'offset'}, 'write': {'path', 'identity', 'sha256', 'bytes', 'target', 'mode', 'operationId'}}
+        fields = {'list': {'path', 'cursor', 'filter'}, 'read': {'path', 'identity', 'limit'}, 'edit': {'path', 'identity'}, 'hash': {'path', 'identity'}, 'chunk': {'path', 'identity', 'offset'}, 'write': {'path', 'identity', 'sha256', 'bytes', 'target', 'mode', 'operationId', 'reviewedSha256'}}
         request = {k: v for k, v in (values or {}).items() if k in fields.get(operation, set())}
-        request.update(version=VERSION, root=root['path'], rootIdentity=root.get('rootIdentity'), operation=operation, writeAllowed=root.get('write', False), replaceQualified=False)
+        request.update(version=VERSION, root=root['path'], rootIdentity=root.get('rootIdentity'), operation=operation, writeAllowed=root.get('write', False), replaceQualified=self.replacement_qualified(root))
         try: return self.remote(root, request, cancel) if root['source'] == 'hpc' else perform(request)
         except FileProtocolError as error: fail(str(error), error.code, 409)
         except (OSError, ValueError) as error: fail(f'This source could not be accessed: {error}. Refresh or reconnect it.', 'FILE_SOURCE_FAILED', 409)
@@ -183,18 +206,20 @@ class ConnectedFiles:
         data = preserve_format(before['text'].encode(), text)
         if len(data) > MAX_EDIT: fail('The saved UTF-8 file would exceed 2 MiB.', status=413)
         mode = payload.get('mode', 'copy')
-        if mode != 'copy': fail('Replace original is unavailable until this source filesystem is qualified.', 'FILE_REPLACE_UNQUALIFIED', 409)
+        if mode not in {'copy', 'replace'}: fail('Choose Save edited copy or explicitly review Replace original.')
+        if mode == 'replace' and not self.replacement_qualified(root): fail('Test replacement on this folder before reviewing an original replacement.', 'FILE_REPLACE_UNQUALIFIED', 409)
         request = valid_id(payload.get('requestId')); key = 'fedit_' + hashlib.sha256((project + request).encode()).hexdigest()[:32]
         token = hashlib.sha256(key.encode()).hexdigest()[:12]
-        source_path = Path(payload['path']); target = source_path.stem + '.edited-' + token + source_path.suffix
+        source_path = Path(payload['path']); target = source_path.name if mode == 'replace' else source_path.stem + '.edited-' + token + source_path.suffix
         sha = hashlib.sha256(data).hexdigest(); object_key = f'users/{storage_owner(self.s.owner)}/projects/{project}/file-edits/{sha}'
         self.s.s3.put_object(Bucket=self.s.bucket, Key=object_key, Body=data)
         diff = ''.join(difflib.unified_diff(before['text'].splitlines(True), data.decode('utf-8').splitlines(True), fromfile=payload['path'], tofile=target))
+        if mode == 'replace' and len(diff) > 32000: fail('This replacement diff is too large to review here. Save an edited copy instead.', 'FILE_DIFF_LIMIT', 409)
         with self.lock, self.s.table.atomic():
             self.validate_capability(project, root, True)
             prior = self.s.get_item(self.s.owner, 'FILE_EDIT', key)
             if prior:
-                if prior['sha256'] != sha or prior['path'] != payload['path'] or prior['rootId'] != root['id'] or prior['sourceIdentity'] != before['identity']: fail('This edited-copy identity was already used.', 'FILE_IDEMPOTENCY', 409)
+                if prior['sha256'] != sha or prior['path'] != payload['path'] or prior['rootId'] != root['id'] or prior['sourceIdentity'] != before['identity'] or prior['mode'] != mode: fail('This edit identity was already used.', 'FILE_IDEMPOTENCY', 409)
                 return public_item(prior)
             return public_item(self.put(project, 'FILE_EDIT', key, {'rootId': root['id'], 'capabilityRevision': root['capabilityRevision'], 'path': payload['path'], 'target': target, 'mode': mode, 'sourceIdentity': before['identity'], 'sourceSha256': before['sha256'], 'sha256': sha, 'objectKey': object_key, 'sizeBytes': len(data), 'diff': diff[:32000], 'diffTruncated': len(diff) > 32000, 'status': 'prepared', 'createdAt': utc_now()}))
 
@@ -206,11 +231,12 @@ class ConnectedFiles:
             if edit['status'] != 'prepared': fail('This copy may have been written. Refresh its destination and inspect the checksum before creating another copy.', 'FILE_COMMIT_UNCERTAIN', 409)
             if root['capabilityRevision'] != edit['capabilityRevision']: fail('Folder permissions changed. Review this copy again.', 'FILE_CAPABILITY_CHANGED', 409)
             self.validate_capability(project, root, True)
+            if edit['mode'] == 'replace' and not self.replacement_qualified(root): fail('Replacement qualification expired. Test this folder and review the edit again.', 'FILE_REPLACE_UNQUALIFIED', 409)
             with self.s.s3.get_object(Bucket=self.s.bucket, Key=edit['objectKey'])['Body'] as body: data = body.read(MAX_EDIT + 1)
             if hashlib.sha256(data).hexdigest() != edit['sha256']: fail('Prepared copy checksum verification failed.', 'FILE_CHECKSUM', 409)
             self.s.update_item(self.s.owner, 'FILE_EDIT', key, {'status': 'committing'})
             try:
-                result = self.source(root, 'write', {'path': edit['path'], 'identity': edit['sourceIdentity'], 'sha256': edit['sourceSha256'], 'bytes': base64.b64encode(data).decode(), 'target': edit['target'], 'mode': 'copy', 'operationId': secrets.token_hex(16)})
+                result = self.source(root, 'write', {'path': edit['path'], 'identity': edit['sourceIdentity'], 'sha256': edit['sourceSha256'], 'bytes': base64.b64encode(data).decode(), 'target': edit['target'], 'mode': edit['mode'], 'reviewedSha256': edit['sha256'], 'operationId': secrets.token_hex(16)})
                 return public_item(self.s.update_item(self.s.owner, 'FILE_EDIT', key, {'status': 'succeeded', 'result': result, 'completedAt': utc_now()}))
             except Exception:
                 self.s.update_item(self.s.owner, 'FILE_EDIT', key, {'status': 'commit-uncertain', 'error': 'Inspect the destination and checksum. Do not repeat this write automatically.'}); raise
@@ -287,7 +313,7 @@ class ConnectedFiles:
         self.scope(project)
         if not parts:
             if method == 'GET':
-                return {'roots': [public_item(r) for r in self.s.list_owner_items(self.s.owner, 'CONNECTED_ROOT') if r.get('projectId') == project], 'transfers': [public_item(r) for r in self.s.list_owner_items(self.s.owner, 'FILE_TRANSFER') if r.get('projectId') == project], 'files': [public_item(r) for r in self.s.list_owner_items(self.s.owner, 'PROJECT_FILE') if r.get('projectId') == project]}
+                return {'roots': [public_item({**r, 'replaceQualified': self.replacement_qualified(r)}) for r in self.s.list_owner_items(self.s.owner, 'CONNECTED_ROOT') if r.get('projectId') == project], 'transfers': [public_item(r) for r in self.s.list_owner_items(self.s.owner, 'FILE_TRANSFER') if r.get('projectId') == project], 'files': [public_item(r) for r in self.s.list_owner_items(self.s.owner, 'PROJECT_FILE') if r.get('projectId') == project]}
             if method == 'POST': return {'root': self.connect(project, payload)}
         if len(parts) == 2 and parts[0] == 'edits' and method == 'POST': return {'edit': self.commit_edit(project, parts[1])}
         if len(parts) == 2 and parts[0] == 'transfers' and method == 'DELETE':
@@ -306,6 +332,7 @@ class ConnectedFiles:
                 with self.lock: self.validate_capability(project, root)
                 return result
             if method == 'POST' and operation == 'snapshot': return self.snapshot(project, root, payload)
+            if method == 'POST' and operation == 'qualify': return {'root': self.qualify(project, root, payload)}
             if method == 'POST' and operation == 'prepare': return {'edit': self.prepare_edit(project, root, payload)}
             if method == 'POST' and operation == 'import': return {'transfer': self.transfer(project, root, payload)}
         fail('This connected-file operation is not supported.', 'NOT_FOUND', 404)

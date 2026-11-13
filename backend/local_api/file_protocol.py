@@ -7,7 +7,9 @@ import hashlib
 import heapq
 import json
 import os
+import platform
 import re
+import secrets
 import stat
 import sys
 from contextlib import contextmanager
@@ -100,19 +102,83 @@ def preserve_format(original, edited):
     return (('\ufeff' if bom else '') + ''.join(value + ending for value, ending in zip(new_values, output_endings))).encode('utf-8')
 
 
-def perform(request):
+def qualify_replacement(root_fd):
+    """Exercise the real helper on private scratch files on this exact filesystem."""
+    system = platform.system().lower()
+    if system == 'linux' and 'microsoft' in platform.release().lower():
+        system = 'linux-wsl2' if 'wsl2' in platform.release().lower() else 'unsupported-wsl1'
+    if system not in {'darwin', 'linux', 'linux-wsl2'}:
+        fail('FILE_PLATFORM_UNQUALIFIED', 'This platform has not been qualified for replacement.')
+    name = '.phynite-qualification-' + secrets.token_hex(16)
+    os.mkdir(name, mode=0o700, dir_fd=root_fd)
+    work = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=root_fd)
+    checks = []
+    def verify(condition, label):
+        if not condition: fail('FILE_QUALIFICATION_FAILED', f'Replacement check failed: {label}.')
+        checks.append(label)
+    def put(path, data):
+        destination = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o640, dir_fd=work)
+        with os.fdopen(destination, 'wb') as stream:
+            stream.write(data); stream.flush(); os.fsync(stream.fileno())
+    def get(path):
+        with regular(work, path) as source:
+            return os.read(source, MAX_EDIT + 1)
+    def call(operation, **values):
+        # This descriptor is private Python state, never a field accepted from JSON.
+        return perform({'version': VERSION, 'root': '/qualification-scratch', 'rootIdentity': root_identity(os.fstat(work)), 'operation': operation, **values}, _root_fd=work)
+    def rejected(label, **values):
+        try: call(**values)
+        except (FileProtocolError, OSError): checks.append(label); return
+        fail('FILE_QUALIFICATION_FAILED', f'Unsafe operation was accepted: {label}.')
+    try:
+        original = b'\xef\xbb\xbfalpha\r\nbeta\r\n'; put('source.txt', original)
+        original_mode = stat.S_IMODE(os.stat('source.txt', dir_fd=work, follow_symlinks=False).st_mode)
+        before = call('edit', path='source.txt')
+        verify(before['text'].encode() == original and before['sha256'] == hashlib.sha256(original).hexdigest(), 'utf8_bom_crlf_checksum')
+        data = preserve_format(original, 'alpha\nchanged\n')
+        request = {'operation': 'write', 'path': 'source.txt', 'identity': before['identity'], 'sha256': before['sha256'], 'bytes': base64.b64encode(data).decode(), 'target': 'source.txt', 'mode': 'replace', 'writeAllowed': True, 'replaceQualified': True, 'reviewedSha256': hashlib.sha256(data).hexdigest(), 'operationId': secrets.token_hex(16)}
+        rejected('read_only_denied', **{**request, 'writeAllowed': False})
+        rejected('unqualified_denied', **{**request, 'replaceQualified': False})
+        rejected('unreviewed_content_denied', **{**request, 'reviewedSha256': '0' * 64})
+        call(**{**request, 'mode': 'copy', 'target': 'copy.txt'})
+        verify(get('copy.txt') == data and get('source.txt') == original, 'exclusive_copy_preserves_source')
+        rejected('existing_destination_denied', **{**request, 'mode': 'copy', 'target': 'copy.txt'})
+        result = call(**request)
+        verify(get('source.txt') == data and result['sha256'] == hashlib.sha256(data).hexdigest(), 'replace_fsync_checksum')
+        verify(stat.S_IMODE(os.stat('source.txt', dir_fd=work, follow_symlinks=False).st_mode) == original_mode, 'replacement_permissions')
+        latest = call('edit', path='source.txt'); put('source.txt', b'external edit\n')
+        rejected('external_edit_conflict', **{**request, 'identity': latest['identity'], 'sha256': latest['sha256'], 'operationId': secrets.token_hex(16)})
+        verify(get('source.txt') == b'external edit\n', 'external_edit_preserved')
+        os.symlink('source.txt', 'link', dir_fd=work)
+        os.symlink('.', 'directory-link', dir_fd=work)
+        os.mkfifo('pipe', mode=0o600, dir_fd=work)
+        for path, label in [('link', 'symlink_denied'), ('directory-link/source.txt', 'directory_symlink_denied'), ('pipe', 'special_file_denied'), ('../outside', 'traversal_denied')]:
+            rejected(label, operation='edit', path=path)
+        os.fsync(work); os.fsync(root_fd)
+        return {'passed': True, 'platform': system + '-' + platform.machine().lower(), 'python': list(sys.version_info[:3]), 'rootIdentity': root_identity(os.fstat(root_fd)), 'checks': checks}
+    finally:
+        try:
+            for child in os.listdir(work): os.unlink(child, dir_fd=work)
+        finally:
+            os.close(work); os.rmdir(name, dir_fd=root_fd); os.fsync(root_fd)
+
+
+def perform(request, *, _root_fd=None):
     if sys.version_info < (3, 10): fail('FILE_PYTHON_VERSION', 'Connected folders require Python 3.10 or later on this source.')
     if request.get('version') != VERSION: fail('FILE_PROTOCOL_VERSION', 'Reconnect with a matching Phynite file helper.')
     root = request.get('root')
     if not isinstance(root, str) or not root.startswith('/') or '..' in root.split('/') or '\x00' in root: fail('FILE_ROOT_INVALID', 'Choose an absolute folder path without traversal.')
     if not all(hasattr(os, name) for name in ['O_DIRECTORY', 'O_NOFOLLOW']): fail('FILE_PLATFORM_UNQUALIFIED', 'Use Phynite inside WSL2 or a supported POSIX host for connected folders.')
     if request.get('operation') == 'probe': root = os.path.realpath(root, strict=True)
-    fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    fd = os.dup(_root_fd) if _root_fd is not None else os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     try:
         root_info = os.fstat(fd)
         if request.get('operation') == 'probe': return {'version': VERSION, 'root': root, 'rootIdentity': root_identity(root_info), 'python': list(sys.version_info[:3])}
         if request.get('rootIdentity') != root_identity(root_info): fail('FILE_ROOT_CHANGED', 'The connected folder identity changed. Reconnect it before continuing.')
         path = request.get('path', ''); segments = parts(path); operation = request.get('operation')
+        if operation == 'qualify':
+            if request.get('writeAllowed') is not True: fail('FILE_READ_ONLY', 'Grant write access before testing replacement with temporary files.')
+            return qualify_replacement(fd)
         if operation == 'list':
             with directory(fd, segments) as parent:
                 revision = identity(os.fstat(parent)); cursor = request.get('cursor')

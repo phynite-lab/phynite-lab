@@ -97,6 +97,53 @@ class ConnectedFilesTests(unittest.TestCase):
         self.assertEqual(saved['sha256'], hashlib.sha256((self.folder / 'a.txt').read_bytes()).hexdigest())
         self.assertEqual(current['progressBytes'], entry['sizeBytes'])
 
+    def test_actual_root_qualification_enables_only_reviewed_replacement(self):
+        with self.assertRaises(ApiError): self.files.qualify(self.project, self.root, {'capabilityRevision': 1})
+        root = self.files.capability(self.project, self.root['id'], {'capabilityRevision': 1, 'write': True})
+        root = self.files.qualify(self.project, root, {'capabilityRevision': root['capabilityRevision']})
+        self.assertTrue(root['replaceQualified'])
+        self.assertGreaterEqual(len(root['replacementQualification']['checks']), 14)
+        self.assertEqual([p.name for p in self.folder.iterdir()], ['a.txt'], 'Only task-owned scratch files may be removed.')
+        before = self.source('edit', path='a.txt')
+        payload = {'path': 'a.txt', 'identity': before['identity'], 'sha256': before['sha256'], 'text': 'alpha\nreplacement\n', 'requestId': 'replace', 'mode': 'replace'}
+        edit = self.files.prepare_edit(self.project, root, payload)
+        self.assertEqual(edit['mode'], 'replace'); self.assertEqual(edit['target'], 'a.txt')
+        self.assertIn('-beta', edit['diff']); self.assertIn('+replacement', edit['diff'])
+        self.assertEqual((self.folder / 'a.txt').read_bytes(), b'\xef\xbb\xbfalpha\r\nbeta\r\n', 'Prepare never applies the replacement.')
+        self.assertEqual(self.files.commit_edit(self.project, edit['id'])['status'], 'succeeded')
+        self.assertEqual((self.folder / 'a.txt').read_bytes(), b'\xef\xbb\xbfalpha\r\nreplacement\r\n')
+        changed = self.source('edit', path='a.txt')
+        copied = self.files.prepare_edit(self.project, root, {**payload, 'identity': changed['identity'], 'sha256': changed['sha256'], 'requestId': 'defaultcopy', 'mode': 'copy'})
+        self.assertEqual(copied['mode'], 'copy')
+
+    def test_qualification_expires_on_permission_change_and_real_core_restart(self):
+        root = self.files.capability(self.project, self.root['id'], {'capabilityRevision': 1, 'write': True})
+        root = self.files.qualify(self.project, root, {'capabilityRevision': root['capabilityRevision']})
+        self.assertTrue(root['replaceQualified'])
+        self.app.close()
+        restarted = DesktopApplication(self.base / 'core', 49212, 'http://127.0.0.1:3993'); self.addCleanup(restarted.close)
+        root = restarted.connected_files.root(self.project, root['id'])
+        self.assertFalse(root['replaceQualified'], 'A restored record is not current-session qualification.')
+        root = restarted.connected_files.qualify(self.project, root, {'capabilityRevision': root['capabilityRevision']})
+        root = restarted.connected_files.capability(self.project, root['id'], {'capabilityRevision': root['capabilityRevision'], 'write': False})
+        root = restarted.connected_files.capability(self.project, root['id'], {'capabilityRevision': root['capabilityRevision'], 'write': True})
+        self.assertFalse(restarted.connected_files.root(self.project, root['id'])['replaceQualified'])
+
+    def test_replacement_conflict_and_large_diff_preserve_external_text(self):
+        root = self.files.capability(self.project, self.root['id'], {'capabilityRevision': 1, 'write': True})
+        root = self.files.qualify(self.project, root, {'capabilityRevision': root['capabilityRevision']})
+        before = self.source('edit', path='a.txt')
+        payload = {'path': 'a.txt', 'identity': before['identity'], 'sha256': before['sha256'], 'text': 'replacement', 'requestId': 'replaceconflict', 'mode': 'replace'}
+        with self.assertRaises(ApiError) as error:
+            self.files.prepare_edit(self.project, root, {**payload, 'text': 'x' * 40000})
+        self.assertEqual(error.exception.code, 'FILE_DIFF_LIMIT')
+        edit = self.files.prepare_edit(self.project, root, payload)
+        (self.folder / 'a.txt').write_text('external edit')
+        with self.assertRaises(ApiError): self.files.commit_edit(self.project, edit['id'])
+        self.assertEqual((self.folder / 'a.txt').read_text(), 'external edit')
+        self.assertEqual(self.files.row(self.project, 'FILE_EDIT', edit['id'])['status'], 'commit-uncertain')
+        with self.assertRaises(ApiError): self.files.commit_edit(self.project, edit['id'])
+
     def test_snapshot_is_immutable_and_revocation_blocks_new_access(self):
         snap = self.files.snapshot(self.project, self.root, {'path': 'a.txt'})
         (self.folder / 'a.txt').write_text('new')

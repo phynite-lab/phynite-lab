@@ -10,7 +10,7 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
     const { path } = await context.params, method = request.method;
     const allowed = path.length === 1 && ['GET', 'POST'].includes(method)
       || path.length === 3 && (path[1] === 'roots' && ['PUT', 'DELETE'].includes(method) || path[1] === 'edits' && method === 'POST' || path[1] === 'transfers' && method === 'DELETE' || path[1] === 'downloads' && method === 'GET')
-      || path.length === 4 && path[1] === 'roots' && ['list', 'read', 'edit', 'snapshot', 'prepare', 'import'].includes(path[3]) && method === 'POST';
+      || path.length === 4 && path[1] === 'roots' && ['list', 'read', 'edit', 'snapshot', 'prepare', 'import', 'qualify'].includes(path[3]) && method === 'POST';
     if (!allowed || !path.every(p => /^[A-Za-z0-9_-]{1,100}$/.test(p))) return NextResponse.json({ error: 'Invalid file operation.' }, { status: 404 });
     const body = ['GET', 'HEAD'].includes(method) ? undefined : await readBodyBytes(request, 8 * 1024 ** 2);
     const upstream = await backendFetch(`/__local/files/${path.join('/')}`, accessTokenFrom(request), { method, body, headers: body ? { 'Content-Type': 'application/json' } : undefined }, 150_000);
