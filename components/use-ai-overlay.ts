@@ -6,7 +6,7 @@ import { aiOverlayWidth, placeAiOverlay, type AiOverlayViewport } from '@/lib/ai
 /** Body portals retain the owning workspace theme, including local panel tokens. */
 export function aiOverlayTheme(owner: HTMLElement): CSSProperties {
   const computed = getComputedStyle(owner), theme: Record<string, string> = { colorScheme: computed.colorScheme };
-  for (const token of ['--canvas', '--surface', '--raised', '--surface-subtle', '--ink', '--muted-ink', '--line', '--line-strong', '--panel-bg', '--panel-raised', '--panel-border', '--panel-text', '--panel-muted', '--font-ui', '--font-code', '--text-label', '--text-caption', '--leading-ui', '--ai-focus']) {
+  for (const token of ['--canvas', '--surface', '--raised', '--surface-subtle', '--ink', '--muted-ink', '--line', '--line-strong', '--panel-bg', '--panel-raised', '--panel-border', '--panel-text', '--panel-muted', '--font-ui', '--font-code', '--text-label', '--text-caption', '--text-body', '--text-reading', '--text-section', '--text-chapter', '--text-code', '--ui-code-size', '--ui-text-scale', '--leading-ui', '--ai-focus']) {
     const value = computed.getPropertyValue(token); if (value) theme[token] = value;
   }
   return theme as CSSProperties;

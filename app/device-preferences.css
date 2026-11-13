@@ -1,5 +1,5 @@
 /* Device preferences affect interface chrome, never scientific input values. */
-:root { --ui-text-scale: 1; --ui-code-size: 12px; }
+:root { --ui-text-scale: 1; --ui-code-size: 13px; }
 :root[data-custom-colors="true"] :is(.research-app-shell,.settings-page) { --canvas: var(--device-background); --surface: var(--device-background); --raised: var(--device-background); --surface-subtle: color-mix(in srgb, var(--device-background) 94%, var(--device-foreground)); --ink: var(--device-foreground); --muted-ink: color-mix(in srgb, var(--device-foreground) 75%, var(--device-background)); --line: color-mix(in srgb, var(--device-foreground) 18%, var(--device-background)); --line-strong: color-mix(in srgb, var(--device-foreground) 45%, var(--device-background)); --research-rail-bg: var(--surface-subtle); --research-sidebar-bg: var(--canvas); --research-sidebar-ink: var(--ink); --research-sidebar-muted: var(--muted-ink); --research-sidebar-selected: var(--surface-subtle); }
 :root[data-ui-density="compact"] :is(.research-app-shell,.settings-page) { --control-height: 32px; }
 :root[data-ui-accent="blue"] { --accent: #2454ba; --accent-strong: #193e94; --accent-soft: #e9effd; --on-accent: #fff; }
@@ -15,7 +15,14 @@
 :root[data-ui-density="compact"] :is(.lab-button,.ui-select-trigger) { min-height: 32px; padding-block: 6px; }
 :root[data-ui-density="compact"] :is(.settings-section,.settings-page-heading) { margin-bottom: 22px; }
 :root[data-ui-density="compact"] .local-ai-account-row { padding-block: 9px; }
-html :is(.research-app-shell,.settings-page) :is(.settings-row h3,.settings-row p,.settings-nav-group > a,.lab-button,.ui-select-trigger,.local-settings-form label,.keyboard-preference strong,.local-ai-account-row strong,.ai-message-body,.ai-composer-box textarea) { font-size: calc(13px * var(--ui-text-scale)); }
+html :is(.research-app-shell,.settings-page) :is(.settings-row p,.local-ai-account-row strong) { font-size: var(--text-body); }
+html :is(.research-app-shell,.settings-page) :is(.settings-row h3) { font-size: var(--text-section); }
+html :is(.research-app-shell,.settings-page) :is(.settings-nav-group > a,.lab-button,.ui-select-trigger,.local-settings-form label,.keyboard-preference strong) { font-size: var(--text-label); }
+html :is(.research-app-shell,.settings-page) :is(.ai-response-text,.ai-composer-box textarea) { font-size: var(--text-reading); }
 html :is(.research-app-shell,.settings-page) :is(pre,code,.ai-code-block,.ai-code-block code,.workflow-log) { font-size: var(--ui-code-size); }
 html.reduce-motion *, html.reduce-motion *::before, html.reduce-motion *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 :root[data-ui-contrast] :is(.research-app-shell,.settings-page) { --muted-ink: color-mix(in srgb, var(--ink) var(--ui-muted-mix, 55%), var(--canvas)); --line: color-mix(in srgb, var(--ink) var(--ui-line-mix, 10%), var(--canvas)); --research-sidebar-muted: var(--muted-ink); }
+
+@media (pointer: coarse) {
+  html :is(.research-app-shell,.settings-page,.ai-overlay) :is(button,.ui-select-trigger,a[role="button"]) { min-height: 44px; min-width: 44px; }
+}

@@ -167,7 +167,7 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
   const splitPair = workflowSplitTabs(editor.state);
   const primaryTab = splitPair?.[0], secondaryTab = splitPair?.[1];
   const vertical = editor.state.splitAxis === 'vertical';
-  const geometry = workflowPaneGeometry(containerWidth, containerHeight, vertical ? 'vertical' : 'horizontal', editor.state.splitRatio);
+  const geometry = workflowPaneGeometry(containerWidth, containerHeight, vertical ? 'vertical' : 'horizontal', editor.state.splitRatio, !editor.state.autoSplit);
   const { minimum: primaryMinimum, extent: containerExtent, available: splitAvailable, primary: editorWidth } = geometry;
   const secondaryMinimum = primaryMinimum;
   const split = !editor.state.tabsHidden && Boolean(splitPair) && splitAvailable;

@@ -10,9 +10,10 @@ async function request<T>(path: string, payload?: unknown, signal?: AbortSignal)
   const data = await reply.json() as T & { error?: string }; if (!reply.ok) throw new Error(data.error ?? 'Capture request failed.'); return data;
 }
 type Permission = { enabled: boolean; revision: number };
-export function AiViewportConsent({ owner, conversationId, visible, ensureConversation }: { owner: string; conversationId?: string; visible: boolean; ensureConversation: () => Promise<{ id: string }> }) {
+export function AiViewportConsent({ owner, conversationId, visible, ensureConversation, onStatusChange }: { onStatusChange?: (enabled: boolean) => void; owner: string; conversationId?: string; visible: boolean; ensureConversation: () => Promise<{ id: string }> }) {
   const { t } = useLocale();
   const [permission, setPermission] = useState<Permission>({ enabled: false, revision: 0 }), [busy, setBusy] = useState(false), [capturing, setCapturing] = useState(false), [error, setError] = useState('');
+  useEffect(() => { onStatusChange?.(permission.enabled); }, [permission.enabled, onStatusChange]);
   const controller = useRef<AbortController | null>(null);
   useEffect(() => { if (!conversationId) return; const abort = new AbortController(); void request<Permission>(`${conversationId}/viewport`, undefined, abort.signal).then(setPermission).catch(() => {}); return () => abort.abort(); }, [conversationId]);
   useEffect(() => {
@@ -52,5 +53,5 @@ export function AiViewportConsent({ owner, conversationId, visible, ensureConver
       const latest = await request<Permission>(`${c.id}/viewport`);
       setPermission(await request<Permission>(`${c.id}/viewport`, { enabled: !permission.enabled, revision: latest.revision }));
     }).catch(failure => setError(failure.message)).finally(() => setBusy(false));
-  }}>{busy || capturing ? <LoaderCircle size={17} aria-hidden="true" /> : permission.enabled ? <Camera size={17} aria-hidden="true" /> : <CameraOff size={17} aria-hidden="true" />}</button>;
+  }}>{busy || capturing ? <LoaderCircle size={17} aria-hidden="true" /> : permission.enabled ? <Camera size={17} aria-hidden="true" /> : <CameraOff size={17} aria-hidden="true" />}<span>{label}</span></button>;
 }
