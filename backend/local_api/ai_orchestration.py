@@ -338,14 +338,17 @@ class AiOrchestration:
         candidate = next((s for s in waiting if s['parentId'] not in active_parents), waiting[0])
         if len(active) >= 2 or candidate['id'] != key:
             return {'waiting': True}
-        if parent['providerCalls'] >= (24 if task else 30) or task and task['providerCalls'] >= 8:
+        # Antigravity verifies a restricted startup turn before each content turn.
+        # Both are real inference: reserve their budget before dispatch, in core.
+        cost = 2 if parent['modelId'].split('/')[0] in {'agy', 'ag'} else 1
+        if parent['providerCalls'] + cost > (24 if task else 30) or task and task['providerCalls'] + cost > 8:
             fail('Provider-call budget reached. Partial work is retained.', 'AI_PROVIDER_BUDGET')
-        self.update('AI_ORCHESTRATION', parent, providerCalls=parent['providerCalls'] + 1,
+        self.update('AI_ORCHESTRATION', parent, providerCalls=parent['providerCalls'] + cost,
                     executionStartedEpoch=parent.get('executionStartedEpoch') or time.time())
         if task:
-            self.update('AI_AGENT_TASK', task, providerCalls=task['providerCalls'] + 1,
+            self.update('AI_AGENT_TASK', task, providerCalls=task['providerCalls'] + cost,
                         startedEpoch=task.get('startedEpoch') or time.time())
-        self.update('AI_INFERENCE', slot, status='active', dispatchedAt=time.time())
+        self.update('AI_INFERENCE', slot, status='active', providerCallCost=cost, dispatchedAt=time.time())
         return {'permit': key}
 
     def result(self, parent: dict, task: dict, data: dict) -> dict:

@@ -124,6 +124,29 @@ class OrchestrationTests(unittest.TestCase):
         with self.assertRaisesRegex(ApiError, 'explicit review'):
             self.rpc(job, 'execute', {})
 
+    def test_native_guard_turns_consume_real_provider_budget_and_coordinator_reserve(self):
+        job = self.parent()
+        self.s.update_item(self.owner, 'AI_ORCHESTRATION', job['parent']['id'], {'modelId': 'agy/gemini-3.8-flash-medium'})
+        task = self.specialists(job, 1)[0]
+        for index in range(4):
+            permit = self.infer(job, task, str(index))['permit']
+            self.call(job, 'release', permit=permit)
+        parent = self.authority.get('AI_ORCHESTRATION', job['parent']['id'])
+        self.assertEqual(parent['providerCalls'], 8)
+        self.assertEqual(self.authority.get('AI_AGENT_TASK', task['id'])['providerCalls'], 8)
+        with self.assertRaisesRegex(ApiError, 'Provider-call budget'):
+            self.infer(job, task, 'fifth')
+        self.s.update_item(self.owner, 'AI_ORCHESTRATION', parent['id'], {'providerCalls': 29})
+        with self.assertRaisesRegex(ApiError, 'Provider-call budget'):
+            self.infer(job, request='guard_exceeds_parent')
+        self.s.update_item(self.owner, 'AI_ORCHESTRATION', parent['id'], {'providerCalls': 24})
+        for index in range(3):
+            permit = self.infer(job, request='reserved_' + str(index))['permit']
+            self.call(job, 'release', permit=permit)
+        self.assertEqual(self.authority.get('AI_ORCHESTRATION', parent['id'])['providerCalls'], 30)
+        with self.assertRaisesRegex(ApiError, 'Provider-call budget'):
+            self.infer(job, request='reserved_exhausted')
+
     def test_stop_fences_late_results_and_does_not_cancel_scientific_jobs(self):
         job = self.parent()
         task = self.specialists(job, 1)[0]

@@ -40,7 +40,10 @@ There are at most six specialists, without nested delegation, and at most two na
 inference processes across the application's bridge, including model probes. Core
 admission gives a waiting parent a turn before another specialist from an active
 parent. The bridge independently enforces two slots and FIFO cancellation/expiry.
-Provider dispatches and tool identities consume their saved budget once. Inference
+Provider dispatches and tool identities consume their saved budget once.
+Antigravity's restricted startup and content turns each consume a provider call,
+so one bridge request reserves two calls before dispatch. Codex retry notifications
+stop the native turn instead of being silently ignored. Inference
 is never automatically retried after dispatch. Manual Retry consumes remaining
 budget, invalidates affected dependent results and replaces an in-progress synthesis.
 A failure retains other task results. Budget exhaustion retains partial text and is
@@ -93,11 +96,22 @@ counts, latency, returned usage if measured, citations/results, and Node executo
 CPU/RSS. Total core/provider resource usage and cost remain unavailable unless
 measured separately. It retains no provider account identity or prompt credentials.
 
-Review the report and the safety tests on the real platform. Supply `--review`
-with a JSON file identifying the same `modelId` and `platform`, containing explicit
-`safetyPassed: true` and `evidenceQualityReviewed: true` only after that review.
-`--qualification path.json` writes a checksummed index only for a native report
-with successful Solo and Team runs and observed native dispatch overlap. It writes
+Review the report and safety tests on the real platform. Create a review JSON with
+the same `modelId`, `platform`, SHA-256 of the exact saved report as `evidenceSha256`,
+and explicit `safetyPassed: true` and `evidenceQualityReviewed: true` only after
+that review. Seal those existing results without dispatching new inference:
+
+```sh
+node --experimental-strip-types scripts/benchmark-ai-orchestration.mjs \
+  --review-existing .agent-state/native-benchmark.json \
+  --review .agent-state/native-review.json \
+  --qualification .agent-state/native-qualification.json
+```
+
+Changed evidence is rejected. A separate `.reviewed.json` keeps the original report
+intact. Partial/failed results are saved before another benchmark case starts.
+`--qualification` writes a checksummed index only for successful native Solo and
+Team runs with observed overlap and review of those exact results. It writes
 one model entry; use separate files or deliberately combine reviewed entries to
 qualify additional models. A fake-provider test or machine label is insufficient.
 

@@ -31,6 +31,18 @@ for await (const line of console) { /* Should never receive a prompt when tools 
 
 async function executable(dir, name, source) { const path = join(dir, name); await writeFile(path, source, { mode: 0o700 }); await chmod(path, 0o700); return path; }
 
+test('Codex retry notification stops the turn instead of accepting an automatic inference retry', async () => {
+  const directory = await mkdtemp('/tmp/phynite-native-retry-');
+  const source = codexStub.replace("else if(m.method==='turn/start') send({id:m.id,result:{turn:{id:'turn_synthetic'}}});", "else if(m.method==='turn/start') { send({id:m.id,result:{turn:{id:'turn_synthetic'}}}); send({method:'error',params:{threadId:'thr_synthetic',turnId:'turn_synthetic',willRetry:true,error:{message:'Retry proposed by CLI'}}}); }");
+  const command = await executable(directory, 'codex', source);
+  const registry = new NativeAiRegistry({ dataDir: directory, executables: { codex: command } });
+  try {
+    await registry.connect('codex');
+    await assert.rejects(registry.probe('codex/gpt-6.1-sol'), error => error.code === 'INFERENCE_FAILED');
+    assert.equal((await registry.status()).models[0].available, false);
+  } finally { await registry.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
 test('CLI discovery finds user npm bins and the Antigravity alias without shell PATH setup', { concurrency: false }, async () => {
   const dir = await mkdtemp('/tmp/phynite-native-path-test-');
   const home = process.env.HOME, path = process.env.PATH;

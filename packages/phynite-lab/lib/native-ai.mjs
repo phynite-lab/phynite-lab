@@ -1077,7 +1077,7 @@ export class NativeAiRegistry {
           if (params.turn.status !== 'completed') throw error('INFERENCE_FAILED', params.turn.error?.message ? String(params.turn.error.message).slice(0, 500) : `Codex turn ended with ${params.turn.status}.`);
           yield { type: 'result', proposal: proposal(raw, prepared), streamed: sawDelta }; return;
         }
-        if (message.method === 'error' && !params?.willRetry) throw error('INFERENCE_FAILED', String(params?.error?.message ?? 'Codex inference failed.').slice(0, 500));
+        if (message.method === 'error') throw error('INFERENCE_FAILED', String(params?.error?.message ?? 'Codex inference failed.').slice(0, 500));
       }
       throw error('INCOMPLETE_RESPONSE', 'Codex closed without a completed turn.');
     } finally { this.sessions.delete(session); await session.close(); }
