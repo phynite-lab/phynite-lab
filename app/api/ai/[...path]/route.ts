@@ -243,8 +243,9 @@ async function handle(request: NextRequest, context: Context): Promise<Response>
       || /^conversations\/aic_[a-z0-9]+\/settings$/.test(path) && method === 'PATCH'
       || /^conversations\/aic_[a-z0-9]+\/stop$/.test(path) && method === 'POST'
       || /^conversations\/aic_[a-z0-9]+\/actions\/aia_[a-z0-9]+$/.test(path) && ['GET', 'POST'].includes(method);
+    const captureOperation = /^conversations\/aic_[a-z0-9]+\/(?:viewport|captures(?:\/aiv_[a-z0-9]+)?)$/.test(path) && ['GET', 'POST'].includes(method);
     const attachmentMetadata = /^conversations\/aic_[a-z0-9]+\/attachments$/.test(path) && method === 'POST';
-    if (!allowed && !attachmentMetadata) throw new AiError(404, 'AI_NOT_FOUND', 'The AI route was not found.');
+    if (!allowed && !attachmentMetadata && !captureOperation) throw new AiError(404, 'AI_NOT_FOUND', 'The AI route was not found.');
     const payload = ['POST', 'PATCH'].includes(method) ? await readJsonBody<Record<string, unknown>>(request, 16000) : undefined;
     const query = new URLSearchParams();
     for (const key of ['before', 'export', 'q', 'nodeId']) if (request.nextUrl.searchParams.has(key)) query.set(key, request.nextUrl.searchParams.get(key)!);

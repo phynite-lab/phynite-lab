@@ -237,3 +237,26 @@ resource blocks are counted explicitly. All outputs remain untrusted evidence;
 MCP claims alone do not establish scientific validity. Errors are never recorded
 as successful mutating actions. A failed or interrupted mutation must be
 inspected before a new action is prepared.
+
+## Viewport evidence
+
+Enable **Allow capture** in one conversation to permit `capture_viewport` for
+a saved Canvas node. Keep the source open and visible. The indicator changes
+while capturing. Revoke permission at any time to cancel pending requests;
+images already delivered remain in that conversation. Other conversations and
+older saved chats have no capture permission by default.
+
+Crystal, trajectory and Figure Lab renderers supply PNG images through the
+existing verified provider image transport. Text-only providers fail explicitly.
+Hidden/unavailable viewports, unsaved sources, changed revisions, stopped turns,
+expired requests and revoked consent cannot deliver a pending capture. Images
+retain their checksum plus source revision/checksum, scientific/chat run IDs,
+camera/projection, selected atom and periodic image, frame/clipping, and plot
+axes/units/energy reference. Missing energy references remain unknown.
+
+Crystal Builder offers a Miller `(hkl)` plane and fractional offset satisfying
+`h*u + k*v + l*w = offset`. Its normal and spacing use the true reciprocal
+lattice, including oblique cells. It is a display overlay and does not edit the
+structure. A plane outside the displayed cell has no visible intersection.
+Visual hypotheses require numerical checks: screenshots do not establish
+topology, band gaps or convergence.

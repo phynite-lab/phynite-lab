@@ -16,7 +16,7 @@ from backend.local_api.domain.phynite_core import ApiError, json_safe, owner_par
 MODES = {'chat', 'approval', 'full'}
 RESOURCE_KINDS = {'structure': 'STRUCTURE', 'calculation': 'CALCULATION', 'trajectory': 'MD_TRAJECTORY', 'simulation': 'MD_SIMULATION', 'analysis': 'MD_ANALYSIS', 'md_configuration': 'MD_CONFIGURATION', 'potential': 'MD_POTENTIAL', 'dataset': 'DATASET', 'figure': 'FIGURE'}
 ACTIONS = {'mcp_call', 'modify_structure', 'import_md_potential', 'derive_structure', 'import_structure', 'save_dft', 'run_dft', 'save_md', 'run_md', 'run_analysis', 'cancel_job', 'save_figure', 'export_figure', 'save_workflow', 'run_workflow', 'cancel_workflow'}
-PATH = re.compile('^/v1/ai/conversations(?:/([a-z0-9_]+)(?:/(detail|settings|start|resume|renew|stop|context|compute|read|canvas|step|message|finish|prepare|execute|actions|queue|steer|continue|events|control|mcp_tools|mcp_call|job_artifacts|job_file|dataset_query|potential_search|jobs|job_status|worker_status|calculation_diagnosis|md_preview|attachment_read|attachment_search|attachment_provider|ledger|audit|save_plan|complete_call|replay|references|artifacts|artifact_publish|artifact_update|artifact_get|report)(?:/([a-z0-9_]+))?)?)?$')
+PATH = re.compile('^/v1/ai/conversations(?:/([a-z0-9_]+)(?:/(detail|settings|start|resume|renew|stop|context|compute|read|canvas|step|message|finish|prepare|execute|actions|queue|steer|continue|events|control|mcp_tools|mcp_call|job_artifacts|job_file|dataset_query|potential_search|jobs|job_status|worker_status|calculation_diagnosis|md_preview|attachment_read|attachment_search|attachment_provider|ledger|audit|save_plan|complete_call|replay|references|artifacts|artifact_publish|artifact_update|artifact_get|report|capture_request|capture_status|viewport|captures)(?:/([a-z0-9_]+))?)?)?$')
 
 def router_models(provider: str='9router') -> list[str]:
     try:
@@ -829,6 +829,17 @@ class AiWorkspace:
             return response(200, {'deleted': True})
         from backend.local_api.domain.ai_workbench import AiWorkbench
         workbench = AiWorkbench(self)
+        if operation in {'viewport', 'captures'}:
+            self.scope(owner, conversation['projectKey'])
+            from backend.local_api.domain.ai_viewport import AiViewport
+            service = AiViewport(self)
+            if operation == 'viewport' and method in {'GET', 'POST'}:
+                return response(200, service.permission(owner, conversation, payload if method == 'POST' else None))
+            if operation == 'captures' and method == 'GET' and not action_id:
+                return response(200, {'captures': service.pending(owner, conversation)})
+            if operation == 'captures' and method == 'POST' and action_id:
+                return response(200, {'capture': service.complete(owner, conversation, action_id, payload)})
+            fail(405, 'This capture operation is not supported.')
         if operation == 'references':
             self.scope(owner, conversation['projectKey'])
             if method == 'GET':
@@ -1003,6 +1014,14 @@ class AiWorkspace:
             return response(200, {'controlRevision': run.get('controlRevision', 0), 'messages': steering})
         if operation in {'prepare', 'execute', 'finish'} and run.get('queueId') and (payload.get('controlRevision', 0) != run.get('controlRevision', 0)):
             fail(409, 'New user direction is waiting. Read it before taking another action.', 'AI_STEER_PENDING')
+        if operation in {'capture_request', 'capture_status'}:
+            from backend.local_api.domain.ai_viewport import AiViewport
+            service = AiViewport(self)
+            if operation == 'capture_request':
+                return response(200, {'capture': service.request(owner, conversation, run, payload)})
+            capture = service.get(owner, conversation, valid_id(payload.get('id')))
+            if capture['runId'] != run['id']: fail(404, 'Capture not found.', 'AI_NOT_FOUND')
+            return response(200, {'capture': service.public(capture)})
         if operation in {'attachment_read', 'attachment_search', 'attachment_provider'}:
             from backend.local_api.domain.ai_attachments import AiAttachments
             return response(200, AiAttachments(self.api).read(owner, conversation, {**payload, **({'search': True} if operation == 'attachment_search' else {})}, operation == 'attachment_provider'))

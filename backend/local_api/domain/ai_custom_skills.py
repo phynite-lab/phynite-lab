@@ -17,7 +17,7 @@ ACTION_TOOLS = {
     'save_figure': {'create_figure', 'edit_figure'}, 'export_figure': {'export_figure'},
 }
 READ_OPERATIONS = {
-    'record_progress': {'ledger'}, 'read_compute': {'compute'}, 'list_job_artifacts': {'job_artifacts'},
+    'capture_viewport': {'capture_request', 'capture_status'}, 'record_progress': {'ledger'}, 'read_compute': {'compute'}, 'list_job_artifacts': {'job_artifacts'},
     'read_job_file': {'job_file'}, 'query_dataset': {'dataset_query'}, 'search_md_potentials': {'potential_search'},
     'list_active_jobs': {'jobs'}, 'get_job_status': {'job_status'}, 'get_worker_status': {'worker_status'},
     'diagnose_calculation': {'calculation_diagnosis'}, 'preview_md_input': {'md_preview'},

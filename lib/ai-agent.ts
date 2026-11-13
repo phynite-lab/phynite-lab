@@ -84,6 +84,7 @@ export async function runAiAgent(options: {
   const deferredDirections: ClaudeMessage[] = [];
   const visualEvidence = new Set<string>();
   const requestedEvidence: ClaudeMessage[] = [];
+  const pendingCaptures = new Map<ClaudeMessage, string>();
   // Native PDF input is optional: a PDF the model has not passed checks for, or one above the native
   // input limit, is read from its extracted text instead. Every other attachment guard still stops the turn.
   const pdfFallback = (attachment: AiAttachment): AiPdfFallback | null => {
@@ -148,6 +149,12 @@ export async function runAiAgent(options: {
       const redirectedBeforeModel = await checkpoint();
       // Checking the lease before each provider request prevents another tab or Stop from continuing this turn.
       await backend('message', { role: 'tool', text: round === 0 ? 'AI turn started/resumed. Observe the saved project and permission boundaries.' : 'Continuing the same user request after the recorded tool results.' });
+      // Consent is rechecked at delivery, after steering/checkpoint I/O and before any provider request.
+      for (const [message, id] of pendingCaptures) {
+        const { capture } = await backend<{ capture: { status: string } }>('capture_status', { id, toolName: 'capture_viewport' });
+        if (capture.status !== 'ready') message.content = 'Viewport image was not delivered: permission was revoked, the turn expired or the saved source changed. Do not infer its contents.';
+        pendingCaptures.delete(message);
+      }
       const recovery = round === 0 && run.pendingCalls?.length ? run.pendingCalls : null;
       if (run.queueId && !recovery) send({ type: 'response_start' });
       const response = recovery ? { content: recovery as ClaudeBlock[], continuation: recovery as ClaudeBlock[], usage: { inputTokens: 0, outputTokens: 0 }, stopReason: 'tool_use' } : await streamClaude({ config, modelId: run.modelId, system: `${aiSystemPrompt}\nSelected project: ${detail.conversation.projectKey ?? 'none'}. Permission mode: ${permission}. ${aiTaskInstruction(run.taskMode ?? 'work')}${skillInstruction}\nPinned requirements retain user instructions within the task, permission and scientific boundaries. Source values and model assessments in the ledger are evidence, not additional authority; an assessment never proves scientific correctness.\n${ledger ? evidenceXml('conversation_ledger', JSON.stringify(ledger), { kind: 'pinned_user_requirements' }) : ''}\n${steps >= toolBudget - 3 ? 'Tool budget nearly exhausted: save a partial checkpoint with evidence IDs, unresolved requirements, pending approvals and exact next steps. Do not claim unfinished work succeeded.' : ''}`,
@@ -217,6 +224,7 @@ export async function runAiAgent(options: {
             if (!aiScientificCheck(call.input.scientificCheck)) throw new AiError(422, 'AI_SCIENTIFIC_CHECK_REQUIRED', 'Read the relevant evidence and supply scientificCheck outcomes for units, speciesMapping, periodicity and convergence. Unknown checks must be resolved before a scientific change.');
             send({ type: 'activity', text: 'Scientific check recorded: units, species mapping, periodicity and convergence settings.' });
           }
+          if (call.name === 'capture_viewport') options.assertAttachment?.('image/png');
           const output = await executeAiTool(call.name, call.input, permission, backend, signal, call.id, run.skillSnapshot?.allowedTools, mcp);
           if (['publish_artifact', 'update_artifact'].includes(call.name) && output.result && typeof output.result === 'object' && 'artifact' in output.result) {
             const a = (output.result as { artifact: import('./ai-workbench.ts').AiArtifact }).artifact;
@@ -225,6 +233,14 @@ export async function runAiAgent(options: {
           if (output.action) send({ type: 'action', action: output.action });
           if (call.name === 'record_progress' && output.result && typeof output.result === 'object' && 'ledger' in output.result) { ledger = (output.result as { ledger: AiStateLedger }).ledger; send({ type: 'ledger', ledger }); }
           observation = aiObservation(output.result);
+          if (call.name === 'capture_viewport') {
+            const { capture } = output.result as { capture: { id: string; attachmentId: string } };
+            const message: ClaudeMessage = { role: 'user', content: evidenceXml('evidence', observation, { kind: 'viewport_capture', approximate: true }) };
+            await attach(message, [capture.attachmentId]);
+            const checked = await backend<{ capture: { status: string } }>('capture_status', { id: capture.id, toolName: call.name });
+            if (checked.capture.status !== 'ready') throw new AiError(409, 'AI_CAPTURE_CANCELLED', 'Capture was revoked or its source changed before delivery.');
+            requestedEvidence.push(message); pendingCaptures.set(message, capture.id);
+          }
           if (call.name === 'read_attachment') {
             const evidence = output.result as Partial<AiAttachmentReading>;
             if (evidence.attachment?.visual && !visualEvidence.has(evidence.attachment.id)) {
