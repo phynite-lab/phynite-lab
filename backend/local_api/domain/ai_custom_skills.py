@@ -9,6 +9,7 @@ from backend.local_api.domain.phynite_core import ApiError, json_safe
 
 TASKS = {'work', 'plan', 'research', 'summary'}
 ACTION_TOOLS = {
+    'start_campaign': {'start_campaign'}, 'cancel_campaign': {'cancel_campaign'},
     'modify_structure': {'modify_structure'}, 'derive_structure': {'derive_structure'},
     'import_structure': {'import_structure', 'import_crystal_structure'}, 'import_md_potential': {'import_md_potential'},
     'save_workflow': {'edit_canvas', 'configure_qe_compute'}, 'run_workflow': {'run_workflow'}, 'cancel_workflow': {'cancel_workflow'},
@@ -17,6 +18,7 @@ ACTION_TOOLS = {
     'save_figure': {'create_figure', 'edit_figure'}, 'export_figure': {'export_figure'},
 }
 READ_OPERATIONS = {
+    'get_campaign_status': {'campaign_status'},
     'record_progress': {'ledger'}, 'read_compute': {'compute'}, 'list_job_artifacts': {'job_artifacts'},
     'read_job_file': {'job_file'}, 'query_dataset': {'dataset_query'}, 'search_md_potentials': {'potential_search'},
     'list_active_jobs': {'jobs'}, 'get_job_status': {'job_status'}, 'get_worker_status': {'worker_status'},

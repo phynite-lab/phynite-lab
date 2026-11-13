@@ -442,3 +442,10 @@
 .ai-mcp-server code { overflow-wrap: anywhere; min-width: 0; }
 .ai-mcp-server li span { flex: none; color: var(--panel-muted, #666); }
 @media (max-width: 600px) { .ai-mcp-server li { flex-direction: column; gap: 3px; } }
+
+.ai-campaign-status { padding: 14px 16px; min-width: 0; font-size: 12px; }
+.ai-campaign-status p { line-height: 1.6; overflow-wrap: anywhere; }
+.ai-campaign-status details { margin-block: 12px; }
+.ai-campaign-status code { display: block; overflow-wrap: anywhere; font-size: 10px; }
+.ai-campaign-status pre { max-height: 280px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; }
+.ai-campaign-status button { margin-block: 6px; max-width: 100%; white-space: normal; }

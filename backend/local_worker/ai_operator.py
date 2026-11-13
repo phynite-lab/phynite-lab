@@ -55,8 +55,8 @@ class AiAgentBudget:
                 raise OperatorError(f"{name} must be a non-negative integer.")
         if self.maxWallSeconds < 1 or self.maxQueueWaitSeconds < 1 or self.agentLeaseTimeoutSeconds < 1:
             raise OperatorError("Agent time budgets must be positive.")
-        if self.maxRepairs > 100:
-            raise OperatorError("maxRepairs exceeds the supported repair bound.")
+        if self.maxRepairs > 2:
+            raise OperatorError("At most two numerical repairs are supported per candidate.")
         if self.maxCandidates is not None and not 1 <= self.maxCandidates <= 10_000:
             raise OperatorError("maxCandidates must be between 1 and 10,000.")
         if self.maxNodeHours is not None and (isinstance(self.maxNodeHours, bool) or not isinstance(self.maxNodeHours, (int, float)) or not math.isfinite(self.maxNodeHours) or self.maxNodeHours <= 0):
@@ -218,10 +218,9 @@ def create_discovery_campaign(contract: Mapping[str, Any], candidates: Sequence[
 # The catalog is intentionally closed.  Values are validated again at execution.
 REPAIR_CATALOG: dict[str, dict[str, Any]] = {
     "lower_mixing_beta": {"field": "mixing_beta", "min": 0.05, "max": 0.7, "direction": "lower"},
-    "switch_solver": {"field": "diagonalization", "values": ["davidson", "cg"]},
+    "switch_solver": {"field": "diagonalization", "values": ["david", "cg"]},
+    "switch_mixing_mode": {"field": "mixing_mode", "values": ["plain", "TF", "local-TF"]},
     "raise_electron_maxstep": {"field": "electron_maxstep", "min": 1, "max": 500, "direction": "higher"},
-    "metallic_smearing": {"field": "smearing", "values": ["mv", "gaussian", "mp"]},
-    "extend_walltime": {"field": "wallSeconds", "min": 1, "max": 604800, "direction": "higher"},
 }
 FORBIDDEN_REPAIR_FIELDS = {"composition", "elements", "atoms", "atomic_species", "pseudopotential", "functional", "charge", "spin", "magnetization", "cutoff", "ecutwfc", "ecutrho", "kpoints", "k_point", "lattice", "cell", "coordinates", "positions", "periodicity", "calculation", "evaluator", "objective"}
 
@@ -239,8 +238,6 @@ def validate_repair(proposal: Mapping[str, Any], *, current: Mapping[str, Any] |
             raise OperatorError("Perubahan ini menyentuh identitas ilmiah dan tidak dapat diperbaiki otomatis.")
     if "values" in spec and value not in spec["values"]:
         raise OperatorError("Repair value is outside the approved catalog.")
-    if kind == "metallic_smearing" and not (diagnostics or {}).get("metallicChargeSloshing"):
-        raise OperatorError("Smearing repair requires a validated metallic charge-sloshing signal.")
     if "min" in spec and (isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not spec["min"] <= value <= spec["max"]):
         raise OperatorError("Repair value is outside the approved validator range.")
     if current and field in current:
@@ -249,8 +246,6 @@ def validate_repair(proposal: Mapping[str, Any], *, current: Mapping[str, Any] |
             raise OperatorError("The repair must lower the selected convergence parameter.")
         if spec.get("direction") == "higher" and not value > before:
             raise OperatorError("The repair must increase the selected convergence parameter.")
-    if kind == "extend_walltime" and budget is not None and value > budget.maxWallSeconds:
-        raise OperatorError("Walltime repair exceeds the approved campaign computation-time limit.")
     return {"kind": kind, "field": field, "value": value, "reason": str(proposal.get("reason") or "Validated convergence repair."), "scientificIdentityChanged": False}
 
 

@@ -15,8 +15,8 @@ from backend.local_api.domain.ai_observation import AI_OBSERVATION_BYTE_BUDGET, 
 from backend.local_api.domain.phynite_core import ApiError, json_safe, owner_partition, response, storage_owner, utc_now
 MODES = {'chat', 'approval', 'full'}
 RESOURCE_KINDS = {'structure': 'STRUCTURE', 'calculation': 'CALCULATION', 'trajectory': 'MD_TRAJECTORY', 'simulation': 'MD_SIMULATION', 'analysis': 'MD_ANALYSIS', 'md_configuration': 'MD_CONFIGURATION', 'potential': 'MD_POTENTIAL', 'dataset': 'DATASET', 'figure': 'FIGURE'}
-ACTIONS = {'mcp_call', 'modify_structure', 'import_md_potential', 'derive_structure', 'import_structure', 'save_dft', 'run_dft', 'save_md', 'run_md', 'run_analysis', 'cancel_job', 'save_figure', 'export_figure', 'save_workflow', 'run_workflow', 'cancel_workflow'}
-PATH = re.compile('^/v1/ai/conversations(?:/([a-z0-9_]+)(?:/(detail|settings|start|resume|renew|stop|context|compute|read|canvas|step|message|finish|prepare|execute|actions|queue|steer|continue|events|control|mcp_tools|mcp_call|job_artifacts|job_file|dataset_query|potential_search|jobs|job_status|worker_status|calculation_diagnosis|md_preview|attachment_read|attachment_search|attachment_provider|ledger|audit|save_plan|complete_call|replay|references|artifacts|artifact_publish|artifact_update|artifact_get|report)(?:/([a-z0-9_]+))?)?)?$')
+ACTIONS = {'start_campaign', 'cancel_campaign', 'mcp_call', 'modify_structure', 'import_md_potential', 'derive_structure', 'import_structure', 'save_dft', 'run_dft', 'save_md', 'run_md', 'run_analysis', 'cancel_job', 'save_figure', 'export_figure', 'save_workflow', 'run_workflow', 'cancel_workflow'}
+PATH = re.compile('^/v1/ai/conversations(?:/([a-z0-9_]+)(?:/(detail|settings|start|resume|renew|stop|context|compute|read|canvas|step|message|finish|prepare|execute|actions|queue|steer|continue|events|control|mcp_tools|mcp_call|job_artifacts|job_file|dataset_query|potential_search|jobs|job_status|worker_status|calculation_diagnosis|md_preview|attachment_read|attachment_search|attachment_provider|ledger|audit|save_plan|complete_call|replay|references|artifacts|artifact_publish|artifact_update|artifact_get|report|campaign_status|campaigns)(?:/([a-z0-9_]+))?)?)?$')
 
 def router_models(provider: str='9router') -> list[str]:
     try:
@@ -400,7 +400,7 @@ class AiWorkspace:
         if conversation['mode'] == 'chat':
             fail(403, 'Chat only mode cannot prepare changes. Choose an execution mode first.', 'AI_PERMISSION_DENIED')
         check = payload.get('scientificCheck')
-        if payload.get('toolName') in {'edit_canvas', 'prepare_dft', 'save_md', 'modify_structure', 'derive_structure', 'import_structure', 'import_crystal_structure', 'import_md_potential', 'create_figure', 'edit_figure', 'run_workflow', 'run_md', 'run_analysis', 'configure_qe_compute'}:
+        if payload.get('toolName') in {'edit_canvas', 'prepare_dft', 'save_md', 'modify_structure', 'derive_structure', 'import_structure', 'import_crystal_structure', 'import_md_potential', 'create_figure', 'edit_figure', 'run_workflow', 'run_md', 'run_analysis', 'configure_qe_compute', 'start_campaign'}:
             if not isinstance(check, dict) or set(check) != {'units', 'speciesMapping', 'periodicity', 'convergence'} or any(not isinstance(value, dict) or set(value) != {'status', 'note'} or not isinstance(value['status'], str) or value['status'] not in {'checked', 'not_applicable'} or not isinstance(value['note'], str) or not 1 <= len(value['note'].strip()) <= 500 for value in check.values()):
                 fail(422, 'Resolve and record all four scientific checks before preparing this change.', 'AI_SCIENTIFIC_CHECK_REQUIRED')
         call_id = payload.get('toolCallId')
@@ -425,6 +425,9 @@ class AiWorkspace:
         if kind == 'import_md_potential':
             from backend.local_api.domain.ai_domain_actions import stage_potential
             data = stage_potential(self, owner, conversation, action_id, data)
+        if kind == 'start_campaign':
+            from backend.local_api.domain.ai_campaign import CampaignSupervisor
+            data = CampaignSupervisor(self.api).prepare(owner, conversation, data)
         self.validate_action(owner, conversation, kind, data)
         if kind == 'run_md':
             configuration = self.resource(owner, conversation, 'md_configuration', valid_id(data.get('configurationId')))['item']
@@ -504,6 +507,18 @@ class AiWorkspace:
 
     def validate_action(self, owner: str, conversation: dict, kind: str, data: dict) -> None:
         project = self.scope(owner, conversation['projectKey'])
+        if kind in {'start_campaign', 'cancel_campaign'}:
+            from backend.local_api.domain.ai_campaign import CampaignSupervisor
+            service = CampaignSupervisor(self.api)
+            if kind == 'start_campaign':
+                current = service.prepare(owner, conversation, data)
+                if current != data:
+                    fail(409, 'Campaign inputs changed. Prepare a new approval.', 'AI_CONTEXT_CHANGED')
+            else:
+                row = service.scoped(owner, conversation, data.get('campaignId'))
+                if data.get('revision') != row['revision']:
+                    fail(409, 'Refresh the campaign before cancellation.', 'CAMPAIGN_CONFLICT')
+            return
         if any((key in data for key in ('computeTarget', 'cloudMode', 'quoteId', 'url', 'path', 'ownerId'))):
             fail(400, 'AI actions cannot override ownership, network destinations or compute targets.')
         if kind not in {'save_dft', 'run_dft'} and any(key in data for key in ('compute', 'hpc', 'executionAffinity')):
@@ -672,6 +687,11 @@ class AiWorkspace:
             from backend.local_api.domain.ai_mcp import AiMcp
             return AiMcp(self).perform(owner, conversation, action, data)
         project = self.scope(owner, conversation['projectKey'])
+        if kind in {'start_campaign', 'cancel_campaign'}:
+            from backend.local_api.domain.ai_campaign import CampaignSupervisor
+            service = CampaignSupervisor(self.api)
+            campaign = service.create(owner, conversation, action, data) if kind == 'start_campaign' else service.cancel(owner, conversation, data['campaignId'], data['revision'])
+            return {'campaignId': campaign['id'], 'status': campaign['status']}
         now = utc_now()
         if kind == 'modify_structure':
             from backend.local_api.domain.ai_domain_actions import perform_modification
@@ -848,6 +868,19 @@ class AiWorkspace:
             return response(200, self.detail(owner, conversation, params.get('before')))
         if method == 'GET' and operation == 'context':
             return response(200, clean(self.context(owner, conversation)))
+        if operation == 'campaigns' and action_id:
+            from backend.local_api.domain.ai_campaign import CampaignSupervisor
+            service = CampaignSupervisor(self.api)
+            if method == 'GET':
+                if 'attempt' in params:
+                    value = str(params['attempt'])
+                    if not value.isdigit():
+                        fail(400, 'Choose a campaign attempt index.')
+                    return response(200, service.attempt_input(owner, conversation, action_id, int(value)))
+                return response(200, service.read(owner, conversation, action_id))
+            if method == 'POST':
+                return response(200, {'campaign': service.cancel(owner, conversation, action_id, payload.get('revision'))})
+            fail(405, 'This method is not supported.')
         if method == 'GET' and operation == 'actions' and action_id:
             action = self.row(owner, 'AI_ACTION', action_id)
             if action['conversationId'] != conversation_id:
@@ -1010,6 +1043,9 @@ class AiWorkspace:
             from backend.local_api.domain.ai_mcp import AiMcp
             service = AiMcp(self)
             return response(200, {'tools': service.tools(conversation, run)} if operation == 'mcp_tools' else service.read(conversation, run, payload))
+        if operation == 'campaign_status':
+            from backend.local_api.domain.ai_campaign import CampaignSupervisor
+            return response(200, CampaignSupervisor(self.api).read(owner, conversation, payload.get('id')))
         if operation == 'canvas':
             project = self.scope(owner, conversation['projectKey'])
             if project['kind'] != 'canvas':

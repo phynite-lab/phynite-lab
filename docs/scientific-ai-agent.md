@@ -30,9 +30,9 @@ suggests a terminal installation command.
 
 Short turns retain the six-tool foreground budget and twelve-step hard ceiling.
 The explicit **Multistage** composer option permits up to 40 tools and 30 model
-rounds. This public application runs through the active local connection: keep
-the tab open. It does not deploy a hosted worker or poll scientific jobs in the
-background. Pending approval still stops execution before subsequent tools.
+rounds. Conversation turns run through the active local connection: keep the tab open
+for the chat. Explicitly approved persistent campaigns use the local application
+supervisor described below and have their own lifetime. Pending approval still stops execution before subsequent tools.
 
 Pinned memory retains exact user requirements with source message IDs, selected
 source values/checksums, recorded action outcomes and gaps. Model assessments are
@@ -237,3 +237,34 @@ resource blocks are counted explicitly. All outputs remain untrusted evidence;
 MCP claims alone do not establish scientific validity. Errors are never recorded
 as successful mutating actions. A failed or interrupted mutation must be
 inspected before a new action is prepared.
+
+## Persistent campaigns and numerical healing
+
+In Work with **Ask for approval**, `start_campaign` reviews one to five independent
+saved Canvas SCF/relaxation targets, their frozen inputs, queue/runtime limits,
+expiry and node-hours. The first supervisor supports direct saved structure inputs;
+review multi-calculation prerequisites separately. It never changes the Canvas.
+The campaign reserves the worst-case allocation for every permitted attempt.
+
+The installed app's local monitor drives the existing workers independently of
+chat leases. Closing the browser leaves it running while the app/worker is active.
+Closing the application stops supervision; on restart it reconciles deterministic
+receipts before monitoring. Intent is persisted before submission. A missing or
+uncertain receipt requires manual inspection and is never resubmitted automatically.
+Legacy campaign records acquire no new execution authority.
+
+Approve at most two exact repair steps per candidate: lower mixing beta, change
+mixing mode/diagonalization, or increase electron iterations. Every attempt retains
+immutable before/after inputs, reason, admission fingerprint and verified result/log
+checksums. Final positive numerical convergence wins over isolated `c_bands` warnings.
+Unverified/missing output stops healing. Smearing, occupations, spin, cutoff, k-grid,
+timestep, ensemble and pre-minimization require a new approval. Lost-atoms evidence
+produces a diagnosis and review proposal preserving all atoms; it never authorizes
+atom deletion or automatic minimization.
+
+The campaign card exposes status, reserved budget, exact retained inputs and an
+explicit **Cancel campaign and current job** control. **Stop AI** stops the chat
+only. Queue/runtime budgets are separate; expiry prevents further submissions while
+existing confirmed work remains monitored. Runtime/queue overruns request cancellation.
+No new submission occurs after Canvas revision drift, budget exhaustion or a
+numerical policy/receipt/checksum mismatch. `get_campaign_status` is a read only snapshot.

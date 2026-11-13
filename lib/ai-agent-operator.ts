@@ -41,6 +41,7 @@ export function canAdvanceAiAgentState(from: AiAgentState, to: AiAgentState): bo
 export function validateAiAgentBudget(value: AiAgentBudget): AiAgentBudget {
   const integerKeys: Array<keyof AiAgentBudget> = ['maxWallSeconds', 'maxQueueWaitSeconds', 'agentLeaseTimeoutSeconds', 'maxRepairs', 'maxSparseHarvestBytes'];
   for (const key of integerKeys) if (!Number.isSafeInteger(value[key]) || (value[key] as number) < 0) throw new Error(`${key} must be a non-negative integer.`);
+  if (value.maxRepairs > 2) throw new Error('At most two numerical repairs are supported per candidate.');
   if (value.maxWallSeconds < 1 || value.maxQueueWaitSeconds < 1 || value.agentLeaseTimeoutSeconds < 1) throw new Error('Agent time budgets must be positive.');
   if (value.maxCandidates !== undefined && (!Number.isSafeInteger(value.maxCandidates) || value.maxCandidates < 1 || value.maxCandidates > 5)) throw new Error('Ruang desain ini terlalu besar untuk mode Discovery saat ini. Kurangi menjadi maksimal 5 kandidat.');
   if (value.maxNodeHours !== undefined && (!Number.isFinite(value.maxNodeHours) || value.maxNodeHours <= 0)) throw new Error('maxNodeHours must be positive and finite.');
@@ -51,8 +52,8 @@ export function validateAiAgentBudget(value: AiAgentBudget): AiAgentBudget {
 export type AiPreset = { id: 'quick-convergence-sweep' | 'overnight-discovery' | 'self-healing-relax'; label: string; description: string; contract: Partial<AiCampaignContract> };
 export const aiAgentPresets: readonly AiPreset[] = [
   { id: 'quick-convergence-sweep', label: 'Quick Convergence Sweep', description: '3 kandidat cutoff, standar tervalidasi tetap dijaga, dan maksimal 1 jam komputasi.', contract: { maxCandidates: 3, totalNodeHours: 1, repairPolicy: ['lower_mixing_beta', 'switch_solver', 'raise_electron_maxstep'] } },
-  { id: 'overnight-discovery', label: 'Overnight Discovery', description: 'Hingga 5 kandidat variasi kisi dengan validasi geometry dan provenance lengkap.', contract: { maxCandidates: 5, totalNodeHours: 6, repairPolicy: ['lower_mixing_beta', 'switch_solver', 'raise_electron_maxstep', 'metallic_smearing'] } },
-  { id: 'self-healing-relax', label: 'Self-Healing Relax', description: 'Cell relaxation dengan repair yang diizinkan dan checkpoint yang dipertahankan.', contract: { maxCandidates: 1, repairPolicy: ['lower_mixing_beta', 'switch_solver', 'raise_electron_maxstep', 'metallic_smearing', 'extend_walltime'] } },
+  { id: 'overnight-discovery', label: 'Overnight Discovery', description: 'Hingga 5 kandidat variasi kisi dengan validasi geometry dan provenance lengkap.', contract: { maxCandidates: 5, totalNodeHours: 6, repairPolicy: ['lower_mixing_beta', 'switch_solver', 'raise_electron_maxstep'] } },
+  { id: 'self-healing-relax', label: 'Self-Healing Relax', description: 'Cell relaxation dengan repair yang diizinkan dan checkpoint yang dipertahankan.', contract: { maxCandidates: 1, repairPolicy: ['lower_mixing_beta', 'switch_solver', 'raise_electron_maxstep'] } },
 ];
 
 export function aiCampaignSummary(contract: Partial<AiCampaignContract> & { clusterLabel?: string }): string {

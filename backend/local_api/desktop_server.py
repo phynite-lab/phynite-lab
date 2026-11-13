@@ -56,6 +56,8 @@ class DesktopApplication:
         self.pseudopotentials = PseudopotentialManager(self.data_dir)
         self.token = secrets.token_urlsafe(48)
         self.closed = threading.Event()
+        from backend.local_api.domain.ai_campaign import CampaignSupervisor
+        self.campaigns = CampaignSupervisor(PhyniteApi(self.services))
         self.workers: list[subprocess.Popen] = []
         self.worker_slots: dict[subprocess.Popen, int] = {}
         self.worker_started: dict[subprocess.Popen, float] = {}
@@ -312,6 +314,7 @@ class DesktopApplication:
     def maintain(self):
         while not self.closed.wait(1):
             try:
+                self.campaigns.tick()
                 self.maintain_hpc_workers()
                 hpc_ready = any(process.poll() is None for process in self.hpc_workers.values())
                 if not self.runtime or not self.scheduler:
