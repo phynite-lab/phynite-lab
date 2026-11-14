@@ -209,13 +209,13 @@
 /* A single responsive composer. Group ownership never changes as panes resize. */
 .ai-workspace { --ai-control-size: 36px; }
 .ai-transcript[hidden] { display: none; }
-.ai-composer { width: min(800px, calc(100% - 32px)); margin: 10px auto 16px; flex: 0 1 auto; min-width: 0; min-height: 0; }
-.ai-composer-notices { max-height: 72px; overflow-y: auto; overscroll-behavior: contain; }
+.ai-composer { display: flex; flex-direction: column; width: min(800px, calc(100% - 32px)); margin: 10px auto 16px; flex: 0 1 auto; min-width: 0; min-height: 0; }
+.ai-composer-notices { flex: 0 1 auto; min-height: 0; max-height: 72px; overflow-y: auto; overscroll-behavior: contain; }
 .ai-composer-notices:empty { display: none; }
-.ai-composer-box { position: relative; display: grid; gap: 10px; min-width: 0; margin: 0; border: 1px solid var(--panel-border); border-radius: 24px; background: var(--panel-raised); padding: 14px 12px 10px; }
+.ai-composer-box { position: relative; display: grid; flex: none; gap: 10px; min-width: 0; margin: 0; border: 1px solid var(--panel-border); border-radius: 24px; background: var(--panel-raised); padding: 14px 12px 10px; }
 .ai-composer textarea { width: 100%; min-width: 0; min-height: 44px; max-height: var(--ai-textarea-limit, 120px); resize: none; overflow-y: auto; border: 0; border-radius: 0; padding: 4px 6px 8px; background: transparent; color: var(--panel-text); font: inherit; font-size: var(--text-body); line-height: 1.6; }
 .ai-workspace .ai-composer textarea:is(:focus, :focus-visible) { outline: none; box-shadow: none; }
-.ai-composer-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(100px, max-content); align-items: center; gap: 8px; min-width: 0; }
+.ai-composer-toolbar { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px; min-width: 0; }
 .ai-toolbar-context, .ai-toolbar-model, .ai-composer-options, .ai-composer-actions { display: flex; align-items: center; min-width: 0; gap: 4px; }
 .ai-toolbar-context { gap: 6px; }
 .ai-toolbar-model { gap: 6px; }
@@ -287,7 +287,6 @@
   .ai-message-user { max-width: 95%; padding: 12px 14px; }
 }
 @container ai-workspace (width < 620px) {
-  .ai-composer-toolbar { grid-template-columns: minmax(0, 1fr); }
   .ai-toolbar-context > .ai-task-chip:last-child { margin-left: auto; }
   .ai-composer-permissions { flex: 0 1 192px; }
 }
