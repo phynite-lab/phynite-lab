@@ -388,6 +388,24 @@ class OrchestrationTests(unittest.TestCase):
             self.rpc(job, 'attachment_read', {'id': 'not_selected'}, task)
         self.assertEqual(error.exception.code, 'AI_SPECIALIST_SCOPE')
 
+    def test_bundled_reviewed_team_evidence_only_enables_its_exact_model_and_platform(self):
+        index = Path(__file__).resolve().parents[2] / 'packages/phynite-lab/lib/team-qualification/index.json'
+        model = 'agy/gemini-3.8-flash-high'
+        conversation = self.ai.put(self.owner, 'AI_CONVERSATION', 'aic_bundled', {
+            'projectKey': 'project:' + self.project, 'modelId': model, 'activeRunId': None})
+        with patch.dict('os.environ', {'PHYNITE_AI_TEAM': '1', 'PHYNITE_AI_TEAM_QUALIFICATION': str(index)}):
+            with patch('backend.local_api.ai_orchestration.platform_id', return_value='darwin-arm64'):
+                status = self.authority.public_request(conversation['id'], 'status', {})
+                self.assertTrue(status['teamQualified'])
+                self.assertIsNone(status['parent'])
+                self.assertFalse(self.authority.qualified('agy/gemini-3.8-flash-medium'))
+                self.assertFalse(self.authority.qualified('codex/gpt-5.4'))
+                with patch.dict('os.environ', {'PHYNITE_AI_TEAM': '0'}):
+                    self.assertFalse(self.authority.qualified(model))
+            for target in ('linux-x86_64', 'linux-aarch64', 'linux-wsl2-x86_64', 'windows-amd64'):
+                with patch('backend.local_api.ai_orchestration.platform_id', return_value=target):
+                    self.assertFalse(self.authority.qualified(model))
+
     def test_team_qualification_rejects_synthetic_changed_and_other_platform_evidence(self):
         evidence_path = self.root / 'evidence.json'
         index_path = self.root / 'qualification.json'

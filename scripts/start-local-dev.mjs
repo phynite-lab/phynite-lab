@@ -1,4 +1,5 @@
 import { waitExecutor } from '../packages/phynite-lab/lib/executor-ready.mjs';
+import { teamQualificationEnvironment } from '../packages/phynite-lab/lib/team-qualification.mjs';
 /** Start the SQLite/filesystem desktop core, local AI bridge and Vite UI for source testing. */
 import { buildAiExecutor } from './build-ai-executor.mjs';
 import { spawn } from 'node:child_process';
@@ -129,7 +130,7 @@ try {
     ...cleanEnvironment(),
     PHYNITE_APP_MODE: 'local',
     ...Object.fromEntries(['PHYNITE_PROJECT_NOTES', 'PHYNITE_CONNECTED_FILES'].filter(key => ['0', '1'].includes(process.env[key])).map(key => [key, process.env[key]])),
-    ...(process.env.PHYNITE_AI_TEAM === '1' ? { PHYNITE_AI_TEAM: '1', PHYNITE_AI_TEAM_QUALIFICATION: process.env.PHYNITE_AI_TEAM_QUALIFICATION } : {}),
+    ...teamQualificationEnvironment(join(root, 'packages', 'phynite-lab')),
     PHYNITE_LOCAL_API_URL: apiOrigin,
     PHYNITE_LOCAL_UI_ORIGIN: uiOrigin,
     PHYNITE_LOCAL_AI_URL: aiServer.origin,

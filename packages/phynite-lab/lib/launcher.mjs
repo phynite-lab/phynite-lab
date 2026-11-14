@@ -1,4 +1,5 @@
 import { waitExecutor } from './executor-ready.mjs';
+import { teamQualificationEnvironment } from './team-qualification.mjs';
 import { execFile as execFileCallback, spawn } from 'node:child_process';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { chmod, mkdir, open, readFile, realpath, stat, unlink, utimes, writeFile } from 'node:fs/promises';
@@ -295,7 +296,7 @@ function safeChildEnvironment(dataDir, apiOrigin, uiOrigin, cloud, heartbeatPath
   return { ...env, NODE_ENV: 'production', HOST,
     PHYNITE_APP_MODE: 'local', PHYNITE_DATA_DIR: dataDir,
     ...Object.fromEntries(['PHYNITE_PROJECT_NOTES', 'PHYNITE_CONNECTED_FILES'].filter(key => ['0', '1'].includes(process.env[key])).map(key => [key, process.env[key]])),
-    ...(process.env.PHYNITE_AI_TEAM === '1' ? { PHYNITE_AI_TEAM: '1', PHYNITE_AI_TEAM_QUALIFICATION: process.env.PHYNITE_AI_TEAM_QUALIFICATION } : {}),
+    ...teamQualificationEnvironment(PACKAGE_ROOT),
     PHYNITE_LOCAL_API_URL: apiOrigin, PHYNITE_API_URL: apiOrigin,
     PHYNITE_LOCAL_UI_ORIGIN: uiOrigin, PHYNITE_PUBLIC_APP_URL: uiOrigin,
     PHYNITE_LOCAL_API: 'false', PHYNITE_DEV_SANDBOX: 'false',

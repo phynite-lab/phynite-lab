@@ -8,11 +8,13 @@ and core remain active. Closing the launcher interrupts AI work and retains resu
 Scientific campaign/job supervision stays separate; **Stop AI** never cancels a
 scientific job.
 
-The companion panel has **Chat** and **Tasks** views. Chat contains the coordinator's
-response, evidence and reviewed actions. Tasks shows each specialist's objective,
-selected model, dependencies, sources/checksums, evidence, result and Stop/Retry
-controls. Task details expand within this panel. Strategy appears in model settings
-and in the composer summary. The input draft survives switching views and resizing.
+The companion panel keeps one conversation with the coordinator's response, evidence
+and reviewed actions. A live status describes thinking, source reading, specialist
+work, synthesis or an approval wait. Specialist details expand in the conversation,
+with objectives, model, dependencies, evidence and Stop/Retry. Resource counters are
+in optional technical details. Idle conversations show no zero-task counter or extra
+Chat/Tasks navigation. Use **+ → AI options** for strategy and permissions;
+**+ → View activity** reopens retained task details. Drafts survive these controls.
 
 **Auto** is the default. After qualification it asks the selected model to use Solo
 for a simple request or a bounded set of independent specialists. **Solo** skips that
@@ -62,10 +64,12 @@ without silently replaying the interrupted inbox item.
 
 ## Qualification and benchmark
 
-Team has its own flag, independent of the Notes and Connected Files flags:
-`PHYNITE_AI_TEAM=1` plus `PHYNITE_AI_TEAM_QUALIFICATION` pointing to an evidence index.
-These explicit launcher settings reach the core. They do not activate Team unless
-that index and its SHA-256 verified evidence match the exact model and platform.
+Team has its own flag, independent of the Notes and Connected Files flags. The
+launcher and source development runner supply the bundled reviewed evidence index
+by default. `PHYNITE_AI_TEAM=0` explicitly disables it;
+`PHYNITE_AI_TEAM_QUALIFICATION` can select another locally reviewed index. The core
+still requires that index and its SHA-256 verified native evidence to match the exact
+model and platform. Enabling the flag alone cannot qualify a target.
 Native Windows and WSL1 cannot qualify. WSL2 has a separate platform identity, so a
 Linux CI result never qualifies WSL2. Qualification is local, explicit and fails
 closed on missing, changed, synthetic or unreviewed evidence.
@@ -118,9 +122,28 @@ Every specialist must complete, with at least two specialists in the Team case.
 A completed synthesis that reports failed specialists cannot qualify a provider.
 
 No real provider, Linux/WSL2 or HPC qualification is implied by local mock/protocol
-tests. The implementation leaves Team off until this evidence exists. Connected
+tests. The core leaves each target off until this evidence exists. Connected
 Files filesystem replacement and real WSL2 `/home` versus `/mnt/c` tests have their
 own independent qualification requirements.
+
+## Current qualification (2026-11-14)
+
+The bundled index enables Team for **`agy/gemini-3.8-flash-high` on macOS ARM64**.
+The actual run used Antigravity CLI 1.5.9 and Node 22.23.5. Both independent
+specialists completed with overlapping native dispatches. Their project/Canvas
+identities, exact revision, evidence references, checksums and counts match the saved
+tool observations and the coordinator's synthesis. The native safety checks passed
+two global slots, cancellation before queued dispatch and during streaming,
+Stop/restart and rejection of late results. The raw benchmark, review and safety
+record are included under `packages/phynite-lab/lib/team-qualification/`; the core
+checks the evidence hash before enabling the matching model/platform.
+
+Solo took 157,586 ms and 4 provider calls; Team took 369,794 ms and 12 calls. Both
+read the same two kinds of saved source, using 2 tools. Team was slower on this
+bounded empty-project case. This qualification establishes source-reading and
+orchestration behavior, not scientific accuracy or a general speedup. Token usage,
+cost and total provider/core resources were not measured. Other models and platforms
+remain unqualified, including Flash Medium, Linux and WSL2. No HPC target was tested.
 
 ## Actual qualification observations (2026-11-13)
 

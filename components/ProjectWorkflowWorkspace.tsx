@@ -471,9 +471,18 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
   }, []);
   useLayoutEffect(() => {
     const element = root.current; if (!element) return;
-    const fitViewport = () => { const viewport = window.visualViewport; const bottom = viewport ? viewport.offsetTop + viewport.height : innerHeight; element.style.setProperty('--workflow-keyboard-inset', `${Math.max(0, element.getBoundingClientRect().bottom - bottom)}px`); };
-    fitViewport(); window.addEventListener('resize', fitViewport); window.visualViewport?.addEventListener('resize', fitViewport); window.visualViewport?.addEventListener('scroll', fitViewport);
-    return () => { window.removeEventListener('resize', fitViewport); window.visualViewport?.removeEventListener('resize', fitViewport); window.visualViewport?.removeEventListener('scroll', fitViewport); };
+    let frame = 0;
+    const fitViewport = () => {
+      const viewport = window.visualViewport, bottom = viewport ? viewport.offsetTop + viewport.height : innerHeight;
+      const inset = `${Math.max(0, element.getBoundingClientRect().bottom - bottom)}px`;
+      if (element.style.getPropertyValue('--workflow-keyboard-inset') !== inset) element.style.setProperty('--workflow-keyboard-inset', inset);
+    };
+    // Viewport events can arrive before the shell finishes its responsive layout.
+    // Recheck its settled box so an ordinary resize cannot leave a keyboard inset.
+    const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(fitViewport); };
+    const observer = new ResizeObserver(schedule); observer.observe(element);
+    fitViewport(); window.addEventListener('resize', schedule); window.visualViewport?.addEventListener('resize', schedule); window.visualViewport?.addEventListener('scroll', schedule);
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); window.removeEventListener('resize', schedule); window.visualViewport?.removeEventListener('resize', schedule); window.visualViewport?.removeEventListener('scroll', schedule); };
   }, []);
   const restoredCamera = useRef(false);
   useEffect(()=>{

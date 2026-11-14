@@ -9,6 +9,7 @@ import { AiCampaignStatus } from './AiCampaignStatus';
 import { AiDiscoveryStatus } from './AiDiscoveryStatus';
 import { useLocale } from '@/app/locale-provider';
 import { aiFieldChanges, aiFieldLabel } from '@/lib/ai-action-summary';
+import { aiModuleDescription } from '@/lib/ai-presentation';
 import { parseProjectWorkflow } from '@/lib/project-workflow';
 import type { AiCanvasPreviewHandler } from '@/lib/workflow-auto-layout';
 import type { AiAction } from '@/lib/ai-contract';
@@ -44,7 +45,7 @@ async function actionRequest<T>(conversation: string, action: string, query = ''
   return data;
 }
 export function AiActionCard({ action, conversationId, locked, onDecision, onCanvas, onCanvasPreview }: { onCanvasPreview?: AiCanvasPreviewHandler; action: AiAction; conversationId: string; locked: boolean; onDecision: (action: AiAction, decision: 'approve' | 'reject') => Promise<void>; onCanvas?: (ids: string[]) => void }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [preview, setPreview] = useState<unknown>(), [error, setError] = useState(''), [loading, setLoading] = useState(false);
   const pending = action.status === 'pending';
   const previewCallback = useRef(onCanvasPreview);
@@ -63,9 +64,12 @@ export function AiActionCard({ action, conversationId, locked, onDecision, onCan
   };
   const status = { pending: t('Awaiting approval', 'Menunggu persetujuan'), executing: t('Executing', 'Mengeksekusi'), succeeded: t('Action completed', 'Aksi selesai'), failed: t('Action failed', 'Aksi gagal'), rejected: t('Rejected', 'Ditolak'), expired: t('Approval expired', 'Persetujuan kedaluwarsa'), superseded: t('Replaced by new direction', 'Digantikan arahan baru') }[action.status];
   return <section className="ai-action" data-status={action.status} aria-label={t('Research action', 'Aksi riset')}>
-    <header><span className="ai-action-status">{action.status === 'succeeded' ? <CheckCircle2 size={14} /> : <CircleDashed size={14} />}{status}</span><code title={`SHA-256: ${action.payloadHash}`}>{action.payloadHash.slice(0, 12)}</code></header>
+    <header><span className="ai-action-status">{action.status === 'succeeded' ? <CheckCircle2 size={14} /> : <CircleDashed size={14} />}{status}</span></header>
     <div className="ai-action-heading"><strong>{action.title}</strong><p>{action.kind === 'mcp_call' ? t('Tool on this computer · exact arguments below', 'Tool di komputer ini · argumen lengkap di bawah') : action.kind.startsWith('run_') ? t('Compute: Your computer', 'Komputasi: Komputer Anda') : t('Changes in this project', 'Perubahan dalam project ini')}</p></div>
-    {!!changes.length && <div className="ai-action-modules">{changes.map((change, index) => <div key={`${change.nodeId}:${index}`}><Layers size={14} /><span>{change.name ?? change.nodeId}</span><small>{change.operation === 'add' ? t('Add module', 'Tambah modul') : change.operation === 'remove' ? t('Remove module', 'Hapus modul') : t('Update module', 'Ubah modul')}</small></div>)}</div>}
+    {!!changes.length && <div className="ai-action-modules">{changes.map((change, index) => {
+      const description = aiModuleDescription(change, locale);
+      return <div key={`${change.nodeId}:${index}`}><Layers size={14} /><span>{description.name}{description.kind && description.kind !== description.name && <small>{description.kind}</small>}</span><small>{change.operation === 'add' || change.before == null ? t('Add module', 'Tambah modul') : change.operation === 'remove' || change.after == null ? t('Remove module', 'Hapus modul') : t('Update module', 'Ubah modul')}</small></div>;
+    })}</div>}
     <div className="ai-action-sections">
       <Disclosure title={t('Before and after', 'Sebelum dan sesudah')} icon={<GitCompareArrows size={15} />}>
         <div className="ai-diff-scroll"><table className="ai-diff-table"><thead><tr><th>{t('Parameter', 'Parameter')}</th><th>{t('Before', 'Sebelum')}</th><th><ArrowRight size={12} aria-hidden="true" />{t('After', 'Sesudah')}</th></tr></thead><tbody>{(changes.length ? changes : [{ nodeId: '', name: '', before: action.before, after: action.after }]).flatMap(change => aiFieldChanges(change.before, change.after).filter(field => change.before != null || !['kind','name','position.x','position.y','resources'].includes(field.path)).map(field => <tr key={`${change.nodeId}:${field.path}`}><th title={field.path}>{change.name && <small>{change.name}</small>}{aiFieldLabel(field.path) || t('Value', 'Nilai')}</th><td data-change={field.before !== undefined ? "removed" : undefined}>{field.before !== undefined && <span className="ai-diff-marker" aria-hidden="true">−</span>}<DataValue value={field.before} /></td><td data-change={field.after !== undefined ? "added" : undefined}>{field.after !== undefined && <span className="ai-diff-marker" aria-hidden="true">+</span>}<DataValue value={field.after} /></td></tr>))}</tbody></table></div>

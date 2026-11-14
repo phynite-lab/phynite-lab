@@ -1,7 +1,7 @@
 'use client';
 import { PhyniteAiIcon } from '@/app/tool-icons';
-import { ArrowLeft, Atom, Box, Check, ChevronRight, FileText, GitBranch, ListChecks, Paperclip, RefreshCw, Search, SlidersHorizontal, TextSearch, WandSparkles, X, type LucideIcon } from 'lucide-react';
-import { useEffect, useImperativeHandle, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
+import { ArrowLeft, Atom, Box, Camera, Check, ChevronRight, FileText, FlaskConical, GitBranch, ListChecks, Paperclip, RefreshCw, Search, SlidersHorizontal, TextSearch, WandSparkles, X, type LucideIcon } from 'lucide-react';
+import { useEffect, useImperativeHandle, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocale } from '@/app/locale-provider';
 import type { AiContextItem, AiTaskMode } from '@/lib/ai-workbench';
@@ -13,9 +13,9 @@ import { useAiOverlayPosition } from './use-ai-overlay';
 export { aiOverlayTheme, aiOverlayViewport } from './use-ai-overlay';
 
 export type AiContextPickerController = { handleKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => boolean };
-export type AiContextPickerView = 'menu' | 'contexts' | 'commands' | 'mode' | 'skills';
+export type AiContextPickerView = 'menu' | 'contexts' | 'commands' | 'mode' | 'skills' | 'capture' | 'discovery' | 'settings';
 type PickerRow = { key: string; label: string; detail?: string; command?: string; icon: LucideIcon | typeof PhyniteAiIcon; checked?: boolean; disabled?: boolean; select: () => void; item?: AiContextItem };
-export function AiContextPicker({ anchorRef, portalOwner, load, onSelect, onFiles, onClose, onTask, taskMode, taskLocked, saved = true, initialView = 'menu', commandToken, skills = [], skillRef, onSkill, onManageSkills, onManageMcp, controllerRef }: {
+export function AiContextPicker({ anchorRef, portalOwner, load, onSelect, onFiles, onClose, onTask, taskMode, taskLocked, saved = true, initialView = 'menu', commandToken, skills = [], skillRef, onSkill, onManageSkills, onManageMcp, controllerRef, capture, discovery, settings, onTasks }: {
   anchorRef: RefObject<HTMLButtonElement | null>; portalOwner: string;
   load: (nodeId?: string, query?: string) => Promise<{ items: AiContextItem[]; hasMore: boolean }>;
   onManageSkills?: () => void; onManageMcp?: () => void;
@@ -23,6 +23,7 @@ export function AiContextPicker({ anchorRef, portalOwner, load, onSelect, onFile
   onTask: (task: AiTaskMode) => void; taskMode: AiTaskMode; taskLocked: boolean; saved?: boolean;
   initialView?: AiContextPickerView; commandToken?: AiCommandToken; skills?: AiSkillCatalogEntry[];
   skillRef?: AiSkillRef | null; onSkill?: (skill: AiSkillRef) => void; controllerRef?: RefObject<AiContextPickerController | null>;
+  capture?: ReactNode; discovery?: ReactNode; settings?: ReactNode; onTasks?: () => void;
 }) {
   const { t } = useLocale();
   const [view, setView] = useState<AiContextPickerView>(initialView), [query, setQuery] = useState(''), [node, setNode] = useState<string>(), [moduleKind, setModuleKind] = useState<WorkflowKind>(), [retry, setRetry] = useState(0);
@@ -67,8 +68,19 @@ export function AiContextPicker({ anchorRef, portalOwner, load, onSelect, onFile
     return false;
   } }));
   const placement = useAiOverlayPosition({ anchorRef, rootRef: root });
-  useEffect(() => { if (placement.style.visibility === 'visible' && (!commandMode || view !== 'commands')) (search.current ?? root.current?.querySelector<HTMLButtonElement>('button[data-picker-option]:not(:disabled)'))?.focus({ preventScroll: true }); }, [placement.style.visibility, commandMode, view, node, moduleKind]);
+  useEffect(() => {
+    if (placement.style.visibility !== 'visible' || commandMode && view === 'commands') return;
+    const target = search.current ?? root.current?.querySelector<HTMLElement>('button[data-picker-option]:not(:disabled),.ai-context-options button:not(:disabled),.ai-context-options input:not(:disabled)') ?? root.current?.querySelector('button');
+    target?.focus({ preventScroll: true });
+  }, [placement.style.visibility, commandMode, view, node, moduleKind]);
   useEffect(() => { const outside = (event: PointerEvent) => { if (!root.current?.contains(event.target as Node) && !anchorRef.current?.contains(event.target as Node) && !(commandMode && anchorRef.current?.closest('.ai-composer-box')?.contains(event.target as Node))) onClose(false); }; document.addEventListener('pointerdown', outside); return () => document.removeEventListener('pointerdown', outside); }, [anchorRef, onClose, commandMode]);
+  useEffect(() => {
+    // Permission updates can temporarily disable the focused control. Escape
+    // must still close this sole overlay when the browser moves focus to body.
+    const escape = (event: globalThis.KeyboardEvent) => { if (event.key === 'Escape' && !event.defaultPrevented) { event.preventDefault(); onClose(true); } };
+    document.addEventListener('keydown', escape);
+    return () => document.removeEventListener('keydown', escape);
+  }, [onClose]);
   const filtered = items.filter(item => (!kind || node || item.ref.kind === 'node' && item.detail === kind) && (view !== 'commands' || item.ref.kind === 'node' || Boolean(node)) && aiCommandMatches(filterQuery, item.label, item.detail));
   const tasks = [
     { id: 'work', label: t('Work', 'Kerja'), detail: t('Work with saved project inputs', 'Kerjakan input project tersimpan'), icon: PhyniteAiIcon },
@@ -90,14 +102,16 @@ export function AiContextPicker({ anchorRef, portalOwner, load, onSelect, onFile
     { label: t('Saved sources', 'Sumber tersimpan'), rows: contextRows.filter(row => ['resource', 'attachment'].includes(row.item!.ref.kind)) },
   ].filter(group => group.rows.length);
   const openView = (next: AiContextPickerView) => { setView(next); setNode(undefined); setModuleKind(undefined); setQuery(''); };
-  const title = view === 'menu' ? t('Add to chat', 'Tambahkan ke chat') : view === 'mode' ? t('Mode', 'Mode') : view === 'skills' ? t('Skills', 'Skill') : view === 'commands' ? t('Commands', 'Perintah') : t('Module context', 'Konteks modul');
-  const showSearch = view !== 'menu' && view !== 'commands';
+  const title = view === 'menu' ? t('Add to chat', 'Tambahkan ke chat') : view === 'mode' ? t('Mode', 'Mode') : view === 'skills' ? t('Skills', 'Skill') : view === 'commands' ? t('Commands', 'Perintah') : view === 'capture' ? t('Viewport capture', 'Capture viewport') : view === 'discovery' ? t('Discovery presets', 'Preset Discovery') : view === 'settings' ? t('AI options', 'Opsi AI') : t('Module context', 'Konteks modul');
+  const extraView = ['capture', 'discovery', 'settings'].includes(view);
+  const showSearch = view !== 'menu' && view !== 'commands' && !extraView;
   let optionIndex = 0;
   if (typeof document === 'undefined') return null;
   return createPortal(<div ref={root} className="ai-context-picker ai-command-picker ai-overlay" data-ui-owner={portalOwner} data-sheet={placement.sheet} data-command-mode={commandMode} style={placement.style} role="dialog" aria-label={t('Add context', 'Tambah konteks')} onBlur={event => { if (event.relatedTarget instanceof Node && !event.currentTarget.contains(event.relatedTarget) && !anchorRef.current?.contains(event.relatedTarget) && !(commandMode && anchorRef.current?.closest('.ai-composer-box')?.contains(event.relatedTarget))) onClose(false); }} onKeyDown={event => {
     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onClose(true); return; }
     if (event.nativeEvent.isComposing) return;
     if (event.target instanceof HTMLInputElement) {
+      if (event.target !== search.current) return; // Preserve native radio and checkbox keys in AI options.
       const first = event.currentTarget.querySelector<HTMLButtonElement>('button[data-picker-option]:not(:disabled)');
       if (event.key === 'Enter' || event.key === 'Tab' && !event.shiftKey && first) { event.preventDefault(); first?.click(); }
       if (event.key === 'ArrowDown') { event.preventDefault(); first?.focus(); }
@@ -119,11 +133,16 @@ export function AiContextPicker({ anchorRef, portalOwner, load, onSelect, onFile
         <button type="button" data-picker-option onClick={() => openView('mode')}><ListChecks size={18} /><span>{t('Mode', 'Mode')}<small>{t('Work, Plan, Research and Summary', 'Kerja, Rencana, Riset, dan Ringkasan')}</small></span><ChevronRight size={15} /></button>
         {!!skills.length && <button type="button" data-picker-option onClick={() => openView('skills')}><WandSparkles size={18} /><span>{t('Skills', 'Skill')}<small>{t('Saved scientific workflows', 'Panduan kerja ilmiah tersimpan')}</small></span><ChevronRight size={15} /></button>}
         <button type="button" data-picker-option onClick={() => openView('contexts')}><Box size={18} /><span>{t('Module context', 'Konteks modul')}<small>{t('Modules, fields and saved sources', 'Modul, field, dan sumber tersimpan')}</small></span><ChevronRight size={15} /></button>
+        {capture && <button type="button" data-picker-option onClick={() => openView('capture')}><Camera size={18} /><span>{t('Viewport capture', 'Capture viewport')}</span><ChevronRight size={15} /></button>}
+        {discovery && <button type="button" data-picker-option onClick={() => openView('discovery')}><FlaskConical size={18} /><span>{t('Discovery presets', 'Preset Discovery')}</span><ChevronRight size={15} /></button>}
+        {settings && <button type="button" data-picker-option onClick={() => openView('settings')}><SlidersHorizontal size={18} /><span>{t('AI options', 'Opsi AI')}</span><ChevronRight size={15} /></button>}
+        {onTasks && <button type="button" data-picker-option onClick={onTasks}><ListChecks size={18} /><span>{t('View activity', 'Lihat aktivitas')}</span></button>}
       </div>}
+      {extraView && <div className="ai-context-options">{view === 'capture' ? capture : view === 'discovery' ? discovery : settings}</div>}
       {(node || moduleKind) && <button type="button" className="ai-context-back" onClick={() => { setNode(undefined); setModuleKind(undefined); setQuery(''); setView(commandMode ? 'commands' : 'contexts'); search.current?.focus(); }}><ArrowLeft size={14} />{t('All project context', 'Semua konteks project')}</button>}
       {needsContext && !saved && <p role="status">{t('Save Canvas changes before selecting project context. Files remain available.', 'Simpan perubahan Kanvas sebelum memilih konteks project. File tetap tersedia.')}</p>}
       {needsContext && !loading && result.error && <p role="alert">{result.error}<button type="button" onClick={() => setRetry(value => value + 1)}><RefreshCw size={14} />{t('Retry', 'Coba lagi')}</button></p>}
-      {view !== 'menu' && <div className="ai-context-results" aria-busy={loading}>{groups.map(group => <section key={group.label} aria-label={group.label}><h3>{group.label}<span>{group.rows.length}</span></h3>{group.rows.map(row => {
+      {view !== 'menu' && !extraView && <div className="ai-context-results" aria-busy={loading}>{groups.map(group => <section key={group.label} aria-label={group.label}><h3>{group.label}<span>{group.rows.length}</span></h3>{group.rows.map(row => {
         const index = row.disabled ? -1 : optionIndex++, Icon = row.icon;
         return <div className="ai-context-row" key={row.key}><button type="button" data-picker-option data-active={commandMode && index === activeIndex && index >= 0} disabled={row.disabled} aria-pressed={row.checked} onMouseDown={event => { if (commandMode && view === 'commands') event.preventDefault(); }} onClick={row.select}><Icon size={16} aria-hidden="true" /><span>{row.label}{row.detail && <small>{row.detail}</small>}{row.command && <small className="ai-command-alias">/{row.command}</small>}</span>{row.checked && <Check size={14} aria-hidden="true" />}</button>{row.item?.ref.kind === 'node' && <button type="button" disabled={!saved} aria-label={t(`Choose fields in ${row.label}`, `Pilih field di ${row.label}`)} title={t('Configuration fields and atoms', 'Field konfigurasi dan atom')} onClick={() => { setNode(row.item!.ref.id); setView('contexts'); setQuery(''); }}><ChevronRight size={16} /></button>}</div>;
       })}</section>)}{loading && <p role="status">{t('Reading saved sources…', 'Membaca sumber tersimpan…')}</p>}{!loading && !result.error && !groups.length && <p>{view === 'contexts' || view === 'commands' ? t('No matching saved context.', 'Tidak ada konteks tersimpan yang cocok.') : t('No matching commands.', 'Tidak ada perintah yang cocok.')}</p>}{needsContext && !loading && result.hasMore && <p>{t('Showing the first 250 sources. Choose a module to narrow the list.', 'Menampilkan 250 sumber pertama. Pilih modul untuk mempersempit daftar.')}</p>}</div>}
