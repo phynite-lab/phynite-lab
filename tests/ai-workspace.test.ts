@@ -529,17 +529,18 @@ test('old evidence replays digests while the two newest turns retain full observ
   assert.ok(!text.includes('OLD FULL BODY')); assert.ok(text.includes('nextLine')); assert.ok(text.includes('LATEST FULL BODY'));
 });
 
-test('pre-finish gate audits pending actions and appends unresolved verification limits', async () => {
+test('finishing saves one answer without self-audit inference or raw requirement boilerplate', async () => {
   const state = detail(); state.run!.steps = 2;
   const ledger = { schemaVersion: 1 as const, constraints: [{ messageId: 'aim_fixture', text: 'Run the calculation', status: 'active' as const, runId: 'air_fixture' }], lockedParameters: [], completedActions: [], openGaps: ['aia_pending: pending'], stage: 0 };
   state.conversation.stateLedger = ledger;
   const mock = backendMock(op => op === 'ledger' ? { ledger } : op === 'audit' ? { verified: false, issues: [{ messageId: 'aim_fixture', status: 'unknown' }], openGaps: ledger.openGaps } : undefined);
   let count = 0;
   await runAiAgent({ detail: state, backend: mock.backend, config, send() {}, signal: signal(), providerFetch: async () => { count++; return sse(events(undefined, 'Proposed calculation.')); } });
-  assert.equal(count, 2);
+  assert.equal(count, 1);
   const saved = mock.calls.filter(c => c.operation === 'message' && c.payload?.role === 'assistant').map(c => c.payload?.text).join(' ');
-  assert.match(saved, /aia_pending: pending/); assert.match(saved, /not verified complete/);
-  assert.ok(mock.calls.findIndex(c => c.operation === 'audit') < mock.calls.findIndex(c => c.operation === 'finish'));
+  assert.equal(saved, 'Proposed calculation.');
+  assert.ok(!saved.includes('aim_') && !saved.includes('aia_'));
+  assert.ok(mock.calls.some(c => c.operation === 'finish'));
 });
 
 test('viewport evidence reaches the provider as checksummed native pixels and revoked delivery removes pixels', async t => {

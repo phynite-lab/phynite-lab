@@ -62,7 +62,6 @@ export async function runAiAgent(options: {
   const maxRounds = Math.max(1, Math.min(30, Math.floor(options.maxRounds ?? (ceiling === 40 ? 30 : 14))));
   const toolBudget = Math.max(1, Math.min(maxSteps, Math.floor(options.toolBudget ?? maxSteps)));
   let ledger = detail.conversation.stateLedger;
-  let verificationDone = false;
   const progress = async () => {
     if (!ledger) return;
     const saved = await backend<{ ledger?: AiStateLedger }>('ledger', {});
@@ -131,7 +130,7 @@ export async function runAiAgent(options: {
       if (instruction.attachmentIds?.length) await attach(message, instruction.attachmentIds);
       if (processingTools) deferredDirections.push(message); else messages.push(message);
     }
-    if (control.messages.length) { verificationDone = false; await progress(); send({ type: 'steering', messages: control.messages }); }
+    if (control.messages.length) { await progress(); send({ type: 'steering', messages: control.messages }); }
     return control.messages.length > 0;
   };
   try {
@@ -178,22 +177,10 @@ export async function runAiAgent(options: {
       if (!calls.length) {
         messages.push({ role: 'assistant', content: visible || 'The preceding response has been recorded.' });
         if (await checkpoint()) continue;
-        if (ledger && (steps >= 2 || ledger.constraints.length > 1) && !verificationDone) {
-          const audit = await backend<{ verified?: boolean; issues?: unknown[]; openGaps?: string[]; actions?: unknown[] }>('audit', {});
-          verificationDone = true;
-          if (audit.verified === false && round + 1 < maxRounds) {
-            messages.push({ role: 'user', content: evidenceXml('evidence', aiObservation(audit), { kind: 'pre_finish_audit' }) + '\nCheck each pinned requirement against the recorded evidence. Use record_progress for dispositions. Correct unsupported action/success claims and explicitly report unmet requirements and pending/failed actions. This is the final audit; do not invent scientific verification.' });
-            send({ type: 'activity', text: 'Checking pinned requirements and recorded action outcomes…' });
-            continue;
-          }
-        }
-        if (verificationDone && ledger) {
-          const finalAudit = await backend<{ verified?: boolean; issues?: Array<{ messageId: string; status: string }>; openGaps?: string[] }>('audit', {});
-          if (finalAudit.verified === false) {
-            const note = '\n\nVerification limits: ' + [...(finalAudit.issues ?? []).map(issue => `${issue.messageId}: ${issue.status}`), ...(finalAudit.openGaps ?? [])].join('; ') + '. These requirements or actions are not verified complete.';
-            await backend('message', { role: 'assistant', text: note }); send({ type: 'text', text: note });
-          }
-        }
+        // The core records a scoped audit in finish. Unassessed chat history is not
+        // a failed action, and asking the model to audit its own answer adds neither
+        // independent verification nor evidence. Surface actual limits/failed actions
+        // from that record instead of generating a second answer or an ID checklist.
         await progress();
         try { await backend('finish', { status: 'completed', usage, latencyMs: Date.now() - started, controlRevision: run.controlRevision ?? 0 }); }
         catch (error) { if (error instanceof AiError && error.code === 'AI_STEER_PENDING') continue; throw error; }

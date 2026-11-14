@@ -84,6 +84,38 @@ class AiMemoryTests(unittest.TestCase):
         self.assertEqual(self.request('step', {'toolCallId': 'long39'})['run']['steps'], 40)
         with self.assertRaises(ApiError): self.request('step', {'toolCallId': 'long40'})
 
+    def test_finish_retains_unverified_requirements_and_actual_pending_actions(self):
+        message = self.ai.message(self.owner, self.conversation, self.run, 'user', 'Run Si after review.')
+        self.ai.put(self.owner, 'AI_ACTION', 'aia_pending', {
+            'conversationId': self.conversation['id'], 'runId': self.run['id'],
+            'kind': 'run_dft', 'title': 'Run Si', 'status': 'pending'})
+        self.request('finish', {'status': 'completed'})
+        self.reload()
+        self.assertFalse(self.run['verification']['verified'])
+        self.assertEqual(self.run['verification']['issues'][0]['messageId'], message['id'])
+        self.assertEqual(self.run['verification']['openGaps'], ['aia_pending: pending'])
+        self.assertEqual(self.ai.row(self.owner, 'AI_ACTION', 'aia_pending')['status'], 'pending')
+
+    def test_audit_keeps_old_instructions_but_does_not_reopen_old_turns(self):
+        previous = {**self.run, 'id': 'air_previous'}
+        old = self.ai.message(self.owner, self.conversation, previous, 'user', 'Keep the Si cutoff at 80 Ry.')
+        latest = self.ai.message(self.owner, self.conversation, self.run, 'user', 'Read the SCF results.')
+        for status in ('rejected', 'expired', 'superseded', 'failed'):
+            self.ai.put(self.owner, 'AI_ACTION', 'aia_old_' + status, {
+                'conversationId': self.conversation['id'], 'runId': previous['id'],
+                'kind': 'run_dft', 'title': 'Old Si calculation', 'status': status})
+        self.ai.put(self.owner, 'AI_ACTION', 'aia_pending', {
+            'conversationId': self.conversation['id'], 'runId': previous['id'],
+            'kind': 'run_dft', 'title': 'Review Si calculation', 'status': 'pending'})
+        audit = self.request('audit')
+        self.assertEqual([issue['messageId'] for issue in audit['issues']], [latest['id']])
+        self.assertEqual(audit['openGaps'], ['aia_pending: pending'])
+        self.assertIn(old['id'], [item['messageId'] for item in self.memory.snapshot(self.owner, self.conversation)['constraints']])
+        # Explicitly revisiting a previous request still reports that assessment.
+        self.request('ledger', {'assessments': [{'messageId': old['id'], 'status': 'unmet', 'explanation': 'The cutoff could not be checked.'}]})
+        self.reload()
+        self.assertIn(old['id'], [issue['messageId'] for issue in self.request('audit')['issues']])
+
     def test_digest_redacts_secrets_and_preserves_reading_pointers(self):
         result = evidence_digest(json.dumps({'api_key': 'fixture-only', 'nextLine': 123, 'sha256': 'b' * 64, 'log': 'x' * 24000}))
         self.assertNotIn('fixture-only', json.dumps(result))

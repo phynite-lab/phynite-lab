@@ -2,9 +2,10 @@
 import { useCallback, useEffect, useState, useId } from 'react';
 import { useLocale } from '@/app/locale-provider';
 import { localRequest } from '@/lib/local-api';
-import { aiTaskCounts, type AgentTask, type AiOrchestrationState } from '@/lib/ai-orchestration';
+import { type AgentTask, type AiOrchestrationState } from '@/lib/ai-orchestration';
 import type { AiStrategy } from '@/lib/ai-contract';
 import { AiResponseContent } from './AiResponseContent';
+import { aiModelLabel } from '@/lib/ai-model-selection';
 import './AiTasks.css';
 
 export function useAiOrchestration(conversationId: string | undefined, enabled: boolean, modelId: string) {
@@ -46,21 +47,11 @@ export function AiStrategySettings({ value, onChange, qualified, disabled }: { v
   const { t } = useLocale(), radioName = useId();
   return <fieldset className="ai-strategy-settings" disabled={disabled}><legend>{t('Strategy', 'Strategi')}</legend>
     <div>{(['auto', 'solo', 'team'] as const).map(strategy => <label key={strategy}>
-      <input type="radio" name={radioName} value={strategy} checked={value === strategy} disabled={strategy === 'team' && !qualified} onChange={() => onChange(strategy)} />
+      <input type="radio" name={radioName} value={strategy} checked={value === strategy} disabled={strategy === 'team' && !qualified} title={strategy === 'team' && !qualified ? t('Unavailable for this model on this device', 'Belum tersedia untuk model ini di perangkat ini') : undefined} onChange={() => onChange(strategy)} />
       {strategy === 'auto' ? 'Auto' : strategy === 'solo' ? 'Solo' : 'Team'}
     </label>)}</div>
-    <p>{qualified ? t('Auto uses specialists for independent work. Project changes require review.', 'Auto memakai specialist untuk tugas independen. Perubahan proyek perlu ditinjau.') : t('Team awaits qualification for this model and platform. Auto currently uses Solo.', 'Team menunggu kualifikasi model dan platform ini. Auto saat ini memakai Solo.')}</p>
+    <p>{value === 'team' ? t('Split independent work between specialists.', 'Bagi pekerjaan independen ke beberapa specialist.') : value === 'solo' ? t('Use a single agent.', 'Gunakan satu agent.') : t('Let AI choose when to split the work.', 'AI memilih kapan tugas perlu dibagi.')}</p>
   </fieldset>;
-}
-
-export function AiTaskSummary({ state, decisions, onOpen }: { state: AiOrchestrationState | null; decisions: number; onOpen: () => void }) {
-  const { t } = useLocale();
-  const counts = aiTaskCounts(state, decisions);
-  const active = counts.active || (state?.parent?.status === 'running' ? 1 : 0);
-  return <button type="button" className="ai-task-summary" onClick={onOpen}>
-    {t(`${active} active ${active === 1 ? 'task' : 'tasks'} · ${decisions} awaiting decision`, `${active} tugas aktif · ${decisions} menunggu keputusan`)}
-    {counts.queued > 0 && <small>{t(`${counts.queued} queued`, `${counts.queued} mengantre`)}</small>}
-  </button>;
 }
 
 export function AiTasks({ state, error, action, onReview }: { state: AiOrchestrationState | null; error: string; action: (operation: 'stop' | 'retry' | 'continue', task?: AgentTask) => Promise<void>; onReview: () => void }) {
@@ -78,14 +69,11 @@ export function AiTasks({ state, error, action, onReview }: { state: AiOrchestra
   return <section className="ai-tasks" aria-label={t('AI tasks', 'Tugas AI')}>
     {error && <p className="ai-tasks-error" role="alert">{error}</p>}
     {!state?.parent ? <p>{t('Send a goal to see the plan, evidence and task results here.', 'Kirim tujuan untuk melihat rencana, bukti, dan hasil tugas di sini.')}</p> : <>
-      <header><strong>{state.parent.resolvedStrategy === 'team' ? 'Team' : 'Solo'} · {state.parent.modelId}</strong><p>{state.parent.reason}</p></header>
-      <dl className="ai-task-budget"><dt>{t('Provider calls', 'Panggilan provider')}</dt><dd>{state.parent.providerCalls}/30</dd><dt>{t('Tool calls', 'Panggilan tool')}</dt><dd>{state.parent.toolCalls}/40</dd><dt>{t('Token usage', 'Pemakaian token')}</dt><dd>{t('Not available', 'Belum tersedia')}</dd><dt>{t('Cost', 'Biaya')}</dt><dd>{t('Not available', 'Belum tersedia')}</dd></dl>
       {['interrupted', 'failed', 'awaiting_approval'].includes(state.parent.status) && <div className="ai-task-controls"><button type="button" disabled={!!busy} onClick={() => void perform('continue')}>{t('Continue retained work', 'Lanjutkan pekerjaan tersimpan')}</button><button type="button" onClick={onReview}>{t('Review decisions', 'Tinjau keputusan')}</button></div>}
-      {state.tasks.length === 0 && <p>{t('One coordinator is handling this request. Evidence and proposals appear in Chat.', 'Satu coordinator menangani permintaan ini. Bukti dan usulan muncul di Chat.')}</p>}
+      {state.tasks.length === 0 && <p>{t('This request has no separate tasks.', 'Permintaan ini tidak memiliki tugas terpisah.')}</p>}
       {state.tasks.map(task => <details key={task.id} className="ai-task-card"><summary><span>{task.goal}</span><small>{names[task.status]}</small></summary>
-        <p>{t('Specialist', 'Specialist')} · {task.modelId}</p>
+        <p className="ai-task-model">{aiModelLabel(task.modelId)}</p>
         <p>{t('Dependencies', 'Dependensi')}: {task.dependencies.length ? task.dependencies.map(index => state.tasks.find(item => item.index === index)?.goal ?? t('Unavailable', 'Belum tersedia')).join('; ') : t('Independent task', 'Tugas independen')}</p>
-        <p>{task.providerCalls}/8 {t('provider calls', 'panggilan provider')} · {task.toolCalls}/12 {t('tools', 'tool')}</p>
         {task.sources.length > 0 && <details><summary>{t('Selected sources', 'Sumber pilihan')}</summary><ul>{task.sources.map(source => <li key={source.sourceId}>{source.label}<code>{source.sha256}</code></li>)}</ul></details>}
         {task.evidence.length > 0 && <details><summary>{t('Evidence read', 'Bukti yang dibaca')}</summary><ul>{task.evidence.map(source => <li key={source.id}>{source.id} · {source.operation}<code>{source.sha256}</code><time>{source.capturedAt}</time></li>)}</ul></details>}
         {task.error && <p className="ai-tasks-error">{task.error}</p>}
@@ -93,6 +81,8 @@ export function AiTasks({ state, error, action, onReview }: { state: AiOrchestra
         {task.result?.uncertainties.map((uncertainty, index) => <p key={index}>{uncertainty}</p>)}
         <div className="ai-task-controls">{['queued', 'running'].includes(task.status) && <button type="button" disabled={!!busy} onClick={() => void perform('stop', task)}>{t('Stop task', 'Hentikan tugas')}</button>}{['failed', 'interrupted'].includes(task.status) && <button type="button" disabled={!!busy} onClick={() => void perform('retry', task)}>{t('Retry with remaining budget', 'Coba dengan sisa budget')}</button>}</div>
       </details>)}
+      <details className="ai-task-diagnostics"><summary>{t('Technical details', 'Detail teknis')}</summary><p>{aiModelLabel(state.parent.modelId)} · {state.parent.status}</p>
+      <dl className="ai-task-budget"><dt>{t('Provider calls', 'Panggilan provider')}</dt><dd>{state.parent.providerCalls}/30</dd><dt>{t('Tool calls', 'Panggilan tool')}</dt><dd>{state.parent.toolCalls}/40</dd><dt>{t('Token usage', 'Pemakaian token')}</dt><dd>{t('Not available', 'Belum tersedia')}</dd><dt>{t('Cost', 'Biaya')}</dt><dd>{t('Not available', 'Belum tersedia')}</dd></dl></details>
     </>}
   </section>;
 }

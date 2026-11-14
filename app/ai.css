@@ -86,6 +86,15 @@
 .ai-paper-list small { color: var(--panel-muted); font-size: var(--text-caption); }
 .ai-activity { color: var(--panel-muted); font-size: var(--text-caption); display: flex; align-items: center; gap: 9px; margin: 16px 0; }
 .ai-activity > span { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.ai-working-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 32px; margin: 12px 0 20px; color: var(--panel-muted); font-size: var(--text-label); line-height: 1.6; }
+.ai-working-status > svg { flex: none; animation: ai-panel-working 1.2s linear infinite; }
+.ai-working-status[data-paused=true] > svg { animation: none; }
+.ai-working-status > time { font-size: var(--text-caption); font-variant-numeric: tabular-nums; }
+.ai-working-status > button { min-height: 44px; text-decoration: underline; text-underline-offset: 3px; }
+.ai-working-status[data-compact=true] { margin: 0 4px; font-size: var(--text-caption); }
+.ai-working-status[data-compact=true] > button { min-height: 32px; }
+.ai-action-modules > div > span > small { display: block; }
+@media (prefers-reduced-motion: reduce) { .ai-working-status > svg { animation: none; } }
 .ai-error, .ai-notice { padding: 12px 16px; border: 1px solid var(--panel-border); border-radius: 5px; color: var(--panel-muted); font-size: var(--text-caption); line-height: 1.7; }
 .ai-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 15px 0; }
 .ai-notice { margin: 12px 28px 0; }
@@ -176,8 +185,8 @@
 .ai-context-files > svg { box-sizing: content-box; padding: 9px; border-radius: 9px; background: var(--panel-raised); }
 .ai-context-search { display: flex; align-items: center; gap: 9px; margin: 0 0 8px; padding: 10px 12px; border: 1px solid transparent; border-radius: 10px; background: var(--panel-raised); color: var(--panel-muted); }
 .ai-context-search > svg { flex-shrink: 0; }
-.ai-context-picker input { width: 100%; min-width: 0; border: 0; padding: 0; background: transparent; color: var(--panel-text); font: inherit; outline: none; }
-.ai-context-picker input:is(:focus, :focus-visible) { outline: none; box-shadow: none; }
+.ai-context-picker .ai-context-search input { width: 100%; min-width: 0; border: 0; padding: 0; background: transparent; color: var(--panel-text); font: inherit; outline: none; }
+.ai-context-picker .ai-context-search input:is(:focus, :focus-visible) { outline: none; box-shadow: none; }
 .ai-context-search:focus-within { border-color: var(--panel-border); }
 .ai-context-search:has(input:focus-visible) { border-color: var(--ai-focus); }
 .ai-context-picker .ai-context-back { min-height: 30px; font-size: var(--text-caption); color: var(--panel-muted); }
@@ -267,7 +276,7 @@
 .ai-overlay button { border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .ai-overlay button:disabled { opacity: .45; cursor: default; }
 .ai-overlay :is(button, a, summary):focus-visible { outline: 2px solid var(--ai-focus); outline-offset: -2px; }
-.ai-context-picker input { box-sizing: border-box; font: inherit; }
+.ai-context-picker .ai-context-search input { box-sizing: border-box; font: inherit; }
 .ai-context-picker[data-sheet=true] { border-radius: 16px; }
 .ai-evidence-overlay { position: fixed; z-index: 160; display: flex; flex-direction: column; min-height: 0; overflow: hidden; padding: 12px; border: 1px solid var(--panel-border); border-radius: 16px; background: var(--panel-bg); box-shadow: 0 16px 48px #0003; }
 .ai-evidence-overlay > header { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 10px; }
