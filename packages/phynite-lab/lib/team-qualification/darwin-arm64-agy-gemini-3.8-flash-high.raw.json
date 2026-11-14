@@ -1,0 +1,316 @@
+{
+  "schemaVersion": 1,
+  "kind": "native-provider",
+  "modelId": "agy/gemini-3.8-flash-high",
+  "platform": "darwin-arm64",
+  "createdAt": "2026-11-14T15:31:20.648Z",
+  "protocol": {
+    "goal": "Inspect two independent saved sources: (1) the project inventory and (2) the Canvas. Report their project identifiers, exact revisions, source evidence IDs/checksums and resource/node counts. State verification limits in at most 150 words. Read only; do not update any ledger or change project data, and do not run scientific jobs. If using Team, use exactly two independent source readers and synthesize their evidence in the coordinator; no separate comparison specialist. Do not describe module template settings.",
+    "expectedEvidence": [
+      "saved project inventory",
+      "saved Canvas revision"
+    ]
+  },
+  "runtime": {
+    "node": "v22.23.5",
+    "nativeCliVersion": "1.5.9"
+  },
+  "safetyPassed": false,
+  "evidenceQualityReviewed": false,
+  "overlapObserved": true,
+  "runs": {
+    "solo": {
+      "status": "completed",
+      "latencyMs": 157586.280917,
+      "providerCalls": 4,
+      "toolCalls": 2,
+      "executorCpuMicros": 146585,
+      "executorMaxRssBytes": 129597440,
+      "totalResourceUsage": null,
+      "cost": null,
+      "usage": null,
+      "evidenceRefs": [],
+      "observations": [
+        {
+          "text": "AI turn started/resumed. Observe the saved project and permission boundaries."
+        },
+        {
+          "text": "{\"project\":{\"key\":\"project:prj_aa65226af9c44fa1b871dc3b4d77064c\",\"id\":\"prj_aa65226af9c44fa1b871dc3b4d77064c\",\"kind\":\"canvas\",\"name\":\"Synthetic executor fixture\",\"remoteId\":\"prj_aa65226af9c44fa1b871dc3b4d77064c\"},\"stamp\":\"ffde89ced366480b5a07a56c70b462fa8a0c01afb8fa7a53debbbe76e364c1e2\",\"workspaceRevision\":0,\"workspace\":{\"materials\":[],\"configurations\":[]},\"resources\":{\"structure\":[],\"calculation\":[],\"trajectory\":[],\"simulation\":[],\"analysis\":[],\"md_configuration\":[],\"potential\":[],\"dataset\":[],\"figure\":[],\"workflow\":[{\"id\":\"prj_aa65226af9c44fa1b871dc3b4d77064c\",\"revision\":0,\"sha256\":\"3b3b3f63a1bee65ebb6a7c7c51c9b6c161d10e1b45179e2d91e14d3dd3265e94\",\"nodes\":[]}],\"workflow_run\":[]}}"
+        },
+        {
+          "text": "{\"revision\":0,\"projectId\":\"prj_aa65226af9c44fa1b871dc3b4d77064c\",\"nodes\":[],\"edges\":[],\"groups\":[],\"catalogue\":{\"modules\":[{\"kind\":\"structure\",\"en\":\"Crystal structure\",\"id\":\"Struktur kristal\",\"output\":\"structure\",\"editableFields\":[\"structure\"]},{\"kind\":\"trajectory\",\"en\":\"Imported trajectory\",\"id\":\"Impor trajectory\",\"output\":\"trajectory\",\"editableFields\":[\"trajectoryId\",\"workflow\"]},{\"kind\":\"relax\",\"en\":\"Relaxation\",\"id\":\"Relaksasi\",\"input\":\"structure\",\"output\":\"structure\",\"editableFields\":[\"draft\",\"pseudopotentials\"]},{\"kind\":\"scf\",\"en\":\"SCF / Total energy\",\"id\":\"SCF / Energi total\",\"input\":\"structure\",\"output\":\"electronic\",\"editableFields\":[\"draft\",\"pseudopotentials\"]},{\"kind\":\"bands\",\"en\":\"Band structure\",\"id\":\"Struktur pita\",\"input\":\"electronic\",\"inputs\":[\"electronic\",\"structure\"],\"output\":\"dataset\",\"editableFields\":[\"draft\"]},{\"kind\":\"dos\",\"en\":\"DOS / PDOS\",\"id\":\"DOS / PDOS\",\"input\":\"electronic\",\"output\":\"dataset\",\"editableFields\":[\"draft\"]},{\"kind\":\"phonon\",\"en\":\"Phonon\",\"id\":\"Fonon\",\"input\":\"electronic\",\"output\":\"dataset\",\"editableFields\":[\"draft\"]},{\"kind\":\"btp2\",\"en\":\"BTP2 transport\",\"id\":\"Transport BTP2\",\"input\":\"electronic\",\"output\":\"dataset\",\"editableFields\":[\"draft\"]},{\"kind\":\"md\",\"en\":\"MD simulation\",\"id\":\"Simulasi MD\",\"input\":\"structure\",\"output\":\"trajectory\",\"editableFields\":[\"components\"]},{\"kind\":\"md-analysis\",\"en\":\"MD analysis\",\"id\":\"Analisis MD\",\"input\":\"trajectory\",\"output\":\"dataset\",\"editableFields\":[\"pipeline\"]},{\"kind\":\"extract-frame\",\"en\":\"Extract MD frame\",\"id\":\"Ekstrak frame MD\",\"input\":\"trajectory\",\"output\":\"structure\",\"editableFields\":[\"frame\",\"coordinateUnit\",\"elementMap\",\"elementMapText\",\"periodic\"]},{\"kind\":\"figure\",\"en\":\"Figure\",\"id\":\"Figure\",\"input\":\"dataset\",\"output\":\"dataset\",\"multiple\":true,\"editableFields\":[\"style\"]}],\"mdAnalysisExample\":{\"version\":1,\"modifiers\":[{\"id\":\"analysis_rdf\",\"type\":\"rdf\",\"enabled\":true,\"params\":{\"cutoff\":5,\"bins\":200}}],\"typeMap\":{},\"periodic\":[true,true,true],\"frameRange\":{\"start\":0,\"stop\":null,\"stride\":1}},\"dftSettings\":{\"calculations\":[],\"accuracy\":\"Balanced\",\"functional\":\"PBE\",\"kPoint\":8,\"cutoff\":70,\"chargeDensityCutoff\":560,\"occupationPolicy\":\"auto\",\"occupations\":\"smearing\",\"smearingType\":\"marzari-vanderbilt\",\"smearing\":0.02,\"cutoffPolicy\":\"auto\",\"spin\":false,\"startingMagnetization\":0.5,\"magnetizationConstraint\":\"unconstrained\",\"startingMagnetizations\":{},\"soc\":false,\"noncollinear\":false,\"kPath\":\"Γ — X — W — K — Γ — L\",\"kPathMode\":\"automatic\",\"kPathPoints\":24,\"numberOfBands\":32,\"relaxCell\":true,\"ionDynamics\":\"bfgs\",\"forceThreshold\":0.001,\"targetPressure\":0,\"qPoint\":4,\"phononThreshold\":1e-12,\"acousticSumRule\":true,\"scfThreshold\":1e-8,\"electronMaxSteps\":100,\"mixingBeta\":0.7,\"dosEnergyMin\":-12,\"dosEnergyMax\":8,\"dosEnergyStep\":0.02,\"projectedDos\":true,\"projectedBands\":false,\"prefix\":\"calculation\",\"restartMode\":\"from_scratch\",\"verbosity\":\"low\",\"diskIO\":\"low\",\"maxSeconds\":86400,\"pseudoFamily\":\"SSSP precision\",\"kPointShift\":\"0 0 0\",\"totalCharge\":0,\"useSymmetry\":true,\"useInversion\":true,\"vdwCorrection\":\"none\",\"mixingMode\":\"plain\",\"mixingNdim\":8,\"diagonalization\":\"david\",\"diagonalizationThreshold\":0.00001,\"scfMustConverge\":true,\"exxFraction\":0.25,\"dftU\":false,\"hubbardU\":4,\"hubbardProjector\":\"ortho-atomic\",\"hubbardCorrections\":[],\"energyThreshold\":0.0001,\"cellDynamics\":\"bfgs\",\"cellDoFree\":\"all\",\"pressureThreshold\":0.5,\"trustRadius\":0.5,\"bandSymmetry\":true,\"bandOverlap\":false,\"firstBand\":1,\"lastBand\":0,\"dosBroadening\":0,\"dosNgauss\":0,\"dosSymmetrize\":true,\"pawProjection\":false,\"phononIterations\":100,\"phononMixing\":0.7,\"phononMixingNdim\":4,\"dielectricTensor\":false,\"effectiveCharges\":false,\"phononAsr\":\"crystal\",\"electronPhonon\":\"none\",\"qeVersion\":\"7.5\",\"rawInput\":\"\",\"title\":\"Untitled calculation\",\"outdir\":\"./tmp\",\"pseudoDir\":\"./pseudo\",\"nstep\":100,\"printForces\":true,\"printStress\":true,\"kPointY\":8,\"kPointZ\":8,\"fftGridMode\":\"automatic\",\"nr1\":48,\"nr2\":48,\"nr3\":48,\"totalMagnetization\":0,\"assumeIsolated\":\"none\",\"dipoleCorrection\":false,\"dipolePlacement\":\"automatic\",\"dipolePosition\":0.9,\"dipoleRegion\":0.05,\"electricFieldAmplitude\":0,\"startingPotential\":\"atomic\",\"startingWavefunctions\":\"atomic+random\",\"realSpace\":false,\"diagoFullAccuracy\":false,\"potentialExtrapolation\":\"atomic\",\"wavefunctionExtrapolation\":\"none\",\"removeRigidRotation\":false,\"refoldPositions\":false,\"cellFactor\":2,\"qPointY\":4,\"qPointZ\":4,\"matdynDeltaE\":1,\"transportInterpolationMultiplier\":3,\"transportTemperatureMin\":100,\"transportTemperatureMax\":900,\"transportTemperatureStep\":50,\"transportChemicalPotentialMin\":-0.5,\"transportChemicalPotentialMax\":0.5,\"transportScatteringModel\":\"constant-relaxation-time\",\"transportSampling\":\"chemical-potential\",\"transportRelaxationTime\":10,\"transportEnergyBins\":5000},\"mdStageExample\":{\"id\":\"md-comp-12cfe429-1362-4cec-8dc9-76dfb5dc291d\",\"materialId\":\"active-structure\",\"materialName\":\"Current structure\",\"recipeId\":\"equilibration\",\"name\":\"NVT / NPT equilibration\",\"selected\":true,\"config\":{\"recipeId\":\"equilibration\",\"name\":\"NVT / NPT equilibration\",\"computeTarget\":\"personal\",\"units\":\"metal\",\"boundaryType\":\"p p p\",\"ensemble\":\"npt\",\"timestepFs\":1,\"totalSteps\":20000,\"tempStartK\":300,\"tempEndK\":300,\"pressureBar\":1,\"velocitySeed\":1147242511,\"thermoFrequency\":100,\"dumpFrequency\":200,\"forceFieldId\":\"lj-generic\",\"epsilonEv\":0.0103,\"sigmaAngstrom\":3.4,\"cutoffRadiusAngstrom\":8.5,\"tensileAxis\":\"z\",\"strainRate\":100000000,\"maxStrain\":0.2,\"shearPlane\":\"xy\",\"shearRate\":100000000,\"maxShearStrain\":0.2,\"compressionAxis\":\"z\",\"compressionRate\":100000000,\"maxCompressionStrain\":0.2,\"minimizeStyle\":\"cg\",\"energyTolerance\":1e-8,\"forceTolerance\":1e-10,\"maxIterations\":10000,\"maxEvaluations\":100000,\"tempDampingPs\":0.1,\"pressureDampingPs\":1,\"pressureEndBar\":1,\"frictionDampingPs\":0.1,\"rdfBins\":200,\"rdfCutoffAngstrom\":8,\"analysisCutoffAngstrom\":3.5,\"analysisNeighbors\":12,\"sampleFrequency\":100,\"restartLabel\":\"checkpoint\",\"mode\":\"guided\",\"manualBody\":\"\"}},\"mdRecipes\":[{\"id\":\"minimization\",\"name\":\"Energy minimization\"},{\"id\":\"velocity\",\"name\":\"Velocity initialization\"},{\"id\":\"nve\",\"name\":\"NVE dynamics\"},{\"id\":\"nvt\",\"name\":\"NVT equilibration\"},{\"id\":\"npt\",\"name\":\"NPT equilibration\"},{\"id\":\"nph\",\"name\":\"NPH dynamics\"},{\"id\":\"langevin\",\"name\":\"Langevin dynamics\"},{\"id\":\"temp-berendsen\",\"name\":\"Berendsen thermostat\"},{\"id\":\"press-berendsen\",\"name\":\"Berendsen barostat\"},{\"id\":\"pressure-ramp\",\"name\":\"Hydrostatic pressure ramp\"},{\"id\":\"heating\",\"name\":\"Heating ramp\"},{\"id\":\"cooling\",\"name\":\"Cooling / quench\"},{\"id\":\"annealing\",\"name\":\"Annealing cycle\"},{\"id\":\"tensile\",\"name\":\"Tensile test\"},{\"id\":\"compression\",\"name\":\"Compression test\"},{\"id\":\"shear\",\"name\":\"Shear test\"},{\"id\":\"diffusion\",\"name\":\"Diffusion / MSD\"},{\"id\":\"rdf\",\"name\":\"Radial distribution\"},{\"id\":\"vacf\",\"name\":\"Velocity autocorrelation\"},{\"id\":\"coordination\",\"name\":\"Coordination number\"},{\"id\":\"cna\",\"name\":\"Common neighbor analysis\"},{\"id\":\"centrosymmetry\",\"name\":\"Centrosymmetry parameter\"},{\"id\":\"voronoi\",\"name\":\"Voronoi analysis\"},{\"id\":\"stress-atom\",\"name\":\"Per-atom stress\"},{\"id\":\"pe-atom\",\"name\":\"Per-atom potential energy\"},{\"id\":\"ke-atom\",\"name\":\"Per-atom kinetic energy\"},{\"id\":\"restart\",\"name\":\"Restart checkpoint\"},{\"id\":\"equilibration\",\"name\":\"NVT / NPT equilibration\"},{\"id\":\"melting\",\"name\":\"Melting / annealing\"}],\"studyParameters\":[{\"id\":\"strain-a\",\"en\":\"Lattice-vector strain · a\",\"idLabel\":\"Strain vektor kisi · a\",\"unit\":\"%\",\"geometry\":true,\"values\":\"-2, -1, 0, 1, 2\"},{\"id\":\"strain-b\",\"en\":\"Lattice-vector strain · b\",\"idLabel\":\"Strain vektor kisi · b\",\"unit\":\"%\",\"geometry\":true,\"values\":\"-2, -1, 0, 1, 2\"},{\"id\":\"strain-c\",\"en\":\"Lattice-vector strain · c\",\"idLabel\":\"Strain vektor kisi · c\",\"unit\":\"%\",\"geometry\":true,\"values\":\"-2, -1, 0, 1, 2\"},{\"id\":\"biaxial-ab\",\"en\":\"Biaxial strain · a, b\",\"idLabel\":\"Strain biaksial · a, b\",\"unit\":\"%\",\"geometry\":true,\"values\":\"-2, -1, 0, 1, 2\"},{\"id\":\"isotropic\",\"en\":\"Isotropic linear strain · a, b, c\",\"idLabel\":\"Strain linear isotropik · a, b, c\",\"unit\":\"%\",\"geometry\":true,\"values\":\"-2, -1, 0, 1, 2\"},{\"id\":\"volume\",\"en\":\"Volume change\",\"idLabel\":\"Perubahan volume\",\"unit\":\"%\",\"geometry\":true,\"values\":\"-4, -2, 0, 2, 4\"},{\"id\":\"ca-ratio\",\"en\":\"c/a change · fixed volume\",\"idLabel\":\"Perubahan c/a · volume tetap\",\"unit\":\"%\",\"geometry\":true,\"values\":\"-2, -1, 0, 1, 2\"},{\"id\":\"shear-xy\",\"en\":\"Simple Cartesian shear · xy\",\"idLabel\":\"Shear Kartesian sederhana · xy\",\"unit\":\"% γ\",\"geometry\":true,\"values\":\"-2, -1, 0, 1, 2\"},{\"id\":\"shear-xz\",\"en\":\"Simple Cartesian shear · xz\",\"idLabel\":\"Shear Kartesian sederhana · xz\",\"unit\":\"% γ\",\"geometry\":true,\"values\":\"-2, -1, 0, 1, 2\"},{\"id\":\"shear-yz\",\"en\":\"Simple Cartesian shear · yz\",\"idLabel\":\"Shear Kartesian sederhana · yz\",\"unit\":\"% γ\",\"geometry\":true,\"values\":\"-2, -1, 0, 1, 2\"},{\"id\":\"cutoff\",\"en\":\"Wavefunction cutoff\",\"idLabel\":\"Cutoff fungsi gelombang\",\"unit\":\"Ry\",\"geometry\":false,\"values\":\"60, 70, 80\"},{\"id\":\"density-cutoff\",\"en\":\"Charge-density cutoff\",\"idLabel\":\"Cutoff densitas muatan\",\"unit\":\"Ry\",\"geometry\":false,\"values\":\"480, 560, 640\"},{\"id\":\"k-grid\",\"en\":\"Uniform mesh · periodic axes\",\"idLabel\":\"Mesh seragam · sumbu periodik\",\"unit\":\"n\",\"geometry\":false,\"values\":\"6, 8, 10\"},{\"id\":\"charge\",\"en\":\"Cell charge · positive removes electrons\",\"idLabel\":\"Muatan sel · positif mengurangi elektron\",\"unit\":\"e/cell\",\"geometry\":false,\"values\":\"-0.1, 0, 0.1\"},{\"id\":\"smearing\",\"en\":\"Electronic smearing width\",\"idLabel\":\"Lebar smearing elektronik\",\"unit\":\"Ry\",\"geometry\":false,\"values\":\"0.01, 0.02, 0.03\"}],\"figureStyle\":{\"widthMm\":100,\"heightMm\":80,\"sizeMode\":\"auto\",\"columns\":1,\"fontPt\":9,\"lineWidthPt\":0.7,\"fontFamily\":\"sans\",\"showGrid\":false,\"panelLabels\":false,\"caption\":\"\",\"panels\":[{\"title\":\"\",\"layers\":[{\"label\":\"\",\"color\":\"#0072b2\",\"lineStyle\":\"solid\",\"visible\":true,\"energy\":\"source\",\"shiftEv\":0,\"normalization\":\"source\",\"mirrorSpin\":true,\"normalizedPath\":false,\"seriesIds\":null,\"energyVertical\":false}],\"xMin\":null,\"xMax\":null,\"yMin\":null,\"yMax\":null,\"span\":1,\"showLegend\":true}]},\"instructions\":\"Read exact existing configuration before patching. Use existing node IDs, or an add operation ref for later operations in the same batch. Ports/IDs/resources/defaults are managed by Phynite. Configure patches merge into existing values; arrays replace explicitly. New modules may be incomplete drafts. No job starts when editing. DFT branch physical settings are inherited from SCF. Explicit cutoffs require cutoffPolicy manual. MD stage example is an application default, not a recommendation for the material. Figure style cannot change dataset/source identities.\"}}"
+        },
+        {
+          "text": "Continuing the same user request after the recorded tool results."
+        }
+      ],
+      "transcript": [
+        "I will inspect the project inventory and the Canvas graph to retrieve their identifiers, revisions, evidence IDs, and resource/node counts.",
+        "### 1. Project Inventory (`get_context`)\n- **Project ID**: `prj_aa65226af9c44fa1b871dc3b4d77064c`\n- **Revision**: 0 (`workspaceRevision: 0`)\n- **Evidence Stamp / Checksum**: Stamp `ffde89ced366480b5a07a56c70b462fa8a0c01afb8fa7a53debbbe76e364c1e2`; workflow SHA-256 `3b3b3f63a1bee65ebb6a7c7c51c9b6c161d10e1b45179e2d91e14d3dd3265e94`\n- **Resource Count**: 1 resource (1 workflow; 0 structures, calculations, trajectories, or analyses)\n\n### 2. Canvas Graph (`read_canvas`)\n- **Project ID**: `prj_aa65226af9c44fa1b871dc3b4d77064c`\n- **Revision**: 0\n- **Node Count**: 0 nodes (0 edges, 0 groups)\n- **Evidence / Checksum**: Checksum is not directly exposed in the Canvas response (retains workflow SHA-256 from inventory)\n\n### Verification Limits\nEvidence confirms an empty synthetic fixture. Verification is strictly confined to saved static project snapshots; unsaved client edits, solver readiness, and remote compute status were not evaluated."
+      ],
+      "tasks": [],
+      "dispatch": [
+        {
+          "id": "915b8666-8377-4a43-bee4-0195b16af90c",
+          "modelId": "agy/gemini-3.8-flash-high",
+          "startedAt": 1794670280974,
+          "endedAt": 1794670365058,
+          "status": "completed"
+        },
+        {
+          "id": "42f382dc-dc29-4d5b-842c-fba5a1cb90ce",
+          "modelId": "agy/gemini-3.8-flash-high",
+          "startedAt": 1794670365220,
+          "endedAt": 1794670438177,
+          "status": "completed"
+        }
+      ],
+      "overlapObserved": false,
+      "evidenceQuality": {
+        "score": null,
+        "review": "Required; compare citations, uncertainty and expected evidence with source records."
+      }
+    },
+    "team": {
+      "status": "completed",
+      "latencyMs": 369794.14754200005,
+      "providerCalls": 12,
+      "toolCalls": 2,
+      "executorCpuMicros": 1709446,
+      "executorMaxRssBytes": 129597440,
+      "totalResourceUsage": null,
+      "cost": null,
+      "usage": null,
+      "evidenceRefs": [
+        {
+          "id": "ait_ea2f0bc5013d030952e6e3372a1cd88e:E1",
+          "operation": "context",
+          "arguments": {
+            "toolName": "get_context"
+          },
+          "sha256": "00260d01a3613fbd05e2ed1f6639879cea9f5a88aaf4178332408f78f3748f46",
+          "capturedAt": "2026-11-14T15:37:26Z"
+        },
+        {
+          "id": "ait_ea2f0bc5013d030952e6e3372a1cd88e:E2",
+          "operation": "get_context",
+          "arguments": {},
+          "sha256": "59e436e655fb51405afe3fc5867a3b5f250bdb89642dc6d14df0dac7c595bfc6",
+          "capturedAt": "2026-11-14T15:37:26Z"
+        },
+        {
+          "id": "ait_20f7d8e12083ab7e01d7b90fbdacfd11:E1",
+          "operation": "canvas",
+          "arguments": {
+            "nodeIds": [],
+            "public": true,
+            "toolName": "read_canvas"
+          },
+          "sha256": "189fa2bb5279efea1f323608a6288ebec7a6f932f1fdb3b6ef557a3e6bb88a98",
+          "capturedAt": "2026-11-14T15:37:07Z"
+        },
+        {
+          "id": "ait_20f7d8e12083ab7e01d7b90fbdacfd11:E2",
+          "operation": "read_canvas",
+          "arguments": {},
+          "sha256": "732cbab4130700ca76ff885611f328c73d4035b3fb96706ef24ae629f3480220",
+          "capturedAt": "2026-11-14T15:37:07Z"
+        }
+      ],
+      "observations": [
+        {
+          "text": "AI turn started/resumed. Observe the saved project and permission boundaries."
+        }
+      ],
+      "transcript": [
+        "### Saved Source Evidence Synthesis\n\n**1. Project Inventory**\n- **Project Identifier**: `prj_dd082ee198544bc880f8ce51e21efa10`\n- **Exact Revision**: `0`\n- **Source Evidence ID**: `ait_ea2f0bc5013d030952e6e3372a1cd88e:E1`\n- **SHA-256**: `00260d01a3613fbd05e2ed1f6639879cea9f5a88aaf4178332408f78f3748f46`\n- **Resource Count**: 1 (1 workflow resource; 0 structures, calculations, trajectories, or analyses)\n\n**2. Canvas**\n- **Project Identifier**: `prj_dd082ee198544bc880f8ce51e21efa10`\n- **Exact Revision**: `0`\n- **Source Evidence ID**: `ait_20f7d8e12083ab7e01d7b90fbdacfd11:E1`\n- **SHA-256**: `189fa2bb5279efea1f323608a6288ebec7a6f932f1fdb3b6ef557a3e6bb88a98`\n- **Node Count**: 0\n\n**Verification Limits**\nObservations represent static, read-only snapshots captured at 2026-11-14T15:37Z and do not track unsaved changes or live workers. Because the Canvas contains zero nodes and the project has no structures or calculation records, numerical convergence, structural topology, and physical correctness cannot be evaluated."
+      ],
+      "tasks": [
+        {
+          "goal": "Inspect the saved project inventory source to read-only retrieve its project identifier, exact revision, source evidence ID/checksum, and resource count.",
+          "status": "completed",
+          "dependencies": [],
+          "evidence": [
+            {
+              "id": "ait_ea2f0bc5013d030952e6e3372a1cd88e:E1",
+              "operation": "context",
+              "arguments": {
+                "toolName": "get_context"
+              },
+              "sha256": "00260d01a3613fbd05e2ed1f6639879cea9f5a88aaf4178332408f78f3748f46",
+              "capturedAt": "2026-11-14T15:37:26Z"
+            },
+            {
+              "id": "ait_ea2f0bc5013d030952e6e3372a1cd88e:E2",
+              "operation": "get_context",
+              "arguments": {},
+              "sha256": "59e436e655fb51405afe3fc5867a3b5f250bdb89642dc6d14df0dac7c595bfc6",
+              "capturedAt": "2026-11-14T15:37:26Z"
+            }
+          ],
+          "result": {
+            "schemaVersion": 2,
+            "taskId": "ait_ea2f0bc5013d030952e6e3372a1cd88e",
+            "status": "completed",
+            "text": "I will inspect the saved project inventory to retrieve the project identifier, revision, source evidence checksum, and resource count.\nBased on the saved project inventory retrieved via `get_context`, here are the requested details:\n\n- **Project Identifier**: `prj_dd082ee198544bc880f8ce51e21efa10` (Key: `project:prj_dd082ee198544bc880f8ce51e21efa10`, Name: \"Synthetic executor fixture\", Kind: `canvas`)\n- **Exact Revision**: `0` (`workspaceRevision`: 0, workflow revision: 0)\n- **Source Evidence ID & Checksum**:\n  - Evidence ID: `ait_ea2f0bc5013d030952e6e3372a1cd88e:E1`\n  - SHA-256: `00260d01a3613fbd05e2ed1f6639879cea9f5a88aaf4178332408f78f3748f46`\n  - Stamp: `21d351eaed87d5cced7a6b018f2c14b9f40ff28ef955e2f95cd800e28f2ac3f4`\n- **Resource Count**: 1 total resource\n  - Workflow: 1 (`prj_dd082ee198544bc880f8ce51e21efa10`, revision 0, SHA-256: `bd955bc9a849cac338abd77494b00e6ec41e1d3c5e7a697447bd6f72606d66fd`)\n  - All other categories (structure, calculation, trajectory, simulation, analysis, md_configuration, potential, dataset, figure, workflow_run, workspace materials, workspace configurations) have a count of 0.",
+            "evidenceRefs": [
+              {
+                "id": "ait_ea2f0bc5013d030952e6e3372a1cd88e:E1",
+                "operation": "context",
+                "arguments": {
+                  "toolName": "get_context"
+                },
+                "sha256": "00260d01a3613fbd05e2ed1f6639879cea9f5a88aaf4178332408f78f3748f46",
+                "capturedAt": "2026-11-14T15:37:26Z"
+              },
+              {
+                "id": "ait_ea2f0bc5013d030952e6e3372a1cd88e:E2",
+                "operation": "get_context",
+                "arguments": {},
+                "sha256": "59e436e655fb51405afe3fc5867a3b5f250bdb89642dc6d14df0dac7c595bfc6",
+                "capturedAt": "2026-11-14T15:37:26Z"
+              }
+            ],
+            "proposals": [],
+            "uncertainties": [
+              "Specialist analysis; scientific claims require source verification."
+            ]
+          },
+          "observations": [
+            {
+              "role": "tool",
+              "text": "AI turn started/resumed. Observe the saved project and permission boundaries."
+            },
+            {
+              "role": "tool",
+              "text": "{\"project\":{\"key\":\"project:prj_dd082ee198544bc880f8ce51e21efa10\",\"id\":\"prj_dd082ee198544bc880f8ce51e21efa10\",\"kind\":\"canvas\",\"name\":\"Synthetic executor fixture\",\"remoteId\":\"prj_dd082ee198544bc880f8ce51e21efa10\"},\"stamp\":\"21d351eaed87d5cced7a6b018f2c14b9f40ff28ef955e2f95cd800e28f2ac3f4\",\"workspaceRevision\":0,\"workspace\":{\"materials\":[],\"configurations\":[]},\"resources\":{\"structure\":[],\"calculation\":[],\"trajectory\":[],\"simulation\":[],\"analysis\":[],\"md_configuration\":[],\"potential\":[],\"dataset\":[],\"figure\":[],\"workflow\":[{\"id\":\"prj_dd082ee198544bc880f8ce51e21efa10\",\"revision\":0,\"sha256\":\"bd955bc9a849cac338abd77494b00e6ec41e1d3c5e7a697447bd6f72606d66fd\",\"nodes\":[]}],\"workflow_run\":[]},\"taskEvidenceRef\":{\"id\":\"ait_ea2f0bc5013d030952e6e3372a1cd88e:E1\",\"operation\":\"context\",\"arguments\":{\"toolName\":\"get_context\"},\"sha256\":\"00260d01a3613fbd05e2ed1f6639879cea9f5a88aaf4178332408f78f3748f46\",\"capturedAt\":\"2026-11-14T15:37:26Z\"}}"
+            },
+            {
+              "role": "tool",
+              "text": "Continuing the same user request after the recorded tool results."
+            }
+          ]
+        },
+        {
+          "goal": "Inspect the saved Canvas source to read-only retrieve its project identifier, exact revision, source evidence ID/checksum, and node count.",
+          "status": "completed",
+          "dependencies": [],
+          "evidence": [
+            {
+              "id": "ait_20f7d8e12083ab7e01d7b90fbdacfd11:E1",
+              "operation": "canvas",
+              "arguments": {
+                "nodeIds": [],
+                "public": true,
+                "toolName": "read_canvas"
+              },
+              "sha256": "189fa2bb5279efea1f323608a6288ebec7a6f932f1fdb3b6ef557a3e6bb88a98",
+              "capturedAt": "2026-11-14T15:37:07Z"
+            },
+            {
+              "id": "ait_20f7d8e12083ab7e01d7b90fbdacfd11:E2",
+              "operation": "read_canvas",
+              "arguments": {},
+              "sha256": "732cbab4130700ca76ff885611f328c73d4035b3fb96706ef24ae629f3480220",
+              "capturedAt": "2026-11-14T15:37:07Z"
+            }
+          ],
+          "result": {
+            "schemaVersion": 2,
+            "taskId": "ait_20f7d8e12083ab7e01d7b90fbdacfd11",
+            "status": "completed",
+            "text": "I will inspect the saved Canvas source to retrieve its project identifier, revision, source checksum, and node count.\nBased on the saved Canvas inspection evidence, here are the requested details:\n\n- **Project Identifier:** `prj_dd082ee198544bc880f8ce51e21efa10`\n- **Canvas Revision:** `0`\n- **Evidence ID:** `ait_20f7d8e12083ab7e01d7b90fbdacfd11:E1`\n- **Checksum (SHA-256):** `189fa2bb5279efea1f323608a6288ebec7a6f932f1fdb3b6ef557a3e6bb88a98`\n- **Node Count:** `0` (the Canvas graph currently contains no nodes)",
+            "evidenceRefs": [
+              {
+                "id": "ait_20f7d8e12083ab7e01d7b90fbdacfd11:E1",
+                "operation": "canvas",
+                "arguments": {
+                  "nodeIds": [],
+                  "public": true,
+                  "toolName": "read_canvas"
+                },
+                "sha256": "189fa2bb5279efea1f323608a6288ebec7a6f932f1fdb3b6ef557a3e6bb88a98",
+                "capturedAt": "2026-11-14T15:37:07Z"
+              },
+              {
+                "id": "ait_20f7d8e12083ab7e01d7b90fbdacfd11:E2",
+                "operation": "read_canvas",
+                "arguments": {},
+                "sha256": "732cbab4130700ca76ff885611f328c73d4035b3fb96706ef24ae629f3480220",
+                "capturedAt": "2026-11-14T15:37:07Z"
+              }
+            ],
+            "proposals": [],
+            "uncertainties": [
+              "Specialist analysis; scientific claims require source verification."
+            ]
+          },
+          "observations": [
+            {
+              "role": "tool",
+              "text": "AI turn started/resumed. Observe the saved project and permission boundaries."
+            },
+            {
+              "role": "tool",
+              "text": "{\"revision\":0,\"projectId\":\"prj_dd082ee198544bc880f8ce51e21efa10\",\"nodes\":[],\"edges\":[],\"groups\":[],\"taskEvidenceRef\":{\"id\":\"ait_20f7d8e12083ab7e01d7b90fbdacfd11:E1\",\"operation\":\"canvas\",\"arguments\":{\"nodeIds\":[],\"public\":true,\"toolName\":\"read_canvas\"},\"sha256\":\"189fa2bb5279efea1f323608a6288ebec7a6f932f1fdb3b6ef557a3e6bb88a98\",\"capturedAt\":\"2026-11-14T15:37:07Z\"},\"catalogue\":{\"modules\":[{\"kind\":\"structure\",\"en\":\"Crystal structure\",\"id\":\"Struktur kristal\",\"output\":\"structure\",\"editableFields\":[\"structure\"]},{\"kind\":\"trajectory\",\"en\":\"Imported trajectory\",\"id\":\"Impor trajectory\",\"output\":\"trajectory\",\"editableFields\":[\"trajectoryId\",\"workflow\"]},{\"kind\":\"relax\",\"en\":\"Relaxation\",\"id\":\"Relaksasi\",\"input\":\"structure\",\"output\":\"structure\",\"editableFields\":[\"draft\",\"pseudopotentials\"]},{\"kind\":\"scf\",\"en\":\"SCF / Total energy\",\"id\":\"SCF / Energi total\",\"input\":\"structure\",\"output\":\"electronic\",\"editableFields\":[\"draft\",\"pseudopotentials\"]},{\"kind\":\"bands\",\"en\":\"Band structure\",\"id\":\"Struktur pita\",\"input\":\"electronic\",\"inputs\":[\"electronic\",\"structure\"],\"output\":\"dataset\",\"editableFields\":[\"draft\"]},{\"kind\":\"dos\",\"en\":\"DOS / PDOS\",\"id\":\"DOS / PDOS\",\"input\":\"electronic\",\"output\":\"dataset\",\"editableFields\":[\"draft\"]},{\"kind\":\"phonon\",\"en\":\"Phonon\",\"id\":\"Fonon\",\"input\":\"electronic\",\"output\":\"dataset\",\"editableFields\":[\"draft\"]},{\"kind\":\"btp2\",\"en\":\"BTP2 transport\",\"id\":\"Transport BTP2\",\"input\":\"electronic\",\"output\":\"dataset\",\"editableFields\":[\"draft\"]},{\"kind\":\"md\",\"en\":\"MD simulation\",\"id\":\"Simulasi MD\",\"input\":\"structure\",\"output\":\"trajectory\",\"editableFields\":[\"components\"]},{\"kind\":\"md-analysis\",\"en\":\"MD analysis\",\"id\":\"Analisis MD\",\"input\":\"trajectory\",\"output\":\"dataset\",\"editableFields\":[\"pipeline\"]},{\"kind\":\"extract-frame\",\"en\":\"Extract MD frame\",\"id\":\"Ekstrak frame MD\",\"input\":\"trajectory\",\"output\":\"structure\",\"editableFields\":[\"frame\",\"coordinateUnit\",\"elementMap\",\"elementMapText\",\"periodic\"]},{\"kind\":\"figure\",\"en\":\"Figure\",\"id\":\"Figure\",\"input\":\"dataset\",\"output\":\"dataset\",\"multiple\":true,\"editableFields\":[\"style\"]}],\"mdAnalysisExample\":{\"version\":1,\"modifiers\":[{\"id\":\"analysis_rdf\",\"type\":\"rdf\",\"enabled\":true,\"params\":{\"cutoff\":5,\"bins\":200}}],\"typeMap\":{},\"periodic\":[true,true,true],\"frameRange\":{\"start\":0,\"stop\":null,\"stride\":1}},\"dftSettings\":{\"calculations\":[],\"accuracy\":\"Balanced\",\"functional\":\"PBE\",\"kPoint\":8,\"cutoff\":70,\"chargeDensityCutoff\":560,\"occupationPolicy\":\"auto\",\"occupations\":\"smearing\",\"smearingType\":\"marzari-vanderbilt\",\"smearing\":0.02,\"cutoffPolicy\":\"auto\",\"spin\":false,\"startingMagnetization\":0.5,\"magnetizationConstraint\":\"unconstrained\",\"startingMagnetizations\":{},\"soc\":false,\"noncollinear\":false,\"kPath\":\"Γ — X — W — K — Γ — L\",\"kPathMode\":\"automatic\",\"kPathPoints\":24,\"numberOfBands\":32,\"relaxCell\":true,\"ionDynamics\":\"bfgs\",\"forceThreshold\":0.001,\"targetPressure\":0,\"qPoint\":4,\"phononThreshold\":1e-12,\"acousticSumRule\":true,\"scfThreshold\":1e-8,\"electronMaxSteps\":100,\"mixingBeta\":0.7,\"dosEnergyMin\":-12,\"dosEnergyMax\":8,\"dosEnergyStep\":0.02,\"projectedDos\":true,\"projectedBands\":false,\"prefix\":\"calculation\",\"restartMode\":\"from_scratch\",\"verbosity\":\"low\",\"diskIO\":\"low\",\"maxSeconds\":86400,\"pseudoFamily\":\"SSSP precision\",\"kPointShift\":\"0 0 0\",\"totalCharge\":0,\"useSymmetry\":true,\"useInversion\":true,\"vdwCorrection\":\"none\",\"mixingMode\":\"plain\",\"mixingNdim\":8,\"diagonalization\":\"david\",\"diagonalizationThreshold\":0.00001,\"scfMustConverge\":true,\"exxFraction\":0.25,\"dftU\":false,\"hubbardU\":4,\"hubbardProjector\":\"ortho-atomic\",\"hubbardCorrections\":[],\"energyThreshold\":0.0001,\"cellDynamics\":\"bfgs\",\"cellDoFree\":\"all\",\"pressureThreshold\":0.5,\"trustRadius\":0.5,\"bandSymmetry\":true,\"bandOverlap\":false,\"firstBand\":1,\"lastBand\":0,\"dosBroadening\":0,\"dosNgauss\":0,\"dosSymmetrize\":true,\"pawProjection\":false,\"phononIterations\":100,\"phononMixing\":0.7,\"phononMixingNdim\":4,\"dielectricTensor\":false,\"effectiveCharges\":false,\"phononAsr\":\"crystal\",\"electronPhonon\":\"none\",\"qeVersion\":\"7.5\",\"rawInput\":\"\",\"title\":\"Untitled calculation\",\"outdir\":\"./tmp\",\"pseudoDir\":\"./pseudo\",\"nstep\":100,\"printForces\":true,\"printStress\":true,\"kPointY\":8,\"kPointZ\":8,\"fftGridMode\":\"automatic\",\"nr1\":48,\"nr2\":48,\"nr3\":48,\"totalMagnetization\":0,\"assumeIsolated\":\"none\",\"dipoleCorrection\":false,\"dipolePlacement\":\"automatic\",\"dipolePosition\":0.9,\"dipoleRegion\":0.05,\"electricFieldAmplitude\":0,\"startingPotential\":\"atomic\",\"startingWavefunctions\":\"atomic+random\",\"realSpace\":false,\"diagoFullAccuracy\":false,\"potentialExtrapolation\":\"atomic\",\"wavefunctionExtrapolation\":\"none\",\"removeRigidRotation\":false,\"refoldPositions\":false,\"cellFactor\":2,\"qPointY\":4,\"qPointZ\":4,\"matdynDeltaE\":1,\"transportInterpolationMultiplier\":3,\"transportTemperatureMin\":100,\"transportTemperatureMax\":900,\"transportTemperatureStep\":50,\"transportChemicalPotentialMin\":-0.5,\"transportChemicalPotentialMax\":0.5,\"transportScatteringModel\":\"constant-relaxation-time\",\"transportSampling\":\"chemical-potential\",\"transportRelaxationTime\":10,\"transportEnergyBins\":5000},\"mdStageExample\":{\"id\":\"md-comp-2b78f8e7-d8e9-4fea-bb3a-6fbea13b6837\",\"materialId\":\"active-structure\",\"materialName\":\"Current structure\",\"recipeId\":\"equilibration\",\"name\":\"NVT / NPT equilibration\",\"selected\":true,\"config\":{\"recipeId\":\"equilibration\",\"name\":\"NVT / NPT equilibration\",\"computeTarget\":\"personal\",\"units\":\"metal\",\"boundaryType\":\"p p p\",\"ensemble\":\"npt\",\"timestepFs\":1,\"totalSteps\":20000,\"tempStartK\":300,\"tempEndK\":300,\"pressureBar\":1,\"velocitySeed\":1358786779,\"thermoFrequency\":100,\"dumpFrequency\":200,\"forceFieldId\":\"lj-generic\",\"epsilonEv\":0.0103,\"sigmaAngstrom\":3.4,\"cutoffRadiusAngstrom\":8.5,\"tensileAxis\":\"z\",\"strainRate\":100000000,\"maxStrain\":0.2,\"shearPlane\":\"xy\",\"shearRate\":100000000,\"maxShearStrain\":0.2,\"compressionAxis\":\"z\",\"compressionRate\":100000000,\"maxCompressionStrain\":0.2,\"minimizeStyle\":\"cg\",\"energyTolerance\":1e-8,\"forceTolerance\":1e-10,\"maxIterations\":10000,\"maxEvaluations\":100000,\"tempDampingPs\":0.1,\"pressureDampingPs\":1,\"pressureEndBar\":1,\"frictionDampingPs\":0.1,\"rdfBins\":200,\"rdfCutoffAngstrom\":8,\"analysisCutoffAngstrom\":3.5,\"analysisNeighbors\":12,\"sampleFrequency\":100,\"restartLabel\":\"checkpoint\",\"mode\":\"guided\",\"manualBody\":\"\"}},\"mdRecipes\":[{\"id\":\"minimization\",\"name\":\"Energy minimization\"},{\"id\":\"velocity\",\"name\":\"Velocity initialization\"},{\"id\":\"nve\",\"name\":\"NVE dynamics\"},{\"id\":\"nvt\",\"name\":\"NVT equilibration\"},{\"id\":\"npt\",\"name\":\"NPT equilibration\"},{\"id\":\"nph\",\"name\":\"NPH dynamics\"},{\"id\":\"langevin\",\"name\":\"Langevin dynamics\"},{\"id\":\"temp-berendsen\",\"name\":\"Berendsen thermostat\"},{\"id\":\"press-berendsen\",\"name\":\"Berendsen barostat\"},{\"id\":\"pressure-ramp\",\"name\":\"Hydrostatic pressure ramp\"},{\"id\":\"heating\",\"name\":\"Heating ramp\"},{\"id\":\"cooling\",\"name\":\"Cooling / quench\"},{\"id\":\"annealing\",\"name\":\"Annealing cycle\"},{\"id\":\"tensile\",\"name\":\"Tensile test\"},{\"id\":\"compression\",\"name\":\"Compression test\"},{\"id\":\"shear\",\"name\":\"Shear test\"},{\"id\":\"diffusion\",\"name\":\"Diffusion / MSD\"},{\"id\":\"rdf\",\"name\":\"Radial distribution\"},{\"id\":\"vacf\",\"name\":\"Velocity autocorrelation\"},{\"id\":\"coordination\",\"name\":\"Coordination number\"},{\"id\":\"cna\",\"name\":\"Common neighbor analysis\"},{\"id\":\"centrosymmetry\",\"name\":\"Centrosymmetry parameter\"},{\"id\":\"voronoi\",\"name\":\"Voronoi analysis\"},{\"id\":\"stress-atom\",\"name\":\"Per-atom stress\"},{\"id\":\"pe-atom\",\"name\":\"Per-atom potential energy\"},{\"id\":\"ke-atom\",\"name\":\"Per-atom kinetic energy\"},{\"id\":\"restart\",\"name\":\"Restart checkpoint\"},{\"id\":\"equilibration\",\"name\":\"NVT / NPT equilibration\"},{\"id\":\"melting\",\"name\":\"Melting / annealing\"}],\"studyParameters\":[{\"id\":\"strain-a\",\"en\":\"Lattice-vector strain · a\",\"idLabel\":\"Strain vektor kisi · a\",\"unit\":\"%\",\"geometry\":true,\"values\":\"-2, -1, 0, 1, 2\"},{\"id\":\"strain-b\",\"en\":\"Lattice-vector strain · b\",\"idLabel\":\"Strain vektor kisi · b\",\"unit\":\"%\",\"geometry\":true,\"values\":\"-2, -1, 0, 1, 2\"},{\"id\":\"strain-c\",\"en\":\"Lattice-vector strain · c\",\"idLabel\":\"Strain vektor kisi · c\",\"unit\":\"%\",\"geometry\":true,\"values\":\"-2, -1, 0, 1, 2\"},{\"id\":\"biaxial-ab\",\"en\":\"Biaxial strain · a, b\",\"idLabel\":\"Strain biaksial · a, b\",\"unit\":\"%\",\"geometry\":true,\"values\":\"-2, -1, 0, 1, 2\"},{\"id\":\"isotropic\",\"en\":\"Isotropic linear strain · a, b, c\",\"idLabel\":\"Strain linear isotropik · a, b, c\",\"unit\":\"%\",\"geometry\":true,\"values\":\"-2, -1, 0, 1, 2\"},{\"id\":\"volume\",\"en\":\"Volume change\",\"idLabel\":\"Perubahan volume\",\"unit\":\"%\",\"geometry\":true,\"values\":\"-4, -2, 0, 2, 4\"},{\"id\":\"ca-ratio\",\"en\":\"c/a change · fixed volume\",\"idLabel\":\"Perubahan c/a · volume tetap\",\"unit\":\"%\",\"geometry\":true,\"values\":\"-2, -1, 0, 1, 2\"},{\"id\":\"shear-xy\",\"en\":\"Simple Cartesian shear · xy\",\"idLabel\":\"Shear Kartesian sederhana · xy\",\"unit\":\"% γ\",\"geometry\":true,\"values\":\"-2, -1, 0, 1, 2\"},{\"id\":\"shear-xz\",\"en\":\"Simple Cartesian shear · xz\",\"idLabel\":\"Shear Kartesian sederhana · xz\",\"unit\":\"% γ\",\"geometry\":true,\"values\":\"-2, -1, 0, 1, 2\"},{\"id\":\"shear-yz\",\"en\":\"Simple Cartesian shear · yz\",\"idLabel\":\"Shear Kartesian sederhana · yz\",\"unit\":\"% γ\",\"geometry\":true,\"values\":\"-2, -1, 0, 1, 2\"},{\"id\":\"cutoff\",\"en\":\"Wavefunction cutoff\",\"idLabel\":\"Cutoff fungsi gelombang\",\"unit\":\"Ry\",\"geometry\":false,\"values\":\"60, 70, 80\"},{\"id\":\"density-cutoff\",\"en\":\"Charge-density cutoff\",\"idLabel\":\"Cutoff densitas muatan\",\"unit\":\"Ry\",\"geometry\":false,\"values\":\"480, 560, 640\"},{\"id\":\"k-grid\",\"en\":\"Uniform mesh · periodic axes\",\"idLabel\":\"Mesh seragam · sumbu periodik\",\"unit\":\"n\",\"geometry\":false,\"values\":\"6, 8, 10\"},{\"id\":\"charge\",\"en\":\"Cell charge · positive removes electrons\",\"idLabel\":\"Muatan sel · positif mengurangi elektron\",\"unit\":\"e/cell\",\"geometry\":false,\"values\":\"-0.1, 0, 0.1\"},{\"id\":\"smearing\",\"en\":\"Electronic smearing width\",\"idLabel\":\"Lebar smearing elektronik\",\"unit\":\"Ry\",\"geometry\":false,\"values\":\"0.01, 0.02, 0.03\"}],\"figureStyle\":{\"widthMm\":100,\"heightMm\":80,\"sizeMode\":\"auto\",\"columns\":1,\"fontPt\":9,\"lineWidthPt\":0.7,\"fontFamily\":\"sans\",\"showGrid\":false,\"panelLabels\":false,\"caption\":\"\",\"panels\":[{\"title\":\"\",\"layers\":[{\"label\":\"\",\"color\":\"#0072b2\",\"lineStyle\":\"solid\",\"visible\":true,\"energy\":\"source\",\"shiftEv\":0,\"normalization\":\"source\",\"mirrorSpin\":true,\"normalizedPath\":false,\"seriesIds\":null,\"energyVertical\":false}],\"xMin\":null,\"xMax\":null,\"yMin\":null,\"yMax\":null,\"span\":1,\"showLegend\":true}]},\"instructions\":\"Read exact existing configuration before patching. Use existing node IDs, or an add operation ref for later operations in the same batch. Ports/IDs/resources/defaults are managed by Phynite. Configure patches merge into existing values; arrays replace explicitly. New modules may be incomplete drafts. No job starts when editing. DFT branch physical settings are inherited from SCF. Explicit cutoffs require cutoffPolicy manual. MD stage example is an application default, not a recommendation for the material. Figure style cannot change dataset/source identities.\"}}"
+            },
+            {
+              "role": "tool",
+              "text": "Continuing the same user request after the recorded tool results."
+            }
+          ]
+        }
+      ],
+      "dispatch": [
+        {
+          "id": "42d4df7d-2b60-4ca1-9cb4-1b09ab2d372e",
+          "modelId": "agy/gemini-3.8-flash-high",
+          "startedAt": 1794670438478,
+          "endedAt": 1794670567038,
+          "status": "completed"
+        },
+        {
+          "id": "1f1e71ca-aa27-48fc-b7d1-41344082776d",
+          "modelId": "agy/gemini-3.8-flash-high",
+          "startedAt": 1794670567178,
+          "endedAt": 1794670646139,
+          "status": "completed"
+        },
+        {
+          "id": "8234be77-39ef-484b-9ec2-cbd76a0e8aca",
+          "modelId": "agy/gemini-3.8-flash-high",
+          "startedAt": 1794670567178,
+          "endedAt": 1794670627240,
+          "status": "completed"
+        },
+        {
+          "id": "3bc00315-0b8f-4f3e-b796-4ef497d33d44",
+          "modelId": "agy/gemini-3.8-flash-high",
+          "startedAt": 1794670627369,
+          "endedAt": 1794670711106,
+          "status": "completed"
+        },
+        {
+          "id": "e8760716-3fc0-4376-bb5c-4498100604d2",
+          "modelId": "agy/gemini-3.8-flash-high",
+          "startedAt": 1794670646273,
+          "endedAt": 1794670750016,
+          "status": "completed"
+        },
+        {
+          "id": "e5f71210-147b-4766-8d98-57dc81888982",
+          "modelId": "agy/gemini-3.8-flash-high",
+          "startedAt": 1794670750216,
+          "endedAt": 1794670807963,
+          "status": "completed"
+        }
+      ],
+      "overlapObserved": true,
+      "evidenceQuality": {
+        "score": null,
+        "review": "Required; compare citations, uncertainty and expected evidence with source records."
+      }
+    }
+  },
+  "limits": "Synthetic inference measures scheduling only. Native qualification also needs reviewed safety and evidence quality. CPU/RSS below cover this Node executor; provider/core resource totals and cost are not measured."
+}
