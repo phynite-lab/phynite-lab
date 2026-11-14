@@ -1293,7 +1293,7 @@ html[data-workspace-theme="dark"] .account-field-grid input[readonly] {
 .storage-project-empty strong, .storage-no-project h2 { color: var(--lab-text); font-size: var(--text-label); }
 .storage-project-empty p, .storage-no-project p { max-width: 350px; font-size: var(--text-caption); line-height: 1.55; }
 .storage-no-project { height: 100%; }
-.storage-no-project h2 { font-size: 16px; }
+.storage-no-project h2 { font-size: var(--text-section); }
 .storage-no-project .lab-button { margin-top: 5px; }
 @media (max-width: 1240px) {
   .storage-browser { grid-template-columns: 220px minmax(0, 1fr); }
@@ -1337,7 +1337,7 @@ html[data-workspace-theme="dark"] .account-field-grid input[readonly] {
   .billing-metrics > div:nth-child(2) { border-right: 0; }
   .billing-metrics > div:nth-child(n+3) { border-top: 1px solid var(--lab-border); }
 }
-@media (max-width: 460px) { .billing-metrics > div { padding: 18px; } .billing-metrics strong { font-size: 24px; } }
+@media (max-width: 460px) { .billing-metrics > div { padding: 18px; } .billing-metrics strong { font-size: var(--text-chapter); } }
 
 @container projects (max-width: 760px) {
   .studio-project-table { --project-columns: 20px minmax(0, 1fr) 44px 88px 90px 96px 16px; --project-gap: 8px; }

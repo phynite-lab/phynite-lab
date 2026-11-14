@@ -33,6 +33,10 @@ class PublicLocalCoreTests(unittest.TestCase):
         self.assertTrue(set(manifest["frozenModules"]) <= set(manifest["pythonModules"]))
         self.assertIn('backend/local_api/pseudopotentials.py', manifest['frozenModules'])
         self.assertIn('backend/local_worker/install_pseudopotentials.py', manifest['frozenModules'])
+        # The fixed file helper is also read as bytes for hashing and HPC dispatch.
+        helper = 'backend/local_api/file_protocol.py'
+        self.assertIn(helper, manifest['runnerSources'])
+        self.assertIn(f'{ROOT / helper}:backend/local_api', command)
         for filename in ('SSSP_1.3.0_PBE_precision.json', 'SSSP_1.3.0_PBE_efficiency.json', 'LICENSE.txt', 'README.md'):
             relative = 'data/sssp/' + filename
             self.assertIn(relative, manifest['dataFiles'])

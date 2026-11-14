@@ -79,6 +79,9 @@ class AiWorkbench:
     def resolve(self, owner: str, conversation: dict, refs: object) -> list[dict]:
         if not isinstance(refs, list) or len(refs) > 16:
             fail(400, "Select at most sixteen context references.", "AI_CONTEXT_INVALID")
+        file_refs = [ref for ref in refs if isinstance(ref, dict) and ref.get('kind') == 'resource' and ref.get('resourceKind') == 'file_snapshot']
+        if len(file_refs) > 8:
+            fail(413, 'Attach at most eight selected files to one parent run.', 'FILE_CONTEXT_LIMIT')
         manifests = []
         saved = None
         for ref in refs:

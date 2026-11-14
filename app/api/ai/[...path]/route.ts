@@ -101,9 +101,10 @@ async function handle(request: NextRequest, context: Context): Promise<Response>
         const entries = catalog.filter(model => isAiPickerModel(provider.id, model.id, local));
         return { ...provider, local, configured: Boolean(aiProviderConfig(providerEnvironment, provider.id)) && entries.some(model => capabilities[model.id]?.available), models: entries.map(model => ({ ...model, capabilities: { ...aiCapabilities(model.id), ...capabilities[model.id] } })) };
       });
-      return cookies(NextResponse.json({ providers, models: providers[0].models, configured: providers[0].configured, refreshing: catalogRefreshing, background: !local && process.env.PHYNITE_AI_BACKGROUND_ENABLED === 'true' }, { headers: { 'Cache-Control': 'no-store' } }));
+      return cookies(NextResponse.json({ providers, models: providers[0].models, configured: providers[0].configured, refreshing: catalogRefreshing, background: local ? process.env.PHYNITE_LOCAL_EXECUTOR === '1' : process.env.PHYNITE_AI_BACKGROUND_ENABLED === 'true' }, { headers: { 'Cache-Control': 'no-store' } }));
     }
     const runner = (env as unknown as { PHYNITE_AI_RUNNER?: Fetcher }).PHYNITE_AI_RUNNER;
+    const durable = Boolean(runner) || local && process.env.PHYNITE_LOCAL_EXECUTOR === '1';
     const dispatchConversation = async (base: string) => {
       if (!runner) return;
       const saved = await call<{ conversation: { ownerId: string; id: string } }>(base, undefined, 'GET');
@@ -180,7 +181,7 @@ async function handle(request: NextRequest, context: Context): Promise<Response>
     if (messageMatch && method === 'POST') {
       const payload = await readJsonBody<AiSendPayload>(request, 16000);
       const base = `conversations/${messageMatch[1]}`;
-      if (runner) {
+      if (durable) {
         // Compatibility transport: the old streaming endpoint now observes durable
         // work, so disconnecting an older client cannot cancel an accepted turn.
         const saved = await call<AiDetail>(base, undefined, 'GET');

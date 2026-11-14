@@ -33,3 +33,13 @@ test('drag clamps at each minimum and requires a deliberate overshoot before ful
     assert.equal(workflowPaneDrag(geometry, extent * .5).maximizePane, undefined);
   }
 });
+
+test('medium-width explicit splits are equal without discarding the saved desktop ratio', () => {
+  assert.equal(workflowPaneGeometry(900, 800, 'horizontal', .65).primary, 449.5);
+  assert.equal(workflowPaneGeometry(901, 800, 'horizontal', .6).primary, 540);
+});
+
+test('a fresh workspace defaults to split only above 900 CSS pixels', () => {
+  assert.equal(workflowPaneGeometry(900, 800, 'horizontal', .6, false).available, false);
+  assert.equal(workflowPaneGeometry(901, 800, 'horizontal', .6, false).available, true);
+});

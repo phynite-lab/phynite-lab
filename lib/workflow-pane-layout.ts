@@ -1,9 +1,9 @@
 /** Split ratios apply to content only, excluding the divider and stacked header. */
-export function workflowPaneGeometry(width: number, height: number, axis: 'horizontal' | 'vertical', ratio: number) {
+export function workflowPaneGeometry(width: number, height: number, axis: 'horizontal' | 'vertical', ratio: number, explicit = true) {
   const minimum = axis === 'vertical' ? 240 : 360;
   const extent = Math.max(0, (axis === 'vertical' ? height - 44 : width) - 1);
-  const available = extent >= minimum * 2;
-  const primary = available ? Math.max(minimum, Math.min(extent - minimum, extent * ratio)) : extent;
+  const available = extent >= minimum * 2 && (explicit || axis === 'vertical' || width >= 901);
+  const primary = available ? Math.max(minimum, Math.min(extent - minimum, extent * (axis === 'horizontal' && width <= 900 ? .5 : ratio))) : extent;
   return { minimum, extent, available, primary };
 }
 

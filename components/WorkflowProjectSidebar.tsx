@@ -1,10 +1,10 @@
 'use client';
 import { PhyniteAiIcon } from '@/app/tool-icons';
 
-import { ChevronRight, Folder, FolderOpen, MoreHorizontal, Search, SquarePen } from 'lucide-react';
+import { ChevronRight, NotebookPen, Folder, FolderOpen, MoreHorizontal, Search, SquarePen } from 'lucide-react';
 import { useEffect, useMemo, useState, type CSSProperties, type MouseEvent } from 'react';
 import { useLocale } from '@/app/locale-provider';
-import { workflowAiTab } from '@/lib/workflow-editor-state';
+import { workflowAiTab, workflowFilesTab, workflowNotesTab } from '@/lib/workflow-editor-state';
 import { workflowModuleTree } from '@/lib/workflow-navigation';
 import type { ProjectWorkflow } from '@/lib/project-workflow';
 import { useResearchShell } from './ResearchShellContext';
@@ -66,6 +66,8 @@ export function WorkflowProjectSidebar({ graph, projectName, activeTab, selected
       </details>
     </div>
     <div id="workflow-project-children" className="workflow-project-children" hidden={!query&&collapsed}>
+      <button type="button" className="workflow-project-link" aria-current={activeTab === workflowFilesTab ? 'page' : undefined} disabled={disabled} onClick={()=>open(workflowFilesTab)}><Folder size={16}/>{t('Files','Berkas')}</button>
+      <button type="button" className="workflow-project-link" aria-current={activeTab === workflowNotesTab ? 'page' : undefined} disabled={disabled} onClick={()=>open(workflowNotesTab)}><NotebookPen size={16}/>{t('Notes','Catatan')}</button>
       <div role="tree" aria-label={t('Modules', 'Modul')} aria-multiselectable="true" onKeyDown={event => {
         if (disabled || (event.target as Element).closest('.workflow-branch-toggle')) return;
         const target = (event.target as Element).closest<HTMLElement>('[role="treeitem"]');

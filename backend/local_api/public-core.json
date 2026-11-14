@@ -3,6 +3,10 @@
   "pythonModules": [
     "backend/local_api/__init__.py",
     "backend/local_api/archives.py",
+    "backend/local_api/ai_orchestration.py",
+    "backend/local_api/connected_files.py",
+    "backend/local_api/file_protocol.py",
+    "backend/local_api/notes.py",
     "backend/local_api/bundles.py",
     "backend/local_api/cloud_client.py",
     "backend/local_api/cloud_compute.py",
@@ -212,6 +216,7 @@
   ],
   "runnerSources": [
     "backend/local_api/__init__.py",
+    "backend/local_api/file_protocol.py",
     "backend/local_api/tls.py",
     "backend/local_worker/__init__.py",
     "backend/local_worker/worker.py",
@@ -306,6 +311,7 @@
     "backend/tests/test_mlip.py",
     "backend/tests/test_ai_campaign.py",
     "backend/tests/test_ai_discovery.py",
-    "backend/tests/test_ai_manuscript.py"
+    "backend/tests/test_ai_manuscript.py",
+    "backend/tests/test_ai_orchestration.py"
   ]
 }

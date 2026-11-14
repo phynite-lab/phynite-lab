@@ -362,3 +362,10 @@ verified bibliography metadata, checksums, missing information and reproduction
 instructions. Project revisions and tool-call idempotency are enforced. Scientific
 and journal review remain the authors' responsibility; the app never executes TeX.
 See [APS/PRB manuscript archives](aps-prb-manuscript.md) for supported sources and limits.
+
+## Local background work and specialist tasks
+
+The launcher can keep accepted AI work running after a tab closes. Auto/Solo/Team,
+Chat/Tasks, bounded budgets, crash recovery and provider/platform qualification
+are described in [durable parallel AI](parallel-ai.md). Team remains unavailable
+until actual native evidence is reviewed. Project changes still require review.

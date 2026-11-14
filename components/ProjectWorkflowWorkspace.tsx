@@ -23,11 +23,13 @@ import type { ComputeSelection } from '@/lib/compute-selection';
 import { useLocale } from '@/app/locale-provider';
 import { useSiteTheme } from '@/app/use-site-theme';
 import { useWorkflowEditor, workflowEditorCamera } from '@/app/use-workflow-editor';
-import { isWorkflowLauncherTab, isWorkflowAiTab, aiConversationTab, aiConversationFromTab, workflowAiTab, workflowStudyTab, workflowSplitTabs, workflowPaneViews, workflowPreferredAiTab, vacantWorkflowPosition, type WorkflowEditorAction } from '@/lib/workflow-editor-state';
+import { isWorkflowLauncherTab, isWorkflowAiTab, aiConversationTab, aiConversationFromTab, workflowAiTab, workflowStudyTab, workflowFilesTab, workflowNotesTab, workflowSplitTabs, workflowPaneViews, workflowPreferredAiTab, vacantWorkflowPosition, type WorkflowEditorAction } from '@/lib/workflow-editor-state';
 import { workflowPaneDrag, workflowPaneGeometry } from '@/lib/workflow-pane-layout';
 import { workflowFloatingPanelPosition, workflowPanelMotionDuration } from '@/lib/workflow-floating-panel';
 import { AiPanelHeader, AiPanelResize } from './AiPanelHeader';
 import type { AiContextItem } from '@/lib/ai-workbench';
+import { ConnectedFilesWorkspace } from './ConnectedFilesWorkspace';
+import { ProjectNotesWorkspace } from './ProjectNotesWorkspace';
 import { AiWorkspace, type AiWorkspaceStatus } from './AiWorkspace';
 import { WorkflowPanelBoundary } from './WorkflowPanelBoundary';
 import { useProjectAiHistory } from '@/app/use-project-ai-history';
@@ -167,7 +169,7 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
   const splitPair = workflowSplitTabs(editor.state);
   const primaryTab = splitPair?.[0], secondaryTab = splitPair?.[1];
   const vertical = editor.state.splitAxis === 'vertical';
-  const geometry = workflowPaneGeometry(containerWidth, containerHeight, vertical ? 'vertical' : 'horizontal', editor.state.splitRatio);
+  const geometry = workflowPaneGeometry(containerWidth, containerHeight, vertical ? 'vertical' : 'horizontal', editor.state.splitRatio, !editor.state.autoSplit);
   const { minimum: primaryMinimum, extent: containerExtent, available: splitAvailable, primary: editorWidth } = geometry;
   const secondaryMinimum = primaryMinimum;
   const split = !editor.state.tabsHidden && Boolean(splitPair) && splitAvailable;
@@ -596,20 +598,27 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
       if (!response.ok || !data.conversation) throw new Error(data.error || 'Could not create the research conversation.');
       addAiChat(data.conversation);
       const tabId = aiConversationTab(data.conversation.id);
-      if (floating) { setFocusedTab(tabId); changeAiPresentation(tabId, 'floating'); } else openEditor(tabId);
+      const companion = workflowSplitTabs(editor.state)?.every(id => !isWorkflowAiTab(id));
+      if (floating || companion) { setFocusedTab(tabId); changeAiPresentation(tabId, floating ? 'floating' : 'composer'); } else openEditor(tabId);
       try { localStorage.setItem(`phynite:ai-current:${owner}:${projectId}`, data.conversation.id); } catch { /* The server conversation remains open if device storage is unavailable. */ }
       return aiConversationTab(data.conversation.id);
     } catch (failure) { setMessage((failure as Error).message); }
     finally { creatingAi.current = false; setAiCreating(false); }
-  }, [project, projectId, owner, session, t, openEditor, changeAiPresentation, setMessage, addAiChat]);
+  }, [project, projectId, owner, session, t, openEditor, changeAiPresentation, setMessage, addAiChat, editor.state]);
   const openProjectAi = useCallback(async () => {
     if (!project) return;
+    const reveal = (id: string) => {
+      const pair = workflowSplitTabs(editor.state);
+      if (editor.state.aiPanel?.id === id || pair?.every(tab => !isWorkflowAiTab(tab))) changeAiPresentation(id, 'composer');
+      else openEditor(id);
+      return id;
+    };
     const existing = workflowPreferredAiTab(editor.state);
-    if (existing) { openEditor(existing); return existing; }
-    try { const chats = await refreshAiChats(); if (chats[0]) { openEditor(aiConversationTab(chats[0].id)); return aiConversationTab(chats[0].id); } }
+    if (existing) return reveal(existing);
+    try { const chats = await refreshAiChats(); if (chats[0]) return reveal(aiConversationTab(chats[0].id)); }
     catch { setMessage(t('Chat history could not be loaded. Retry before opening a conversation.', 'Riwayat chat belum dapat dimuat. Coba lagi sebelum membuka percakapan.')); return; }
     return newAiChat();
-  }, [project, editor.state, openEditor, refreshAiChats, newAiChat, setMessage, t]);
+  }, [project, editor.state, openEditor, refreshAiChats, newAiChat, setMessage, t, changeAiPresentation]);
   const toggleAiVisibility = () => {
     const id = effectivePanel?.id ?? workflowPreferredAiTab(editor.state);
     if (!id) { void openProjectAi(); return; }
@@ -1116,6 +1125,8 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
       {historyError && <p role="alert">{historyError}</p>}
       <footer><button type="button" disabled={historyBusy} onClick={() => historyDialog.current?.close()}>{t('Cancel', 'Batal')}</button><button type="button" disabled={historyBusy} onClick={() => void deleteHistory()}>{historyBusy ? t('Deleting…', 'Menghapus…') : historyAction.all ? t('Clear history', 'Bersihkan riwayat') : t('Delete chat', 'Hapus chat')}</button></footer>
     </dialog>}
+    <section className="workflow-editor workflow-files-editor" role="tabpanel" aria-label={t('Files','Berkas')} data-pane-tab={workflowFilesTab} data-pane={pane(workflowFilesTab)} hidden={!visibleTabs.includes(workflowFilesTab)}><ConnectedFilesWorkspace projectId={projectId} visible={visibleTabs.includes(workflowFilesTab)} onAttach={item => { void openProjectAi().then(tabId => { if (tabId) setContextRequest({ tabId, nonce: Date.now(), items: [item] }); }); }} /></section>
+    <section className="workflow-editor workflow-notes-editor" role="tabpanel" aria-label={t('Notes','Catatan')} data-pane-tab={workflowNotesTab} data-pane={pane(workflowNotesTab)} hidden={!visibleTabs.includes(workflowNotesTab)}><ProjectNotesWorkspace owner={owner} projectId={projectId} visible={visibleTabs.includes(workflowNotesTab)} onAttach={item => { void openProjectAi().then(tabId => { if (tabId) setContextRequest({ tabId, nonce: Date.now(), items: [item] }); }); }} onSide={() => { const peer = splitPair?.find(id => id !== workflowNotesTab && !isWorkflowAiTab(id)) ?? (activeTab !== workflowNotesTab && !isWorkflowAiTab(activeTab) ? activeTab : 'canvas'); const chat = workflowPreferredAiTab(editor.state); dispatchWorkspace({ type: 'split', id: workflowNotesTab, beside: peer }); if (chat) changeAiPresentation(chat, 'composer'); }} /></section>
     {editor.state.tabs.includes(workflowStudyTab) && <section className="workflow-editor workflow-study-editor" data-workflow-editor role="tabpanel" aria-label={t('Parameter study','Studi parameter')} data-pane-tab={workflowStudyTab} data-pane={pane(workflowStudyTab)} hidden={!visibleTabs.includes(workflowStudyTab)}><WorkflowPanelBoundary label={t('Parameter study', 'Studi parameter')} onCanvas={() => dispatchWorkspace({ type: 'open', id: 'canvas' })}><ParameterStudyWorkspace onShowCases={ids => { setSelected(ids); setSelectedEdges([]); setStudyReveal(ids); dispatchWorkspace({type:'open',id:'canvas'}); }} graph={graph} attempts={runs.flatMap(run => run.attempts)} disabled={busy || !canPrepareRun} onCanvas={() => dispatchWorkspace({type:'open',id:'canvas'})} onOpen={openEditor} onRun={targets => void prepareRun(targets)} onApply={result => { if (busy || !canPrepareRun || stableWorkflowJson(latestGraph.current) !== result.baseSignature) return false; if (!change(result.workflow)) return false; setSelected(result.nodeIds); setSelectedEdges([]); return true; }} /></WorkflowPanelBoundary></section>}
     {split && <div className="workflow-splitter" role="separator" tabIndex={0} aria-label={t('Resize editor','Ubah lebar editor')} aria-orientation={vertical ? 'horizontal' : 'vertical'} aria-valuenow={Math.round(editorWidth)} aria-valuemin={primaryMinimum} aria-valuemax={Math.round(containerExtent-secondaryMinimum)} onKeyDown={event => {
       if (event.key === 'Escape' && splitDrag.current) { event.preventDefault(); event.stopPropagation(); clearSplitDrag(); return; }

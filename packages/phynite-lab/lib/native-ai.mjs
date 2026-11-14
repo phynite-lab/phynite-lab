@@ -1,3 +1,4 @@
+import { nativeInferenceAdmission } from './inference-admission.mjs';
 import { spawn } from 'node:child_process';
 import { access, chmod, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
@@ -436,6 +437,7 @@ export class NativeAiRegistry {
     this.timeoutMs = Math.min(Math.max(timeoutMs, 1000), 5 * 60_000);
     this.randomDigits = randomDigits;
     this.sessions = new Set();
+    this.inferenceMetrics = [];
     this.logins = new Map();
     this.modelRefreshes = new Map();
     this.usageRefreshes = new Map();
@@ -496,7 +498,7 @@ export class NativeAiRegistry {
       const account = accounts.find(item => item.active) ?? accounts[0] ?? null;
       providers.push({ id, installed: Boolean(detected), optedIn: saved?.optedIn === true, status: this.logins.has(id) ? 'login_pending' : saved?.optedIn ? saved.status ?? 'connected' : 'disconnected', checkingModels: this.modelRefreshes.has(id) || this.probeJobs.has(id), version: saved?.version ?? null, checkedAt: saved?.checkedAt ?? null, toolsVerified: this.catalog.models.some((model) => model.provider === id && model.available && this.catalog.capabilities.models[model.id]?.tools === true), activeAccountId: this.state.activeAccounts[id], account, accounts, note: 'Status uses the single account managed by the official provider CLI.' });
     }
-    return { providers, models: structuredClone(this.catalog.models), capabilities: structuredClone(this.catalog.capabilities) };
+    return { providers, models: structuredClone(this.catalog.models), capabilities: structuredClone(this.catalog.capabilities), inference: { active: nativeInferenceAdmission.active, queued: nativeInferenceAdmission.queue.length, recent: structuredClone(this.inferenceMetrics) } };
   }
   /** Refresh provider usage without changing connection or model state. */
   async usage() {
@@ -1075,7 +1077,7 @@ export class NativeAiRegistry {
           if (params.turn.status !== 'completed') throw error('INFERENCE_FAILED', params.turn.error?.message ? String(params.turn.error.message).slice(0, 500) : `Codex turn ended with ${params.turn.status}.`);
           yield { type: 'result', proposal: proposal(raw, prepared), streamed: sawDelta }; return;
         }
-        if (message.method === 'error' && !params?.willRetry) throw error('INFERENCE_FAILED', String(params?.error?.message ?? 'Codex inference failed.').slice(0, 500));
+        if (message.method === 'error') throw error('INFERENCE_FAILED', String(params?.error?.message ?? 'Codex inference failed.').slice(0, 500));
       }
       throw error('INCOMPLETE_RESPONSE', 'Codex closed without a completed turn.');
     } finally { this.sessions.delete(session); await session.close(); }
@@ -1225,13 +1227,23 @@ export class NativeAiRegistry {
     } finally { this.sessions.delete(session); await session.close(); }
   }
   async *execute(prepared, signal) {
-    if (this.closed || signal?.aborted) throw abortError();
-    if (!Array.isArray(prepared.images)) prepared = { ...prepared, images: [] };
-    const cwd = await this.scratch();
+    const release = await nativeInferenceAdmission.acquire(signal);
     try {
-      await this.version(prepared.provider, cwd, signal);
-      yield* (prepared.provider === 'codex' ? this.runCodex(prepared, cwd, signal) : prepared.provider === 'claude' ? this.runClaude(prepared, cwd, signal) : this.runAgy(prepared, cwd, signal));
-    } finally { await rm(cwd, { recursive: true, force: true }); }
+      if (this.closed || signal?.aborted) throw abortError();
+      if (!Array.isArray(prepared.images)) prepared = { ...prepared, images: [] };
+      const cwd = await this.scratch();
+      try {
+        await this.version(prepared.provider, cwd, signal);
+        // Dispatch timing only: never record prompts, content or account identity.
+        const metric = { id: randomUUID(), modelId: prepared.modelId, startedAt: Date.now(), endedAt: null, status: 'running' };
+        this.inferenceMetrics.push(metric);
+        this.inferenceMetrics = this.inferenceMetrics.slice(-64);
+        try {
+          yield* (prepared.provider === 'codex' ? this.runCodex(prepared, cwd, signal) : prepared.provider === 'claude' ? this.runClaude(prepared, cwd, signal) : this.runAgy(prepared, cwd, signal));
+          metric.status = 'completed';
+        } finally { metric.endedAt = Date.now(); if (metric.status === 'running') metric.status = 'interrupted'; }
+      } finally { await rm(cwd, { recursive: true, force: true }); }
+    } finally { release(); }
   }
   async probe(modelId, { signal } = {}) {
     await this.ready;
