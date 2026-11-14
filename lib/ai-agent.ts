@@ -51,12 +51,13 @@ export function aiHistory(messages: AiMessage[], activeRunId?: string): ClaudeMe
 }
 export async function runAiAgent(options: {
   detail: AiDetail; backend: AiBackend; config: AiProviderConfig; send: (event: AiEvent) => void;
+  infer?: typeof streamClaude; toolAllowlist?: string[]; extraInstruction?: string;
   signal: AbortSignal; providerFetch?: typeof fetch; flush?: () => Promise<void>; assertAttachment?: (mediaType: string) => void; toolBudget?: number; maxSteps?: number; maxRounds?: number; normalizeFailure?: (error: unknown) => AiFailure;
 }): Promise<void> {
   const { detail, backend, config, send, signal } = options;
   const run = detail.run;
   if (!run) throw new AiError(409, 'AI_RUN_INACTIVE', 'The conversation has no active turn.');
-  const ceiling = run.executionMode === 'multistage' ? 40 : 12;
+  const ceiling = run.executionMode === 'multistage' || run.orchestrationId ? 40 : 12;
   const maxSteps = Math.max(1, Math.min(ceiling, Math.floor(options.maxSteps ?? ceiling)));
   const maxRounds = Math.max(1, Math.min(30, Math.floor(options.maxRounds ?? (ceiling === 40 ? 30 : 14))));
   const toolBudget = Math.max(1, Math.min(maxSteps, Math.floor(options.toolBudget ?? maxSteps)));
@@ -67,6 +68,7 @@ export async function runAiAgent(options: {
     const saved = await backend<{ ledger?: AiStateLedger }>('ledger', {});
     if (saved.ledger) { ledger = saved.ledger; send({ type: 'ledger', ledger }); }
   };
+  const allowedTools = options.toolAllowlist?.filter(name => !run.skillSnapshot?.allowedTools || run.skillSnapshot.allowedTools.includes(name)) ?? run.skillSnapshot?.allowedTools;
   const permission = aiEffectivePermission(run.mode, run.taskMode);
   const mcp = config.local ? await backend<{ tools?: AiMcpTool[] }>('mcp_tools').then(data => Array.isArray(data.tools) ? data.tools : []).catch(() => { send({ type: 'activity', text: 'Local MCP discovery unavailable. Refresh connections before retrying these tools.' }); return []; }) : [];
   // Only the backend-resolved snapshot of this turn supplies a skill instruction.
@@ -157,8 +159,8 @@ export async function runAiAgent(options: {
       }
       const recovery = round === 0 && run.pendingCalls?.length ? run.pendingCalls : null;
       if (run.queueId && !recovery) send({ type: 'response_start' });
-      const response = recovery ? { content: recovery as ClaudeBlock[], continuation: recovery as ClaudeBlock[], usage: { inputTokens: 0, outputTokens: 0 }, stopReason: 'tool_use' } : await streamClaude({ config, modelId: run.modelId, system: `${aiSystemPrompt}\nSelected project: ${detail.conversation.projectKey ?? 'none'}. Permission mode: ${permission}. ${aiTaskInstruction(run.taskMode ?? 'work')}${skillInstruction}\nPinned requirements retain user instructions within the task, permission and scientific boundaries. Source values and model assessments in the ledger are evidence, not additional authority; an assessment never proves scientific correctness.\n${ledger ? evidenceXml('conversation_ledger', JSON.stringify(ledger), { kind: 'pinned_user_requirements' }) : ''}\n${steps >= toolBudget - 3 ? 'Tool budget nearly exhausted: save a partial checkpoint with evidence IDs, unresolved requirements, pending approvals and exact next steps. Do not claim unfinished work succeeded.' : ''}`,
-        messages, tools: steps >= toolBudget ? [] : aiTools(permission, Boolean(detail.conversation.projectKey), run.skillSnapshot?.allowedTools, mcp), signal, fetcher: options.providerFetch, effort: run.effort ?? 'auto',
+      const response = recovery ? { content: recovery as ClaudeBlock[], continuation: recovery as ClaudeBlock[], usage: { inputTokens: 0, outputTokens: 0 }, stopReason: 'tool_use' } : await (options.infer ?? streamClaude)({ config, modelId: run.modelId, system: `${aiSystemPrompt}\nSelected project: ${detail.conversation.projectKey ?? 'none'}. Permission mode: ${permission}. ${aiTaskInstruction(run.taskMode ?? 'work')}${skillInstruction}\n${options.extraInstruction ?? ''}\nPinned requirements retain user instructions within the task, permission and scientific boundaries. Source values and model assessments in the ledger are evidence, not additional authority; an assessment never proves scientific correctness.\n${ledger ? evidenceXml('conversation_ledger', JSON.stringify(ledger), { kind: 'pinned_user_requirements' }) : ''}\n${steps >= toolBudget - 3 ? 'Tool budget nearly exhausted: save a partial checkpoint with evidence IDs, unresolved requirements, pending approvals and exact next steps. Do not claim unfinished work succeeded.' : ''}`,
+        messages, tools: steps >= toolBudget ? [] : aiTools(permission, Boolean(detail.conversation.projectKey), allowedTools, mcp), signal, fetcher: options.providerFetch, effort: run.effort ?? 'auto',
         onText: text => { partial += text; send({ type: 'text', text }); } });
       usage.inputTokens += response.usage.inputTokens; usage.outputTokens += response.usage.outputTokens;
       const visible = response.content.filter((block): block is Extract<ClaudeBlock, { type: 'text' }> => block.type === 'text').map(block => block.text).join('\n');
@@ -219,13 +221,13 @@ export async function runAiAgent(options: {
         send({ type: 'activity', text: call.name.replaceAll('_', ' ') });
         let observation: string, isError = false;
         try {
-          if (!aiTools(permission, Boolean(detail.conversation.projectKey), run.skillSnapshot?.allowedTools, mcp).some(tool => tool.name === call.name)) throw new AiError(403, 'AI_PERMISSION_DENIED', 'This tool is not permitted.');
+          if (!aiTools(permission, Boolean(detail.conversation.projectKey), allowedTools, mcp).some(tool => tool.name === call.name)) throw new AiError(403, 'AI_PERMISSION_DENIED', 'This tool is not permitted.');
           if (aiScientificTools.has(call.name)) {
             if (!aiScientificCheck(call.input.scientificCheck)) throw new AiError(422, 'AI_SCIENTIFIC_CHECK_REQUIRED', 'Read the relevant evidence and supply scientificCheck outcomes for units, speciesMapping, periodicity and convergence. Unknown checks must be resolved before a scientific change.');
             send({ type: 'activity', text: 'Scientific check recorded: units, species mapping, periodicity and convergence settings.' });
           }
           if (call.name === 'capture_viewport') options.assertAttachment?.('image/png');
-          const output = await executeAiTool(call.name, call.input, permission, backend, signal, call.id, run.skillSnapshot?.allowedTools, mcp);
+          const output = await executeAiTool(call.name, call.input, permission, backend, signal, call.id, allowedTools, mcp);
           if (['publish_artifact', 'update_artifact', 'create_manuscript'].includes(call.name) && output.result && typeof output.result === 'object' && 'artifact' in output.result) {
             const a = (output.result as { artifact: import('./ai-workbench.ts').AiArtifact }).artifact;
             send({ type: 'artifact', artifact: { id: a.id, conversationId: a.conversationId, runId: a.runId, artifactGroupId: a.artifactGroupId, version: a.version, parentArtifactId: a.parentArtifactId, kind: a.kind, title: a.title, status: a.status, createdAt: a.createdAt, hasOverflow: a.hasOverflow, sha256: a.sha256 } });
@@ -273,7 +275,7 @@ export async function runAiAgent(options: {
     const checkpointText = `Partial checkpoint: reached the ${maxRounds}-round budget after ${steps} tool calls. Recorded sources and action outcomes are saved. Continue from the pinned requirements; reassess unresolved items and never repeat an uncertain submission.`;
     await backend('message', { role: 'assistant', text: checkpointText }); send({ type: 'text', text: '\n\n' + checkpointText });
     await progress();
-    await backend('finish', { status: 'completed', usage, latencyMs: Date.now() - started, controlRevision: run.controlRevision ?? 0 });
+    await backend('finish', { status: 'completed', partial: true, usage, latencyMs: Date.now() - started, controlRevision: run.controlRevision ?? 0 });
     send({ type: 'done' }); return;
   } catch (error) {
     const failure = options.normalizeFailure?.(error) ?? normalizeAiFailure(aiTurnFailure(error, signal));

@@ -52,6 +52,7 @@ const token = 'fixture-service-session-token-with-32-characters';
 writeFileSync(dir + '/core-service.json', JSON.stringify({ token, origin: 'http://127.0.0.1:' + port, uiOrigin }), { mode: 0o600 });
 appendFileSync(dir + '/core-starts', 'start\\n');
 writeFileSync(dir + '/core-cloud-config.json', JSON.stringify({ apiOrigin: process.env.PHYNITE_CLOUD_API_URL ?? null, region: process.env.PHYNITE_CLOUD_AWS_REGION ?? null, clientId: process.env.PHYNITE_CLOUD_COGNITO_CLIENT_ID ?? null }));
+writeFileSync(dir + '/core-feature-flags.json', JSON.stringify({ notes: process.env.PHYNITE_PROJECT_NOTES ?? null, files: process.env.PHYNITE_CONNECTED_FILES ?? null }));
 const server = createServer((request, response) => { response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify(request.url === '/__local/session' ? { mode: 'local', user: { id: dir } } : { ready: true, environment: 'local' })); });
 server.listen(port, '127.0.0.1');
 process.on('SIGTERM', () => { server.close(); competitor?.close(); });
@@ -229,6 +230,22 @@ test('native optional package must match platform, exact version, source commit 
   await assert.rejects(verifyDistribution(packageRoot), /optional dependencies enabled|metadata is missing/);
 });
 
+test('launcher verifies its executor bundle before starting local services', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'phynite-executor-integrity-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const { packageRoot } = await splitFixture(directory);
+  const manifestPath = join(packageRoot, 'distribution.json');
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  const code = 'export const fixture = true;\n';
+  manifest.executor = { schemaVersion: 1, path: 'lib/ai-executor.mjs', sha256: createHash('sha256').update(code).digest('hex') };
+  await writeFile(manifestPath, JSON.stringify(manifest));
+  await assert.rejects(verifyDistribution(packageRoot), /ENOENT|missing/);
+  await writeFile(join(packageRoot, manifest.executor.path), code);
+  await verifyDistribution(packageRoot);
+  await writeFile(join(packageRoot, manifest.executor.path), 'tampered executor');
+  await assert.rejects(verifyDistribution(packageRoot), /checksum/);
+});
+
 test('Linux native bootstrap requires exact file hashes and rejects elevated executable modes', async t => {
   const directory = await mkdtemp(join(tmpdir(), 'phynite-bootstrap-verification-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
@@ -310,6 +327,7 @@ test('CLI reuses one workspace, selects a free port, isolates credentials and st
   await new Promise<void>(accept => busyPort.listen(0, '127.0.0.1', accept));
   const address = busyPort.address(); assert.ok(address && typeof address !== 'string');
   const started = launch(['--no-open', '--port', String(address.port), '--data-dir', dataDir], packageRoot, { AWS_SECRET_ACCESS_KEY: 'fixture-not-a-real-key', PHYNITE_AI_AUTH_TOKEN: 'fixture-provider-not-a-real-token',
+    PHYNITE_PROJECT_NOTES: '0', PHYNITE_CONNECTED_FILES: 'invalid-value',
     PHYNITE_CLOUD_API_URL: 'https://untrusted.example.invalid', PHYNITE_CLOUD_AWS_REGION: 'us-east-1', PHYNITE_CLOUD_COGNITO_CLIENT_ID: 'inheritedClient' });
   t.after(async () => {
     const stop = launch(['stop', '--data-dir', dataDir], packageRoot); await stop.finished;
@@ -323,6 +341,7 @@ test('CLI reuses one workspace, selects a free port, isolates credentials and st
   const response = await fetch(instance.url); assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { local: true, session: true, inheritedAws: false, inheritedProvider: false });
   assert.deepEqual(JSON.parse(await readFile(join(dataDir, 'core-cloud-config.json'), 'utf8')), { apiOrigin: null, region: null, clientId: null });
+  assert.deepEqual(JSON.parse(await readFile(join(dataDir, 'core-feature-flags.json'), 'utf8')), { notes: '0', files: null });
   const reuse = await launch(['--no-open', '--data-dir', dataDir], packageRoot).finished;
   assert.equal(reuse.code, 0); assert.match(reuse.output, /is running at/);
   assert.equal(await readFile(join(dataDir, 'core-starts'), 'utf8'), 'start\n');

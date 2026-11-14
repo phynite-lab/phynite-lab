@@ -18,9 +18,10 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
       const upstream = await localAiFetch(`/${path[1]}`, { method: request.method, body, headers: body ? { 'Content-Type': 'application/json' } : undefined, signal: request.signal });
       return new NextResponse(upstream.body, { status: upstream.status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
     }
-    if (!path.length || path.some(part => !/^[A-Za-z0-9_-]+$/.test(part)) || !['session', 'runtime', 'resources', 'cloud', 'sync', 'projects', 'jobs', 'materials-project', 'crystals', 'hpc', 'mlip'].includes(path[0])) {
+    if (!path.length || path.some(part => !/^[A-Za-z0-9_-]+$/.test(part)) || !['session', 'runtime', 'resources', 'cloud', 'sync', 'projects', 'jobs', 'materials-project', 'crystals', 'hpc', 'mlip', 'orchestration'].includes(path[0])) {
       return NextResponse.json({ error: 'Invalid local route.' }, { status: 404 });
     }
+    if (path[0] === 'orchestration' && !(path.length === 3 && /^aic_[a-z0-9]+$/.test(path[1]) && (path[2] === 'status' && request.method === 'GET' || ['stop', 'retry', 'continue'].includes(path[2]) && request.method === 'POST'))) return NextResponse.json({ error: 'Invalid task operation.' }, { status: 404 });
     if (path[0] === 'mlip' && !(path.length === 1 && request.method === 'GET' || path.length === 2 && path[1] === 'install' && request.method === 'POST')) return NextResponse.json({ error: 'Invalid MLIP operation.' }, { status: 404 });
     if (path[0] === 'crystals' && !(path.length === 2 && path[1] === 'standardize' && request.method === 'POST')) return NextResponse.json({ error: 'Invalid crystal operation.' }, { status: 404 });
     if (path[0] === 'materials-project' && !(

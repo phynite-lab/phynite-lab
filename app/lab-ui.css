@@ -169,7 +169,7 @@
 .lab-project-row:hover { background: var(--lab-subtle); }
 .lab-project-symbol { color: var(--lab-muted); flex: none; }
 .lab-project-name { min-width: 0; flex: 1; }
-.lab-project-name strong { display: block; font-size: 14px; font-weight: 550; letter-spacing: -.015em; overflow-wrap: anywhere; }
+.lab-project-name strong { display: block; font-size: var(--text-body); font-weight: 550; letter-spacing: -.015em; overflow-wrap: anywhere; }
 .lab-project-name p { color: var(--lab-muted); font-size: var(--text-caption); margin-top: 4px; overflow-wrap: anywhere; }
 .lab-project-name small { display: block; margin-top: 10px; font-size: var(--text-caption); color: var(--lab-muted); }
 .lab-project-activity { color: var(--lab-muted); font-size: var(--text-caption); white-space: nowrap; }
@@ -207,7 +207,7 @@
 .lab-guide-start a { display: inline-flex; align-items: center; gap: 4px; color: var(--lab-accent); font-size: var(--text-caption); }
 .lab-guide-chapter { margin-top: 52px; padding-top: 32px; border-top: 1px solid var(--lab-border); }
 .lab-guide-chapter > header h2 { font-size: var(--text-chapter); line-height: var(--leading-heading); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-heading); }
-.lab-guide-chapter > header > p:last-child { margin-top: 16px; color: var(--lab-muted); font-size: 14px; line-height: 1.85; }
+.lab-guide-chapter > header > p:last-child { margin-top: 16px; color: var(--lab-muted); font-size: var(--text-body); line-height: 1.85; }
 .lab-guide-block { margin-top: 28px; }
 .lab-guide-block h3 { font-size: var(--text-reading); margin-bottom: 12px; }
 .lab-guide-block > p { margin-top: 12px; font-size: var(--text-body); line-height: 1.9; }

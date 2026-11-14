@@ -210,7 +210,7 @@ Real local demo workspace. Start with New project; Cloud login is optional.
 
 The local launcher opens the workspace on your computer.
 
-The current published package is phynite-lab@0.1.29. Node.js version >=22.13.0 is required. npm installs the launcher and the matching optional native application package for the host OS and CPU.
+The current published package is phynite-lab@0.1.30. Node.js version >=22.13.0 is required. npm installs the launcher and the matching optional native application package for the host OS and CPU.
 
 Keep npm optional dependencies enabled. If a package manager was configured with --omit=optional or the selected platform package was removed, the launcher reports a missing runtime instead of silently using a development fixture.
 
@@ -2475,7 +2475,7 @@ phynite-lab --no-open --port 3000 --data-dir ~/.phynite-lab
 
 ### Release identity, license, and update verification
 
-The documentation release metadata currently resolves phynite-lab@0.1.29. The first command reports your installed launcher; the second reads npm registry metadata. A newer registry version does not update an already running process.
+The documentation release metadata currently resolves phynite-lab@0.1.30. The first command reports your installed launcher; the second reads npm registry metadata. A newer registry version does not update an already running process.
 
 Open Source code and license in the app for its corresponding source. A published distribution records its exact public source commit and source archive; release assets provide package checksums and qualification evidence. Phynite-owned local code is AGPL-3.0-only; third-party solvers and potential files retain their own licenses.
 

@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useReducer, useRef, useState } from 'react';
-import { initialWorkflowEditorState, restoreWorkflowEditor, workflowEditorReducer, workflowEditorSearch, type WorkflowEditorState } from '@/lib/workflow-editor-state';
+import { initialWorkflowEditorState, restoreWorkflowEditor, workflowEditorReducer, workflowEditorSearch, workflowAiTab, type WorkflowEditorState } from '@/lib/workflow-editor-state';
 import type { ProjectWorkflow } from '@/lib/project-workflow';
 export function useWorkflowEditor(owner: string, project: string, graph: ProjectWorkflow, ready: boolean) {
   const [state, dispatch] = useReducer(workflowEditorReducer, initialWorkflowEditorState);
@@ -20,6 +20,7 @@ export function useWorkflowEditor(owner: string, project: string, graph: Project
       const legacy = graph.nodes.find(node => params.get('legacy-view') === 'figures' ? node.legacy?.editor === 'figures' : params.get('legacy-trajectory') ? node.resources.some(ref => ref.id === params.get('legacy-trajectory')) : params.get('legacy-component') ? node.legacy?.componentId === params.get('legacy-component') : params.get('legacy-material') ? node.legacy?.materialId === params.get('legacy-material') : false);
       if (legacy) params.set('tab', legacy.id);
     }
+    if (!saved && !params.has('tab') && !params.has('popup')) saved = { ...initialWorkflowEditorState, tabs: [workflowAiTab], activeTab: 'canvas', layout: 'split', autoSplit: true, splitTabs: ['canvas', workflowAiTab] };
     const restored = restoreWorkflowEditor(saved, graph.nodes.map(node => node.id), params.toString(), graph.edges.map(edge => edge.id));
     queueMicrotask(() => { dispatch({ type: 'restore', state: restored }); setHydrated(true); });
     pendingNavigation.current = null;

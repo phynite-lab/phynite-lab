@@ -13,7 +13,7 @@ export function themePreset(preset: Exclude<ThemePreset, 'custom'>, mode: Appear
 }
 // Keep the unmodified Phynite theme at the neutral contrast baseline. Users can
 // opt into a stronger text/line mix from Appearance → Advanced → Contrast.
-const defaultAppearance: AppearanceValues = { ...themePreset('phynite', 'light'), fontSize: 13, codeFontSize: 12, accent: 'neutral', contrast: 0 };
+const defaultAppearance: AppearanceValues = { ...themePreset('phynite', 'light'), fontSize: 13, codeFontSize: 13, accent: 'neutral', contrast: 0 };
 export const defaultDevicePreferences: DevicePreferences = { ...defaultAppearance, reduceMotion: 'system', density: 'comfortable', separateModes: false, modes: { light: { ...defaultAppearance }, dark: { ...defaultAppearance, ...themePreset('phynite', 'dark') } }, diffMarkers: 'color' };
 export function colorContrast(background: string, foreground: string): number {
   const luminance = (color: string) => {

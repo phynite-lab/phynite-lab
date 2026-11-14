@@ -59,7 +59,7 @@
   height: 18px;
 }
 .studio-tool-engine {
-  font-size: 11px;
+  font-size: var(--text-caption);
   font-weight: 500;
   font-family: var(--font-code, monospace);
   color: var(--lab-muted);
@@ -91,7 +91,7 @@
   color: var(--lab-text);
 }
 .studio-tool-desc {
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.45;
   color: var(--lab-muted);
 }
@@ -108,7 +108,7 @@
 .studio-tools--workspace .studio-tool--compact .studio-tool-art { width: 26px; height: 26px; margin: 0; color: var(--lab-accent); }
 .studio-tool-compact-copy { display: grid; min-width: 0; gap: 2px; }
 .studio-tool-compact-copy > :is(strong,span) { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.studio-tool-compact-copy .studio-tool-title { font-size: 13px; font-weight: 590; }
+.studio-tool-compact-copy .studio-tool-title { font-size: var(--text-label); font-weight: 590; }
 .studio-tool-compact-copy .studio-tool-engine { margin: 0; font-size: 8px; letter-spacing: .035em; }
 
 /* Read-only project artifacts: a compact instrument panel for reproducible runs. */
@@ -148,7 +148,7 @@
   .studio-tool > svg { top: 14px; right: 14px; width: 15px; }
   .studio-tool-art { height: 40px; margin: 10px 0 16px; }
   .studio-tool-art > svg:nth-child(2) { display: none; }
-  .studio-tool-content strong { font-size: 16px; }
+  .studio-tool-content strong { font-size: var(--text-section); }
   .studio-tool-content > span { line-height: 1.6; }
   .studio-tool-preview .studio-tool-content { display: flex; }
   .studio-tool-preview .studio-tool-art { padding: 0 5px; }

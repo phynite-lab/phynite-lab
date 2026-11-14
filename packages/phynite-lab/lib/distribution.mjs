@@ -60,6 +60,10 @@ export async function verifyLauncherManifest(root) {
     const entry = manifest.targets[target], name = platformPackageName(target);
     if (!entry || entry.package !== name || entry.version !== manifest.version || packageJson.optionalDependencies?.[name] !== manifest.version) throw new Error('Native runtime package versions must exactly match the launcher release.');
   }
+  if (manifest.executor) {
+    if (manifest.executor.schemaVersion !== 1 || manifest.executor.path !== 'lib/ai-executor.mjs') throw new Error('Invalid launcher executor manifest.');
+    await verifiedFile(root, manifest.executor.path, manifest.executor.sha256);
+  }
   return { manifest, packageJson, source, cloud };
 }
 

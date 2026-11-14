@@ -1,0 +1,22 @@
+.connected-files { height:100%; min-height:0; overflow:auto; color:var(--panel-text); background:var(--panel-bg); font-size:var(--text-body,14px); overflow-wrap:anywhere; }
+.connected-files header,.connected-files nav,.files-directory,.files-filter { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:12px; border-bottom:1px solid var(--panel-border); }
+.connected-files h2,.connected-files h3 { font-size:var(--text-section,16px); font-weight:600; margin:0; display:flex; align-items:center; gap:8px; }
+.connected-files section,.files-connect { padding:16px; }
+.connected-files button { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:44px; padding:8px 12px; background:var(--panel-bg); color:var(--panel-text); border:1px solid var(--panel-border); border-radius:6px; font-size:var(--text-label,13px); cursor:pointer; }
+.connected-files button:disabled { opacity:.5; cursor:default; }
+.connected-files button[aria-pressed=true] { background:var(--panel-raised); border-color:var(--panel-text); }
+.connected-files input:not([type=checkbox]) { min-width:0; width:100%; min-height:44px; border:1px solid var(--panel-border); padding:8px; border-radius:5px; background:var(--panel-bg); color:var(--panel-text); }
+.connected-files label { display:flex; flex-direction:column; gap:6px; }
+.files-connect { display:grid; gap:12px; max-width:640px; }
+.connected-files code,.connected-files pre { font:var(--ui-code-size,13px)/1.6 var(--font-code); white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; }
+.files-entries { list-style:none; padding:0; }
+.files-entries li { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--panel-border); }
+.files-entries li>button:first-of-type { flex:1; justify-content:flex-start; min-width:100px; overflow-wrap:anywhere; }
+.files-entries input[type=checkbox] { margin:14px; width:16px; height:16px; }
+.connected-files small { color:var(--panel-muted); font-size:var(--text-caption,12px); font-variant-numeric:tabular-nums; }
+.files-error,.files-diff { margin:12px; padding:12px; border:1px solid var(--panel-border); border-radius:6px; }
+.files-error { border-color:var(--status-danger,#b42318); }
+.project-file,.file-transfer { display:flex; flex-wrap:wrap; gap:8px; align-items:center; border-bottom:1px solid var(--panel-border); padding:12px 0; }
+.project-file code { flex-basis:100%; }
+.file-transfer progress { width:100%; }
+.connected-files :focus-visible { outline:2px solid var(--panel-text); outline-offset:2px; }

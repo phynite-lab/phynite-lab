@@ -1,3 +1,4 @@
+import { waitExecutor } from './executor-ready.mjs';
 import { execFile as execFileCallback, spawn } from 'node:child_process';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { chmod, mkdir, open, readFile, realpath, stat, unlink, utimes, writeFile } from 'node:fs/promises';
@@ -293,6 +294,8 @@ function safeChildEnvironment(dataDir, apiOrigin, uiOrigin, cloud, heartbeatPath
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('AWS_') && !key.startsWith('PHYNITE_') && !key.startsWith('NEXT_PUBLIC_PHYNITE_')));
   return { ...env, NODE_ENV: 'production', HOST,
     PHYNITE_APP_MODE: 'local', PHYNITE_DATA_DIR: dataDir,
+    ...Object.fromEntries(['PHYNITE_PROJECT_NOTES', 'PHYNITE_CONNECTED_FILES'].filter(key => ['0', '1'].includes(process.env[key])).map(key => [key, process.env[key]])),
+    ...(process.env.PHYNITE_AI_TEAM === '1' ? { PHYNITE_AI_TEAM: '1', PHYNITE_AI_TEAM_QUALIFICATION: process.env.PHYNITE_AI_TEAM_QUALIFICATION } : {}),
     PHYNITE_LOCAL_API_URL: apiOrigin, PHYNITE_API_URL: apiOrigin,
     PHYNITE_LOCAL_UI_ORIGIN: uiOrigin, PHYNITE_PUBLIC_APP_URL: uiOrigin,
     PHYNITE_LOCAL_API: 'false', PHYNITE_DEV_SANDBOX: 'false',
@@ -478,6 +481,11 @@ export async function runCli(args = process.argv.slice(2), { packageRoot = PACKA
         const coreSessionReply = await requestJson(`${apiOrigin}/__local/session`, { headers: { Authorization: `Bearer ${service.token}` }, timeout: 5000 });
         const coreSession = await coreSessionReply.json();
         if (!coreSessionReply.ok || coreSession.mode !== 'local' || typeof coreSession.user?.id !== 'string' || !coreSession.user.id) throw new Error('The native core session did not identify this local workspace.');
+        if (distribution.manifest.executor) {
+          const executor = await launch('executor', process.execPath, [join(packageRoot, distribution.manifest.executor.path)], packageRoot, { PHYNITE_LOCAL_SERVICE_TOKEN: service.token });
+          await waitExecutor(apiOrigin, service.token, executor);
+          env.PHYNITE_LOCAL_EXECUTOR = '1';
+        }
         const web = await launch('web', process.execPath, [join(packageRoot, 'lib', 'web-server.mjs')], dirname(distribution.server), {
           PORT: String(webPort), PHYNITE_LOCAL_SERVICE_TOKEN: service.token,
           PHYNITE_PACKAGED_WEB_ENTRY: distribution.server,

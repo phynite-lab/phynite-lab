@@ -265,3 +265,11 @@ Release preparation is a deliberate manual operation: assemble the exact source
 commit, run the package, browser, scientific, sandbox, and license checks, inspect
 the manifests, then publish the immutable packages in platform order. No push or
 CI job publishes a release. Users update with `npm install -g phynite-lab@latest`.
+
+## Launcher AI executor
+
+`npm run build` also bundles the TypeScript AI engine for Node 22 with esbuild.
+`package:local` includes its input/checksum manifest in the launcher package.
+The launcher validates the bundle, waits for its private core registration, then
+starts the web service. See [parallel AI](parallel-ai.md) for lifecycle, budgets,
+qualification, and the distinction between synthetic and actual provider evidence.
