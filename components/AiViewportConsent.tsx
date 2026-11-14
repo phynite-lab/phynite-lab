@@ -10,10 +10,8 @@ async function request<T>(path: string, payload?: unknown, signal?: AbortSignal)
   const data = await reply.json() as T & { error?: string }; if (!reply.ok) throw new Error(data.error ?? 'Capture request failed.'); return data;
 }
 type Permission = { enabled: boolean; revision: number };
-export function AiViewportConsent({ owner, conversationId, visible, ensureConversation, onStatusChange }: { onStatusChange?: (enabled: boolean) => void; owner: string; conversationId?: string; visible: boolean; ensureConversation: () => Promise<{ id: string }> }) {
-  const { t } = useLocale();
+export function useAiViewportConsent({ owner, conversationId, visible, ensureConversation }: { owner: string; conversationId?: string; visible: boolean; ensureConversation: () => Promise<{ id: string }> }) {
   const [permission, setPermission] = useState<Permission>({ enabled: false, revision: 0 }), [busy, setBusy] = useState(false), [capturing, setCapturing] = useState(false), [error, setError] = useState('');
-  useEffect(() => { onStatusChange?.(permission.enabled); }, [permission.enabled, onStatusChange]);
   const controller = useRef<AbortController | null>(null);
   useEffect(() => { if (!conversationId) return; const abort = new AbortController(); void request<Permission>(`${conversationId}/viewport`, undefined, abort.signal).then(setPermission).catch(() => {}); return () => abort.abort(); }, [conversationId]);
   useEffect(() => {
@@ -45,13 +43,23 @@ export function AiViewportConsent({ owner, conversationId, visible, ensureConver
     void poll(); const timer = setInterval(() => void poll(), 500);
     return () => { abort.abort(); clearInterval(timer); controller.current = null; };
   }, [conversationId, permission.enabled, permission.revision, visible, owner]);
-  const label = capturing ? t('Capturing viewport…', 'Mengambil gambar viewport…') : permission.enabled ? t('Capture allowed', 'Capture diizinkan') : t('Allow capture', 'Izinkan capture');
-  return <button type="button" className="ai-task-chip ai-toolbar-toggle" aria-label={error ? `${label}: ${error}` : label} aria-pressed={permission.enabled} aria-live="polite" data-capturing={capturing} disabled={busy} title={error || `${label} · ${t('Allow visible scientific viewport images in this conversation. Revoking cancels pending captures; images already delivered remain in the conversation.', 'Izinkan gambar viewport ilmiah yang terlihat pada percakapan ini. Pencabutan membatalkan capture tertunda; gambar yang sudah dikirim tetap ada.')}`} onClick={() => {
+  const toggle = () => {
     if (permission.enabled) { controller.current?.abort(); setCapturing(false); }
     setBusy(true); setError('');
     void ensureConversation().then(async c => {
       const latest = await request<Permission>(`${c.id}/viewport`);
       setPermission(await request<Permission>(`${c.id}/viewport`, { enabled: !permission.enabled, revision: latest.revision }));
     }).catch(failure => setError(failure.message)).finally(() => setBusy(false));
-  }}>{busy || capturing ? <LoaderCircle size={17} aria-hidden="true" /> : permission.enabled ? <Camera size={17} aria-hidden="true" /> : <CameraOff size={17} aria-hidden="true" />}<span>{label}</span></button>;
+  };
+  return { enabled: permission.enabled, busy, capturing, error, toggle };
+}
+
+/** The controller lives in the workspace, so closing + never stops permitted captures. */
+export function AiViewportConsent({ control }: { control: ReturnType<typeof useAiViewportConsent> }) {
+  const { t } = useLocale();
+  const { enabled, busy, capturing, error, toggle } = control;
+  const label = capturing ? t('Capturing viewport…', 'Mengambil gambar viewport…') : enabled ? t('Capture allowed', 'Capture diizinkan') : t('Allow capture', 'Izinkan capture');
+  return <div className="ai-capture-option"><button type="button" className="ai-task-chip ai-toolbar-toggle" aria-label={error ? `${label}: ${error}` : label} aria-pressed={enabled} aria-live="polite" data-capturing={capturing} disabled={busy} onClick={toggle}>
+    {busy || capturing ? <LoaderCircle size={17} aria-hidden="true" /> : enabled ? <Camera size={17} aria-hidden="true" /> : <CameraOff size={17} aria-hidden="true" />}<span>{label}</span>
+  </button><p>{t('Allow images of the visible scientific viewport in this chat. You can turn this off at any time.', 'Izinkan gambar viewport ilmiah yang terlihat pada chat ini. Anda bisa menonaktifkannya kapan saja.')}</p>{error && <p role="alert">{error}</p>}</div>;
 }

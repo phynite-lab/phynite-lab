@@ -12,7 +12,7 @@ export type AgentTask = {
 };
 export type AiOrchestrationState = {
   parent: null | { id: string; status: string; strategy: AiStrategy; resolvedStrategy?: 'solo' | 'team';
-    modelId: string; providerCalls: number; toolCalls: number; reason?: string; generation: number };
+    modelId: string; providerCalls: number; toolCalls: number; reason?: string; generation: number; planReady?: boolean };
   tasks: AgentTask[]; teamQualified?: boolean; usage?: { cost: null; label: string };
 };
 export function aiTaskCounts(state: AiOrchestrationState | null, decisions: number) {

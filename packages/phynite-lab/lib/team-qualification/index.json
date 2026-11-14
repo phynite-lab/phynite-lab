@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "modelId": "agy/gemini-3.8-flash-high",
+      "platform": "darwin-arm64",
+      "passed": true,
+      "evidenceFile": "darwin-arm64-agy-gemini-3.8-flash-high.json",
+      "evidenceSha256": "d3cbe74e45e93668c652049acb858e926579fb21bb658d388bc39f6bcd195084"
+    }
+  ]
+}

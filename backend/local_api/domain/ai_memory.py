@@ -94,8 +94,16 @@ class AiMemory:
         issues = []
         for requirement in ledger['constraints']:
             assessment = requirement.get('assessment') or {}
+            # Earlier instructions remain pinned context. A new request does not
+            # reopen every earlier conversation turn as unfinished work.
+            if requirement['runId'] != run['id'] and assessment.get('runId') != run['id']:
+                continue
             if assessment.get('runId') != run['id'] or assessment.get('status') != 'addressed':
                 issues.append({'messageId': requirement['messageId'], 'status': assessment.get('status', 'unknown'),
                                'text': requirement['text'], 'explanation': assessment.get('explanation', 'Requirement has not been assessed against recorded evidence.')})
-        return {'verified': not issues and not ledger['openGaps'], 'issues': issues, 'actions': ledger['completedActions'],
-                'openGaps': ledger['openGaps'], 'note': 'Requirement assessments are model statements, not proof of scientific correctness. Action statuses are recorded facts.'}
+        actions = [action for action in ledger['completedActions']
+                   if action.get('runId') == run['id'] or action['status'] in {'pending', 'executing'}]
+        gaps = [f'{action["id"]}: {action["status"]}' for action in actions
+                if action['status'] in {'pending', 'executing', 'failed'}]
+        return {'verified': not issues and not gaps, 'issues': issues, 'actions': actions,
+                'openGaps': gaps, 'note': 'Requirement assessments are model statements, not proof of scientific correctness. Action statuses are recorded facts.'}

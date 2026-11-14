@@ -140,8 +140,8 @@ async function verifyComposer(page, origin, projectPath) {
   try {
     // The real empty composer needs no provider, conversation or calculation.
     await page.goto(`${origin}${projectPath}?layout=full&tab=tool%3Aai`, { waitUntil: 'domcontentloaded' });
-    const trigger = page.getByRole('button', { name: 'AI settings', exact: true });
-    const settings = page.getByRole('dialog', { name: 'AI settings', exact: true });
+    const trigger = page.getByRole('button', { name: 'Choose AI model', exact: true });
+    const settings = page.getByRole('dialog', { name: 'Choose AI model', exact: true });
     const contextTrigger = page.getByRole('button', { name: 'Add context', exact: true });
     const context = page.getByRole('dialog', { name: 'Add context', exact: true });
     const input = page.getByRole('textbox', { name: 'Message Phynite AI', exact: true });
@@ -153,25 +153,25 @@ async function verifyComposer(page, origin, projectPath) {
     }))).toBe(true);
     for (const viewport of [{ width: 1440, height: 900 }, { width: 360, height: 640 }, { width: 768, height: 400 }, { width: 390, height: 340 }, { width: 720, height: 480 }, { width: 320, height: 640 }]) {
       await page.setViewportSize(viewport);
+      await expect.poll(() => page.locator('.project-workflow').evaluate(element => Number.parseFloat(getComputedStyle(element).getPropertyValue('--workflow-keyboard-inset')))).toBe(0);
       await expect(trigger).toBeEnabled();
       await verifyControls();
       await trigger.click();
       await expect(settings).toBeVisible();
       await expect(page.locator('.ai-overlay:visible')).toHaveCount(1);
-      const discovery = settings.locator('.ai-discovery-settings');
-      if (!await discovery.evaluate(element => element.open)) await discovery.locator('summary').click();
+      await expect(settings.locator('.ai-discovery-settings, .ai-strategy-settings, .ai-capture-option')).toHaveCount(0);
+      await page.keyboard.press('Escape');
+      await contextTrigger.click();
+      await context.getByRole('button', { name: 'Discovery presets', exact: true }).click();
+      const discovery = context.locator('.ai-discovery-settings');
       const presets = discovery.locator('.ai-agent-presets button');
       await expect(presets).toHaveCount(3);
       for (const preset of await presets.all()) { await preset.scrollIntoViewIfNeeded(); await expect(preset).toBeInViewport(); }
       await discovery.getByRole('checkbox').scrollIntoViewIfNeeded();
       await expect(discovery.getByRole('checkbox')).toBeInViewport();
-      const bounds = await settings.boundingBox();
-      assert.ok(bounds && bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= viewport.width && bounds.y + bounds.height <= viewport.height, 'AI settings must fit the viewport.');
-      await expect(settings.getByRole('button', { name: 'Close AI settings', exact: true })).toBeInViewport();
-      if (await settings.getAttribute('aria-modal') === 'true') {
-        await page.keyboard.press('Tab');
-        await expect.poll(() => settings.evaluate(element => element.contains(document.activeElement))).toBe(true);
-      }
+      const bounds = await context.boundingBox();
+      assert.ok(bounds && bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= viewport.width && bounds.y + bounds.height <= viewport.height, 'The + menu must fit the viewport.');
+      await expect(context.getByRole('button', { name: 'Close context picker', exact: true })).toBeInViewport();
       if (viewport.width === 320) await page.screenshot({ path: join(output, 'mobile-discovery.png') });
       await presets.last().click();
       await expect(settings).not.toBeVisible();
@@ -424,7 +424,7 @@ try {
   await verifyComposer(mobilePage, initial.origin, projectPath);
   assert.deepEqual(desktop.externalRequests, []); assert.deepEqual(mobile.externalRequests, []);
   report.checkIds.push('ui-desktop-mobile');
-  report.checks.push('Workspace, setup and project tabs fit 320px; AI settings and nested Discovery presets, evidence, modal focus, Escape/outside dismissal, single-overlay ownership and the complete composer remain reachable in six desktop/mobile/short/zoom-equivalent viewports, without any AI submission. No external network requests before cloud/AI opt-in.');
+  report.checks.push('Workspace, setup and project tabs fit 320px; compact model selection and Discovery presets in +, evidence, modal focus, Escape/outside dismissal, single-overlay ownership and the complete composer remain reachable in six desktop/mobile/short/zoom-equivalent viewports, without any AI submission. No external network requests before cloud/AI opt-in.');
   await desktop.context.close(); await mobile.context.close();
   await stop();
   const restarted = await start();

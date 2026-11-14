@@ -1,0 +1,41 @@
+{
+  "kind": "actual-native-safety",
+  "modelId": "agy/gemini-3.8-flash-high",
+  "platform": "darwin-arm64",
+  "createdAt": "2026-11-14T15:43:33.952Z",
+  "checks": [
+    {
+      "name": "real_native_global_limit_queue_cancel_stream_cancel",
+      "passed": true,
+      "actualNativeTextStreams": 2,
+      "queuedDispatches": 0,
+      "dispatch": [
+        {
+          "id": "dd95663b-6c75-4a78-b19b-20484b9dbec3",
+          "modelId": "agy/gemini-3.8-flash-high",
+          "startedAt": 1794671014015,
+          "endedAt": 1794671074378,
+          "status": "interrupted"
+        },
+        {
+          "id": "925b6c7f-1fe4-4010-8f27-a6a153e283e4",
+          "modelId": "agy/gemini-3.8-flash-high",
+          "startedAt": 1794671014016,
+          "endedAt": 1794671069828,
+          "status": "interrupted"
+        }
+      ]
+    },
+    {
+      "name": "actual_native_stop_fences_late_result",
+      "passed": true,
+      "status": "stopped"
+    },
+    {
+      "name": "actual_native_restart_fences_late_result",
+      "passed": true,
+      "status": "interrupted"
+    }
+  ],
+  "passed": true
+}

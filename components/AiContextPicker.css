@@ -10,3 +10,9 @@
 .ai-context-picker.ai-command-picker kbd { flex-shrink: 0; padding: 1px 4px; border: 1px solid var(--panel-border); border-radius: 4px; font: inherit; }
 .ai-context-picker.ai-command-picker .ai-context-row > button:first-child > span { display: block; }
 .ai-context-picker.ai-command-picker button:focus-visible { outline: 2px solid var(--ai-focus); outline-offset: -2px; }
+.ai-context-options { padding: 8px 4px; font-size: var(--text-label); }
+.ai-context-options :is(input[type=radio], input[type=checkbox]) { flex: none; width: 1em; height: 1em; margin: 0; }
+.ai-context-options p { font-size: var(--text-label); color: var(--panel-muted); line-height: 1.65; margin-block: 8px; }
+.ai-context-options .ai-capture-option > button { display: flex; align-items: center; gap: 8px; min-height: 44px; width: 100%; border-radius: 8px; padding: 8px; }
+.ai-context-options .ai-capture-option > button[aria-pressed=true] { background: var(--panel-raised); }
+.ai-context-options .ai-settings-section:first-child { border: 0; padding-top: 0; }

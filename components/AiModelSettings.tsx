@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ChevronDown, Settings, X } from 'lucide-react';
+import { Check, ChevronDown, X } from 'lucide-react';
 import { useEffect, useId, useRef, type ReactNode, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
@@ -62,15 +62,15 @@ export function AiModelSettings({ portalOwner, open, onOpenChange, value, label,
     next.focus({ preventScroll: true }); void choose(next, false);
   };
   const firstModel = options.find(item => !item.disabled)?.value;
-  return <><button ref={trigger} type="button" className="ai-model-trigger" aria-label={t('AI settings', 'Pengaturan AI')} title={label} aria-haspopup="dialog" aria-controls={menuId} aria-expanded={open} disabled={disabled} onClick={() => onOpenChange(!open)}><Settings size={16} aria-hidden="true" /><span>{label}</span><small>{summary ?? effortNames[effort]}</small><ChevronDown size={13} aria-hidden="true" /></button>{typeof document !== 'undefined' && createPortal(<div ref={layer} hidden={!open} className="ai-composer-overlay-layer" data-ui-owner={portalOwner}>
+  return <><button ref={trigger} type="button" className="ai-model-trigger" aria-label={t('Choose AI model', 'Pilih model AI')} title={label} aria-haspopup="dialog" aria-controls={menuId} aria-expanded={open} disabled={disabled} onClick={() => onOpenChange(!open)}><span>{label}</span>{(summary || efforts.length > 1) && <small>{summary ?? effortNames[effort]}</small>}<ChevronDown size={13} aria-hidden="true" /></button>{typeof document !== 'undefined' && createPortal(<div ref={layer} hidden={!open} className="ai-composer-overlay-layer" data-ui-owner={portalOwner}>
     {modal && <button type="button" className="ai-overlay-backdrop" tabIndex={-1} aria-hidden="true" data-ui-owner={portalOwner} onClick={close} />}
-    <div ref={root} id={menuId} className="ai-model-menu ai-overlay" data-ui-owner={portalOwner} data-sheet={placement.sheet} style={placement.style} role="dialog" aria-modal={modal || undefined} aria-label={t('AI settings', 'Pengaturan AI')} tabIndex={-1} onBlur={event => { if (!modal && event.relatedTarget instanceof Node && !event.currentTarget.contains(event.relatedTarget) && !trigger.current?.contains(event.relatedTarget)) onOpenChange(false); }} onKeyDown={event => {
+    <div ref={root} id={menuId} className="ai-model-menu ai-overlay" data-ui-owner={portalOwner} data-sheet={placement.sheet} style={placement.style} role="dialog" aria-modal={modal || undefined} aria-label={t('Choose AI model', 'Pilih model AI')} tabIndex={-1} onBlur={event => { if (!modal && event.relatedTarget instanceof Node && !event.currentTarget.contains(event.relatedTarget) && !trigger.current?.contains(event.relatedTarget)) onOpenChange(false); }} onKeyDown={event => {
       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); return; }
       radioKeys(event);
-    }}><header><strong>{t('AI settings', 'Pengaturan AI')}</strong><button type="button" aria-label={t('Close AI settings', 'Tutup pengaturan AI')} onClick={close}><X size={16} /></button></header>
+    }}><header><strong>{t('Choose AI model', 'Pilih model AI')}</strong><button type="button" aria-label={t('Close model picker', 'Tutup pilihan model')} onClick={close}><X size={16} /></button></header>
       <div className="ai-model-menu-scroll" data-ai-overlay-scroll>
         {options.length > 0 ? <div role="radiogroup" aria-label={t('AI model', 'Model AI')}>{options.map(option => <button type="button" key={option.value} role="radio" aria-checked={value === option.value} data-model-choice={option.value} tabIndex={value === option.value || !options.some(item => item.value === value && !item.disabled) && option.value === firstModel ? 0 : -1} disabled={disabled || option.disabled} onClick={event => void choose(event.currentTarget, false)}><span>{option.label}{option.disabled && <small>{t('Unavailable', 'Belum tersedia')}</small>}</span>{value === option.value && <Check size={14} aria-hidden="true" />}</button>)}</div> : <div className="ai-model-empty" role="status"><strong>{t('No verified models yet', 'Belum ada model terverifikasi')}</strong><p>{t('Sign in to a local AI provider. Models appear automatically when ready.', 'Login ke provider AI lokal. Model muncul otomatis setelah siap.')}</p><Link href="/account/ai-providers">{t('Open AI provider settings', 'Buka pengaturan provider AI')}</Link></div>}
-        <section className="ai-model-efforts"><h3>{t('Effort', 'Effort')}</h3><div role="radiogroup" aria-label={t('AI effort', 'Effort AI')}>{efforts.map(level => <button type="button" key={level} role="radio" aria-checked={effort === level} tabIndex={effort === level ? 0 : -1} data-effort-choice={level} disabled={disabled} onClick={event => void choose(event.currentTarget, true)}>{effortNames[level]}</button>)}</div></section>
+        {efforts.length > 1 && <section className="ai-model-efforts"><h3>{t('Effort', 'Effort')}</h3><div role="radiogroup" aria-label={t('AI effort', 'Effort AI')}>{efforts.map(level => <button type="button" key={level} role="radio" aria-checked={effort === level} tabIndex={effort === level ? 0 : -1} data-effort-choice={level} disabled={disabled} onClick={event => void choose(event.currentTarget, true)}>{effortNames[level]}</button>)}</div></section>}
         {children}
       </div>
     </div></div>, document.body)}</>;
