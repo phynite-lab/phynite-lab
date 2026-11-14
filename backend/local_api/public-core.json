@@ -216,6 +216,7 @@
   ],
   "runnerSources": [
     "backend/local_api/__init__.py",
+    "backend/local_api/file_protocol.py",
     "backend/local_api/tls.py",
     "backend/local_worker/__init__.py",
     "backend/local_worker/worker.py",

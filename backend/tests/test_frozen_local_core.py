@@ -1,6 +1,7 @@
 """Opt-in acceptance of the built executable without a checkout or Python on PATH."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import platform
@@ -106,6 +107,40 @@ class FrozenLocalCoreTests(unittest.TestCase):
         self.assertNotEqual(plan.get('code'), 'WORKFLOW_COMPILER_UNAVAILABLE')
         if status == 200:
             self.assertRegex(plan['plan']['compilerSha256'], r'^[a-f0-9]{64}$')
+
+    def test_frozen_files_helper_supports_reviewed_edited_copies_without_source_checkout(self):
+        folder = self.data / 'selected-folder'
+        folder.mkdir()
+        original = b'\xef\xbb\xbfalpha\r\nbeta\r\n'
+        (folder / 'source.txt').write_bytes(original)
+        status, created = self.request('/v1/projects', 'POST', {'name': 'Frozen files helper test'})
+        self.assertEqual(status, 201)
+        base = '/__local/files/' + created['project']['id']
+        status, connected = self.request(base, 'POST', {'requestId': 'connect', 'source': 'local', 'name': 'Selected folder', 'path': str(folder)})
+        self.assertEqual(status, 200, connected)
+        root = connected['root']
+        root_path = base + '/roots/' + root['id']
+        status, listing = self.request(root_path + '/list', 'POST', {})
+        self.assertEqual(status, 200, listing)
+        self.assertEqual([entry['name'] for entry in listing['entries']], ['source.txt'])
+        status, before = self.request(root_path + '/edit', 'POST', {'path': 'source.txt'})
+        self.assertEqual(status, 200, before)
+        self.assertEqual(before['sha256'], hashlib.sha256(original).hexdigest())
+        status, writable = self.request(root_path, 'PUT', {'capabilityRevision': root['capabilityRevision'], 'write': True})
+        self.assertEqual(status, 200, writable)
+        status, qualified = self.request(root_path + '/qualify', 'POST', {'capabilityRevision': writable['root']['capabilityRevision']})
+        self.assertEqual(status, 200, qualified)
+        self.assertTrue(qualified['root']['replaceQualified'])
+        helper = Path(__file__).resolve().parents[1] / 'local_api/file_protocol.py'
+        self.assertEqual(qualified['root']['replacementQualification']['helperSha256'], hashlib.sha256(helper.read_bytes()).hexdigest())
+        status, prepared = self.request(root_path + '/prepare', 'POST', {'path': 'source.txt', 'identity': before['identity'], 'sha256': before['sha256'], 'text': 'alpha\nchanged\n', 'requestId': 'copy'})
+        self.assertEqual(status, 200, prepared)
+        self.assertEqual(prepared['edit']['mode'], 'copy')
+        status, saved = self.request(base + '/edits/' + prepared['edit']['id'], 'POST', {})
+        self.assertEqual(status, 200, saved)
+        self.assertEqual(saved['edit']['status'], 'succeeded')
+        self.assertEqual((folder / prepared['edit']['target']).read_bytes(), b'\xef\xbb\xbfalpha\r\nchanged\r\n')
+        self.assertEqual((folder / 'source.txt').read_bytes(), original)
 
     @unittest.skipUnless(platform.system() == 'Darwin', 'Linux sandbox is qualified after packaging its verified bootstrap.')
     def test_frozen_runtime_verifies_real_macos_isolation_with_empty_path(self):
