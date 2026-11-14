@@ -134,6 +134,15 @@ function AiWorkspaceOwner({ owner, projectId, legacyProjectId, conversationId, v
   useAiComposerOverlayOwner(overlayInstance, activeOverlay !== null, () => setComposerOverlay(null));
   const [composerSizing, setComposerSizing] = useState({ collapsed: false, evidenceLimit: 112, textareaLimit: 120 });
   const input = useRef<HTMLTextAreaElement>(null), fileInput = useRef<HTMLInputElement>(null), bottom = useRef<HTMLDivElement>(null), follow = useRef(true), previews = useRef<string[]>([]), notified = useRef(new Set<string>());
+  const pendingPresetFocus = useRef(false);
+  useEffect(() => {
+    if (!visible) { pendingPresetFocus.current = false; return; }
+    if (activeOverlay === null && pendingPresetFocus.current) {
+      // Wait for the settings sheet to release inert content and its focus trap.
+      pendingPresetFocus.current = false;
+      input.current?.focus({ preventScroll: true });
+    }
+  }, [activeOverlay, visible]);
   const transcript = useRef<HTMLDivElement>(null);
   const transcriptTop = useRef(0);
   const [awayFromLatest, setAwayFromLatest] = useState(false);
@@ -697,7 +706,7 @@ function AiWorkspaceOwner({ owner, projectId, legacyProjectId, conversationId, v
             <section className="ai-settings-section"><h3>{t('Permissions', 'Izin')}</h3><div className="ai-permission-choices">{(['chat', 'approval', 'full'] as const).filter(permission => !(localMode && background) || permission !== 'full').map(permission => <label key={permission}><input type="radio" name={`${inputId}-permission`} checked={displayedMode === permission} disabled={locked} onChange={() => void settings(modelId, permission, effort)} />{({ chat: t('Chat only', 'Chat saja'), approval: t('Ask for approval', 'Minta persetujuan'), full: t('Full access', 'Akses penuh') })[permission]}</label>)}</div></section>
             {!(localMode && background) && <section className="ai-settings-section"><h3>{t('Research', 'Riset')}</h3><label className="ai-settings-check"><input type="checkbox" checked={multistage} disabled={selectionLocked} onChange={event => setMultistage(event.target.checked)} />{t('Multistage research', 'Riset multitahap')}</label><p>{t('Solo · up to 40 tools / 30 rounds. Keep this tab open. Saved checkpoints can be continued.', 'Solo · maksimal 40 tool / 30 putaran. Biarkan tab terbuka. Checkpoint tersimpan dapat dilanjutkan.')}</p></section>}
             <section className="ai-settings-section"><h3>{t('Viewport capture', 'Capture viewport')}</h3><AiViewportConsent key={detail?.conversation.id ?? 'new'} owner={owner} conversationId={detail?.conversation.id} visible={visible} ensureConversation={ensureConversation} onStatusChange={setCaptureEnabled} /></section>
-            <AiDiscoverySettings disabled={selectionLocked} onPreset={prompt => { setComposerOverlay(null); setTaskMode('plan'); setText(prompt); input.current?.focus(); }} />
+            <AiDiscoverySettings disabled={selectionLocked} onPreset={prompt => { pendingPresetFocus.current = true; setComposerOverlay(null); setTaskMode('plan'); setText(prompt); }} />
           </AiModelSettings></div>
           <div className="ai-composer-actions"><button type={stopAction ? 'button' : 'submit'} className="ai-send" data-action={stopAction ? 'stop' : 'send'} onClick={stopAction ? () => void stop() : undefined} disabled={!stopAction && (recoveryBusy || enqueueBusy || loading || settingsBusy || !configured || !hasDraft && !canSendSaved || files.some(file => !file.attachment || file.error))} aria-label={stopAction ? t('Stop AI', 'Hentikan AI') : editing ? t('Save queued message', 'Simpan pesan antrean') : active || submitting ? t('Queue message', 'Antrekan pesan') : t('Send message', 'Kirim pesan')} title={stopAction ? t('Stop all', 'Hentikan semua') : undefined}>{stopAction ? <Square size={16} /> : <ArrowUp size={18} />}</button></div></div>
         </div>

@@ -148,6 +148,17 @@ test('every shipped platform requires evidence and cannot be waived', async () =
   } finally { await rm(root, { recursive: true }); }
 });
 
+test('a source archive with a valid git header still requires a valid gzip checksum', async () => {
+  const root = await fixture();
+  try {
+    const path = join(root, 'source.tar.gz'), bytes = await readFile(path);
+    bytes[bytes.length - 8] ^= 0xff;
+    await writeFile(path, bytes);
+    await editJson(join(root, 'release.json'), value => { value.sourceArchive.sha256 = createHash('sha256').update(bytes).digest('hex'); });
+    await assert.rejects(verifyLocalRelease(join(root, 'release.json')), /archive inspection failed|incorrect (?:data|length) check/i);
+  } finally { await rm(root, { recursive: true }); }
+});
+
 test('Linux requires its own real-environment evidence and a verified bootstrap', async () => {
   for (const mode of ['missing-evidence', 'old-glibc', 'missing-bootstrap', 'tampered-tool', 'wrong-source-lock']) {
     const root = await fixture();

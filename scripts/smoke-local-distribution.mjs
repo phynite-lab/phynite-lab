@@ -140,7 +140,10 @@ async function verifyComposer(page, origin, projectPath) {
   try {
     // The real empty composer needs no provider, conversation or calculation.
     await page.goto(`${origin}${projectPath}?layout=full&tab=tool%3Aai`, { waitUntil: 'domcontentloaded' });
-    const trigger = page.getByRole('button', { name: 'Discovery presets', exact: true });
+    const trigger = page.getByRole('button', { name: 'AI settings', exact: true });
+    const settings = page.getByRole('dialog', { name: 'AI settings', exact: true });
+    const contextTrigger = page.getByRole('button', { name: 'Add context', exact: true });
+    const context = page.getByRole('dialog', { name: 'Add context', exact: true });
     const input = page.getByRole('textbox', { name: 'Message Phynite AI', exact: true });
     const verifyControls = () => expect.poll(() => page.locator('.ai-composer-toolbar').evaluate(toolbar => [...toolbar.querySelectorAll('button')].every(button => {
       const rect = button.getBoundingClientRect();
@@ -153,34 +156,55 @@ async function verifyComposer(page, origin, projectPath) {
       await expect(trigger).toBeEnabled();
       await verifyControls();
       await trigger.click();
-      const discovery = page.getByRole('dialog', { name: 'Discovery presets', exact: true });
-      await expect(discovery).toBeVisible();
+      await expect(settings).toBeVisible();
+      await expect(page.locator('.ai-overlay:visible')).toHaveCount(1);
+      const discovery = settings.locator('.ai-discovery-settings');
+      if (!await discovery.evaluate(element => element.open)) await discovery.locator('summary').click();
       const presets = discovery.locator('.ai-agent-presets button');
       await expect(presets).toHaveCount(3);
       for (const preset of await presets.all()) { await preset.scrollIntoViewIfNeeded(); await expect(preset).toBeInViewport(); }
       await discovery.getByRole('checkbox').scrollIntoViewIfNeeded();
       await expect(discovery.getByRole('checkbox')).toBeInViewport();
-      const bounds = await discovery.boundingBox(), composer = await page.locator('.ai-composer-box').boundingBox();
-      assert.ok(bounds && composer && bounds.y + bounds.height <= composer.y, 'Discovery must preserve the complete composer.');
+      const bounds = await settings.boundingBox();
+      assert.ok(bounds && bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= viewport.width && bounds.y + bounds.height <= viewport.height, 'AI settings must fit the viewport.');
+      await expect(settings.getByRole('button', { name: 'Close AI settings', exact: true })).toBeInViewport();
+      if (await settings.getAttribute('aria-modal') === 'true') {
+        await page.keyboard.press('Tab');
+        await expect.poll(() => settings.evaluate(element => element.contains(document.activeElement))).toBe(true);
+      }
       if (viewport.width === 320) await page.screenshot({ path: join(output, 'mobile-discovery.png') });
       await presets.last().click();
-      await expect(discovery).toHaveCount(0);
+      await expect(settings).not.toBeVisible();
       await expect(input).toBeFocused();
       await expect(input).toHaveValue(/Do not submit calculations\./);
       await verifyControls();
       await trigger.click();
       await page.keyboard.press('Escape');
-      await expect(discovery).toHaveCount(0);
+      await expect(settings).not.toBeVisible();
       await expect(trigger).toBeFocused();
       await trigger.click();
+      if (await settings.getAttribute('aria-modal') === 'true') await page.locator('.ai-overlay-backdrop:visible').click({ position: { x: 1, y: 1 } });
+      else await page.mouse.click(1, 1);
+      await expect(settings).not.toBeVisible();
       await input.click();
-      await expect(discovery).toHaveCount(0);
       await expect(input).toBeFocused();
+      await contextTrigger.click();
+      await expect(context).toBeVisible();
+      if (await context.getAttribute('data-sheet') === 'true') {
+        // A sheet can cover the settings trigger; dismiss it through its UI.
+        await page.keyboard.press('Escape');
+        await expect(context).toHaveCount(0);
+        await expect(contextTrigger).toBeFocused();
+      }
       await trigger.click();
-      await page.getByRole('button', { name: 'AI model', exact: true }).click();
-      await expect(discovery).toHaveCount(0);
-      await expect(page.getByRole('dialog', { name: 'Model and effort', exact: true })).toBeVisible();
+      await expect(context).toHaveCount(0);
+      await expect(settings).toBeVisible();
+      await expect(page.locator('.ai-overlay:visible')).toHaveCount(1);
       await page.keyboard.press('Escape');
+      await expect(settings).not.toBeVisible();
+      await expect(trigger).toBeFocused();
+      await expect(input).toHaveValue(/Do not submit calculations\./);
+      await verifyControls();
     }
     assert.deepEqual(submissions, [], 'Preset selection and overlay navigation must not create conversations or run AI tools.');
   } finally { page.off('request', observe); }
@@ -400,7 +424,7 @@ try {
   await verifyComposer(mobilePage, initial.origin, projectPath);
   assert.deepEqual(desktop.externalRequests, []); assert.deepEqual(mobile.externalRequests, []);
   report.checkIds.push('ui-desktop-mobile');
-  report.checks.push('Workspace, setup and project tabs fit 320px; Discovery presets, evidence, focus recovery, single-overlay ownership and the complete composer remain reachable in six desktop/mobile/short/zoom-equivalent viewports, without any AI submission. No external network requests before cloud/AI opt-in.');
+  report.checks.push('Workspace, setup and project tabs fit 320px; AI settings and nested Discovery presets, evidence, modal focus, Escape/outside dismissal, single-overlay ownership and the complete composer remain reachable in six desktop/mobile/short/zoom-equivalent viewports, without any AI submission. No external network requests before cloud/AI opt-in.');
   await desktop.context.close(); await mobile.context.close();
   await stop();
   const restarted = await start();

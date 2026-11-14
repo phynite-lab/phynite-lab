@@ -9,6 +9,7 @@ import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createGunzip } from 'node:zlib';
+import { Writable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { NPM_RELEASE_TARGETS as DISTRIBUTION_TARGETS, platformPackageName, RELEASE_REPOSITORY } from '../packages/phynite-lab/lib/distribution.mjs';
 import { prohibitedDistributionPath } from '../packages/phynite-lab/lib/check-distribution.mjs';
@@ -64,7 +65,8 @@ function run(executable, args, input) {
       // git needs only the leading archive header and closes stdin early on
       // larger source bundles. Its exit status still verifies that header;
       // the complete archive/checksum is validated independently below.
-      if (error.code !== 'EPIPE' || executable !== 'git' || args[0] !== 'get-tar-commit-id') reject(error);
+      const earlyClose = ['EPIPE', 'ERR_STREAM_PREMATURE_CLOSE'].includes(error.code);
+      if (!earlyClose || executable !== 'git' || args[0] !== 'get-tar-commit-id') reject(error);
     }); else child.stdin.end();
   });
 }
@@ -283,6 +285,9 @@ async function verifyLocalReleaseInternal(inventoryPath, expected = {}) {
   if (release.schemaVersion !== 1 || release.format !== 'phynite-local-release-candidate' || !VERSION.test(release.version ?? '') || release.source?.repository !== RELEASE_REPOSITORY || !COMMIT.test(release.source?.commit ?? '')) fail('Invalid public release inventory identity.');
   if (expected.version && release.version !== expected.version || expected.sourceCommit && release.source.commit !== expected.sourceCommit) fail('Release evidence does not match the explicitly requested public source commit/version.');
   const archive = await regularFile(root, release.sourceArchive, 'Corresponding source archive');
+  // Git reads only the commit header, and tar can stop before the gzip footer.
+  // Validate through EOF before allowing either consumer to close its pipe early.
+  await pipeline(createReadStream(archive), createGunzip(), new Writable({ write(chunk, encoding, done) { done(); } }));
   const sourceCommit = (await run('git', ['get-tar-commit-id'], destination => pipeline(createReadStream(archive), createGunzip(), destination))).trim();
   if (sourceCommit !== release.source.commit) fail('The source archive is not a git archive of the exact public source commit.');
   const sourceEntries = (await run('tar', ['-tzf', archive])).trim().split('\n');
