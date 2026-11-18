@@ -124,16 +124,20 @@ def qe_path_break_indices(path_result: dict[str, Any], tick_indices: list[int]) 
     return breaks
 
 
-def requested_path_segments(path_result: dict[str, Any], requested_path: str) -> tuple[list[list[str]], list[str]]:
-    """Resolve a user path such as Γ-M-K-Γ against SeeK-path labels."""
-    raw_labels = [
-        label.strip()
-        for label in re.split(r"\s*(?:->|[—–→\-,;|])\s*", requested_path.strip())
-        if label.strip()
-    ]
-    if len(raw_labels) < 2:
-        raise ValueError("Custom reciprocal path must contain at least two high-symmetry labels")
+def primary_continuous_path(segments: list[list[str]]) -> list[list[str]]:
+    """Return the primary continuous branch of a path, dropping trailing disjoint stubs."""
+    if not segments:
+        return []
+    continuous: list[list[str]] = [segments[0]]
+    for seg in segments[1:]:
+        if seg[0] != continuous[-1][1]:
+            break
+        continuous.append(seg)
+    return continuous
 
+
+def requested_path_segments(path_result: dict[str, Any], requested_path: str) -> tuple[list[list[str]], list[str]]:
+    """Resolve a user path such as Γ-M-K-Γ or multi-branch Γ-M-K-Γ | A-L-H-A against SeeK-path labels."""
     point_coords = path_result.get("pointCoords")
     if not isinstance(point_coords, dict) or not point_coords:
         raise ValueError("SeeK-path did not return high-symmetry point coordinates")
@@ -144,15 +148,37 @@ def requested_path_segments(path_result: dict[str, Any], requested_path: str) ->
         return re.sub(r"\s+", "", value).upper()
 
     available = {normalized(str(label)): str(label) for label in point_coords}
-    labels: list[str] = []
-    for raw_label in raw_labels:
-        label = available.get(normalized(raw_label))
-        if label is None:
-            choices = ", ".join(str(item) for item in point_coords)
-            raise ValueError(f"High-symmetry point {raw_label!r} is unavailable for this structure; available points: {choices}")
-        labels.append(label)
-    segments = [[start, end] for start, end in zip(labels, labels[1:])]
-    return segments, labels
+
+    branches = [branch.strip() for branch in requested_path.split("|") if branch.strip()]
+    if not branches:
+        raise ValueError("Custom reciprocal path must contain at least two high-symmetry labels")
+
+    all_segments: list[list[str]] = []
+    all_labels: list[str] = []
+
+    for branch in branches:
+        raw_labels = [
+            label.strip()
+            for label in re.split(r"\s*(?:->|[—–→\-,;])\s*", branch.strip())
+            if label.strip()
+        ]
+        if len(raw_labels) < 2:
+            continue
+        branch_labels: list[str] = []
+        for raw_label in raw_labels:
+            label = available.get(normalized(raw_label))
+            if label is None:
+                choices = ", ".join(str(item) for item in point_coords)
+                raise ValueError(f"High-symmetry point {raw_label!r} is unavailable for this structure; available points: {choices}")
+            branch_labels.append(label)
+            all_labels.append(label)
+        branch_segments = [[start, end] for start, end in zip(branch_labels, branch_labels[1:])]
+        all_segments.extend(branch_segments)
+
+    if not all_segments:
+        raise ValueError("Custom reciprocal path must contain at least two high-symmetry labels")
+
+    return all_segments, all_labels
 
 
 def replace_pw_k_path(input_text: str, path_lines: str) -> str:

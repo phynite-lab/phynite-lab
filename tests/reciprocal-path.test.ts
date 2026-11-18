@@ -89,3 +89,38 @@ test('formatQeKPointsCrystalB generates crystal-aware K_POINTS block with proper
   assert.match(block, /0\.3333 0\.3333 0\.0000 20 ! K/);
   assert.match(block, /0\.0000 0\.0000 0\.5000 1 ! A$/);
 });
+
+test('automatic drafts submit exact crystal-aware default path when material context is present', () => {
+  const hexVectors: Array<[number, number, number]> = [
+    [4.148, 0, 0],
+    [-2.074, 3.59227, 0],
+    [0, 0, 6.711],
+  ];
+  const material = { cellVectors: hexVectors, spaceGroup: 'P6_3/mmc' };
+  const draft = { kPath: 'Γ — X — W — K — Γ — L', kPathMode: 'automatic' as const };
+  const submission = reciprocalPathSubmission('Band structure', draft, '', material);
+  assert.deepEqual(submission, {
+    autoKPath: false,
+    requestedKPath: 'Γ — M — K — Γ — A — L — H — A',
+  });
+});
+
+test('phonon dispersion submits reciprocal path for both automatic and custom modes', () => {
+  const hexVectors: Array<[number, number, number]> = [
+    [4.148, 0, 0],
+    [-2.074, 3.59227, 0],
+    [0, 0, 6.711],
+  ];
+  const material = { cellVectors: hexVectors, spaceGroup: 'P6_3/mmc' };
+  const autoDraft = { kPath: '', kPathMode: 'automatic' as const };
+  assert.deepEqual(reciprocalPathSubmission('Phonon dispersion', autoDraft, '', material), {
+    autoKPath: false,
+    requestedKPath: 'Γ — M — K — Γ — A — L — H — A',
+  });
+
+  const customDraft = { kPath: 'Γ — M — K — Γ', kPathMode: 'custom' as const };
+  assert.deepEqual(reciprocalPathSubmission('Phonon dispersion', customDraft, '', material), {
+    autoKPath: false,
+    requestedKPath: 'Γ — M — K — Γ',
+  });
+});

@@ -54,9 +54,12 @@ export function refreshHpcProfileSelection(profile: HpcClusterProfile, saved?: H
 }
 
 /** A fallback is a replacement choice, never the saved cluster's allocation. */
-export function resolveHpcProfileSelection(saved: HpcComputeSelection | undefined, profiles: HpcClusterProfile[], loaded: boolean) {
+export function resolveHpcProfileSelection(saved: HpcComputeSelection | undefined, profiles: HpcClusterProfile[], loaded: boolean, preferredClusterId?: string) {
   const matchedCluster = profiles.find(profile => profile.id === saved?.clusterId);
-  const selectedCluster = matchedCluster ?? profiles.find(profile => profile.isDefault) ?? profiles[0];
+  const selectedCluster = matchedCluster
+    ?? (preferredClusterId ? profiles.find(profile => profile.id === preferredClusterId) : undefined)
+    ?? profiles.find(profile => profile.isDefault)
+    ?? profiles[0];
   const missingClusterProfile = Boolean(saved && loaded && !matchedCluster);
   const staleClusterProfile = Boolean(saved && matchedCluster?.profileSha256 && saved.profileSha256 !== matchedCluster.profileSha256);
   const hpcSelection = saved ? (matchedCluster ? saved : undefined) : (selectedCluster ? hpcProfileSelection(selectedCluster) : undefined);

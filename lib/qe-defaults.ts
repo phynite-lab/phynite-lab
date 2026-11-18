@@ -196,9 +196,13 @@ export function qeAccuracyProfile(accuracy: Accuracy): {
 /** Apply full numerical basis and solver convergence profile while preserving manual overrides and clearing raw input. */
 export function applyQeAccuracy(draft: JobDraft, accuracy: Accuracy): JobDraft {
   const profile = qeAccuracyProfile(accuracy);
+  const nextPseudoFamily = draft.soc
+    ? 'PseudoDojo'
+    : (accuracy === 'Fast' ? 'SSSP efficiency' : 'SSSP precision');
   return {
     ...draft,
     accuracy,
+    pseudoFamily: nextPseudoFamily,
     ...profile,
     ...(draft.cutoffPolicy === 'manual' ? {
       cutoff: draft.cutoff,

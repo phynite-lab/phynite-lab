@@ -21,7 +21,7 @@ from typing import Any, Iterable
 
 import numpy as np
 
-from kpath import parse_qe_structure, qe_path_break_indices, qe_path_lines, replace_matdyn_q_path, replace_pw_k_path, requested_path_segments, seek_path_for_qe
+from kpath import parse_qe_structure, primary_continuous_path, qe_path_break_indices, qe_path_lines, replace_matdyn_q_path, replace_pw_k_path, requested_path_segments, seek_path_for_qe
 from results import build_scientific_results, parse_qe_output, qe_stage_xml_path, retain_qe_stage_xml, write_result_manifest
 from qe_model import dft_result_error, qe_stage_error, qe_runtime_identity, qe_string_value, transport_numbers, validate_qe_models, validate_band_postprocessor_input, validate_relaxation_input, validate_transport_settings
 from workflow_scf import attach_scf_bundle, prepare_shared_scf
@@ -934,8 +934,15 @@ def prepare_automatic_k_path(calculation_type: str, input_files: dict[str, str],
         return None
     automatic = settings.get("autoKPath")
     if automatic is None:
-        automatic = not bool(str(settings.get("rawInput") or "").strip())
-    requested_path = str(settings.get("requestedKPath") or "").strip()
+        if settings.get("kPathMode") == "custom" and settings.get("kPath"):
+            automatic = False
+        else:
+            automatic = not bool(str(settings.get("rawInput") or "").strip())
+    requested_path = str(
+        settings.get("requestedKPath")
+        or (settings.get("kPath") if settings.get("kPathMode") == "custom" else "")
+        or ""
+    ).strip()
     if automatic is False and not requested_path:
         manual = settings.get("manualReciprocalPath")
         return {"mode": "manual", **manual} if isinstance(manual, dict) else {"mode": "manual"}
@@ -955,6 +962,8 @@ def prepare_automatic_k_path(calculation_type: str, input_files: dict[str, str],
         segments, requested_labels = requested_path_segments(path_result, requested_path)
         path_result = {**path_result, "path": segments}
         mode = "requested-high-symmetry"
+    else:
+        path_result = {**path_result, "path": primary_continuous_path(path_result["path"])}
     points_per_segment = int(max(5, min(200, _setting_number(settings, ("kPathPoints",), 24))))
     path_lines, labels, tick_indices = qe_path_lines(path_result, points_per_segment)
     if calculation_type == "Band structure":
@@ -1066,7 +1075,7 @@ def create_reusable_workspace_archive(scratch: Path, destination: Path) -> bool:
 
     def reusable_member(member: tarfile.TarInfo) -> tarfile.TarInfo | None:
         name = Path(member.name).name.lower()
-        if re.fullmatch(r"wfc(?:up|dw)?\d+\.dat", name) or re.search(r"\.wfc\d+$", name):
+        if re.fullmatch(r"wfc(?:up|dw)?\d+\.(?:dat|hdf5)", name) or re.search(r"\.wfc\d+$", name):
             return None
         return member
 

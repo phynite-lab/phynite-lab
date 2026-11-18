@@ -1,5 +1,5 @@
 import { structureFormula } from './structure-formula.ts';
-import { detectLatticeSystem, LATTICE_PATH_DATA, resolveReciprocalPathMode } from './reciprocal-path.ts';
+import { detectLatticeSystem, LATTICE_PATH_DATA, resolveReciprocalPathMode, reciprocalPathSubmission } from './reciprocal-path.ts';
 import { createDefaultQeDraft } from './qe-defaults.ts';
 import { generateQuantumEspressoInputFiles, qeSubmissionSettings } from './qe-workflow.ts';
 import { cellVectorsFromLattice } from './crystal-cell.ts';
@@ -50,5 +50,22 @@ export function compileWorkflowDft(graph: ProjectWorkflow, node: WorkflowNode, p
     if (old) old.content = scf.content;
     if (workflowQeDraft(graph, source).diskIO === 'none') throw new Error('Enable saved QE state on the source SCF before running its branches.');
   }
-  return { name: node.name, structureId, calculationType: calculation, qeInput: files.map(file => file.content).join('\n'), inputFiles: Object.fromEntries(files.map(file => [file.name, file.content])), settings: qeSubmissionSettings(draft, calculation, material), computeTarget: node.configuration.computeTarget || 'personal', vcpus: node.configuration.vcpus, memoryMiB: node.configuration.memoryMiB, cloudMode: node.configuration.cloudMode, computeProfileId: node.configuration.computeProfileId, pseudopotentials: (sourceId ? graph.nodes.find(item => item.id === sourceId)?.configuration.pseudopotentials : node.configuration.pseudopotentials) || {} };
+  return {
+    name: node.name,
+    structureId,
+    calculationType: calculation,
+    qeInput: files.map(file => file.content).join('\n'),
+    inputFiles: Object.fromEntries(files.map(file => [file.name, file.content])),
+    settings: {
+      ...qeSubmissionSettings(draft, calculation, material),
+      ...reciprocalPathSubmission(calculation, draft, draft.rawInput, material),
+    },
+    computeTarget: node.configuration.computeTarget || 'personal',
+    hpc: node.configuration.hpc,
+    vcpus: node.configuration.vcpus,
+    memoryMiB: node.configuration.memoryMiB,
+    cloudMode: node.configuration.cloudMode,
+    computeProfileId: node.configuration.computeProfileId,
+    pseudopotentials: (sourceId ? graph.nodes.find(item => item.id === sourceId)?.configuration.pseudopotentials : node.configuration.pseudopotentials) || {},
+  };
 }

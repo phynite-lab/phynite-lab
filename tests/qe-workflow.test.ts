@@ -287,6 +287,7 @@ test('applyQeAccuracy updates grid, threshold, and rawInput while respecting man
   // Switching to High accuracy in auto mode updates cutoffs and grids
   const high = applyQeAccuracy({ ...base, rawInput: '&CONTROL\n/' }, 'High accuracy');
   assert.equal(high.accuracy, 'High accuracy');
+  assert.equal(high.pseudoFamily, 'SSSP precision');
   assert.equal(high.kPoint, 12);
   assert.equal(high.kPointY, 12);
   assert.equal(high.kPointZ, 12);
@@ -296,15 +297,21 @@ test('applyQeAccuracy updates grid, threshold, and rawInput while respecting man
   assert.equal(high.chargeDensityCutoff, 800);
   assert.equal(high.rawInput, '');
 
-  // Switching to Fast with manual cutoff override preserves custom cutoffs
+  // Switching to Fast with manual cutoff override preserves custom cutoffs and uses efficiency pseudo
   const manualCutoff = { ...base, cutoffPolicy: 'manual' as const, cutoff: 85, chargeDensityCutoff: 1020 };
   const fast = applyQeAccuracy(manualCutoff, 'Fast');
   assert.equal(fast.accuracy, 'Fast');
+  assert.equal(fast.pseudoFamily, 'SSSP efficiency');
   assert.equal(fast.kPoint, 4);
   assert.equal(fast.scfThreshold, 1e-6);
   assert.equal(fast.forceThreshold, 0.002);
   assert.equal(fast.cutoff, 85);
   assert.equal(fast.chargeDensityCutoff, 1020);
+
+  // When SOC is active, accuracy switching retains the fully-relativistic PseudoDojo family
+  const socDraft = applyQeAccuracy({ ...base, soc: true, noncollinear: true }, 'Fast');
+  assert.equal(socDraft.accuracy, 'Fast');
+  assert.equal(socDraft.pseudoFamily, 'PseudoDojo');
 });
 
 test('dft-d3-bj formats as vdw_corr = dft-d3 with dftd3_version = 4 for official QE compliance', () => {

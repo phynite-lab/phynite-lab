@@ -2619,6 +2619,7 @@ export function ProjectCrystalWorkspace({ cloudSync, ownerId, session: headerSes
           component.calculation,
           component.draft,
           component.draft.rawInput,
+          sourceMaterial,
         );
         const request = {
           structureId: remoteStructureId,
@@ -2870,7 +2871,7 @@ export function ProjectCrystalWorkspace({ cloudSync, ownerId, session: headerSes
           const structureId = resolved ? (await phyniteStructures.create(projectId, { name: `${record.name} · workflow input`, formula: formulaFromAtoms(resolved.atoms), source: 'Workflow structure snapshot', lattice: { ...latticeFromCellVectors(resolved.cellVectors as [[number, number, number], [number, number, number], [number, number, number]]), periodic: context?.periodic }, atoms: resolved.atoms.map(a => ({ ...a })) })).structure.id : await ensureRemoteStructure(record, projectId);
           const parent = source?.id ?? (component.structureSourceId === 'original' || workflowComponents.find(c => c.id === component.structureSourceId)?.geometry ? undefined : component.structureSourceId);
           const sweepSource = workflowComponents.find(c => c.sweep && component.id.startsWith(`${c.id}-value-`));
-          const request: DftWorkflowRequest['nodes'][number] = { id: component.id, dependsOnNodeIds: parent ? [parent] : [], scfReuse: component.scfReuse, request: { structureId, name: component.name, calculationType: component.neb ? 'Nudged elastic band' : component.calculation, qeInput: inputFiles['scf.in'] ?? generated[0].content, inputFiles, settings: { ...qeSubmissionSettings(effective, component.calculation, context), ...(neb ? { neb: neb.provenance } : {}), ...(sweepSource ? { parameterSweep: { nodeId: sweepSource.id, parameter: sweepSource.sweep!.parameter, value: sweepSource.sweep!.values[Number(component.id.split('-value-').at(-1))] } } : {}), ...reciprocalPathSubmission(component.calculation, effective, effective.rawInput), ...(component.calculation === 'Total energy' ? { retainScfBundle: true } : {}) }, run: true } };
+          const request: DftWorkflowRequest['nodes'][number] = { id: component.id, dependsOnNodeIds: parent ? [parent] : [], scfReuse: component.scfReuse, request: { structureId, name: component.name, calculationType: component.neb ? 'Nudged elastic band' : component.calculation, qeInput: inputFiles['scf.in'] ?? generated[0].content, inputFiles, settings: { ...qeSubmissionSettings(effective, component.calculation, context), ...(neb ? { neb: neb.provenance } : {}), ...(sweepSource ? { parameterSweep: { nodeId: sweepSource.id, parameter: sweepSource.sweep!.parameter, value: sweepSource.sweep!.values[Number(component.id.split('-value-').at(-1))] } } : {}), ...reciprocalPathSubmission(component.calculation, effective, effective.rawInput, context), ...(component.calculation === 'Total energy' ? { retainScfBundle: true } : {}) }, run: true } };
           requests.set(component.id, request);
         }
         pending = { fingerprint, projectId, request: { idempotencyKey: crypto.randomUUID(), nodes: [...requests.values()], targetNodeIds: expandedTargets } };

@@ -161,7 +161,7 @@ export function compileAiDft(context: AiContext, input: Record<string, unknown>)
   const savedCompute = configuration as typeof configuration & { computeTarget?: string; hpc?: unknown };
   const compute = aiQeCompute(input.compute ?? (savedCompute?.computeTarget === 'hpc' ? { computeTarget: 'hpc', hpc: savedCompute.hpc } : { computeTarget: 'personal' }));
   return { materialId: material.id, ...(configuration ? { configurationId: configuration.id } : {}), name: text(input.name, 'Calculation name'), draft, compute,
-    defaultsUsed: !configuration, submission: { calculationType: calculation, qeInput: files.find(file => file.name === 'scf.in')?.content ?? files[0].content, inputFiles: Object.fromEntries(files.map(file => [file.name, file.content])), settings: { ...qeSubmissionSettings(draft, calculation, source), ...reciprocalPathSubmission(calculation, draft, draft.rawInput), ...(calculation === 'Total energy' ? { retainScfBundle: true } : {}) } } };
+    defaultsUsed: !configuration, submission: { calculationType: calculation, qeInput: files.find(file => file.name === 'scf.in')?.content ?? files[0].content, inputFiles: Object.fromEntries(files.map(file => [file.name, file.content])), settings: { ...qeSubmissionSettings(draft, calculation, source), ...reciprocalPathSubmission(calculation, draft, draft.rawInput, source), ...(calculation === 'Total energy' ? { retainScfBundle: true } : {}) } } };
 }
 const readDocument = async <T>(backend: AiBackend, kind: string, id: unknown) => backend<{ document: T; revision: number }>('read', { kind, id: text(id, 'Resource ID') });
 async function figureSources(backend: AiBackend, figure: FigureDocument): Promise<ResearchDataset[]> {

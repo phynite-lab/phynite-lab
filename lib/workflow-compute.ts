@@ -9,6 +9,12 @@ export function changeWorkflowCompute(configuration: WorkflowNode['configuration
   for (const key of ['computeTarget', 'cloudMode', 'computeProfileId', 'estimatedComputeSeconds', 'vcpus', 'memoryMiB', 'hpc', 'resolvedHpcCompute']) delete next[key];
   const compute = { ...selection };
   if (compute.computeTarget !== 'hpc') delete compute.hpc;
+  if (next.execution && typeof next.execution === 'object') {
+    const exec: Record<string, unknown> = { ...next.execution as Record<string, unknown>, computeTarget: compute.computeTarget };
+    if (compute.hpc) exec.hpc = compute.hpc;
+    else delete exec.hpc;
+    next.execution = exec;
+  }
   return { ...next, ...compute };
 }
 
@@ -39,6 +45,11 @@ export function freezeWorkflowCompute(node: WorkflowNode, account: LabAccount, f
   if (node.kind === 'md' || node.kind === 'md-analysis' || node.kind === 'extract-frame') {
     const execution = configuration.execution && typeof configuration.execution === 'object' ? configuration.execution : {};
     configuration.execution = { ...workflowExecutionCompute({ ...execution, ...selection }), computeTarget: 'personal' };
+  } else if (configuration.execution && typeof configuration.execution === 'object') {
+    const exec: Record<string, unknown> = { ...configuration.execution as Record<string, unknown>, computeTarget: selection.computeTarget };
+    if (selection.hpc) exec.hpc = selection.hpc;
+    else delete exec.hpc;
+    configuration.execution = exec;
   }
   return { ...node, configuration };
 }

@@ -178,6 +178,16 @@ test('standalone band structure node can connect directly to crystal structure w
   assert.ok('bands.in' in inputFiles);
   assert.match(inputFiles['scf.in'], /ecutwfc\s*=\s*80/);
 
+  // Verify custom kPath is propagated in settings for SeeK-path segment selection
+  graph.nodes[1].configuration = {
+    standalone: true,
+    draft: { ...createDefaultQeDraft(), kPath: 'Γ — X — W — K — Γ', kPathMode: 'custom' },
+  };
+  const customBands = compileWorkflowDft(graph, graph.nodes[1], 'standalone-test');
+  const customSettings = customBands.settings as Record<string, unknown>;
+  assert.equal(customSettings.autoKPath, false);
+  assert.equal(customSettings.requestedKPath, 'Γ — X — W — K — Γ');
+
   // Test scientificWorkflowConfiguration draft preservation
   const standaloneConfig = scientificWorkflowConfiguration({
     standalone: true,

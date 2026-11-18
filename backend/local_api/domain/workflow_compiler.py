@@ -12,14 +12,20 @@ from typing import Any
 from backend.local_api.domain.phynite_core import ApiError, json_safe
 
 
-@lru_cache(maxsize=1)
-def compiler_source() -> str:
+@lru_cache(maxsize=4)
+def _load_compiler_source(mtime_ns: int, size: int) -> str:
     path = Path(__file__).with_name('workflow_compiler_bundle.js')
     source = path.read_text()
     manifest = json.loads(path.with_suffix('.js.json').read_text())
     if hashlib.sha256(source.encode()).hexdigest() != manifest['sha256']:
         raise ApiError(503, 'Scientific compiler integrity check failed.', 'WORKFLOW_COMPILER_UNAVAILABLE')
     return source
+
+
+def compiler_source() -> str:
+    path = Path(__file__).with_name('workflow_compiler_bundle.js')
+    stat = path.stat()
+    return _load_compiler_source(stat.st_mtime_ns, stat.st_size)
 
 
 def invoke(method: str, payload: list[Any], frozen: dict[str, str] | None = None) -> Any:

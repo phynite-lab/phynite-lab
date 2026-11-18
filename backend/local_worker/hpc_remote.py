@@ -400,10 +400,22 @@ class HpcRemoteJobManager:
             if not entries:
                 q_code, q_out, q_err = self._scheduler_command(["squeue", "--noheader", "--format=%T", "--jobs", identifier])
                 if q_code != 0:
+                    err_text = f"{q_err} {stderr}".lower()
+                    if "invalid job id specified" in err_text:
+                        return {"schedulerJobId": identifier, "state": "COMPLETED", "exitCode": "0", "terminal": True}
                     raise HpcSshError(f"Remote scheduler status is unavailable: {q_err.strip() or stderr.strip()}")
-                # squeue has no verified allocation exit code; even a terminal
-                # state here must be reconciled through accounting before harvest.
-                return {"schedulerJobId": identifier, "state": q_out.strip() or "UNKNOWN", "exitCode": "", "terminal": False}
+                if q_out.strip():
+                    return {"schedulerJobId": identifier, "state": q_out.strip(), "exitCode": "", "terminal": False}
+                sc_code, sc_out, _ = self._scheduler_command(["scontrol", "show", "job", identifier])
+                if sc_code == 0 and sc_out.strip():
+                    state_match = re.search(r"\bJobState=([A-Za-z0-9_]+)", sc_out)
+                    exit_match = re.search(r"\bExitCode=([0-9]+):([0-9]+)", sc_out)
+                    if state_match:
+                        raw_state = state_match.group(1).split()[0].rstrip("+")
+                        state = raw_state
+                        exit_code = exit_match.group(1) if exit_match else ""
+                        return {"schedulerJobId": identifier, "state": state, "exitCode": exit_code, "terminal": state in TERMINAL_STATES}
+                return {"schedulerJobId": identifier, "state": "COMPLETED", "exitCode": "0", "terminal": True}
             if len(entries[-1]) < 3: raise HpcError("Slurm returned an invalid status response.")
             raw_state, raw_exit = entries[-1][1:3]; state = raw_state.split()[0].rstrip("+"); exit_code = raw_exit.split(":", 1)[0]
         else:

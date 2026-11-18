@@ -325,23 +325,34 @@ export function resolveReciprocalPathMode(draft: {
     : 'custom';
 }
 
-export function requestedReciprocalPath(draft: {
-  kPath: string;
-  kPathMode?: ReciprocalPathMode;
-}) {
-  if (resolveReciprocalPathMode(draft) !== 'custom') return undefined;
-  const path = draft.kPath.trim();
-  return path || undefined;
+export function requestedReciprocalPath(
+  draft: {
+    kPath: string;
+    kPathMode?: ReciprocalPathMode;
+  },
+  material?: { cellVectors?: Array<[number, number, number]>; spaceGroup?: string } | null,
+): string | undefined {
+  const mode = resolveReciprocalPathMode(draft);
+  if (mode === 'custom') {
+    const path = draft.kPath.trim();
+    return path || undefined;
+  }
+  if (material) {
+    return defaultKPathForMaterial(material);
+  }
+  return undefined;
 }
 
 export function reciprocalPathSubmission(
   calculationType: string,
-  draft: { kPath: string; kPathMode?: ReciprocalPathMode },
+  draft: { kPath?: string; kPathMode?: ReciprocalPathMode },
   rawInput: string,
+  material?: { cellVectors?: Array<[number, number, number]>; spaceGroup?: string } | null,
 ): { autoKPath: boolean; requestedKPath?: string } {
   const hasRawInput = Boolean(rawInput.trim());
-  const requestedKPath = calculationType === 'Band structure' && !hasRawInput
-    ? requestedReciprocalPath(draft)
+  const isPathCalculation = calculationType === 'Band structure' || calculationType === 'Phonon dispersion';
+  const requestedKPath = isPathCalculation && !hasRawInput
+    ? requestedReciprocalPath({ kPath: draft.kPath ?? '', kPathMode: draft.kPathMode }, material)
     : undefined;
   return {
     autoKPath: !hasRawInput && !requestedKPath,
