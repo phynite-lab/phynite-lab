@@ -37,6 +37,12 @@ The recovered Guide screenshot dialogs use the existing Core Dialog skin with th
 
 For mobile Guide article pictures, use the source `mobileSrc` asset and preserve its aspect ratio inside the captured image box. Do not fill a portrait image box with the desktop fallback. The current source selects the existing mobile Dark asset for both themes. Keep checksums and the original caption; a screenshot asset does not become editable application controls.
 
+Keep popup panels, their editable content and prototype hit regions in one foreground stacking context. Use the shared source-specific local-menu shadow profiles where the capture requires them; preserve each panel's source geometry.
+
+Scientific vector badges use centered 30×32 layouts. Keep Geist Mono on the base letter and apply the shared STIX Two Math fallback only to the combining arrow range; both use the same size token. Scaled workflow artwork uses the matching optical font, radius and stroke profile instead of full-size UI metrics.
+
+Applied brand styles use Geist Pixel / Square, the installed face matching source CSS. Workflow zoom paths use primary text ink. Language flags use the shared US/Indonesia masters and fixed artwork colors: white, US red/canton and Indonesia red `#E70011`. Artwork white must not alias theme-dependent action or surface roles. Retain captured source groups for provenance when replacing an incorrectly mapped asset.
+
 Scaled Guide illustrations, theme preview artwork, empty surfaces and some compound controls retain source geometry with shared paints/type. Inspect these contexts before changing their structure. Full-screen captures remain discrete responsive examples; they are not complete responsive auto-layout implementations.
 
 ## Core component contracts

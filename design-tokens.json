@@ -2142,7 +2142,7 @@
       "controlInstances": 5773,
       "iconInstances": 16742,
       "sourceTextLayers": 54466,
-      "appliedTextStyles": 121,
+      "appliedTextStyles": 122,
       "iconProfiles": 390,
       "sharedLayoutFrames": 4527,
       "remainingSourceCompositions": 933,
@@ -2210,6 +2210,25 @@
           "captionSize": 12,
           "captionLineHeight": 19.2,
           "source": "app/public-pages.css:1676-1684; local runtime DOM desktop1440/mobile390 Light/Dark"
+        },
+        "mathVectorBadge": {
+          "width": 30,
+          "height": 32,
+          "mainAlign": "center",
+          "crossAlign": "center",
+          "baseFamily": "Geist Mono",
+          "combiningMarkFamily": "STIX Two Math",
+          "size": 10,
+          "classification": "applied-in-canvas",
+          "source": "Source vector badge dimensions; macOS CoreText fallback for U+20D7."
+        },
+        "scaledWorkflow": {
+          "scale": 0.2637037130502554,
+          "sourceLabelSize": 13,
+          "sourceRadius": 5.5,
+          "sourceStroke": 1,
+          "classification": "applied-in-canvas",
+          "source": "Captured React Flow artwork at optical zoom0.26370371; retain card outer bounds."
         }
       },
       "limits": [
@@ -2232,14 +2251,15 @@
           "fontMutation": "pass; 12 → 12.125 → 12 px",
           "fontPagesSampled": 13,
           "appearanceRangeInstances": 16,
-          "appearanceRangeMutation": "pass; master opacity 1 → 0.8 → 1; all 16 instances propagated and restoration verified"
+          "appearanceRangeMutation": "pass; master opacity 1 → 0.8 → 1; all 16 instances propagated and restoration verified",
+          "mathVectorSizeMutation": "pass; shared10 →10.125 →10 reaches base letter and ranged combining mark"
         },
         "containerBodyBoundsIssues": 0,
         "narrowExplanationLinesWrapped": 15,
         "selectValuesTruncateWithoutChangingText": 1074,
         "wrappedParagraphCollisionIssues": 0,
         "inlineTypographyBoundsIssues": 0,
-        "visuallyReviewedCapturedFrames": 125,
+        "visuallyReviewedCapturedFrames": 177,
         "openVisualFindings": 0,
         "recomposedSourceFragments": 52,
         "recomposedParagraphs": 24,
@@ -2248,15 +2268,17 @@
           "privacy": 12,
           "signInDescription": 6
         },
-        "pendingCapturedFrames": 676,
+        "pendingCapturedFrames": 624,
         "visualReviewScope": "Only the recorded captured viewports; unreviewed frames and off-viewport content remain pending.",
         "prototypeHitRegionRealignmentChecked": true,
         "latestPrototypeHitRegionCorrections": 0,
         "guideDetailIssues": 0,
-        "guideImageAssetChecksums": "All 4 recovered dialog assets and 44 responsive article images match repository SHA-256 hashes."
+        "guideImageAssetChecksums": "All 4 recovered dialog assets and 44 responsive article images match repository SHA-256 hashes.",
+        "localMenuDetailIssues": 0,
+        "sourceLanguageFlagIssues": 0
       },
-      "nativeVariables": 297,
-      "nativeStyles": 147,
+      "nativeVariables": 302,
+      "nativeStyles": 151,
       "artworkOpticalMetrics": {
         "classification": "applied-in-canvas",
         "instances": 624,
@@ -2301,10 +2323,64 @@
           "backdropBlur": 5,
           "source": "app/public-pages.css:1676-1677"
         },
-        "guideMobilePictureSource": "lib/guide-visuals.ts:24-25 selects the existing mobile-dark asset in both themes; preserve source selection."
+        "guideMobilePictureSource": "lib/guide-visuals.ts:24-25 selects the existing mobile-dark asset in both themes; preserve source selection.",
+        "localMenuStackingContexts": 9,
+        "localMenuShadowProfiles": 3,
+        "mathVectorLabels": 36,
+        "scaledWorkflowLabels": 48,
+        "scaledWorkflowCards": 48,
+        "brandStylesResolvedToInstalledSquareFace": 7,
+        "brandTextLayers": 523,
+        "workflowZoomGlyphs": 186,
+        "sourceLanguageFlagInstances": 180,
+        "indonesiaFlagOptionsCorrected": 4,
+        "languageArtwork": {
+          "us": 176,
+          "indonesia": 4,
+          "masters": 2,
+          "white": "#FFFFFF",
+          "indonesiaRed": "#E70011",
+          "source": "app/locale-provider.tsx:98-99",
+          "classification": "applied-in-canvas",
+          "provenance": "180 original captured groups retained hidden; no source text or actions inside them."
+        },
+        "localMenuShadows": {
+          "MDpotential": {
+            "offset": [
+              0,
+              12
+            ],
+            "blur": 30,
+            "blackAlpha": 0.28
+          },
+          "HomeProjectActions": {
+            "offset": [
+              0,
+              12
+            ],
+            "blur": 34,
+            "blackAlpha": 0.13
+          },
+          "SidebarProjectActions": {
+            "offset": [
+              0,
+              8
+            ],
+            "blur": 20,
+            "blackAlpha": 0.2
+          }
+        },
+        "brandFace": {
+          "family": "Geist Pixel",
+          "face": "Square",
+          "source": "app/typography.css:17-23,96; installed FigCraft font faces"
+        }
       },
       "supplementalRecoveredTextLayers": 8,
-      "guideToolbarTypographyLayouts": 184
+      "guideToolbarTypographyLayouts": 184,
+      "flagInstances": 180,
+      "flagMasters": 2,
+      "mathVectorTypographyLayouts": 36
     }
   }
 }
