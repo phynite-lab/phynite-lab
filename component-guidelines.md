@@ -43,6 +43,14 @@ Scientific vector badges use centered 30×32 layouts. Keep Geist Mono on the bas
 
 Applied brand styles use Geist Pixel / Square, the installed face matching source CSS. Workflow zoom paths use primary text ink. Language flags use the shared US/Indonesia masters and fixed artwork colors: white, US red/canton and Indonesia red `#E70011`. Artwork white must not alias theme-dependent action or surface roles. Retain captured source groups for provenance when replacing an incorrectly mapped asset.
 
+Applied Settings switches use the captured 34×20 track and 14 px thumb with a 3 px inset. Keep the On/Off state and its label together in the shared gap-8 row. The 46 instances across 12 captured frames use two source-state masters. Do not replace the canonical Core switch dimensions with this source exception.
+
+In narrow Compute runtime rows, keep heading/helper gap 8 and copy/action gap 16. Let the card grow when the helper wraps. Mobile DFT section headers keep the title fixed, align text baselines, leave gap 8 and truncate the flexible detail to the remaining width. Preserve the full scientific string in the text layer.
+
+Center camera glyphs within the existing icon-only control bounds. Database scrims use black at 55% alpha; research privacy notices use shared accent at 8% fill and 28% border alpha. Retain paint opacity when binding a color variable, including CSS color-mix captures.
+
+Center viewport-dependent dialogs and empty states using the destination viewport height. Recheck their actions after movement. The mobile MD script-inspector header is clipped in the current local app; that source issue remains documented until an implementation change supplies a new reference.
+
 Scaled Guide illustrations, theme preview artwork, empty surfaces and some compound controls retain source geometry with shared paints/type. Inspect these contexts before changing their structure. Full-screen captures remain discrete responsive examples; they are not complete responsive auto-layout implementations.
 
 ## Core component contracts

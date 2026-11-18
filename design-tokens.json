@@ -2229,6 +2229,36 @@
           "sourceStroke": 1,
           "classification": "applied-in-canvas",
           "source": "Captured React Flow artwork at optical zoom0.26370371; retain card outer bounds."
+        },
+        "mobileRuntimeAction": {
+          "titleHelperGap": 8,
+          "copyActionGap": 16,
+          "rowSeparation": 24,
+          "classification": "applied-in-canvas",
+          "source": "app/account/settings.css:157 mobile row gap16; Core label/helper and section metrics"
+        },
+        "settingsSwitchSource": {
+          "track": [
+            34,
+            20
+          ],
+          "thumb": 14,
+          "inset": 3,
+          "thumbTravel": 14,
+          "labelGap": 8,
+          "classification": "applied-in-canvas",
+          "source": "Captured Settings source geometry; two applied On/Off masters, separate from canonical Core switch."
+        },
+        "mobileDftSectionTitle": {
+          "width": 340,
+          "gap": 8,
+          "crossAlign": "baseline",
+          "titleSizing": "fixed",
+          "detailSizing": "fill",
+          "detailOverflow": "truncate",
+          "maxLines": 1,
+          "classification": "applied-in-canvas",
+          "source": "components/CalculationConfigDrawer.tsx:120-123; mobile card inner width340"
         }
       },
       "limits": [
@@ -2236,7 +2266,8 @@
         "Captured viewport variants do not implement complete screen reflow.",
         "Login/data-dependent states need their own references.",
         "The Appearance range component records the captured value0 only; other values and runtime input behavior need separate evidence.",
-        "Earlier base Guide captures and off-viewport image bodies still need a separate responsive-asset audit."
+        "Earlier base Guide captures and off-viewport image bodies still need a separate responsive-asset audit.",
+        "Mobile MD script-inspector title and copy/close actions are clipped in the actual app at workflow y44; canvas preserves the reproduced source state."
       ],
       "verification": {
         "sourceTextUnchanged": 54442,
@@ -2252,15 +2283,17 @@
           "fontPagesSampled": 13,
           "appearanceRangeInstances": 16,
           "appearanceRangeMutation": "pass; master opacity 1 → 0.8 → 1; all 16 instances propagated and restoration verified",
-          "mathVectorSizeMutation": "pass; shared10 →10.125 →10 reaches base letter and ranged combining mark"
+          "mathVectorSizeMutation": "pass; shared10 →10.125 →10 reaches base letter and ranged combining mark",
+          "settingsSwitchInstances": 46,
+          "settingsSwitchMutation": "pass; two masters opacity1 to0.9 to1; all46instances propagated and restoration verified"
         },
         "containerBodyBoundsIssues": 0,
         "narrowExplanationLinesWrapped": 15,
         "selectValuesTruncateWithoutChangingText": 1074,
         "wrappedParagraphCollisionIssues": 0,
         "inlineTypographyBoundsIssues": 0,
-        "visuallyReviewedCapturedFrames": 177,
-        "openVisualFindings": 0,
+        "visuallyReviewedCapturedFrames": 342,
+        "openVisualFindings": 1,
         "recomposedSourceFragments": 52,
         "recomposedParagraphs": 24,
         "sourceTextVerification": "54,442 untouched source nodes compared byte-for-byte; 52 captured fragments rebuilt into 24 paragraphs with saved-fragment and repository wording checks. Normalize only intentional NBSPs when checking paragraph wording.",
@@ -2268,16 +2301,38 @@
           "privacy": 12,
           "signInDescription": 6
         },
-        "pendingCapturedFrames": 624,
+        "pendingCapturedFrames": 459,
         "visualReviewScope": "Only the recorded captured viewports; unreviewed frames and off-viewport content remain pending.",
         "prototypeHitRegionRealignmentChecked": true,
         "latestPrototypeHitRegionCorrections": 0,
         "guideDetailIssues": 0,
         "guideImageAssetChecksums": "All 4 recovered dialog assets and 44 responsive article images match repository SHA-256 hashes.",
         "localMenuDetailIssues": 0,
-        "sourceLanguageFlagIssues": 0
+        "sourceLanguageFlagIssues": 0,
+        "openSourceUiIssues": 1,
+        "round05DetailIssues": 0,
+        "matchedPrototypeHitRegions": 808,
+        "prototypeHitRegionDisplacementIssues": 0,
+        "sourceUiIssues": [
+          {
+            "id": "mobile-md-inspector-header-clipping",
+            "capturedFrames": 2,
+            "runtimeThemeMeasured": "Light",
+            "matchingCapturedTheme": "Dark",
+            "workflowClipTop": 44,
+            "modalRect": [
+              0,
+              0,
+              390,
+              844
+            ],
+            "headerHeight": 85,
+            "status": "open; source screenshot reproduces missing title/copy/close",
+            "source": "components/MdSimulationConfigDrawer.tsx:1079-1103; app/md-studio.css:1342-1403"
+          }
+        ]
       },
-      "nativeVariables": 302,
+      "nativeVariables": 303,
       "nativeStyles": 151,
       "artworkOpticalMetrics": {
         "classification": "applied-in-canvas",
@@ -2374,7 +2429,33 @@
           "family": "Geist Pixel",
           "face": "Square",
           "source": "app/typography.css:17-23,96; installed FigCraft font faces"
-        }
+        },
+        "runtimeActionCardsReflowed": 1,
+        "runtimeActionFlowLayouts": 6,
+        "settingsSwitchInstances": 46,
+        "settingsSwitchMasters": 2,
+        "settingsSwitchFrames": 12,
+        "databaseScrimsRestored": 8,
+        "cameraIconControlsCentered": 31,
+        "researchPrivacyNoticesAlphaRestored": 4,
+        "mobileDatabaseViewportFramesCorrected": 1,
+        "mobileFigureViewportFramesCorrected": 2,
+        "mobileDftSectionTitleLayouts": 6,
+        "sourcePaintAlpha": {
+          "databaseScrim": {
+            "color": "#000000",
+            "alpha": 0.55
+          },
+          "researchPrivacy": {
+            "role": "accent",
+            "fillAlpha": 0.08,
+            "strokeAlpha": 0.28
+          },
+          "classification": "applied-in-canvas",
+          "source": "Database source backdrop; app/project-workflow.css:635 color-mix rules"
+        },
+        "mobilePrepareHeaderForegroundWrappers": 1,
+        "mobilePrepareHeaderSourceLayersRetained": 16
       },
       "supplementalRecoveredTextLayers": 8,
       "guideToolbarTypographyLayouts": 184,
