@@ -1,6 +1,6 @@
 {
-  "$description": "Phynite Lab extracted design tokens. Native canvas is the visual source; CSS resolves intended dimensions and cascade. Additive reference; not application CSS.",
-  "version": 1,
+  "$description": "Phynite Lab design tokens. Top-level values preserve the extracted Reference catalog; core is the reviewed proposed standard. Native canvas is the visual source. Annotated reference, not application CSS or a DTCG schema.",
+  "version": 2,
   "reviewedAt": "2026-11-18",
   "source": {
     "document": "phynite-lab-ui",
@@ -1228,7 +1228,8 @@
         "Dark": "#ededed"
       },
       "classification": "proposed",
-      "reason": "Neutral focus candidate with at least 3:1 against the base canvas; verify every adjacent fill."
+      "reason": "Neutral focus candidate with at least 3:1 against the base canvas; verify every adjacent fill.",
+      "supersededBy": "core.color.focus/outline"
     },
     "target/coarse-min": {
       "$type": "dimension",
@@ -1237,13 +1238,850 @@
         "unit": "px"
       },
       "classification": "proposed",
-      "reason": "Extend existing coarse-pointer target rule to linked labels, slider hit boxes and custom actuators."
+      "reason": "Extend existing coarse-pointer target rule to linked labels, slider hit boxes and custom actuators.",
+      "supersededBy": "core.density.control/height"
     },
     "action/pressed": {
       "$type": "string",
       "$value": "Use primary hover tone during press; retain geometry",
       "classification": "proposed",
-      "reason": "No distinct pressed tone was established in the captures/source."
+      "reason": "No distinct pressed tone was established in the captures/source.",
+      "supersededBy": "core.color.action/pressed"
+    }
+  },
+  "core": {
+    "classification": "proposed",
+    "description": "Reviewed shared library contract. Existing application screens are unchanged; extracted values remain in the top-level reference namespaces. Aliases use annotated paths, not a DTCG schema.",
+    "nativeCollections": {
+      "theme": "Core · Theme",
+      "metrics": "Core · Metrics",
+      "density": "Core · Density"
+    },
+    "color": {
+      "canvas": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#FCFCFC",
+          "Dark": "#000000"
+        }
+      },
+      "surface/default": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#FFFFFF",
+          "Dark": "#111111"
+        }
+      },
+      "surface/raised": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#FFFFFF",
+          "Dark": "#151515"
+        }
+      },
+      "surface/hover": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#F0F0F0",
+          "Dark": "#1E1E1E"
+        }
+      },
+      "surface/pressed": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#E5E5E5",
+          "Dark": "#2B2B2B"
+        }
+      },
+      "text/primary": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#171717",
+          "Dark": "#EDEDED"
+        }
+      },
+      "text/secondary": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#595959",
+          "Dark": "#AAAAAA"
+        }
+      },
+      "border/subtle": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#E5E5E5",
+          "Dark": "#1D1D1D"
+        }
+      },
+      "border/control": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#808080",
+          "Dark": "#808080"
+        }
+      },
+      "focus/outline": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#171717",
+          "Dark": "#EDEDED"
+        }
+      },
+      "action/primary": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#18181B",
+          "Dark": "#F4F4F5"
+        }
+      },
+      "action/on-primary": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#FFFFFF",
+          "Dark": "#090A0D"
+        }
+      },
+      "action/hover": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#000000",
+          "Dark": "#FFFFFF"
+        }
+      },
+      "action/pressed": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#303033",
+          "Dark": "#D4D4D8"
+        }
+      },
+      "status/success": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#216B40",
+          "Dark": "#76D69B"
+        }
+      },
+      "status/warning": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#95520E",
+          "Dark": "#F3AE62"
+        }
+      },
+      "status/danger": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#AD3039",
+          "Dark": "#FF9299"
+        }
+      },
+      "status/info": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#3F3F46",
+          "Dark": "#D4D4D8"
+        }
+      },
+      "button/fill": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": {
+            "alias": "core.color.action/primary"
+          },
+          "Dark": {
+            "alias": "core.color.action/primary"
+          }
+        }
+      },
+      "button/ink": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": {
+            "alias": "core.color.action/on-primary"
+          },
+          "Dark": {
+            "alias": "core.color.action/on-primary"
+          }
+        }
+      },
+      "field/fill": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": {
+            "alias": "core.color.surface/default"
+          },
+          "Dark": {
+            "alias": "core.color.surface/default"
+          }
+        }
+      },
+      "field/border": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": {
+            "alias": "core.color.border/control"
+          },
+          "Dark": {
+            "alias": "core.color.border/control"
+          }
+        }
+      },
+      "selection/fill": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": {
+            "alias": "core.color.action/primary"
+          },
+          "Dark": {
+            "alias": "core.color.action/primary"
+          }
+        }
+      },
+      "selection/ink": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": {
+            "alias": "core.color.action/on-primary"
+          },
+          "Dark": {
+            "alias": "core.color.action/on-primary"
+          }
+        }
+      },
+      "nav/selected": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": {
+            "alias": "core.color.surface/hover"
+          },
+          "Dark": {
+            "alias": "core.color.surface/hover"
+          }
+        }
+      },
+      "shadow/floating": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#0000001F",
+          "Dark": "#00000052"
+        }
+      }
+    },
+    "dimension": {
+      "space/4": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 4
+        },
+        "unit": "px",
+        "$value": 4
+      },
+      "space/8": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 8
+        },
+        "unit": "px",
+        "$value": 8
+      },
+      "space/12": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 12
+        },
+        "unit": "px",
+        "$value": 12
+      },
+      "space/16": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 16
+        },
+        "unit": "px",
+        "$value": 16
+      },
+      "space/24": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 24
+        },
+        "unit": "px",
+        "$value": 24
+      },
+      "space/32": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 32
+        },
+        "unit": "px",
+        "$value": 32
+      },
+      "space/48": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 48
+        },
+        "unit": "px",
+        "$value": 48
+      },
+      "space/64": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 64
+        },
+        "unit": "px",
+        "$value": 64
+      },
+      "radius/control": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 8
+        },
+        "unit": "px",
+        "$value": 8
+      },
+      "radius/container": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 12
+        },
+        "unit": "px",
+        "$value": 12
+      },
+      "radius/dialog": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 16
+        },
+        "unit": "px",
+        "$value": 16
+      },
+      "radius/pill": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 999
+        },
+        "unit": "px",
+        "$value": 999
+      },
+      "border/width": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 1
+        },
+        "unit": "px",
+        "$value": 1
+      },
+      "focus/width": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 2
+        },
+        "unit": "px",
+        "$value": 2
+      },
+      "focus/offset": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 2
+        },
+        "unit": "px",
+        "$value": 2
+      },
+      "icon/size": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 16
+        },
+        "unit": "px",
+        "$value": 16
+      },
+      "gap/control": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 8
+        },
+        "unit": "px",
+        "$value": 8
+      },
+      "padding/container": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 24
+        },
+        "unit": "px",
+        "$value": 24
+      },
+      "padding/mobile": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 16
+        },
+        "unit": "px",
+        "$value": 16
+      },
+      "opacity/disabled": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 50
+        },
+        "unit": "percent",
+        "$value": 50
+      },
+      "textarea/min-height": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 96
+        },
+        "unit": "px",
+        "$value": 96
+      },
+      "selection/indicator": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 2
+        },
+        "unit": "px",
+        "$value": 2
+      },
+      "status/dot": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 6
+        },
+        "unit": "px",
+        "$value": 6
+      },
+      "table/min-width": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 420
+        },
+        "unit": "px",
+        "$value": 420
+      }
+    },
+    "density": {
+      "control/height": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Density",
+        "modes": {
+          "Default": 40,
+          "Compact": 32,
+          "Touch": 44
+        },
+        "unit": "px"
+      },
+      "control/padding-inline": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Density",
+        "modes": {
+          "Default": 12,
+          "Compact": 12,
+          "Touch": 16
+        },
+        "unit": "px"
+      },
+      "button/height": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Density",
+        "modes": {
+          "Default": {
+            "alias": "core.density.control/height"
+          },
+          "Compact": {
+            "alias": "core.density.control/height"
+          },
+          "Touch": {
+            "alias": "core.density.control/height"
+          }
+        },
+        "unit": "px"
+      },
+      "field/height": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Density",
+        "modes": {
+          "Default": {
+            "alias": "core.density.control/height"
+          },
+          "Compact": {
+            "alias": "core.density.control/height"
+          },
+          "Touch": {
+            "alias": "core.density.control/height"
+          }
+        },
+        "unit": "px"
+      },
+      "nav/height": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Density",
+        "modes": {
+          "Default": {
+            "alias": "core.density.control/height"
+          },
+          "Compact": {
+            "alias": "core.density.control/height"
+          },
+          "Touch": {
+            "alias": "core.density.control/height"
+          }
+        },
+        "unit": "px"
+      },
+      "control/padding-block": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Density",
+        "modes": {
+          "Default": 9,
+          "Compact": 5,
+          "Touch": 11
+        },
+        "unit": "px"
+      }
+    },
+    "typography": {
+      "Brand": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "Geist Pixel",
+          "fontStyle": "Square",
+          "fontSize": 16.0,
+          "lineHeight": 20.0,
+          "letterSpacing": 0.0
+        },
+        "classification": "proposed",
+        "unit": "px",
+        "nativeStyle": "Core/Brand",
+        "fallbacks": [
+          "Geist Mono",
+          "monospace"
+        ]
+      },
+      "Display": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "Geist",
+          "fontStyle": "Medium",
+          "fontSize": 28.0,
+          "lineHeight": 36.0,
+          "letterSpacing": -0.56
+        },
+        "classification": "proposed",
+        "unit": "px",
+        "nativeStyle": "Core/Display",
+        "fallbacks": [
+          "Arial",
+          "sans-serif"
+        ]
+      },
+      "Heading": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "Geist",
+          "fontStyle": "Medium",
+          "fontSize": 20.0,
+          "lineHeight": 28.0,
+          "letterSpacing": -0.4
+        },
+        "classification": "proposed",
+        "unit": "px",
+        "nativeStyle": "Core/Heading",
+        "fallbacks": [
+          "Arial",
+          "sans-serif"
+        ]
+      },
+      "Section": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "Geist",
+          "fontStyle": "Medium",
+          "fontSize": 16.0,
+          "lineHeight": 24.0,
+          "letterSpacing": 0.0
+        },
+        "classification": "proposed",
+        "unit": "px",
+        "nativeStyle": "Core/Section",
+        "fallbacks": [
+          "Arial",
+          "sans-serif"
+        ]
+      },
+      "Body": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "Geist",
+          "fontStyle": "Regular",
+          "fontSize": 14.0,
+          "lineHeight": 20.0,
+          "letterSpacing": 0.0
+        },
+        "classification": "proposed",
+        "unit": "px",
+        "nativeStyle": "Core/Body",
+        "fallbacks": [
+          "Arial",
+          "sans-serif"
+        ]
+      },
+      "Label": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "Geist",
+          "fontStyle": "Medium",
+          "fontSize": 13.0,
+          "lineHeight": 20.0,
+          "letterSpacing": 0.0
+        },
+        "classification": "proposed",
+        "unit": "px",
+        "nativeStyle": "Core/Label",
+        "fallbacks": [
+          "Arial",
+          "sans-serif"
+        ]
+      },
+      "Caption": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "Geist",
+          "fontStyle": "Regular",
+          "fontSize": 12.0,
+          "lineHeight": 16.0,
+          "letterSpacing": 0.0
+        },
+        "classification": "proposed",
+        "unit": "px",
+        "nativeStyle": "Core/Caption",
+        "fallbacks": [
+          "Arial",
+          "sans-serif"
+        ]
+      },
+      "Code": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "Geist Mono",
+          "fontStyle": "Regular",
+          "fontSize": 12.0,
+          "lineHeight": 20.0,
+          "letterSpacing": 0.0
+        },
+        "classification": "proposed",
+        "unit": "px",
+        "nativeStyle": "Core/Code",
+        "fallbacks": [
+          "monospace"
+        ]
+      }
+    },
+    "effects": {
+      "floating": {
+        "$type": "shadow",
+        "$value": {
+          "x": 0,
+          "y": 8,
+          "blur": 24,
+          "spread": 0,
+          "color": {
+            "alias": "core.color.shadow/floating"
+          }
+        },
+        "classification": "proposed",
+        "unit": "px",
+        "nativeStyle": "Core/Elevation/Floating"
+      }
+    },
+    "layout": {
+      "withinField": 8,
+      "headingDescription": 8,
+      "cardSections": 16,
+      "formGroups": 24,
+      "dialogPadding": 24,
+      "narrowDialogPadding": 16,
+      "dialogDefaultWidth": 480,
+      "dialogActionLayout": "Equal Fill widths, Hug heights, bottom alignment.",
+      "note": "Values in px. Phynite conventions applying proximity and alignment, not universal design laws."
+    },
+    "components": {
+      "Button": {
+        "variantTuples": 20
+      },
+      "Input": {
+        "variantTuples": 5
+      },
+      "Select": {
+        "variantTuples": 5
+      },
+      "Textarea": {
+        "variantTuples": 5
+      },
+      "Checkbox": {
+        "variantTuples": 10
+      },
+      "Switch": {
+        "variantTuples": 10
+      },
+      "Icon button": {
+        "variantTuples": 5
+      },
+      "Field group": {
+        "variantTuples": 2
+      },
+      "Navigation item": {
+        "variantTuples": 5
+      },
+      "Tab": {
+        "variantTuples": 5
+      },
+      "Alert": {
+        "variantTuples": 4
+      },
+      "Status": {
+        "variantTuples": 4
+      }
+    },
+    "verification": {
+      "variantInstances": 480,
+      "themes": [
+        "Light",
+        "Dark"
+      ],
+      "densities": [
+        "Compact",
+        "Default",
+        "Touch"
+      ],
+      "dialogLongLabelWidths": [
+        320,
+        390,
+        480
+      ],
+      "compositionWidths": [
+        288,
+        320,
+        390,
+        480
+      ],
+      "compositionCases": 48,
+      "contrastPairs": 86,
+      "minimumCheckedTextContrast": 4.775118494935906,
+      "minimumCheckedNonTextContrast": 3.1352446657999753,
+      "originalNodesUnchanged": 198623,
+      "runtimeAccessibility": "Requires separate application testing; visual library checks do not certify WCAG conformance.",
+      "longContentCases": 24,
+      "longContentWidth": 288
     }
   }
 }

@@ -1,12 +1,14 @@
 # Phynite Lab design system
 
-The visual library lives on **Design System** in the existing `phynite-lab-ui` FigCraft document. It adds reusable references to the current local application; it does not restyle the original screens or change application code.
+The live **Design System** page in `phynite-lab-ui` contains a proposed **Core** library and a **Reference** catalog of the current application. Core makes repeated roles consistent while retaining Geist, Geist Mono, Geist Pixel Square and the neutral Light/Dark identity. Reference preserves contextual measurements and exceptions. The original application screens and application code are unchanged.
 
-The audit baseline contains 13 pages, 801 frames and 198,623 nodes. It covers Home, Settings, project editors, local menus and dialogs, Guide articles, and six captured viewport widths. Theme and device variants account for many of those frames.
+Start new library work from `Core/*`. Use `Reference/*` to reproduce an existing screen or understand its provenance. Adopting Core in the application requires a separate implementation change.
 
-Use [design-tokens.json](design-tokens.json) for values and [component-guidelines.md](component-guidelines.md) for anatomy, state behavior and reuse. The JSON is an annotated reference, not a drop-in CSS file or a claim of DTCG schema conformance.
+The page has eight Core boards followed by 20 Reference boards. Core contains 90 main components, including variant members and icons, 12 variant sets, eight text styles, one effect style and 56 variables. Reference retains 95 main components, four variant sets, 14 text styles, one effect style and 106 variables. The complete file therefore has 162 variables and 24 styles. These are library assets, not counts of unique application screens.
 
-The new page has 20 boards covering the 11 requested sections and the quality audit. It contains 95 main components (including icons and variant members), four variant sets, 20 instances, 14 text styles and one effect style. Its three variable collections hold 42 contextual colors, 63 metrics and one proposed focus color.
+The unchanged baseline contains 13 pages, 801 frames and 198,623 nodes. It covers Home, Settings, project editors, local menus and dialogs, Guide articles, and six captured viewport widths. Theme and device variants account for many frames.
+
+Use [design-tokens.json](design-tokens.json) for values and [component-guidelines.md](component-guidelines.md) for anatomy, states and reuse. The JSON retains extracted values at the top level and adds the proposed `core` namespace. It is an annotated reference, not application CSS or a DTCG schema conformance claim.
 
 ## Evidence and classification
 
@@ -29,11 +31,93 @@ These principles are inferred from the product:
 - Expose detail as the task develops: Home, project workspace, editor, then local configuration.
 - Keep local work independent of login. Cloud login does not imply project upload or sync.
 
-## Foundations
+## Core standard
+
+### Consistency with a reason
+
+The rules apply proximity, similarity, alignment and visual hierarchy. Related labels and controls stay closer than separate groups; components with the same role share geometry; typography expresses function; selection remains distinct from hover and focus. Consistency means the same contract for the same role. A dialog, a scientific canvas and an article do not need identical geometry.
+
+The 4 px rhythm, exact type sizes and radii below are Phynite conventions, not universal laws of design. Hairlines, scaled SVG strokes and derived centering values are explicit exceptions. Source exceptions remain in Reference instead of becoming competing Core masters.
+
+| Contract | Core rule |
+| --- | --- |
+| Spacing | 4, 8, 12, 16, 24, 32, 48, 64 px. Label/control and heading/description gap 8; card sections 16; form groups 24. |
+| Shape | Radius 8 controls and compact feedback; 12 containers/menus; 16 dialogs; pill 999 only for round tracks. A menu row 8 + inset 4 fits its container 12. |
+| Boundaries | Border 1. Meaningful control boundaries use `border/control`; decorative dividers use `border/subtle`. |
+| Focus | Outline 2 + offset 2. Bounds follow both axes when a component resizes; parents must not clip it. |
+| Icons | Source Lucide paths, 24×24 viewBox, stroke 2, rendered 16 by default. Preserve round caps and joins; keep the hit area separate from the glyph. |
+| Elevation | Flat cards; one floating effect for menus/tooltips: offset 0/8, blur 24, spread 0; black alpha 31/255 Light, 82/255 Dark. |
+| Content | Preserve units and exact scientific values. Feedback names the problem and the next action; no fabricated results. |
+
+### Semantic roles and modes
+
+Set **Core · Theme → Light / Dark** on the containing frame. Component aliases point to semantic roles in that same collection, so one inherited mode changes the entire composition. Do not create a second master to represent a theme.
+
+| Role | Light | Dark |
+| --- | --- | --- |
+| `canvas` | `#FCFCFC` | `#000000` |
+| `surface/default` | `#FFFFFF` | `#111111` |
+| `surface/raised` | `#FFFFFF` | `#151515` |
+| `surface/hover` | `#F0F0F0` | `#1E1E1E` |
+| `surface/pressed` | `#E5E5E5` | `#2B2B2B` |
+| `text/primary` | `#171717` | `#EDEDED` |
+| `text/secondary` | `#595959` | `#AAAAAA` |
+| `border/control` | `#808080` | `#808080` |
+| `border/subtle` | `#E5E5E5` | `#1D1D1D` |
+| `focus/outline` | `#171717` | `#EDEDED` |
+| `action/primary` | `#18181B` | `#F4F4F5` |
+| `action/on-primary` | `#FFFFFF` | `#090A0D` |
+| `action/hover` | `#000000` | `#FFFFFF` |
+| `action/pressed` | `#303033` | `#D4D4D8` |
+
+Success, warning, danger and information preserve the source semantic colors listed in Reference. The stronger secondary text, control boundary and focus roles are proposals. `button/fill`, `button/ink`, `field/fill`, `field/border`, `selection/fill`, `selection/ink` and `nav/selected` are aliases, not independent palettes.
+
+### Density and typography
+
+Set **Core · Density** once on a layout. Controls inherit the same minimum target height; density does not alter the type role or create another variant family.
+
+| Metric | Compact | Default | Touch |
+| --- | --- | --- | --- |
+| Control minimum height | 32 | 40 | 44 |
+| Button/field inline padding | 12 | 12 | 16 |
+| Button block padding | 5 | 9 | 11 |
+
+All values are px. Button block padding derives from a 20 px label and a 1 px border. Buttons and linked checkbox/switch rows can grow for wrapped labels; input/select values remain single line. Icon actions remain square. A 44 px Touch target is the product policy, not the universal WCAG AA threshold. Textarea minimum 96 is independent of density and grows with content.
+
+| Native text style | Family / face | Size / line height | Tracking |
+| --- | --- | --- | --- |
+| Core/Brand | Geist Pixel / Square | 16 / 20 | 0 |
+| Core/Display | Geist / Medium | 28 / 36 | −0.56 |
+| Core/Heading | Geist / Medium | 20 / 28 | −0.4 |
+| Core/Section | Geist / Medium | 16 / 24 | 0 |
+| Core/Body | Geist / Regular | 14 / 20 | 0 |
+| Core/Label | Geist / Medium | 13 / 20 | 0 |
+| Core/Caption | Geist / Regular | 12 / 16 | 0 |
+| Core/Code | Geist Mono / Regular | 12 / 20 | 0 |
+
+Size, line height and tracking are px. All Core text layers link to these native styles. Use functional roles rather than inventing H1–H6 steps. Fallbacks and font licensing remain as documented in Reference. Center button labels; left-align field labels, navigation and explanatory text. Reflow text through auto layout rather than adding local font sizes or manual offsets.
+
+### Library organization and verification
+
+The eight Core boards cover Rules & Tokens, Actions & Density, Fields & Validation, Selection & Icon Actions, Composition & Responsive Behavior, Consistency Review & Quality Gates, Navigation & Surfaces, and Feedback & Data.
+
+The consistency review corrected competing masters, incomplete density coverage, unlinked typography, two clipped reference labels, weak focus/boundary contrast, inconsistent label proximity and text overflow. Shared masters now govern all tones/states; heading/description groups use gap 8; dialog sections use gap 24. Footer buttons share available width, grow with their labels and align at the bottom.
+
+Native MCP checks exercised all 80 unique variant tuples under Light/Dark × Compact/Default/Touch: 480 instances. They checked inherited colors, target heights, select actuator width and focus bounds. Additional checks covered long action labels in 320/390/480 px dialogs, a long textarea and a wrapping focused button. Composition resizing covered Dialog, Menu, Card, Tooltip, Loading and Empty at widths 288/320/390/480 in both themes. A further 24 cases checked long checkbox/switch labels, field-group labels and alert copy at width 288 across all six theme/density combinations. These are component widths, not a claim that the complete app reflows at every viewport.
+
+Contrast uses resolved native variable values and the WCAG sRGB formula without rounding before comparison. Across 86 checked pairs, normal text/status text and action labels meet 4.5:1; meaningful control boundaries/focus meet 3:1. Minimum ratios are 4.775:1 for checked text pairs and 3.135:1 for checked non-text pairs. The boundary token was strengthened after Dark `#737373` against pressed `#2B2B2B` measured 2.986:1. Disabled and decorative separators are excluded from these acceptance gates.
+
+The checks also verify text-style links, duplicate variant tuples, static text bounds, finite geometry, asset references, installed fonts and exact preservation of every baseline node. Runtime keyboard operation, screen readers, zoom/reflow and combined focus/validation behavior still require application tests.
+
+The basis is role-based tokens and explicit layout contracts, supported by [Carbon spacing guidance](https://www.carbondesignsystem.com/building-blocks/foundations/spacing/overview), [Carbon color roles](https://www.carbondesignsystem.com/building-blocks/foundations/color/tokens), [WCAG non-text contrast](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html) and [WCAG target size](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html). Those sources support the principles and thresholds; they do not mandate Phynite's exact spacing, radii or type scale.
+
+## Reference foundations
+
+The following sections retain the extracted application measurements. Their native collection names are **Reference · Semantic**, **Reference · Metrics** and **Reference · Proposals**. They describe existing contexts; they are not competing Core defaults.
 
 ### Color
 
-The **Phynite · Semantic** variable collection has Light and Dark modes. It includes canvas, surface, raised, subtle surface, ink, muted ink, borders, rail, sidebar, action and status roles.
+The **Reference · Semantic** variable collection has Light and Dark modes. It includes canvas, surface, raised, subtle surface, ink, muted ink, borders, rail, sidebar, action and status roles.
 
 | Role | Light | Dark |
 | --- | --- | --- |
@@ -76,7 +160,7 @@ Sources: [research shell](app/research-shell.css), [global status/action values]
 | Caption | Geist | 12 / 15.5 px | 400 | 0 |
 | Group label | Geist | 11 / 14 px | 500 | 0 |
 
-The 14 text styles also include code and reading roles. Role names are inferred; values remain contextual. A synthetic H1–H6 scale would misrepresent the source. Other sections use 550 on the variable font axis; do not silently replace that with 600 in implementation.
+The 14 Reference text styles also include code and reading roles. Role names are inferred; values remain contextual. A synthetic H1–H6 scale would misrepresent the source. Other sections use 550 on the variable font axis; do not silently replace that with 600 in implementation.
 
 CSS calls the brand family **Geist Pixel Square**; FigCraft stores family **Geist Pixel**, face **Square**. UI fallback is Geist, Arial, sans-serif. Code uses Geist Mono, monospace. Brand fallback is Geist Mono, monospace. Guide's Geist Public and GeistMono Public names refer to bundled subset aliases. Dense scientific labels can be 9–11.5 px; they need zoom and readability checks, not an assumption that small text is always acceptable.
 
@@ -94,7 +178,7 @@ Lucide icons use a 24×24 viewBox, stroke 2, round caps and joins. Rendered size
 
 Floating sidebar elevation is `0 8px 30px` with black at 8% in Light and 24% in Dark. Select menus use `0 18px 46px` black 42% in Dark; the Light selector uses `#1F2834` at 18%. Elevation stays separate from focus indication.
 
-## Responsive rules
+## Reference responsive rules
 
 | Context | Extracted behavior |
 | --- | --- |
@@ -106,9 +190,9 @@ Floating sidebar elevation is `0 8px 30px` with black at 8% in Light and 24% in 
 | Coarse pointer | Existing button/select overrides enforce at least 44 px; linked labels and custom actuators still need review. |
 | Guide data and tabs | Table min width 420 px with horizontal scrolling; editor tabs scroll horizontally. |
 
-The original map contains fixed snapshots at 360, 390, 430, 768, 1024 and 1440 px. The library adds auto layout to basic actions and fields. Compound specimens retain documented geometry; they are not a fluid replica of the entire application.
+The original map contains fixed snapshots at 360, 390, 430, 768, 1024 and 1440 px. Reference specimens retain their source geometry. Core adds shared auto layout and the component resize checks described above; neither catalog claims to be a fluid replica of the whole application.
 
-## Accessibility audit
+## Reference accessibility audit
 
 Contrast below uses the WCAG sRGB formula and opaque adjacent colors. Normal text needs 4.5:1; large text needs 3:1. Custom visual state indicators generally need 3:1 against adjacent colors under 1.4.11. A decorative separator is not automatically a failing control boundary.
 
@@ -125,13 +209,13 @@ Contrast below uses the WCAG sRGB formula and opaque adjacent colors. Normal tex
 | Input line Dark `#1D1D1D` / `#111111` | 1.12:1 | Same conditional review |
 | Muted `#737373` / selected `#EBEBEB` | 3.98:1 | Unsafe for normal text if used together; conditional pairing, not a claimed observed defect |
 
-Priority proposals are a stronger neutral focus token, a boundary review, and extending the existing touch policy to small custom targets. Proposed values live in their own collection. Disabled controls have WCAG contrast exceptions; do not treat their opacity as an automatic failure.
+Priority proposals are a stronger neutral focus token, a boundary review, and extending the existing touch policy to small custom targets. The earlier focus candidate remains in Reference · Proposals; the reviewed standard is in Core · Theme. Disabled controls have WCAG contrast exceptions; do not treat their opacity as an automatic failure.
 
 AA target sizing under 2.5.8 is 24×24 CSS px or its spacing/other exceptions. A 44 px target is an existing touch policy and a recommended extension, not the universal AA threshold. Visual checkbox dimensions alone cannot establish whether the linked label/hit area passes.
 
 Keyboard and assistive-technology checks remain open: 2.1.1 keyboard operation, 2.4.3 focus order, 2.4.7 visible focus, 2.4.11 unobscured focus, 4.1.2 names/roles/values, and 4.1.3 status messages. Inspecting `UiSelect` shows keyboard handling, but does not prove its runtime behavior across every portal and dialog. Also test 320 px reflow, 200% text resizing, browser zoom and long translations.
 
-## Standardization findings
+## Source audit and migration findings
 
 | Priority | Finding | Recommendation |
 | --- | --- | --- |
