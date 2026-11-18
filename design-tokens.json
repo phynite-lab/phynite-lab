@@ -2090,12 +2090,12 @@
       "applicationCodeChanged": false,
       "applicationPages": 13,
       "capturedFrames": 801,
-      "controlInstances": 5616,
+      "controlInstances": 5701,
       "iconInstances": 16734,
       "sourceTextLayers": 54494,
       "appliedTextStyles": 120,
       "iconProfiles": 388,
-      "sharedLayoutFrames": 4206,
+      "sharedLayoutFrames": 4291,
       "remainingSourceCompositions": 1109,
       "spacing": {
         "gap": 8,
@@ -2138,12 +2138,17 @@
           "buttonInstancesSampled": 13,
           "actualPaddingMovement": true,
           "restored": true,
-          "fontMutation": "pending"
+          "fontMutation": "pass; 12 → 12.125 → 12 px",
+          "fontPagesSampled": 13
         },
         "containerBodyBoundsIssues": 0,
         "prototypeHitRegionsRealigned": 25,
         "narrowExplanationLinesWrapped": 15,
-        "selectValuesTruncateWithoutChangingText": 1074
+        "selectValuesTruncateWithoutChangingText": 1074,
+        "wrappedParagraphCollisionIssues": 0,
+        "inlineTypographyBoundsIssues": 0,
+        "visuallyReviewedCapturedFrames": 17,
+        "openVisualFindings": 1
       },
       "nativeVariables": 293,
       "nativeStyles": 144,
@@ -2159,7 +2164,10 @@
           1
         ],
         "unit": "px in illustration"
-      }
+      },
+      "inlineTypographyLayouts": 33,
+      "settingsFieldsConnectedInDetailPass": 85,
+      "paragraphCardBodiesReflowed": 17
     }
   }
 }

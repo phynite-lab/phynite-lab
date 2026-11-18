@@ -23,6 +23,8 @@ Change shared colors in **Core · Theme**, type families/sizes in **Core · Typo
 
 Edit the `Shared layout` frame inside the slot for content alignment. Its padding and gap bindings must remain attached. Fields flex their value independently of suffixes/icons. Container bodies preserve captured rows/columns and use edge constraints. Avoid an instance-specific offset that conceals a wrong shared inset.
 
+The 85 migrated Settings number, shortcut and API-key value fields use the same Input instance contract. When a paragraph wraps, give the next line real clearance and let the card grow; move following content rather than shrinking the font or reducing its shared inset. Separately styled runtime facts use `Shared typography` rows, with explicit space for punctuation and unchanged scientific text.
+
 Scaled Guide illustrations, theme preview artwork, empty surfaces and some compound controls retain source geometry with shared paints/type. Inspect these contexts before changing their structure. Full-screen captures remain discrete responsive examples; they are not complete responsive auto-layout implementations.
 
 ## Core component contracts
