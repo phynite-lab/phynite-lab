@@ -1,5 +1,5 @@
 {
-  "$description": "Phynite Lab design tokens. Top-level values preserve the extracted Reference catalog; core is the reviewed proposed standard. Native canvas is the visual source. Annotated reference, not application CSS or a DTCG schema.",
+  "$description": "Phynite Lab design tokens. Top-level values preserve the extracted Reference catalog; core records the reviewed library contract and canvas adoption. Native canvas is the visual source. Annotated reference, not application CSS or a DTCG schema.",
   "version": 2,
   "reviewedAt": "2026-11-18",
   "source": {
@@ -22,7 +22,7 @@
   "classification": {
     "extracted": "Measured in the design/capture or read from the corresponding source rule.",
     "inferred": "Role, grouping or alias derived from repeated usage; not a new measured value.",
-    "proposed": "New recommendation; not applied to existing screens."
+    "proposed": "Library recommendation for application implementation; canvas adoption is recorded under core.canvasAdoption."
   },
   "color": {
     "canvas": {
@@ -1251,11 +1251,13 @@
   },
   "core": {
     "classification": "proposed",
-    "description": "Reviewed shared library contract. Existing application screens are unchanged; extracted values remain in the top-level reference namespaces. Aliases use annotated paths, not a DTCG schema.",
+    "description": "Shared library contract applied to the FigCraft screen map through native variables, text styles and instances. Application code is unchanged. Extracted values remain in the top-level reference namespaces.",
     "nativeCollections": {
       "theme": "Core · Theme",
       "metrics": "Core · Metrics",
-      "density": "Core · Density"
+      "density": "Core · Density",
+      "typography": "Core · Typography",
+      "contentColors": "Core · Content colors"
     },
     "color": {
       "canvas": {
@@ -2082,6 +2084,82 @@
       "runtimeAccessibility": "Requires separate application testing; visual library checks do not certify WCAG conformance.",
       "longContentCases": 24,
       "longContentWidth": 288
+    },
+    "canvasAdoption": {
+      "classification": "applied-in-canvas",
+      "applicationCodeChanged": false,
+      "applicationPages": 13,
+      "capturedFrames": 801,
+      "controlInstances": 5616,
+      "iconInstances": 16734,
+      "sourceTextLayers": 54494,
+      "appliedTextStyles": 120,
+      "iconProfiles": 388,
+      "sharedLayoutFrames": 4206,
+      "remainingSourceCompositions": 1109,
+      "spacing": {
+        "gap": 8,
+        "ordinaryInline": 12,
+        "compactInline": 8,
+        "touchInline": 16,
+        "numericValueInline": 12,
+        "settingsGroup": {
+          "inline": 24,
+          "block": 24
+        },
+        "appearancePanel": {
+          "inline": 16,
+          "block": 8
+        },
+        "workflowCard": {
+          "inline": 12,
+          "block": 12
+        },
+        "guideNotice": 16,
+        "menuOuter": 4,
+        "dialog": 24,
+        "compactTextNotice": {
+          "inline": 24,
+          "block": 16
+        }
+      },
+      "limits": [
+        "Compound source geometry and scaled artwork are not fully unified.",
+        "Captured viewport variants do not implement complete screen reflow.",
+        "Login/data-dependent states need their own references."
+      ],
+      "verification": {
+        "sourceTextUnchanged": 54494,
+        "prototypeActionNodesUnchanged": 11317,
+        "brokenNativeReferences": 0,
+        "appliedInlineLayoutIssues": 0,
+        "propagation": {
+          "LightPrimaryTextPages": 10,
+          "buttonInstancesSampled": 13,
+          "actualPaddingMovement": true,
+          "restored": true,
+          "fontMutation": "pending"
+        },
+        "containerBodyBoundsIssues": 0,
+        "prototypeHitRegionsRealigned": 25,
+        "narrowExplanationLinesWrapped": 15,
+        "selectValuesTruncateWithoutChangingText": 1074
+      },
+      "nativeVariables": 293,
+      "nativeStyles": 144,
+      "artworkOpticalMetrics": {
+        "classification": "applied-in-canvas",
+        "instances": 624,
+        "cornerRadii": [
+          1.4504,
+          5.5
+        ],
+        "strokeWeights": [
+          0.2637,
+          1
+        ],
+        "unit": "px in illustration"
+      }
     }
   }
 }

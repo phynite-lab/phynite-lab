@@ -1,8 +1,8 @@
 # Phynite Lab component guidelines
 
-Use **Core/** assets on the live **Design System** page for the proposed consistent library. Use **Reference/** assets when reproducing the current application. The existing screen map is unchanged. Core has not been applied to application code.
+Use **Core/** assets on the live **Design System** page. The 13 application pages now use Core paints, typography and native instances. **Reference/** retains captured application measurements. Canvas control surfaces and spacing have changed; application code is unchanged.
 
-[design-system.md](design-system.md) explains the audit and [design-tokens.json](design-tokens.json) records values and provenance. Every Core rule below is **proposed**; the Reference sections retain extracted and inferred values.
+[design-system.md](design-system.md) explains the audit and [design-tokens.json](design-tokens.json) records values and provenance. Core rules describe the library contract. The applied-screen rules below describe the canvas migration; application adoption still requires code changes. Reference retains extracted and inferred values.
 
 ## Working with Core in FigCraft
 
@@ -14,6 +14,16 @@ Use **Core/** assets on the live **Design System** page for the proposed consist
 6. Keep new product behavior separate from a library specimen. Visual states cannot implement focus handling, announcements or disabled behavior.
 
 Core · Metrics holds the spacing, radius and geometry contract. Core · Density sets minimum height 32/40/44, inline padding 12/12/16 and button block padding 5/9/11. These values are px in Compact/Default/Touch order. Native text styles are Core/Brand, Display, Heading, Section, Body, Label, Caption and Code. Do not change local font values to make an instance fit.
+
+## Editing an existing linked screen
+
+Select the `Applied / <family>` instance, then edit the original text/icons inside its `Applied content · <family>` slot. Keep `Default content=false` on migrated screen instances. Turn it on for a normal library specimen. The native skin still inherits its Core master.
+
+Change shared colors in **Core · Theme**, type families/sizes in **Core · Typography**, and spacing in **Core · Metrics**. `Core/Applied/*` text styles preserve captured metrics while sharing font tokens. Use one applied profile for each role: inline 12 for ordinary controls, inline 8 for compact toolbars, inline 16 for touch contexts, and gap 8. Keep numeric suffixes visible. Settings groups use 24 (block 16 for shallow text notices), Appearance panels 16 inline/8 block, workflow/configuration cards 12, notices 16 and menus 4 outside their row content. Values are px.
+
+Edit the `Shared layout` frame inside the slot for content alignment. Its padding and gap bindings must remain attached. Fields flex their value independently of suffixes/icons. Container bodies preserve captured rows/columns and use edge constraints. Avoid an instance-specific offset that conceals a wrong shared inset.
+
+Scaled Guide illustrations, theme preview artwork, empty surfaces and some compound controls retain source geometry with shared paints/type. Inspect these contexts before changing their structure. Full-screen captures remain discrete responsive examples; they are not complete responsive auto-layout implementations.
 
 ## Core component contracts
 
@@ -48,7 +58,7 @@ Before changing a Core contract:
 - Check both themes and all three densities. Preserve minimum target height, field actuator width and a non-clipped focus outline.
 - Test long text and narrow containers; inspect text bounds after the layout resolves. An instance created before a master change may retain sizing overrides: inspect the nested instance as well as the master.
 - Check normal text at 4.5:1 and meaningful control/state indicators at 3:1 on the actual adjacent fill, without rounding a failing ratio up to the threshold.
-- Keep source screens and Reference assets separate. Record the reason for any new exception; do not add a near-duplicate token or standalone master merely to fit one specimen.
+- Keep the saved source baseline and Reference assets available. Record the reason for any new exception; do not add a near-duplicate token or standalone master merely to fit one specimen.
 
 Native checks covered 480 variant instances, narrow/long-content dialogs, 48 composition resize cases and 24 long-content cases for selection rows, field groups and alerts. Contrast passed 86 resolved token pairs; fonts and asset links resolved. These checks verify the design library. Keyboard operation, screen-reader semantics, browser zoom, focus visibility in the running app and populated scientific/login states need their own evidence.
 

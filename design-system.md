@@ -1,14 +1,14 @@
 # Phynite Lab design system
 
-The live **Design System** page in `phynite-lab-ui` contains a proposed **Core** library and a **Reference** catalog of the current application. Core makes repeated roles consistent while retaining Geist, Geist Mono, Geist Pixel Square and the neutral Light/Dark identity. Reference preserves contextual measurements and exceptions. The original application screens and application code are unchanged.
+The live **Design System** page in `phynite-lab-ui` contains the **Core** library and a **Reference** catalog of the current application. The 13 application pages now use Core theme variables, shared typography and native component instances. The canvas migration changes control surfaces and spacing while preserving source text, scientific units and prototype actions. Application code is unchanged.
 
 Start new library work from `Core/*`. Use `Reference/*` to reproduce an existing screen or understand its provenance. Adopting Core in the application requires a separate implementation change.
 
-The page has eight Core boards followed by 20 Reference boards. Core contains 90 main components, including variant members and icons, 12 variant sets, eight text styles, one effect style and 56 variables. Reference retains 95 main components, four variant sets, 14 text styles, one effect style and 106 variables. The complete file therefore has 162 variables and 24 styles. These are library assets, not counts of unique application screens.
+The page has eight Core boards, an applied icon bank and 20 Reference boards. The canonical Core library contains 90 main components, 12 variant sets, eight text styles and one effect style. The applied bank adds 388 source icon profiles and 120 text styles that retain captured metrics while sharing Core font tokens. Reference retains 95 main components, four variant sets, 14 text styles and one effect style. The file has 293 variables and 144 styles. These are library assets, not counts of unique screens.
 
-The unchanged baseline contains 13 pages, 801 frames and 198,623 nodes. It covers Home, Settings, project editors, local menus and dialogs, Guide articles, and six captured viewport widths. Theme and device variants account for many frames.
+The saved pre-migration baseline contains 13 application pages, 801 frames and 198,623 nodes. It covers Home, Settings, project editors, local menus and dialogs, Guide articles, and six captured viewport widths. Theme and device variants account for many frames.
 
-Use [design-tokens.json](design-tokens.json) for values and [component-guidelines.md](component-guidelines.md) for anatomy, states and reuse. The JSON retains extracted values at the top level and adds the proposed `core` namespace. It is an annotated reference, not application CSS or a DTCG schema conformance claim.
+Use [design-tokens.json](design-tokens.json) for values and [component-guidelines.md](component-guidelines.md) for anatomy, states and reuse. The JSON retains extracted values at the top level and adds the `core` namespace and a canvas migration record. It is an annotated reference, not application CSS or a DTCG schema conformance claim.
 
 ## Evidence and classification
 
@@ -16,7 +16,8 @@ Use [design-tokens.json](design-tokens.json) for values and [component-guideline
 | --- | --- |
 | Extracted | Read from the existing design, a DOM/SVG capture, or the corresponding source rule. |
 | Inferred | A role name, alias, assembly or reuse convention derived from observed patterns. |
-| Proposed | A new recommendation. It has not been applied to existing application screens. |
+| Proposed | A library recommendation for application implementation. Canvas adoption is recorded separately below. |
+| Applied in canvas | A native link or layout correction verified in the FigCraft document; it does not imply an application code change. |
 
 The native canvas is the visual source. Source CSS helps distinguish intended geometry from imported path geometry and explains responsive behavior. For example, a rectangle with a centered 1 px stroke and radius 7.5 can represent an 8 px CSS control. Fractional path values are not automatically inconsistencies.
 
@@ -107,9 +108,37 @@ Native MCP checks exercised all 80 unique variant tuples under Light/Dark × Com
 
 Contrast uses resolved native variable values and the WCAG sRGB formula without rounding before comparison. Across 86 checked pairs, normal text/status text and action labels meet 4.5:1; meaningful control boundaries/focus meet 3:1. Minimum ratios are 4.775:1 for checked text pairs and 3.135:1 for checked non-text pairs. The boundary token was strengthened after Dark `#737373` against pressed `#2B2B2B` measured 2.986:1. Disabled and decorative separators are excluded from these acceptance gates.
 
-The checks also verify text-style links, duplicate variant tuples, static text bounds, finite geometry, asset references, installed fonts and exact preservation of every baseline node. Runtime keyboard operation, screen readers, zoom/reflow and combined focus/validation behavior still require application tests.
+The checks also verify text-style links, duplicate variant tuples, static text bounds, finite geometry, asset references, installed fonts and baseline preservation before the canvas migration. The migration checks below supersede that preservation claim for edited screen nodes. Runtime keyboard operation, screen readers, zoom/reflow and combined focus/validation behavior still require application tests.
 
 The basis is role-based tokens and explicit layout contracts, supported by [Carbon spacing guidance](https://www.carbondesignsystem.com/building-blocks/foundations/spacing/overview), [Carbon color roles](https://www.carbondesignsystem.com/building-blocks/foundations/color/tokens), [WCAG non-text contrast](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html) and [WCAG target size](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html). Those sources support the principles and thresholds; they do not mandate Phynite's exact spacing, radii or type scale.
+
+## Cross-page canvas adoption
+
+All 13 application pages use Core. The migration created 5,616 native control/container instances and 16,734 icon instances. All 54,494 source text layers use native `Core/Applied/*` text styles. The 801 source frames inherit an explicit Core Light or Dark mode. Source context roles and fixed artwork colors remain separate from interchangeable UI roles.
+
+The applied text styles preserve actual font size, face, tracking and line-height signatures. They share family and size tokens with the canonical Core styles. The 388 icon masters preserve source path geometry, optical bounds and color-role identities; a narrow chevron path and a square viewBox do not have identical ink bounds. Interactive SVG groups retain their original nodes and use shared colors.
+
+| Applied layout | Shared contract |
+| --- | --- |
+| Ordinary action/field | Inline 12, gap 8, vertically centered content. |
+| Compact toolbar/scientific control | Inline 8, gap 8; exact values and units retained. |
+| Touch-context action/field | Inline 16 where the captured control supports it; compact toolbar profile remains explicit. |
+| Icon-only action | Centered glyph; no text inset. Outer captured hit area is retained. |
+| Segmented numeric field | Value inset 12; suffix centered in its painted unit segment. |
+| Settings group | Inline/block 24; shallow text notices use block 16. Source row structure is retained. |
+| Appearance panel | Inline 16, block 8; label groups and controls centered within each row. |
+| Workflow/configuration card | Inline/block 12 at full UI scale. |
+| Guide notice | Inline/block 16. |
+| Menu | Outer 4; row text inset 12 inside it. |
+| Ordinary dialog | Inline/block 24; source sections and actions retained. |
+
+These are native layout frames inside exposed `Applied content` slots. The instance skin inherits Core; the slot retains the existing screen's editable content. `Default content=false` hides specimen copy. Slot names include their family, so a Card slot cannot be confused with its nested Button slot. Shared padding and gap variables move actual child content. Borders and optical SVG bounds can add fractional measured offsets.
+
+Of the migrated elements, 4,206 have a shared auto-layout frame. Another 279 segmented numeric fields and 22 monogram selects have measured inset/centering corrections. The remaining 1,109 source compositions include scaled Guide illustrations, theme preview artwork, empty surfaces and compound controls. They share Core paints and typography while retaining contextual geometry. Their presence is an explicit limit on full geometry unification; they are not evidence that every pixel now follows a single layout rule.
+
+Verification compares against the pre-migration backup: source text strings and effective visibility are unchanged; all 11,317 nodes carrying prototype actions retain those actions; transparent hit regions retain their paint alpha, and 25 targets were realigned with their moved controls. Native checks found no broken master, style or variable references, and no bounds, centering or gap failures in the applied inline layouts or content outside the checked container bodies. Fifteen narrow explanation lines wrap, with following content reflowed, and select labels truncate visually while retaining their full text. Scaled Guide artwork uses shared optical radius/stroke metrics instead of full-size UI geometry. A reversible test changed the Light primary-text token on ten application pages, a Button master on 13 sampled instances, and a padding token on an actual content row; all propagated and were restored. Guide uses a separate Core context ink role. Typography token links are verified; a font mutation test remains pending. Representative Home, Appearance, local editor and mobile renders were reviewed in both themes where applicable. This is a finite set of checks, not a claim that all 801 frames received exhaustive visual inspection.
+
+The original captures remain six discrete viewport widths. Resizing an entire captured screen does not yet produce a complete responsive application layout. Login/data-dependent states remain marked. Continue visual review of compound rows, scaled illustrations and less common local states before treating the canvas migration as finished.
 
 ## Reference foundations
 
