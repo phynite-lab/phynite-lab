@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { Server, Plus, Trash2, RefreshCw, CheckCircle2, XCircle, Pencil, Star, Sparkles, X } from 'lucide-react';
+import { Server, Plus, Trash2, RefreshCw, CheckCircle2, XCircle, Pencil, Star, Terminal, X } from 'lucide-react';
 import { useLocale } from '../locale-provider';
 import type { HpcAuthKind, HpcClusterProfile, HpcScheduler } from '@/lib/hpc-profile';
 import { localRequest } from '@/lib/local-api';
@@ -72,6 +72,7 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
   const [nodes, setNodes] = useState('1');
   const [ranksPerNode, setRanksPerNode] = useState('32');
   const [wallHours, setWallHours] = useState('4');
+  const [memoryMiB, setMemoryMiB] = useState('16384');
   const [modulesText, setModulesText] = useState('');
   const [mpiLauncherText, setMpiLauncherText] = useState('srun --mpi=pmix --ntasks={ranks}');
   const [launcherEdited, setLauncherEdited] = useState(false);
@@ -267,7 +268,7 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
         nodes: Number(nodes) || 1,
         ranksPerNode: Number(ranksPerNode) || 32,
         wallSeconds: (Number(wallHours) || 4) * 3600,
-        memoryMiBPerNode: existing?.defaults.memoryMiBPerNode ?? 65536,
+        memoryMiBPerNode: Number(memoryMiB) || existing?.defaults.memoryMiBPerNode || 16384,
         queue: partition.trim() || undefined,
       },
     };
@@ -300,6 +301,7 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
     setNodes('1');
     setRanksPerNode('32');
     setWallHours('4');
+    setMemoryMiB('16384');
     setModulesText('');
     setMpiLauncherText('srun --mpi=pmix --ntasks={ranks}');
     setLauncherEdited(false);
@@ -322,6 +324,7 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
     setNodes(String(cluster.defaults.nodes));
     setRanksPerNode(String(cluster.defaults.ranksPerNode));
     setWallHours(String(cluster.defaults.wallSeconds / 3600));
+    setMemoryMiB(String(cluster.defaults.memoryMiBPerNode ?? 16384));
     setModulesText((cluster.runtime?.environmentModules ?? []).join('\n'));
     setMpiLauncherText((cluster.runtime?.mpiLauncher ?? []).join(' '));
     setLauncherEdited(false);
@@ -376,6 +379,7 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
         {clusters.map((c) => {
           const probe = probeResults[c.id];
           const isProbing = probing[c.id];
+          const hasVenv = Boolean(c.runtime?.pythonExecutable?.includes('.phynite-venv'));
           return (
             <div key={c.id} className="hpc-cluster-card">
               <div className="hpc-cluster-card-header">
@@ -385,22 +389,6 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
                   {c.isDefault && <span className="hpc-tag hpc-tag-default">{t('Default', 'Default')}</span>}
                 </div>
                 <div className="hpc-cluster-actions">
-                  <button
-                    type="button"
-                    className="lab-button"
-                    onClick={() => editCluster(c)}
-                    aria-label={t('Edit cluster', 'Edit kluster')}
-                  >
-                    <Pencil size={13} />
-                  </button>
-                  {!c.isDefault && <button
-                    type="button"
-                    className="lab-button"
-                    onClick={() => void setDefaultCluster(c)}
-                    aria-label={t('Set default cluster', 'Jadikan kluster default')}
-                  >
-                    <Star size={13} />
-                  </button>}
                   <button
                     type="button"
                     className="lab-button"
@@ -415,10 +403,30 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
                     className="lab-button"
                     disabled={settingUpVenv[c.id]}
                     onClick={() => void handleAutoSetupVenv(c.id)}
-                    title={t('Set up isolated Python virtualenv with ase, pymatgen, seekpath, spglib on cluster', 'Siapkan venv Python terisolasi dengan ase, pymatgen, seekpath, spglib di cluster')}
+                    title={hasVenv
+                      ? t('Python virtualenv is configured. Click to reinstall or repair packages on cluster', 'Venv Python sudah terkonfigurasi. Klik untuk menginstall ulang atau memperbaiki paket di kluster')
+                      : t('Set up isolated Python virtualenv with required scientific packages on cluster', 'Siapkan venv Python terisolasi dengan paket ilmiah yang diperlukan di kluster')}
                   >
-                    <Sparkles size={13} className={settingUpVenv[c.id] ? 'animate-spin' : ''} />
-                    {settingUpVenv[c.id] ? t('Setting up venv…', 'Menyiapkan venv…') : t('Auto Setup Venv', 'Auto Setup Venv')}
+                    <Terminal size={13} className={settingUpVenv[c.id] ? 'animate-spin' : ''} />
+                    {settingUpVenv[c.id]
+                      ? (hasVenv ? t('Reinstalling venv…', 'Menginstall ulang venv…') : t('Setting up venv…', 'Menyiapkan venv…'))
+                      : (hasVenv ? t('Reinstall Venv', 'Install Ulang Venv') : t('Setup Venv', 'Setup Venv'))}
+                  </button>
+                  {!c.isDefault && <button
+                    type="button"
+                    className="lab-button"
+                    onClick={() => void setDefaultCluster(c)}
+                    aria-label={t('Set default cluster', 'Jadikan kluster default')}
+                  >
+                    <Star size={13} />
+                  </button>}
+                  <button
+                    type="button"
+                    className="lab-button"
+                    onClick={() => editCluster(c)}
+                    aria-label={t('Edit cluster', 'Edit kluster')}
+                  >
+                    <Pencil size={13} />
                   </button>
                   <button
                     type="button"
@@ -432,14 +440,53 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
               </div>
 
               <div className="hpc-cluster-details">
-                <div><span>{t('Host', 'Host')}:</span> <code>{c.connection.username}@{c.connection.host}:{c.connection.port}</code></div>
-                <div><span>{t('Scratch', 'Scratch')}:</span> <code>{c.storage.scratchRoot}</code></div>
-                <div><span>{t('Allocation', 'Alokasi')}:</span> {c.defaults.nodes} node(s) · {c.defaults.ranksPerNode} ranks/node · {Math.round(c.defaults.wallSeconds / 3600)}h max</div>
-                {c.defaults.queue && <div><span>{t('Partition', 'Partisi')}:</span> <code>{c.defaults.queue}</code></div>}
-                {c.runtime.environmentModules.length > 0 && <div><span>{t('Environment Modules', 'Environment Modules')}:</span> <code>{c.runtime.environmentModules.join(' · ')}</code></div>}
-                {c.runtime.mpiLauncher.length > 0 && <div><span>{t('MPI Launcher', 'MPI Launcher')}:</span> <code>{c.runtime.mpiLauncher.join(' ')}</code></div>}
-                {c.runtime.pythonExecutable && <div><span>{t('Python', 'Python')}:</span> <code>{c.runtime.pythonExecutable}</code></div>}
-                {c.profileSha256 && <div><span>{t('Profile checksum', 'Checksum profil')}:</span> <code className="hpc-checksum">{c.profileSha256}</code></div>}
+                <div className="hpc-cluster-column">
+                  <div className="hpc-detail-item">
+                    <span className="hpc-detail-label">{t('Host', 'Host')}:</span>
+                    <code>{c.connection.username}@{c.connection.host}:{c.connection.port}</code>
+                  </div>
+                  <div className="hpc-detail-item">
+                    <span className="hpc-detail-label">{t('Scratch', 'Scratch')}:</span>
+                    <code>{c.storage.scratchRoot}</code>
+                  </div>
+                  <div className="hpc-detail-item">
+                    <span className="hpc-detail-label">{t('Allocation', 'Alokasi')}:</span>
+                    <span className="hpc-detail-text">{c.defaults.nodes} node(s) · {c.defaults.ranksPerNode} ranks/node · {c.defaults.wallSeconds / 3600}h max</span>
+                  </div>
+                  {c.defaults.queue && (
+                    <div className="hpc-detail-item">
+                      <span className="hpc-detail-label">{t('Partition', 'Partisi')}:</span>
+                      <code>{c.defaults.queue}</code>
+                    </div>
+                  )}
+                </div>
+
+                <div className="hpc-cluster-column">
+                  {c.runtime.pythonExecutable && (
+                    <div className="hpc-detail-item">
+                      <span className="hpc-detail-label">{t('Python', 'Python')}:</span>
+                      <code>{c.runtime.pythonExecutable}</code>
+                    </div>
+                  )}
+                  {c.runtime.mpiLauncher.length > 0 && (
+                    <div className="hpc-detail-item">
+                      <span className="hpc-detail-label">{t('MPI Launcher', 'MPI Launcher')}:</span>
+                      <code>{c.runtime.mpiLauncher.join(' ')}</code>
+                    </div>
+                  )}
+                  {c.runtime.environmentModules.length > 0 && (
+                    <div className="hpc-detail-item">
+                      <span className="hpc-detail-label">{t('Environment Modules', 'Environment Modules')}:</span>
+                      <code>{c.runtime.environmentModules.join(' · ')}</code>
+                    </div>
+                  )}
+                  {c.profileSha256 && (
+                    <div className="hpc-detail-item">
+                      <span className="hpc-detail-label">{t('Profile checksum', 'Checksum profil')}:</span>
+                      <code className="hpc-checksum">{c.profileSha256}</code>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {probe && (
@@ -624,6 +671,10 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
                   <span>{t('Max Walltime (Hours)', 'Max Walltime (Jam)')}</span>
                   <input type="number" min="1" max="720" value={wallHours} onChange={e => setWallHours(e.target.value)} />
                 </label>
+                <label>
+                  <span>{t('Memory per Node (MiB)', 'Memori per Node (MiB)')}</span>
+                  <input type="number" min="1024" max="16777216" value={memoryMiB} onChange={e => setMemoryMiB(e.target.value)} />
+                </label>
               </div>
 
               <div className="lab-field-grid">
@@ -668,33 +719,40 @@ export function HpcClustersSection({ localMode = false }: { localMode?: boolean 
                   <small style={{ color: 'var(--muted, #666)', fontSize: '11px', marginTop: '2px' }}>
                     {t('Requires Python 3.10+ with numpy, scipy, matplotlib, seekpath, and spglib. Leave empty to auto-detect from modules or Conda.', 'Memerlukan Python 3.10+ dengan numpy, scipy, matplotlib, seekpath, dan spglib. Kosongkan untuk deteksi otomatis dari modul atau Conda.')}
                   </small>
-                  {editingId && (
-                    <div style={{ marginTop: '8px' }}>
-                      <button
-                        type="button"
-                        className="lab-button"
-                        disabled={settingUpVenv[editingId]}
-                        onClick={() => void handleAutoSetupVenv(editingId)}
-                      >
-                        <Sparkles size={13} className={settingUpVenv[editingId] ? 'animate-spin' : ''} />
-                        {settingUpVenv[editingId]
-                          ? t('Configuring venv on cluster…', 'Menyiapkan venv di kluster…')
-                          : t('1-Click Auto Setup Venv (ase, pymatgen, seekpath)', '1-Click Auto Setup Venv (ase, pymatgen, seekpath)')}
-                      </button>
-                      {setupVenvStatus[editingId] && (
-                        <p
-                          style={{
-                            fontSize: '12px',
-                            color: setupVenvStatus[editingId]!.ok ? 'var(--accent, #10b981)' : 'var(--danger, #ef4444)',
-                            marginTop: '4px',
-                          }}
-                          role={setupVenvStatus[editingId]!.ok ? 'status' : 'alert'}
+                  {editingId && (() => {
+                    const editingCluster = clusters.find(c => c.id === editingId);
+                    const hasEditingVenv = Boolean(pythonExecutable?.includes('.phynite-venv') || editingCluster?.runtime?.pythonExecutable?.includes('.phynite-venv'));
+                    return (
+                      <div style={{ marginTop: '8px' }}>
+                        <button
+                          type="button"
+                          className="lab-button"
+                          disabled={settingUpVenv[editingId]}
+                          onClick={() => void handleAutoSetupVenv(editingId)}
+                          title={hasEditingVenv
+                            ? t('Python virtualenv is configured. Click to reinstall or repair packages on cluster', 'Venv Python sudah terkonfigurasi. Klik untuk menginstall ulang atau memperbaiki paket di kluster')
+                            : t('Set up isolated Python virtualenv with required scientific packages on cluster', 'Siapkan venv Python terisolasi dengan paket ilmiah yang diperlukan di kluster')}
                         >
-                          {setupVenvStatus[editingId]!.message}
-                        </p>
-                      )}
-                    </div>
-                  )}
+                          <Terminal size={13} className={settingUpVenv[editingId] ? 'animate-spin' : ''} />
+                          {settingUpVenv[editingId]
+                            ? (hasEditingVenv ? t('Reinstalling environment on cluster…', 'Menginstall ulang environment di kluster…') : t('Configuring environment on cluster…', 'Menyiapkan environment di kluster…'))
+                            : (hasEditingVenv ? t('Reinstall Python environment', 'Install ulang environment Python') : t('Setup Python environment', 'Siapkan environment Python'))}
+                        </button>
+                        {setupVenvStatus[editingId] && (
+                          <p
+                            style={{
+                              fontSize: '12px',
+                              color: setupVenvStatus[editingId]!.ok ? 'var(--accent, #10b981)' : 'var(--danger, #ef4444)',
+                              marginTop: '4px',
+                            }}
+                            role={setupVenvStatus[editingId]!.ok ? 'status' : 'alert'}
+                          >
+                            {setupVenvStatus[editingId]!.message}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </label>
               </div>
 

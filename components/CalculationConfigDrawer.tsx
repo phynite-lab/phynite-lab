@@ -58,6 +58,7 @@ import {
 import { qeMethodIssue, qeIonDynamicsOptions } from '@/lib/qe-input';
 import { generateQuantumEspressoInput, generateQuantumEspressoInputFiles } from '@/lib/qe-workflow';
 import { BOHR_TO_ANGSTROM, qeCellInAngstrom, convertQePosition } from '@/lib/qe-structure';
+import { CalculationDownloadDropdown, type CalculationArtifact } from './CalculationDownloadDropdown';
 import type { CellVectors } from '@/lib/crystal-cell';
 import { cn } from '@/lib/utils';
 
@@ -380,8 +381,15 @@ function CommonSimple({ calculation, draft, material, onChange, onApplyAccuracy,
 
   return <div className="config-simple-grid">
     <fieldset disabled={inheritedModel} className="config-simple-card config-accuracy-card"><SectionTitle detail="preset">Accuracy</SectionTitle><div className="grid min-w-0 grid-cols-3 overflow-hidden rounded-[6px] border border-[var(--panel-border)]">{(['Fast', 'Balanced', 'High accuracy'] as Accuracy[]).map((accuracy) => <button key={accuracy} type="button" title={accuracy} onClick={() => onApplyAccuracy(accuracy)} className={cn('h-9 min-w-0 truncate border-r border-[var(--panel-border)] px-1 text-[11px] font-medium last:border-r-0 sm:text-[11.5px]', draft.accuracy === accuracy ? 'bg-[var(--panel-selected)] text-[var(--panel-text)] font-semibold' : 'bg-[var(--panel-bg)] text-[var(--panel-muted)] hover:bg-[var(--panel-hover)] hover:text-[var(--panel-text)]')}>{accuracy === 'High accuracy' ? 'High' : accuracy}</button>)}</div></fieldset>
-    <fieldset disabled={inheritedModel} className="config-simple-card"><SectionTitle>Electronic method</SectionTitle><SelectField label="XC functional" value={draft.functional} options={['PBE', 'LDA', 'HSE'].map((value) => ({ value, label: value }))} onChange={(functional) => onChange({ functional: functional as Functional, rawInput: '' })} /><div className="mt-2"><EditableOccupationFields draft={draft} resolved={scfResolved.occupation} recommended={recommended.occupation} secondary={dosResolved} onChange={onChange} /></div><div className="config-toggle-pair mt-2 grid gap-2"><Toggle compact label="Spin polarization" detail="nspin = 2" checked={draft.spin} onChange={() => onChange({ spin: !draft.spin, rawInput: '' })} /><Toggle compact label="Spin–orbit coupling" detail="SOC · noncolin" checked={draft.soc} onChange={() => onChange({ soc: !draft.soc, noncollinear: !draft.soc || draft.noncollinear, rawInput: '' })} /></div>{hasHubbardElements && <div className="mt-2 border-t border-[var(--panel-border)] pt-2"><Toggle compact label="DFT+U (Hubbard)" detail={hubbardRecs.map((r) => `${r.species} ${r.manifold} · U = ${r.u} eV`).join(', ')} checked={draft.dftU} onChange={() => { if (!draft.dftU) { onChange({ dftU: true, hubbardProjector: draft.hubbardProjector || 'ortho-atomic', hubbardCorrections: hubbardRecs.map((r) => ({ species: r.species, manifold: r.manifold, u: r.u })), rawInput: '' }); } else { onChange({ dftU: false, rawInput: '' }); } }} /></div>}</fieldset>
-    <section className="config-simple-card"><SectionTitle detail="pseudopotential-aware">Numerical basis</SectionTitle><div className="config-form-grid config-form-grid--3"><NumberField label="nk1" value={draft.kPoint} min={1} max={64} onChange={(kPoint) => onChange({ kPoint })} /><NumberField label="nk2" value={draft.kPointY} min={1} max={64} onChange={(kPointY) => onChange({ kPointY })} /><NumberField label="nk3" value={draft.kPointZ} min={1} max={64} onChange={(kPointZ) => onChange({ kPointZ })} /></div><fieldset disabled={inheritedModel} className="mt-2"><SelectField label="Pseudopotential family" value={draft.pseudoFamily} options={['SSSP efficiency', 'SSSP precision', 'PseudoDojo'].map((value) => ({ value, label: value }))} onChange={(pseudoFamily) => onChange({ pseudoFamily: pseudoFamily as JobDraft['pseudoFamily'], rawInput: '' })} /></fieldset><fieldset disabled={inheritedModel} className="mt-2"><EditableCutoffFields draft={draft} resolved={scfResolved.cutoff} recommended={recommended.cutoff} onChange={onChange} /></fieldset></section>
+    <fieldset disabled={inheritedModel} className="config-simple-card"><SectionTitle>Electronic method</SectionTitle><SelectField label="XC functional" value={draft.functional} options={['PBE', 'LDA', 'HSE'].map((value) => ({ value, label: value }))} onChange={(functional) => onChange({ functional: functional as Functional, rawInput: '' })} /><div className="mt-2"><EditableOccupationFields draft={draft} resolved={scfResolved.occupation} recommended={recommended.occupation} secondary={dosResolved} onChange={onChange} /></div><div className="config-toggle-pair mt-2 grid gap-2"><Toggle compact label="Spin polarization" detail="nspin = 2" checked={draft.spin} onChange={() => onChange({ spin: !draft.spin, rawInput: '' })} /><Toggle compact label="Spin–orbit coupling" detail="SOC · noncolin" checked={draft.soc} onChange={() => {
+      const nextSoc = !draft.soc;
+      onChange({
+        soc: nextSoc,
+        noncollinear: nextSoc || draft.noncollinear,
+        rawInput: '',
+      });
+    }} /></div>{hasHubbardElements && <div className="mt-2 border-t border-[var(--panel-border)] pt-2"><Toggle compact label="DFT+U (Hubbard)" detail={hubbardRecs.map((r) => `${r.species} ${r.manifold} · U = ${r.u} eV`).join(', ')} checked={draft.dftU} onChange={() => { if (!draft.dftU) { onChange({ dftU: true, hubbardProjector: draft.hubbardProjector || 'ortho-atomic', hubbardCorrections: hubbardRecs.map((r) => ({ species: r.species, manifold: r.manifold, u: r.u })), rawInput: '' }); } else { onChange({ dftU: false, rawInput: '' }); } }} /></div>}</fieldset>
+    <section className="config-simple-card"><SectionTitle>Numerical basis</SectionTitle><div className="config-form-grid config-form-grid--3"><NumberField label="nk1" value={draft.kPoint} min={1} max={64} onChange={(kPoint) => onChange({ kPoint })} /><NumberField label="nk2" value={draft.kPointY} min={1} max={64} onChange={(kPointY) => onChange({ kPointY })} /><NumberField label="nk3" value={draft.kPointZ} min={1} max={64} onChange={(kPointZ) => onChange({ kPointZ })} /></div><fieldset disabled={inheritedModel} className="mt-2"><SelectField label="Pseudopotential family" value={draft.pseudoFamily} options={['SSSP efficiency', 'SSSP precision', 'PseudoDojo'].map((value) => ({ value, label: value }))} onChange={(pseudoFamily) => onChange({ pseudoFamily: pseudoFamily as JobDraft['pseudoFamily'], rawInput: '' })} /></fieldset><fieldset disabled={inheritedModel} className="mt-2"><EditableCutoffFields draft={draft} resolved={scfResolved.cutoff} recommended={recommended.cutoff} onChange={onChange} /></fieldset></section>
     <fieldset disabled={inheritedModel}><DipoleFields draft={draft} onChange={onChange} /></fieldset>
   </div>;
 }
@@ -649,7 +657,14 @@ function ManualSystem({ calculation, draft, material, onChange }: { calculation:
       <section><SectionTitle detail="shared plane-wave basis">Cutoffs</SectionTitle><EditableCutoffFields draft={draft} resolved={resolved.cutoff} recommended={recommended.cutoff} onChange={onChange} /></section>
     </div>
     <DipoleFields draft={draft} onChange={onChange} />
-    <div className="config-form-grid config-form-grid--3"><SelectField label="vdw_corr" value={draft.vdwCorrection} options={['none', 'dft-d3', 'dft-d3-bj', 'ts-vdw'].map((value) => ({ value, label: value }))} onChange={(vdwCorrection) => onChange({ vdwCorrection: vdwCorrection as JobDraft['vdwCorrection'] })} /><SelectField label="assume_isolated" value={draft.assumeIsolated} options={['none', '2D', 'esm', 'makov-payne', 'martyna-tuckerman'].map((value) => ({ value, label: value }))} onChange={(assumeIsolated) => onChange({ assumeIsolated: assumeIsolated as JobDraft['assumeIsolated'], rawInput: '' })} /><Toggle label="Use symmetry" detail="nosym = false" checked={draft.useSymmetry} onChange={() => onChange({ useSymmetry: !draft.useSymmetry })} /><Toggle label="Use inversion" detail="noinv = false" checked={draft.useInversion} onChange={() => onChange({ useInversion: !draft.useInversion })} /><Toggle label="Spin polarization" detail="nspin = 2" checked={draft.spin} onChange={() => onChange({ spin: !draft.spin, rawInput: '' })} /><Toggle label="Spin–orbit coupling" detail="lspinorb = true" checked={draft.soc} onChange={() => onChange({ soc: !draft.soc, noncollinear: !draft.soc || draft.noncollinear, rawInput: '' })} /></div>
+    <div className="config-form-grid config-form-grid--3"><SelectField label="vdw_corr" value={draft.vdwCorrection} options={['none', 'dft-d3', 'dft-d3-bj', 'ts-vdw'].map((value) => ({ value, label: value }))} onChange={(vdwCorrection) => onChange({ vdwCorrection: vdwCorrection as JobDraft['vdwCorrection'] })} /><SelectField label="assume_isolated" value={draft.assumeIsolated} options={['none', '2D', 'esm', 'makov-payne', 'martyna-tuckerman'].map((value) => ({ value, label: value }))} onChange={(assumeIsolated) => onChange({ assumeIsolated: assumeIsolated as JobDraft['assumeIsolated'], rawInput: '' })} /><Toggle label="Use symmetry" detail="nosym = false" checked={draft.useSymmetry} onChange={() => onChange({ useSymmetry: !draft.useSymmetry })} /><Toggle label="Use inversion" detail="noinv = false" checked={draft.useInversion} onChange={() => onChange({ useInversion: !draft.useInversion })} /><Toggle label="Spin polarization" detail="nspin = 2" checked={draft.spin} onChange={() => onChange({ spin: !draft.spin, rawInput: '' })} /><Toggle label="Spin–orbit coupling" detail="lspinorb = true" checked={draft.soc} onChange={() => {
+      const nextSoc = !draft.soc;
+      onChange({
+        soc: nextSoc,
+        noncollinear: nextSoc || draft.noncollinear,
+        rawInput: '',
+      });
+    }} /></div>
     <ManualMagneticAndHubbard draft={draft} material={material} onChange={onChange} />
   </div>;
 }
@@ -823,13 +838,14 @@ function ManualSpecific({ calculation, draft, material, onChange }: { calculatio
   return <div className="config-form-grid config-form-grid--4"><NumberField label="conv_thr" value={draft.scfThreshold} step={1e-8} onChange={(scfThreshold) => onChange({ scfThreshold })} /><NumberField label="electron_maxstep" value={draft.electronMaxSteps} onChange={(electronMaxSteps) => onChange({ electronMaxSteps })} /><NumberField label="mixing_beta" value={draft.mixingBeta} step={0.05} onChange={(mixingBeta) => onChange({ mixingBeta })} /><SelectField label="diagonalization" value={draft.diagonalization} options={['david', 'cg', 'rmm-davidson'].map((value) => ({ value, label: value }))} onChange={(diagonalization) => onChange({ diagonalization: diagonalization as JobDraft['diagonalization'] })} /></div>;
 }
 
-export function CalculationConfigDrawer({ calculation, draft, material, structureSourceId, structureInputOptions, configurationSources, onChange, onStructureSourceChange, onAddRelaxationSource, onImportCalculationDraft, onApplyAccuracy, onClose, onSave, onRun, embedded = false, saveStatus, workflowInput, runDisabled = false, inheritedModel = false, inheritedDraft, scfSourceLabel }: {
+export function CalculationConfigDrawer({ calculation, draft, material, structureSourceId, structureInputOptions, configurationSources, onChange, onStructureSourceChange, onAddRelaxationSource, onImportCalculationDraft, onApplyAccuracy, onClose, onSave, onRun, embedded = false, saveStatus, workflowInput, runDisabled = false, inheritedModel = false, inheritedDraft, scfSourceLabel, artifacts }: {
   embedded?: boolean;
   workflowInput?: ReactNode;
   inheritedModel?: boolean;
   inheritedDraft?: JobDraft;
   scfSourceLabel?: string;
   runDisabled?: boolean;
+  artifacts?: CalculationArtifact[];
   calculation: CalculationType;
   draft: JobDraft;
   material: MaterialContext;
@@ -897,10 +913,18 @@ export function CalculationConfigDrawer({ calculation, draft, material, structur
     <button type="button" aria-pressed={mode === 'manual'} onClick={() => setMode('manual')} className={cn('h-8 rounded-[5px] px-3 text-[11px] font-semibold transition-colors', mode === 'manual' ? 'bg-[var(--panel-selected)] text-[var(--panel-text)] shadow-xs' : 'text-[var(--panel-muted)] hover:bg-[var(--panel-hover)] hover:text-[var(--panel-text)]')}>Manual</button>
   </div>;
 
+  const downloadButton = (
+    <CalculationDownloadDropdown
+      artifacts={artifacts ?? []}
+      calculation={calculation}
+      materialName={material?.name}
+    />
+  );
+
   return <motion.section role={embedded ? undefined : 'dialog'} aria-label={`${calculation} configuration`} initial={embedded || reducedMotion ? false : { y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={embedded || reducedMotion ? undefined : { y: 8, opacity: 0 }} transition={{ duration: reducedMotion ? 0 : .18, ease: [.22, 1, .36, 1] }} className={`calculation-config-drawer ${embedded ? 'workflow-embedded-config' : 'absolute bottom-2 left-2 right-2 z-40 h-[calc(100%-16px)] min-h-[320px] rounded-[10px] border border-[var(--panel-border)] shadow-[0_-12px_42px_rgba(0,0,0,.34)] sm:bottom-3 sm:left-3 sm:right-3 sm:h-[min(680px,calc(100%-24px))]'} flex flex-col overflow-hidden bg-[var(--panel-bg)]`}>
     {embedded ? <header className="workflow-config-toolbar">
-      <div className="workflow-config-input">{workflowInput}</div>
-      <div className="workflow-config-tools">{modes}<button type="button" className="workflow-primary" disabled={!material || runDisabled} onClick={run}><Play size={16} />{t('Run', 'Jalankan')}</button></div>
+      {workflowInput ? <div className="workflow-config-input">{workflowInput}</div> : null}
+      <div className="workflow-config-tools ml-auto">{downloadButton}{modes}<button type="button" className="workflow-primary" disabled={!material || runDisabled} onClick={run}><Play size={16} />{t('Run', 'Jalankan')}</button></div>
     </header> : <header className="config-workbench-header shrink-0 border-b border-[var(--panel-border)] bg-[var(--panel-raised)]">
       <div className="config-workbench-identity flex min-w-0 items-center gap-2.5">
         <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[6px] border border-[var(--panel-border)] bg-[var(--panel-bg)] text-[var(--panel-text)]"><SlidersHorizontal className="h-4 w-4" /></span>
@@ -910,6 +934,7 @@ export function CalculationConfigDrawer({ calculation, draft, material, structur
         <button type="button" disabled={!configurationSources.length} aria-expanded={importOpen} aria-haspopup="menu" onClick={() => setImportOpen((current) => !current)} className="config-import-trigger"><Clipboard className="h-3.5 w-3.5" /><span className="min-w-0 flex-1 truncate text-left">Import configuration</span><span className="config-import-chevron"><ChevronDown className={cn('h-3 w-3 transition-transform', importOpen && 'rotate-180')} /></span></button>
         {importOpen && <div role="menu" aria-label={`Import ${calculation} configuration`} className="config-import-menu workspace-popover-motion absolute left-0 top-[40px] z-50"><div className="config-import-menu-heading"><span>Saved configurations</span><span>{configurationSources.length}</span></div>{configurationSources.map((source) => <button key={source.id} type="button" role="menuitem" onClick={() => { onImportCalculationDraft(source.id); setImportOpen(false); }} className="config-import-option"><span className="config-import-option-icon"><Clipboard className="h-3.5 w-3.5" /></span><span className="min-w-0 flex-1"><span className="config-import-option-title">{source.name}</span><span className="config-import-option-detail">{source.materialName} · {source.detail}</span></span></button>)}</div>}
       </div>
+      {downloadButton}
       {modes}
       <button type="button" onClick={onClose} aria-label="Close configuration" className="config-workbench-close grid h-8 w-8 shrink-0 place-items-center rounded-[6px] text-[var(--panel-muted)] hover:bg-[var(--panel-hover)] hover:text-[var(--panel-text)]"><X className="h-4 w-4" /></button>
     </header>}
@@ -917,7 +942,7 @@ export function CalculationConfigDrawer({ calculation, draft, material, structur
     {scfSourceLabel ? <div className="config-drawer-body min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
       <section className="config-simple-card"><SectionTitle>Ground state from {scfSourceLabel}</SectionTitle><p className="mt-2 text-[11px] leading-5 text-[var(--panel-muted)]">Structure, functional, pseudopotentials, cutoffs, charge, spin and SCF convergence are inherited. Open the SCF node to change the ground state.</p><p className="mt-2 font-mono text-[10px] text-[var(--panel-text)]">{draft.functional} · {draft.pseudoFamily} · {draft.cutoff}/{draft.chargeDensityCutoff} Ry</p></section>
       {calculation !== 'Phonon dispersion' && <section className="config-specific-card mt-3"><SectionTitle>Analysis sampling</SectionTitle><div className="mt-2 config-form-grid config-form-grid--4"><NumberField label="nk1" value={draft.kPoint} min={1} max={64} onChange={kPoint => onChange({ kPoint })} /><NumberField label="nk2" value={draft.kPointY} min={1} max={64} onChange={kPointY => onChange({ kPointY })} /><NumberField label="nk3" value={draft.kPointZ} min={1} max={64} onChange={kPointZ => onChange({ kPointZ })} /><NumberField label="Bands" value={draft.numberOfBands} min={1} onChange={numberOfBands => onChange({ numberOfBands })} /></div></section>}
-      <section className="config-specific-card mt-3"><SectionTitle detail={activeCalculationCode}>{calculation}</SectionTitle><SimpleSpecific calculation={calculation} draft={draft} material={material} onChange={onChange} /></section>
+      <section className="config-specific-card mt-3"><SectionTitle>{calculation}</SectionTitle><SimpleSpecific calculation={calculation} draft={draft} material={material} onChange={onChange} /></section>
       {calculation === 'Thermoelectric properties' && <TransportSamplingNotice draft={draft} onChange={onChange} />}
       <PlotRangeFields calculation={calculation} draft={draft} onChange={onChange} />
       {!!draft.rawInput.trim() && <p role="alert" className="mt-3 text-[11px] text-[var(--status-danger)]">This analysis has an expert override. <button onClick={() => onChange({ rawInput: '' })}>Reset override to inherit the SCF</button></p>}
@@ -926,7 +951,7 @@ export function CalculationConfigDrawer({ calculation, draft, material, structur
       {calculation === 'Structural relaxation' && <div className="mb-4"><RelaxationModeSelector draft={draft} onChange={onChange} /></div>}
       <CommonSimple inheritedModel={inheritedModel} calculation={calculation} draft={draft} material={material} onChange={onChange} onApplyAccuracy={onApplyAccuracy} />
       <section className="config-specific-card mt-3">
-        <SectionTitle detail={`${activeCalculationCode} parameters`}>{calculation}</SectionTitle>
+        <SectionTitle>{calculation}</SectionTitle>
         <SimpleSpecific calculation={calculation} draft={draft} material={material} onChange={onChange} />
       </section>
       {inheritedModel && ['Density of states','Thermoelectric properties'].includes(calculation) && <AnalysisSampling draft={draft} onChange={onChange}/>}

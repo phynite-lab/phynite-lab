@@ -1,5 +1,5 @@
 import { structureFormula } from './structure-formula.ts';
-import { detectLatticeSystem, LATTICE_PATH_DATA, resolveReciprocalPathMode } from './reciprocal-path.ts';
+import { detectLatticeSystem, LATTICE_PATH_DATA, resolveReciprocalPathMode, reciprocalPathSubmission } from './reciprocal-path.ts';
 import { createDefaultQeDraft } from './qe-defaults.ts';
 import { generateQuantumEspressoInputFiles, qeSubmissionSettings } from './qe-workflow.ts';
 import { cellVectorsFromLattice } from './crystal-cell.ts';
@@ -28,6 +28,16 @@ export function workflowQeDraft(graph: ProjectWorkflow, node: WorkflowNode): Job
   const shared = { ...createDefaultQeDraft(), ...(source.configuration.draft as Partial<JobDraft> | undefined) };
   return { ...shared, ...Object.fromEntries(workflowBranchFields.map(field => [field, local[field]])), rawInput: '' } as JobDraft;
 }
+/** Only an actual electronic edge permits removing inherited model settings. */
+export function workflowSavedQeDraft(graph: ProjectWorkflow, node: WorkflowNode) {
+  const existing = node.configuration.draft;
+  if (!existing || typeof existing !== 'object' || Array.isArray(existing)) return workflowQeDraft(graph, node);
+  const draft = existing as Record<string, unknown>;
+  const inherited = graph.edges.some(edge => edge.target === node.id && edge.port === 'electronic');
+  return inherited && !String(draft.rawInput ?? '').trim()
+    ? Object.fromEntries(Object.entries(draft).filter(([key]) => workflowBranchFields.includes(key as keyof JobDraft)))
+    : draft;
+}
 export function compileWorkflowDft(graph: ProjectWorkflow, node: WorkflowNode, projectName: string): Record<string, unknown> {
   const calculation = workflowCalculationTypes[node.kind];
   if (!calculation) throw new Error('This node is not a DFT module.');
@@ -50,5 +60,22 @@ export function compileWorkflowDft(graph: ProjectWorkflow, node: WorkflowNode, p
     if (old) old.content = scf.content;
     if (workflowQeDraft(graph, source).diskIO === 'none') throw new Error('Enable saved QE state on the source SCF before running its branches.');
   }
-  return { name: node.name, structureId, calculationType: calculation, qeInput: files.map(file => file.content).join('\n'), inputFiles: Object.fromEntries(files.map(file => [file.name, file.content])), settings: qeSubmissionSettings(draft, calculation, material), computeTarget: node.configuration.computeTarget || 'personal', vcpus: node.configuration.vcpus, memoryMiB: node.configuration.memoryMiB, cloudMode: node.configuration.cloudMode, computeProfileId: node.configuration.computeProfileId, pseudopotentials: (sourceId ? graph.nodes.find(item => item.id === sourceId)?.configuration.pseudopotentials : node.configuration.pseudopotentials) || {} };
+  return {
+    name: node.name,
+    structureId,
+    calculationType: calculation,
+    qeInput: files.map(file => file.content).join('\n'),
+    inputFiles: Object.fromEntries(files.map(file => [file.name, file.content])),
+    settings: {
+      ...qeSubmissionSettings(draft, calculation, material),
+      ...reciprocalPathSubmission(calculation, draft, draft.rawInput),
+    },
+    computeTarget: node.configuration.computeTarget || 'personal',
+    hpc: node.configuration.hpc,
+    vcpus: node.configuration.vcpus,
+    memoryMiB: node.configuration.memoryMiB,
+    cloudMode: node.configuration.cloudMode,
+    computeProfileId: node.configuration.computeProfileId,
+    pseudopotentials: (sourceId ? graph.nodes.find(item => item.id === sourceId)?.configuration.pseudopotentials : node.configuration.pseudopotentials) || {},
+  };
 }

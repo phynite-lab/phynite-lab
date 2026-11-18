@@ -107,6 +107,40 @@ class TransportDeadlineRegressions(unittest.TestCase):
 
 
 class SchedulerReadRegressions(unittest.TestCase):
+    def test_missing_scheduler_history_never_implies_success(self):
+        for queue in ((0, '', ''), (1, '', 'slurm_load_jobs error: Invalid job id specified')):
+            for controller in ((1, '', 'Invalid job id specified'), (0, 'JobId=123 JobState=COMPLETED', '')):
+                with self.subTest(queue=queue, controller=controller):
+                    manager = HpcRemoteJobManager(MagicMock(spec=HpcSshConnection), {'scheduler': 'slurm'})
+                    manager._scheduler_command = MagicMock(side_effect=[(0, '', ''), queue, controller])
+                    status = manager.poll_job('123')
+                    self.assertFalse(status['terminal'])
+                    self.assertEqual(status['exitCode'], '')
+
+    def test_controller_fallback_requires_real_exit_evidence_and_preserves_signals(self):
+        for state, raw_exit, expected in (('COMPLETED', '0:0', '0'), ('FAILED', '1:0', '1'), ('FAILED', '0:9', '0:9')):
+            with self.subTest(state=state, raw_exit=raw_exit):
+                manager = HpcRemoteJobManager(MagicMock(spec=HpcSshConnection), {'scheduler': 'slurm'})
+                manager._scheduler_command = MagicMock(side_effect=[
+                    (1, '', 'Accounting unavailable'), (0, '', ''),
+                    (0, f'JobId=123 JobState={state} ExitCode={raw_exit}', ''),
+                ])
+                status = manager.poll_job('123')
+                self.assertTrue(status['terminal'])
+                self.assertEqual(status['state'], state)
+                self.assertEqual(status['exitCode'], expected)
+
+    def test_accounting_signal_exit_cannot_be_harvested_as_success(self):
+        manager = HpcRemoteJobManager(MagicMock(spec=HpcSshConnection), {'scheduler': 'slurm'})
+        manager._scheduler_command = MagicMock(return_value=(0, '123|COMPLETED|0:9\n', ''))
+        status = manager.poll_job('123')
+        self.assertEqual(status['exitCode'], '0:9')
+        manager.sparse_harvest = MagicMock()
+        with tempfile.TemporaryDirectory() as directory:
+            outcome = manager.harvest_completed('123', '/scratch/job', Path(directory))
+        self.assertNotEqual(outcome['state'], 'completed')
+        manager.sparse_harvest.assert_not_called()
+
     def test_sacct_nonzero_uses_squeue_for_live_state(self):
         connection = MagicMock(spec=HpcSshConnection)
         connection.run_command.side_effect = [

@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { hpcProfileSelection, refreshHpcProfileSelection, resolveHpcProfileSelection } from '../lib/compute-selection.ts';
 import { validateHpcProfile } from '../lib/hpc-profile.ts';
-import { changeWorkflowCompute } from '../lib/workflow-compute.ts';
+import { changeWorkflowCompute, commonWorkflowComputeSelection, workflowComputeSelection } from '../lib/workflow-compute.ts';
+import type { WorkflowNode } from '../lib/project-workflow.ts';
 
 const profile = {
   ...validateHpcProfile({
@@ -70,4 +71,24 @@ test('changing workflow compute targets drops old HPC and resolved snapshots whi
   });
   assert.equal(configuration.hpc, saved);
   assert.ok(configuration.resolvedHpcCompute);
+});
+
+test('destination changes replace stale nested execution allocations without altering scientific inputs', () => {
+  const execution = { inputFiles: { 'scf.in': 'exact retained input' }, computeTarget: 'hpc', hpc: saved, vcpus: 36, memoryMiB: 8192, computeProfileId: 'old', quoteId: 'old-quote', executionAffinity: { scheduler: 'pbs' } };
+  const configuration = { execution, computeTarget: 'hpc', hpc: saved };
+  const result = changeWorkflowCompute(configuration, { computeTarget: 'personal', vcpus: 2, memoryMiB: 4096 });
+  assert.deepEqual(result.execution, { inputFiles: execution.inputFiles, computeTarget: 'personal', vcpus: 2, memoryMiB: 4096 });
+  assert.equal(execution.hpc, saved);
+  const node = { id: 'scf', kind: 'scf', name: 'SCF', configuration: result, position: { x: 0, y: 0 }, resources: [] } as WorkflowNode;
+  assert.deepEqual(workflowComputeSelection(node), { computeTarget: 'personal', vcpus: 2, memoryMiB: 4096 });
+});
+
+test('bulk selection distinguishes allocations within the same cluster and local destination', () => {
+  const node = (configuration: WorkflowNode['configuration']): WorkflowNode => ({ id: 'scf', kind: 'scf', name: 'SCF', position: { x: 0, y: 0 }, resources: [], configuration });
+  const first = node({ computeTarget: 'hpc', hpc: saved });
+  assert.deepEqual(commonWorkflowComputeSelection([first, structuredClone(first)]), workflowComputeSelection(first));
+  for (const override of [{ nodes: 2 }, { ranksPerNode: 24 }, { wallSeconds: 3600 }, { memoryMiBPerNode: 32768 }, { partition: 'other' }, { profileSha256: 'c'.repeat(64) }]) {
+    assert.equal(commonWorkflowComputeSelection([first, node({ computeTarget: 'hpc', hpc: { ...saved, ...override } })]), undefined);
+  }
+  assert.equal(commonWorkflowComputeSelection([node({ computeTarget: 'personal', vcpus: 2 }), node({ computeTarget: 'personal', vcpus: 4 })]), undefined);
 });

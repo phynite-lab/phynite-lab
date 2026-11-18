@@ -70,7 +70,7 @@ an uncertain job or automatically restarts the solver.
 
 ## Python setup and SCF state reuse
 
-**Auto Setup Venv** explicitly creates a private remote `$HOME/.phynite-venv`
+**Setup Venv** explicitly creates a private remote `$HOME/.phynite-venv`
 and installs the displayed scientific packages. It requires writable home storage,
 Python 3.10+ and access to the package index. Existing unmanaged directories and
 symlinks are rejected. Concurrent setup is locked; a profile changed during setup
