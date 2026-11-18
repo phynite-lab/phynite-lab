@@ -1,7 +1,7 @@
 {
   "$description": "Phynite Lab design tokens. Top-level values preserve the extracted Reference catalog; core records the reviewed library contract and canvas adoption. Native canvas is the visual source. Annotated reference, not application CSS or a DTCG schema.",
   "version": 2,
-  "reviewedAt": "2026-11-18",
+  "reviewedAt": "2026-11-19",
   "source": {
     "document": "phynite-lab-ui",
     "originalPages": 13,
@@ -1763,6 +1763,39 @@
         },
         "unit": "px",
         "$value": 420
+      },
+      "range/thumb-size": {
+        "$type": "number",
+        "classification": "extracted",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 16
+        },
+        "unit": "px",
+        "$value": 16,
+        "source": "Appearance native range optical geometry; app/account/settings.css:404-406 and captured advanced frame4294967808"
+      },
+      "range/track-thickness": {
+        "$type": "number",
+        "classification": "extracted",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 3
+        },
+        "unit": "px",
+        "$value": 3,
+        "source": "Appearance native range optical geometry; app/account/settings.css:404-406 and captured advanced frame4294967808"
+      },
+      "range/track-radius": {
+        "$type": "number",
+        "classification": "extracted",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 1.5
+        },
+        "unit": "px",
+        "$value": 1.5,
+        "source": "Appearance native range optical geometry; app/account/settings.css:404-406 and captured advanced frame4294967808"
       }
     },
     "density": {
@@ -2052,6 +2085,21 @@
       },
       "Status": {
         "variantTuples": 4
+      },
+      "Range/Appearance value 0": {
+        "classification": "applied-in-canvas",
+        "mainComponents": 1,
+        "capturedValue": 0,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "widths": [
+          155,
+          115
+        ],
+        "trackHeight": 3,
+        "thumbSize": 16,
+        "runtimeBehavior": "Requires separate application testing."
       }
     },
     "verification": {
@@ -2083,19 +2131,20 @@
       "originalNodesUnchanged": 198623,
       "runtimeAccessibility": "Requires separate application testing; visual library checks do not certify WCAG conformance.",
       "longContentCases": 24,
-      "longContentWidth": 288
+      "longContentWidth": 288,
+      "scope": "Core library audit before cross-page canvas migration; originalNodesUnchanged refers to that saved phase, not the edited live source layers."
     },
     "canvasAdoption": {
       "classification": "applied-in-canvas",
       "applicationCodeChanged": false,
       "applicationPages": 13,
       "capturedFrames": 801,
-      "controlInstances": 5701,
+      "controlInstances": 5769,
       "iconInstances": 16734,
-      "sourceTextLayers": 54494,
+      "sourceTextLayers": 54466,
       "appliedTextStyles": 120,
       "iconProfiles": 388,
-      "sharedLayoutFrames": 4291,
+      "sharedLayoutFrames": 4343,
       "remainingSourceCompositions": 1109,
       "spacing": {
         "gap": 8,
@@ -2121,15 +2170,29 @@
         "compactTextNotice": {
           "inline": 24,
           "block": 16
+        },
+        "colorValue": {
+          "inline": 10,
+          "gap": 8,
+          "source": "app/account/settings.css:383; shared Reference metric10 and Core gap8"
+        },
+        "localSignIn": {
+          "wideInset": 20,
+          "mobileInset": 16,
+          "labelGap": 8,
+          "fieldGap": 16,
+          "helperGap": 8,
+          "source": "app/local/settings.css; wide inset uses the shared Reference metric20"
         }
       },
       "limits": [
         "Compound source geometry and scaled artwork are not fully unified.",
         "Captured viewport variants do not implement complete screen reflow.",
-        "Login/data-dependent states need their own references."
+        "Login/data-dependent states need their own references.",
+        "The Appearance range component records the captured value0 only; other values and runtime input behavior need separate evidence."
       ],
       "verification": {
-        "sourceTextUnchanged": 54494,
+        "sourceTextUnchanged": 54442,
         "prototypeActionNodesUnchanged": 11317,
         "brokenNativeReferences": 0,
         "appliedInlineLayoutIssues": 0,
@@ -2139,18 +2202,30 @@
           "actualPaddingMovement": true,
           "restored": true,
           "fontMutation": "pass; 12 → 12.125 → 12 px",
-          "fontPagesSampled": 13
+          "fontPagesSampled": 13,
+          "appearanceRangeInstances": 16,
+          "appearanceRangeMutation": "pass; master opacity 1 → 0.8 → 1; all 16 instances propagated and restoration verified"
         },
         "containerBodyBoundsIssues": 0,
-        "prototypeHitRegionsRealigned": 25,
         "narrowExplanationLinesWrapped": 15,
         "selectValuesTruncateWithoutChangingText": 1074,
         "wrappedParagraphCollisionIssues": 0,
         "inlineTypographyBoundsIssues": 0,
-        "visuallyReviewedCapturedFrames": 17,
-        "openVisualFindings": 1
+        "visuallyReviewedCapturedFrames": 94,
+        "openVisualFindings": 0,
+        "recomposedSourceFragments": 52,
+        "recomposedParagraphs": 24,
+        "sourceTextVerification": "54,442 untouched source nodes compared byte-for-byte; 52 captured fragments rebuilt into 24 paragraphs with saved-fragment and repository wording checks. Normalize only intentional NBSPs when checking paragraph wording.",
+        "nonbreakingSpaceParagraphs": {
+          "privacy": 12,
+          "signInDescription": 6
+        },
+        "pendingCapturedFrames": 707,
+        "visualReviewScope": "Only the recorded captured viewports; unreviewed frames and off-viewport content remain pending.",
+        "prototypeHitRegionRealignmentChecked": true,
+        "latestPrototypeHitRegionCorrections": 0
       },
-      "nativeVariables": 293,
+      "nativeVariables": 296,
       "nativeStyles": 144,
       "artworkOpticalMetrics": {
         "classification": "applied-in-canvas",
@@ -2166,8 +2241,20 @@
         "unit": "px in illustration"
       },
       "inlineTypographyLayouts": 33,
-      "settingsFieldsConnectedInDetailPass": 85,
-      "paragraphCardBodiesReflowed": 17
+      "settingsFieldsConnectedInDetailPass": 109,
+      "paragraphCardBodiesReflowed": 17,
+      "baselineSourceTextLayers": 54494,
+      "detailPass": {
+        "blankLoginInputs": 28,
+        "loginCompositions": 14,
+        "colorValueLayouts": 52,
+        "privacyParagraphStacks": 12,
+        "appearanceFontInputs": 24,
+        "appearanceRanges": 16,
+        "newlyRestoredAppearanceRanges": 14,
+        "languagePopoverStackingContexts": 4,
+        "sourceContextRangeMaster": "Core/Range/Appearance value 0"
+      }
     }
   }
 }

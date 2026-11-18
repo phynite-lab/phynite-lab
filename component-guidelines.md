@@ -23,7 +23,13 @@ Change shared colors in **Core · Theme**, type families/sizes in **Core · Typo
 
 Edit the `Shared layout` frame inside the slot for content alignment. Its padding and gap bindings must remain attached. Fields flex their value independently of suffixes/icons. Container bodies preserve captured rows/columns and use edge constraints. Avoid an instance-specific offset that conceals a wrong shared inset.
 
-The 85 migrated Settings number, shortcut and API-key value fields use the same Input instance contract. When a paragraph wraps, give the next line real clearance and let the card grow; move following content rather than shrinking the font or reducing its shared inset. Separately styled runtime facts use `Shared typography` rows, with explicit space for punctuation and unchanged scientific text.
+The 109 migrated Settings number, shortcut, font-size and API-key value fields use the same Input instance contract. The 28 blank local sign-in inputs also use Core Input; keep them blank. When a paragraph wraps, give the next line real clearance and let the card grow; move following content rather than shrinking the font or reducing its shared inset. Separately styled runtime facts use `Shared typography` rows, with explicit space for punctuation and unchanged scientific text.
+
+Color values use inset 10 and gap 8, with the exact hex label fully visible. Local sign-in cards use inset 20 on wide screens and 16 on mobile, label/helper gap 8 and field gap 16. Use the existing shared Reference metrics for the source-specific 10/20 px values. Reconstruct captured paragraph fragments as a complete paragraph when needed; record the original fragment mapping, verify wording against source, and preserve style and color links. Nonbreaking spaces may keep a short ending together without changing the wording.
+
+Use `Core/Range/Appearance value 0` for the captured default contrast reference. Its shared rail is 3 px high with radius 1.5; the thumb is 16 px. Use width 155 px on wide screens or 115 px in compact contexts. The instance stretches the rail and keeps the thumb fixed. Its source appearance accent remains separate from neutral Core focus. Other values, focus and interaction require their own evidence. Keep the range output aligned with the thumb and retain the source output allocation.
+
+Language popovers must draw above the page content and footer, as in `app/navigation-ui.css`. Keep the popup background and all of its content in one foreground wrapper; text-style and prototype checks alone will not detect a stacking error.
 
 Scaled Guide illustrations, theme preview artwork, empty surfaces and some compound controls retain source geometry with shared paints/type. Inspect these contexts before changing their structure. Full-screen captures remain discrete responsive examples; they are not complete responsive auto-layout implementations.
 
