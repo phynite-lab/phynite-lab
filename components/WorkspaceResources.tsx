@@ -27,17 +27,27 @@ import '@/app/workspace-resources.css';
 type JobDetails = { startedAt?: string; completedAt?: string; status?: string; computePhase?: string; computeSeconds?: number; vcpus?: number; memoryMiB?: number };
 type ResourceScopeProps = { scope: 'workspace'; projectId?: never; selection?: never; onChange?: never }
   | { scope: 'project'; projectId: string; selection: ComputeSelection; onChange: (selection: ComputeSelection) => void };
-export function WorkspaceResources({ owner, workload, selection = {}, onChange = () => undefined, jobs, open, onOpen, onClose, scope, projectId, atomCount, kPoints, calculationType }: {
+export function WorkspaceResources({ owner, workload, selection = {}, onChange = () => undefined, jobs, open, onOpen, onClose, scope, projectId, atomCount, kPoints, calculationType, selectedCount, initialMode = 'overview', defaultClusterId, mixedSelection }: {
   open: boolean; onOpen: () => void; onClose: () => void;
   owner: string; workload: ComputeWorkload; jobs: WorkspaceJob[];
   atomCount?: number; kPoints?: [number, number, number] | number[] | number; calculationType?: string;
+  selectedCount?: number; initialMode?: 'overview' | 'compute';
+  defaultClusterId?: string;
+  mixedSelection?: boolean;
 } & ResourceScopeProps) {
   const { t, intlLocale } = useLocale();
   const resource = useLabAccount(owner), account = resource.account;
   const { session } = useSession();
   const { catalog } = useComputeCatalog(Boolean(session && session.mode !== 'local'));
   const shell = useResearchShell();
-  const [mode, setMode] = useState<'overview' | 'compute'>('overview');
+  const [prevOpen, setPrevOpen] = useState(open);
+  const [prevInitialMode, setPrevInitialMode] = useState(initialMode);
+  const [mode, setMode] = useState<'overview' | 'compute'>(initialMode);
+  if (open !== prevOpen || initialMode !== prevInitialMode) {
+    setPrevOpen(open);
+    setPrevInitialMode(initialMode);
+    if (open) setMode(initialMode);
+  }
   const inventory = useAccountUsage(owner, open, { projectId: scope === 'project' ? projectId : undefined });
   const computeUsage = useAccountComputeUsage(owner, true, scope === 'project' ? projectId : undefined);
   const [chosenJob, setChosenJob] = useState(''), [jobData, setJobData] = useState<{ owner: string; id: string; value: JobDetails }>();
@@ -148,7 +158,7 @@ export function WorkspaceResources({ owner, workload, selection = {}, onChange =
   const panelHost = shell?.workspaceHeaderHost?.closest('.research-app-shell');
   return <>
     <ResearchResourcesSlot section={scope === 'workspace' ? 'home' : 'projects'}><button ref={meter} type="button" className="research-rail-button workspace-resources-meter" title={t('Resources', 'Resource')} aria-label={t('Workspace resources', 'Resource workspace')} aria-haspopup="dialog" aria-expanded={open} onClick={onOpen}><Gauge size={18} />{visibleJobs.length > 0 && <span className="workspace-resources-active" aria-label={t(`${visibleJobs.length} active jobs`, `${visibleJobs.length} job aktif`)} />}</button></ResearchResourcesSlot>
-    {open && panelHost && createPortal(<div className="workspace-resources-layer" data-ui-portal><LabConfigurationDrawer className="workspace-resources-panel" ariaLabel={t('Workspace resources', 'Resource workspace')} title={t('Resources', 'Resource')} subtitle={scope === 'project' ? t('This project · budget, storage and compute', 'Project ini · anggaran, penyimpanan, dan compute') : t('All projects · budget, storage and compute', 'Semua project · anggaran, penyimpanan, dan compute')} mode={mode} modes={[{ id: 'overview', label: t('Overview', 'Ringkasan') }, { id: 'compute', label: 'Compute' }]} onModeChange={setMode} onClose={close}>
+    {open && panelHost && createPortal(<div className="workspace-resources-layer" data-ui-portal><LabConfigurationDrawer className="workspace-resources-panel" ariaLabel={t('Workspace resources', 'Resource workspace')} title={t('Resources', 'Resource')} subtitle={scope === 'project' ? (selectedCount && selectedCount > 1 ? t(`Configuring ${selectedCount} selected calculation modules`, `Mengatur ${selectedCount} modul kalkulasi terpilih`) : t('This project · budget, storage and compute', 'Project ini · anggaran, penyimpanan, dan compute')) : t('All projects · budget, storage and compute', 'Semua project · anggaran, penyimpanan, dan compute')} mode={mode} modes={[{ id: 'overview', label: t('Overview', 'Ringkasan') }, { id: 'compute', label: 'Compute' }]} onModeChange={setMode} onClose={close}>
       {mode === 'overview' ? <div className="workspace-resource-overview">
         {(resource.error || inventory.error || computeUsage.error || jobError) && <p className="workspace-resource-note" role="status">{t('Refresh unavailable · last data shown', 'Pembaruan gagal · data terakhir')}</p>}
         {job && <section className="workspace-resource-section workspace-active-job">
@@ -185,8 +195,9 @@ export function WorkspaceResources({ owner, workload, selection = {}, onChange =
         <Link className="workspace-resource-detail-link" href="/account/usage">{t('Usage, compute time and receipts', 'Pemakaian, waktu compute, dan rincian biaya')}<ArrowUpRight size={13} /></Link>
         {(resource.error || computeUsage.error || jobError) && <button type="button" className="lab-button" onClick={() => { void refreshAccount(); void computeUsage.refresh().catch(() => undefined); setJobRetry(value => value + 1); }}><RefreshCw size={14} />{t('Refresh resources', 'Perbarui resource')}</button>}
       </div> : <>
-        {scope === 'workspace' ? <p className="workspace-resource-scope">{t('Workspace compute defaults apply to new runs. Open Compute settings to change them.', 'Default compute workspace berlaku untuk run baru. Buka pengaturan Compute untuk mengubahnya.')}</p> : <><p className="workspace-resource-scope">{t('Applies to this run configuration. Use Make default to save preferences for new runs.', 'Berlaku untuk konfigurasi run ini. Gunakan Jadikan default untuk menyimpan preferensi run baru.')}</p>
-        <LabComputeDestination scope="run" requiredCapability={workload} sharedAvailable={workload === 'qe'} fixedTarget={workload === 'qe' ? undefined : 'personal'} selection={selection} onChange={onChange} account={account} onAccount={resource.setAccount} atomCount={atomCount} kPoints={kPoints} calculationType={calculationType} /></>}
+        {scope === 'workspace' ? <p className="workspace-resource-scope">{t('Workspace compute defaults apply to new runs. Open Compute settings to change them.', 'Default compute workspace berlaku untuk run baru. Buka pengaturan Compute untuk mengubahnya.')}</p> : <><p className="workspace-resource-scope">{selectedCount && selectedCount > 1 ? t(`Applies to ${selectedCount} selected calculation modules in this project.`, `Berlaku untuk ${selectedCount} modul kalkulasi terpilih di project ini.`) : t('Applies to this run configuration. Use Make default to save preferences for new runs.', 'Berlaku untuk konfigurasi run ini. Gunakan Jadikan default untuk menyimpan preferensi run baru.')}</p>
+        {mixedSelection && <p role="status" className="workspace-resource-note">{t('Modules have different allocations. Changes below replace the allocation of every selected module.', 'Alokasi modul berbeda. Perubahan di bawah mengganti alokasi semua modul terpilih.')}</p>}
+        <LabComputeDestination scope="run" requiredCapability={workload} sharedAvailable={workload === 'qe'} fixedTarget={workload === 'qe' ? undefined : 'personal'} selection={selection} onChange={onChange} account={account} onAccount={resource.setAccount} atomCount={atomCount} kPoints={kPoints} calculationType={calculationType} defaultClusterId={defaultClusterId} /></>}
         <div className="workspace-resource-guidance"><p className="workspace-resource-note">{t('CPU and RAM are job allocations, not measurements of installed hardware. More cores do not always make a calculation faster.', 'CPU dan RAM adalah alokasi job, bukan pengukuran perangkat terpasang. Lebih banyak core tidak selalu mempercepat kalkulasi.')}</p><Link className="workspace-resource-detail-link" href={scope === 'workspace' ? '/account/compute' : '/account/compute#your-computer'}>{t('Compute settings and worker setup', 'Pengaturan compute dan setup worker')}<ArrowUpRight size={13} /></Link></div>
       </>}
     </LabConfigurationDrawer></div>, panelHost)}

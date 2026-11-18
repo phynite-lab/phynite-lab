@@ -25,6 +25,7 @@ import { useLocale } from '@/app/locale-provider';
 import { useSiteTheme } from '@/app/use-site-theme';
 import { UiSelect } from './UiSelect';
 import type { MdCloudPipeline } from '@/lib/md-cloud-api';
+import type { CalculationArtifact } from './CalculationDownloadDropdown';
 
 export function WorkflowNodeEditor({ node, graph, projectName, onChange, onSaveStructure, onRun, onClose, onError, owner, attempt, onInputChange, onSave, saveStatus, runDisabled = false, onOpenSource, onCanvas, attempts = [] }: {
   node: WorkflowNode; attempt?: WorkflowAttempt; graph: ProjectWorkflow; projectName: string; owner: string;
@@ -36,6 +37,13 @@ export function WorkflowNodeEditor({ node, graph, projectName, onChange, onSaveS
   const [stepId, setStepId] = useState('');
   const [potentials, setPotentials] = useState<MdPotentialAsset[]>([]);
   const [pendingPotential, setPendingPotential] = useState<{ files: File[]; family: MdPotentialModelMetadata['family']; elements: string[] } | null>(null);
+  const [executionArtifacts, setExecutionArtifacts] = useState<CalculationArtifact[]>([]);
+  const [prevAttemptJobId, setPrevAttemptJobId] = useState(attempt?.jobId);
+
+  if (prevAttemptJobId !== attempt?.jobId) {
+    setPrevAttemptJobId(attempt?.jobId);
+    setExecutionArtifacts([]);
+  }
   useEffect(() => {
     if (node.kind !== 'md') return;
     let live = true;
@@ -70,10 +78,10 @@ export function WorkflowNodeEditor({ node, graph, projectName, onChange, onSaveS
       return needsScf ? item.kind === 'scf' : ['structure', 'relax', 'extract-frame'].includes(item.kind) && item.id !== node.id;
     });
     const inputControl = <UiSelect compact label={node.kind === 'bands' ? (isStandaloneBands ? t('Structure input (Standalone)', 'Input struktur (Mandiri)') : t('SCF input (Inherited)', 'Input SCF (Turunan)')) : (needsScf ? t('SCF input', 'Input SCF') : t('Structure input', 'Input struktur'))} value={source?.source ?? ''} options={[{ value: '', label: t('Choose an input', 'Pilih input') }, ...candidateNodes.map(item => ({ value: item.id, label: `${item.name} (${t(workflowModules[item.kind].en, workflowModules[item.kind].id)})` })), ...(node.kind === 'bands' || needsScf ? [{ value: 'new-scf', label: t('Create a new SCF', 'Buat SCF baru') }] : [])]} onChange={onInputChange} />;
-    return <div className="workflow-dft-editor"><WorkflowNodeResult attempt={attempt} owner={owner} projectId={graph.projectId} />
+    return <div className="workflow-dft-editor"><WorkflowNodeResult attempt={attempt} owner={owner} projectId={graph.projectId} onArtifactsLoaded={setExecutionArtifacts} />
       {source?.port === 'electronic' && <p className="workflow-editor-notice">{t('Shared structure, XC, pseudopotentials, cutoffs, spin and SCF convergence are inherited from', 'Struktur, XC, pseudopotensial, cutoff, spin dan konvergensi SCF mengikuti')} <strong>{graph.nodes.find(node => node.id === source.source)?.name}</strong>. {onOpenSource && <button onClick={() => onOpenSource(source.source)}>{t('Edit source SCF','Edit SCF sumber')}</button>}</p>}
       {isStandaloneBands && <p className="workflow-editor-notice">{t('Standalone Band Structure: Computes self-consistent total energy and energy band curves in a single unified node directly from the connected crystal geometry.', 'Struktur Pita Mandiri: Menghitung energi total self-consistent dan kurva pita energi dalam satu node terpadu langsung dari geometri kristal terhubung.')}</p>}
-      <CalculationConfigDrawer embedded inheritedDraft={source?.port === 'electronic' ? workflowQeDraft(graph, graph.nodes.find(node => node.id === source.source)!) : undefined} inheritedModel={needsScf} workflowInput={inputControl} runDisabled={runDisabled} calculation={workflowCalculationTypes[node.kind]!} draft={draft} material={material} structureSourceId="original" structureInputOptions={[{ value: 'original', label: t('Connected structure', 'Struktur terhubung') }]} configurationSources={[]} onChange={values => { const permitted = needsScf ? Object.fromEntries(Object.entries(values).filter(([key]) => workflowBranchFields.includes(key as typeof workflowBranchFields[number]))) : values; if (needsScf && Object.keys(permitted).length !== Object.keys(values).length) onError(t('Change shared model settings on the connected SCF.', 'Ubah model bersama pada SCF yang terhubung.')); patch({ draft: { ...(node.configuration.draft as object ?? {}), ...permitted }, ...(node.kind === 'bands' ? { standalone: isStandaloneBands } : {}) }); }} onStructureSourceChange={() => {}} onAddRelaxationSource={() => onError(t('Add a Relaxation module on the canvas and connect its output.', 'Tambahkan modul Relaksasi di kanvas dan hubungkan output-nya.'))} onImportCalculationDraft={() => {}} onApplyAccuracy={accuracy => { if (!needsScf) patch({ draft: applyQeAccuracy(draft, accuracy), ...(node.kind === 'bands' ? { standalone: isStandaloneBands } : {}) }); }} onClose={onClose} onSave={() => { void onSave().catch(error => onError(error.message)); }} saveStatus={saveStatus} onRun={onRun} />
+      <CalculationConfigDrawer workflowInput={inputControl} embedded artifacts={executionArtifacts} inheritedDraft={source?.port === 'electronic' ? workflowQeDraft(graph, graph.nodes.find(node => node.id === source.source)!) : undefined} inheritedModel={needsScf} runDisabled={runDisabled} calculation={workflowCalculationTypes[node.kind]!} draft={draft} material={material} structureSourceId="original" structureInputOptions={[{ value: 'original', label: t('Connected structure', 'Struktur terhubung') }]} configurationSources={[]} onChange={values => { const permitted = needsScf ? Object.fromEntries(Object.entries(values).filter(([key]) => workflowBranchFields.includes(key as typeof workflowBranchFields[number]))) : values; if (needsScf && Object.keys(permitted).length !== Object.keys(values).length) onError(t('Change shared model settings on the connected SCF.', 'Ubah model bersama pada SCF yang terhubung.')); patch({ draft: { ...(node.configuration.draft as object ?? {}), ...permitted }, ...(node.kind === 'bands' ? { standalone: isStandaloneBands } : {}) }); }} onStructureSourceChange={() => {}} onAddRelaxationSource={() => onError(t('Add a Relaxation module on the canvas and connect its output.', 'Tambahkan modul Relaksasi di kanvas dan hubungkan output-nya.'))} onImportCalculationDraft={() => {}} onApplyAccuracy={accuracy => { if (!needsScf) patch({ draft: applyQeAccuracy(draft, accuracy), ...(node.kind === 'bands' ? { standalone: isStandaloneBands } : {}) }); }} onClose={onClose} onSave={() => { void onSave().catch(error => onError(error.message)); }} saveStatus={saveStatus} onRun={onRun} />
     </div>;
   }
   if (node.kind === 'md') {

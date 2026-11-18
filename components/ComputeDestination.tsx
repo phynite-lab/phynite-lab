@@ -16,8 +16,6 @@ import { LocalComputeReadiness } from './LocalComputeReadiness';
 import { LocalPseudopotentials } from './LocalPseudopotentials';
 import type { HpcClusterProfile } from '@/lib/hpc-profile';
 import { localRequest } from '@/lib/local-api';
-import { getComputeResourceAdvice } from '@/lib/compute-advisor';
-import { Laptop, Server, Sparkles } from 'lucide-react';
 import './compute-destination.css';
 
 type ComputeTarget = 'shared' | 'personal' | 'hpc';
@@ -34,6 +32,8 @@ export type LabComputeDestinationProps = {
   scope?: 'run' | 'defaults' | 'draft'; selection?: ComputeSelection; onChange?: (selection: ComputeSelection) => void;
   account?: LabAccount | null; onAccount?: (account: LabAccount) => void;
   atomCount?: number; kPoints?: [number, number, number] | number[] | number; calculationType?: string;
+  defaultClusterId?: string;
+  disabled?: boolean;
 };
 
 function PersonalResourceFields({ allocation, limit, disabled, onApply, live = false }: {
@@ -78,7 +78,7 @@ export function LabComputeDestination({
   sharedAvailable = true, requiredCapability = 'qe', fixedTarget, status: suppliedStatus, onStatus,
   ariaLabel = 'Compute destination', scope = 'defaults', selection, onChange,
   account: suppliedAccount, onAccount,
-  atomCount, kPoints, calculationType,
+  defaultClusterId, disabled = false,
 }: LabComputeDestinationProps) {
   const { t, intlLocale } = useLocale();
   const { session } = useSession();
@@ -101,7 +101,8 @@ export function LabComputeDestination({
   const [polledStatus, setPolledStatus] = useState<PhyniteComputeStatus['compute'] | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [persisting, setBusy] = useState(false);
+  const busy = disabled || persisting;
   const grant = account?.pilotCompute;
   const status = suppliedStatus === undefined ? polledStatus : suppliedStatus;
   const format = (value: number) => value.toLocaleString(intlLocale, { maximumFractionDigits: 6 });
@@ -126,7 +127,7 @@ export function LabComputeDestination({
       .catch(() => { setHpcClusters([]); setHpcLocalAvailable(false); });
   }, []);
   const { matchedCluster, selectedCluster, hpcSelection, missingClusterProfile, staleClusterProfile } =
-    resolveHpcProfileSelection(local.hpc, hpcClusters, hpcLocalAvailable);
+    resolveHpcProfileSelection(local.hpc, hpcClusters, hpcLocalAvailable, defaultClusterId);
 
   const resolved: ComputeSelection = {
     computeTarget: target,
@@ -190,53 +191,25 @@ export function LabComputeDestination({
     else void persist(next);
   }
 
-  const advice = requiredCapability === 'qe' ? getComputeResourceAdvice({
-    atomCount,
-    kPoints,
-    calculationType,
-    isHpcConfigured: hpcClusters.length > 0,
-  }) : null;
-
   return <div className="workspace-compute-destination" data-compute-scope={scope}>
     <div className="workspace-compute-heading"><span>{t('Compute resources', 'Resource compute')}</span><Link href="/account/compute#your-computer">{t('Computer setup →', 'Hubungkan komputer →')}</Link></div>
-    {advice && (
-      <aside className={`compute-smart-advisor ${target === advice.recommendation ? 'compute-smart-advisor--applied' : ''}`} aria-label={t(advice.title.en, advice.title.id)}>
-        <div className="compute-smart-advisor-header">
-          <span className="compute-smart-advisor-title">
-            <Sparkles size={14} aria-hidden="true" />
-            <span>{t(advice.title.en, advice.title.id)}</span>
-          </span>
-          <span className="compute-smart-advisor-badge">
-            {t(advice.badge.en, advice.badge.id)}
-          </span>
-        </div>
-        <p className="compute-smart-advisor-reason">
-          {t(advice.reason.en, advice.reason.id)}
-        </p>
-        {target !== advice.recommendation && !fixedTarget && (
-          <div className="compute-smart-advisor-footer">
-            <button
-              type="button"
-              className="compute-smart-advisor-action"
-              disabled={!account || busy}
-              onClick={() => change({ computeTarget: advice.recommendation })}
-            >
-              {advice.recommendation === 'personal' ? (
-                <><Laptop size={13} aria-hidden="true" /><span>{t('Use Your computer', 'Gunakan Komputer Anda')}</span></>
-              ) : (
-                <><Server size={13} aria-hidden="true" /><span>{t('Use HPC Cluster', 'Gunakan Cluster HPC')}</span></>
-              )}
-            </button>
-          </div>
-        )}
-      </aside>
-    )}
     <UiSelect ariaLabel={ariaLabel} compact disabled={!account || busy || Boolean(fixedTarget)} value={target}
       options={[
         { value: 'personal', label: t('Your computer', 'Komputer Anda'), detail: (status?.status ?? account?.computer.status) === 'connected' ? t('Connected', 'Terhubung') : (status?.status ?? account?.computer.status) === 'offline' ? t('Worker offline', 'Worker offline') : t('Connect your worker', 'Hubungkan worker') },
         { value: 'hpc', label: t('HPC Cluster', 'Kluster HPC'), disabled: requiredCapability.startsWith('md-') || !hpcLocalAvailable, detail: requiredCapability.startsWith('md-') ? t('Not available for MD yet', 'Belum tersedia untuk MD') : !hpcLocalAvailable ? t('Available in the local workspace', 'Tersedia di workspace lokal') : (selectedCluster ? `${selectedCluster.name} · ${selectedCluster.scheduler.toUpperCase()}` : t('Connect cluster', 'Hubungkan kluster')) },
         { value: 'shared', label: 'Phynite Cloud', disabled: desktop || !sharedAvailable || requiredCapability.startsWith('md-'), detail: requiredCapability.startsWith('md-') ? t('Not available for MD yet', 'Belum tersedia untuk MD') : desktop ? t('Submit through the optional Cloud connection in Settings', 'Kirim melalui koneksi Cloud opsional di Pengaturan') : t('Choose CPU and RAM for this job', 'Pilih CPU dan RAM untuk job') },
-      ]} onChange={value => change({ computeTarget: value as ComputeTarget })} />
+      ]} onChange={value => {
+        const nextTarget = value as ComputeTarget;
+        if (nextTarget === 'hpc') {
+          const cl = selectedCluster ?? hpcClusters[0];
+          change({
+            computeTarget: 'hpc',
+            hpc: cl ? (hpcSelection && hpcSelection.clusterId === cl.id ? hpcSelection : hpcProfileSelection(cl)) : undefined,
+          });
+        } else {
+          change({ computeTarget: nextTarget });
+        }
+      }} />
     {target === 'personal' && <>
       {desktop && <LocalComputeReadiness capability={requiredCapability} />}
       <PersonalResourceFields live={draft} key={draft ? requiredCapability : `${requiredCapability}:${allocation.vcpus ?? ''}:${allocation.memoryMiB ?? ''}`} allocation={allocation} limit={limit} disabled={!account || busy} onApply={next => change(next)} />
@@ -266,6 +239,7 @@ export function LabComputeDestination({
               const cl = hpcClusters.find(c => c.id === val);
               if (cl) {
                 change({
+                  computeTarget: 'hpc',
                   hpc: refreshHpcProfileSelection(cl, local.hpc),
                 });
               }
@@ -309,9 +283,32 @@ export function LabComputeDestination({
                 onChange={e => change({ hpc: { ...hpcSelection!, clusterId: hpcSelection!.clusterId, ranksPerNode: Number(e.target.value) || 32 } })}
               />
             </label>
+            <label className="compute-number-field">
+              <span>{t('RAM/Node (MiB)', 'RAM/Node (MiB)')}</span>
+              <input
+                type="number"
+                min="1024"
+                max="16777216"
+                value={hpcSelection?.memoryMiBPerNode ?? selectedCluster?.defaults.memoryMiBPerNode ?? 16384}
+                disabled={busy || missingClusterProfile}
+                onChange={e => change({ hpc: { ...hpcSelection!, clusterId: hpcSelection!.clusterId, memoryMiBPerNode: Number(e.target.value) || selectedCluster?.defaults.memoryMiBPerNode || 16384 } })}
+              />
+            </label>
+            <label className="compute-number-field">
+              <span>{t('Walltime (Hours)', 'Walltime (Jam)')}</span>
+              <input
+                type="number"
+                min={300 / 3600}
+                max="1440"
+                step="any"
+                value={(hpcSelection?.wallSeconds ?? selectedCluster?.defaults.wallSeconds ?? 14400) / 3600}
+                disabled={busy || missingClusterProfile}
+                onChange={e => change({ hpc: { ...hpcSelection!, clusterId: hpcSelection!.clusterId, wallSeconds: Math.max(300, Math.round((Number(e.target.value) || 1) * 3600)) } })}
+              />
+            </label>
           </div>
           {hpcSelection && <p className="lab-caption">
-            {t('Total MPI ranks', 'Total MPI ranks')}: {((hpcSelection?.nodes ?? 1) * (hpcSelection?.ranksPerNode ?? 32)).toLocaleString(intlLocale)} · {selectedCluster?.scheduler.toUpperCase()}
+            {t('Total MPI ranks', 'Total MPI ranks')}: {((hpcSelection?.nodes ?? 1) * (hpcSelection?.ranksPerNode ?? 32)).toLocaleString(intlLocale)} · {((hpcSelection?.memoryMiBPerNode ?? selectedCluster?.defaults.memoryMiBPerNode ?? 16384) / 1024).toFixed(1)} GiB RAM · {selectedCluster?.scheduler.toUpperCase()}
           </p>}
           {desktop && requiredCapability === 'qe' && (
             <details className="compute-pseudopotential-setup" open={pseudopotentialsOpen} onToggle={event => setPseudopotentialsOpen(event.currentTarget.open)}>

@@ -9,11 +9,13 @@ import { WorkspaceLoading } from './WorkspaceLoading';
 import Link from 'next/link';
 import { useSession } from '@/app/use-session';
 import { localRequest } from '@/lib/local-api';
+export type NodeResultArtifact = { path: string; downloadUrl?: string; label?: string; role?: string; contentType?: string };
+
 /** Real retained output only. An absent metric remains absent. */
-export function WorkflowNodeResult({ attempt, owner, projectId }: { attempt?: WorkflowAttempt; owner?: string; projectId?: string }) {
+export function WorkflowNodeResult({ attempt, owner, projectId, onArtifactsLoaded }: { attempt?: WorkflowAttempt; owner?: string; projectId?: string; onArtifactsLoaded?: (artifacts: NodeResultArtifact[]) => void }) {
   const { t } = useLocale();
   const { session } = useSession();
-  type DisplayResult = { summary?: Record<string, unknown>; error?: string; artifacts?: Array<{ path: string; downloadUrl?: string; label?: string }> };
+  type DisplayResult = { summary?: Record<string, unknown>; error?: string; artifacts?: NodeResultArtifact[] };
   const [loaded, setLoaded] = useState<{ jobId: string; result?: DisplayResult; trajectoryId?: string; error?: string; logTail?: string } | null>(null), [preview, setPreview] = useState(false);
   const [recovery, setRecovery] = useState<{ jobId: string; available: boolean } | null>(null);
   const [recovering, setRecovering] = useState(false);
@@ -22,22 +24,23 @@ export function WorkflowNodeResult({ attempt, owner, projectId }: { attempt?: Wo
   const loading = Boolean(attempt?.jobId && ['CALCULATION', 'MD_SIMULATION', 'MD_ANALYSIS'].includes(attempt.jobKind ?? '') && !current);
   const previewError = useCallback((message: string) => setLoaded(value => value ? { ...value, error: message } : value), []);
   useEffect(() => {
+    onArtifactsLoaded?.([]);
     if (!attempt?.jobId) return;
     let live = true;
     void (async () => {
       if (attempt.jobKind === 'CALCULATION') {
         const value = await phyniteCalculations.get(attempt.jobId!);
-        if (live) setLoaded({ jobId: attempt.jobId!, result: value.result as DisplayResult | undefined, error: value.calculation.failureReason || value.result?.error, logTail: value.calculation.logTail });
+        if (live) { onArtifactsLoaded?.(value.result?.artifacts ?? []); setLoaded({ jobId: attempt.jobId!, result: value.result as DisplayResult | undefined, error: value.calculation.failureReason || value.result?.error, logTail: value.calculation.logTail }); }
       } else if (attempt.jobKind === 'MD_SIMULATION') {
         const value = await phyniteMdSimulations.get(attempt.jobId!);
-        if (live) setLoaded({ jobId: attempt.jobId!, result: value.result as DisplayResult | undefined, trajectoryId: value.simulation.resultTrajectoryId, error: value.simulation.failureReason, logTail: value.simulation.logTail });
+        if (live) { onArtifactsLoaded?.(value.result?.artifacts ?? []); setLoaded({ jobId: attempt.jobId!, result: value.result as DisplayResult | undefined, trajectoryId: value.simulation.resultTrajectoryId, error: value.simulation.failureReason, logTail: value.simulation.logTail }); }
       } else if (attempt.jobKind === 'MD_ANALYSIS') {
         const value = await createMdCloudStorageClient({ transport: createSameOriginMdCloudTransport() }).getAnalysis(attempt.jobId!);
-        if (live) setLoaded({ jobId: attempt.jobId!, result: value.result ?? (value.analysis.resultSummary ? { summary: value.analysis.resultSummary } : undefined), error: value.analysis.failureReason || value.result?.error || value.diagnosticsError, logTail: value.analysis.logTail });
+        if (live) { onArtifactsLoaded?.(value.result?.artifacts ?? []); setLoaded({ jobId: attempt.jobId!, result: value.result ?? (value.analysis.resultSummary ? { summary: value.analysis.resultSummary } : undefined), error: value.analysis.failureReason || value.result?.error || value.diagnosticsError, logTail: value.analysis.logTail }); }
       }
     })().catch(failure => { if (live) setLoaded({ jobId: attempt.jobId!, error: failure.message }); });
     return () => { live = false; };
-  }, [attempt?.jobId, attempt?.jobKind, attempt?.status]);
+  }, [attempt?.jobId, attempt?.jobKind, attempt?.status, onArtifactsLoaded]);
   useEffect(() => {
     if (session?.mode !== 'local' || attempt?.status !== 'failed' || !attempt.jobId) return;
     const jobId = attempt.jobId;

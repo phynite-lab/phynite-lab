@@ -20,3 +20,4 @@ backend/.venv*/
 # Launcher executor build output
 /work/ai-executor.mjs
 /work/ai-executor.mjs.json
+*.sqlite

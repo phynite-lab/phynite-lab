@@ -178,6 +178,16 @@ test('standalone band structure node can connect directly to crystal structure w
   assert.ok('bands.in' in inputFiles);
   assert.match(inputFiles['scf.in'], /ecutwfc\s*=\s*80/);
 
+  // Verify custom kPath is propagated in settings for SeeK-path segment selection
+  graph.nodes[1].configuration = {
+    standalone: true,
+    draft: { ...createDefaultQeDraft(), kPath: 'Γ — X — W — K — Γ', kPathMode: 'custom' },
+  };
+  const customBands = compileWorkflowDft(graph, graph.nodes[1], 'standalone-test');
+  const customSettings = customBands.settings as Record<string, unknown>;
+  assert.equal(customSettings.autoKPath, false);
+  assert.equal(customSettings.requestedKPath, 'Γ — X — W — K — Γ');
+
   // Test scientificWorkflowConfiguration draft preservation
   const standaloneConfig = scientificWorkflowConfiguration({
     standalone: true,
@@ -208,4 +218,17 @@ test('standalone band fingerprints use actual edges even with absent or stale UI
   const before = await workflowFingerprints(inherited);
   inherited.nodes.find(n => n.kind === 'bands')!.configuration = { standalone: true, draft: { cutoff: 200, functional: 'PBEsol' } };
   assert.deepEqual(await workflowFingerprints(inherited), before);
+});
+
+test('run preparation preserves standalone band model settings and strips only inherited SCF settings', async () => {
+  const { workflowSavedQeDraft } = await import('../lib/project-workflow-compiler.ts');
+  const graph: ProjectWorkflow = { ...emptyProjectWorkflow('test'), nodes: [node('structure', 'structure'), node('bands', 'bands')], edges: [{ id: 'e', source: 'structure', target: 'bands', port: 'structure' }] };
+  const bands = graph.nodes[1];
+  bands.configuration = { standalone: false, draft: { functional: 'PBEsol', pseudoFamily: 'PseudoDojo', cutoff: 80, kPathPoints: 48 } };
+  assert.deepEqual(workflowSavedQeDraft(graph, bands), bands.configuration.draft);
+  graph.nodes.push(node('scf', 'scf'));
+  graph.edges[0] = { id: 'e', source: 'scf', target: 'bands', port: 'electronic' };
+  bands.configuration.standalone = true;
+  assert.deepEqual(workflowSavedQeDraft(graph, bands), { kPathPoints: 48 });
+  assert.equal((bands.configuration.draft as Record<string, unknown>).cutoff, 80);
 });

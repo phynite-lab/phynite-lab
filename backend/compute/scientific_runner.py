@@ -933,9 +933,19 @@ def prepare_automatic_k_path(calculation_type: str, input_files: dict[str, str],
     if calculation_type not in {"Band structure", "Phonon dispersion"}:
         return None
     automatic = settings.get("autoKPath")
+    if str(settings.get("rawInput") or "").strip():
+        manual = settings.get("manualReciprocalPath")
+        return {"mode": "manual", **manual} if isinstance(manual, dict) else {"mode": "manual"}
     if automatic is None:
-        automatic = not bool(str(settings.get("rawInput") or "").strip())
-    requested_path = str(settings.get("requestedKPath") or "").strip()
+        if settings.get("kPathMode") == "custom" and settings.get("kPath"):
+            automatic = False
+        else:
+            automatic = not bool(str(settings.get("rawInput") or "").strip())
+    requested_path = str(
+        settings.get("requestedKPath")
+        or (settings.get("kPath") if settings.get("kPathMode") == "custom" else "")
+        or ""
+    ).strip()
     if automatic is False and not requested_path:
         manual = settings.get("manualReciprocalPath")
         return {"mode": "manual", **manual} if isinstance(manual, dict) else {"mode": "manual"}
@@ -1066,7 +1076,7 @@ def create_reusable_workspace_archive(scratch: Path, destination: Path) -> bool:
 
     def reusable_member(member: tarfile.TarInfo) -> tarfile.TarInfo | None:
         name = Path(member.name).name.lower()
-        if re.fullmatch(r"wfc(?:up|dw)?\d+\.dat", name) or re.search(r"\.wfc\d+$", name):
+        if re.fullmatch(r"wfc(?:up|dw)?\d+\.(?:dat|hdf5)", name) or re.search(r"\.wfc\d+$", name):
             return None
         return member
 

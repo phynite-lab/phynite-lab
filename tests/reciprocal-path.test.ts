@@ -89,3 +89,15 @@ test('formatQeKPointsCrystalB generates crystal-aware K_POINTS block with proper
   assert.match(block, /0\.3333 0\.3333 0\.0000 20 ! K/);
   assert.match(block, /0\.0000 0\.0000 0\.5000 1 ! A$/);
 });
+
+test('automatic paths leave symmetry resolution to SeeK-path for bands and phonons', () => {
+  for (const calculation of ['Band structure', 'Phonon dispersion']) {
+    assert.deepEqual(reciprocalPathSubmission(calculation, { kPath: 'Γ — X — W — K — Γ — L', kPathMode: 'automatic' }, ''), { autoKPath: true });
+  }
+});
+
+test('phonon custom paths preserve disconnected branches and expert input overrides them', () => {
+  const draft = { kPath: 'Γ — M | K — Γ', kPathMode: 'custom' as const };
+  assert.deepEqual(reciprocalPathSubmission('Phonon dispersion', draft, ''), { autoKPath: false, requestedKPath: draft.kPath });
+  assert.deepEqual(reciprocalPathSubmission('Phonon dispersion', draft, '&inputph /'), { autoKPath: false });
+});

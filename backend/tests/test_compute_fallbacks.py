@@ -106,6 +106,132 @@ class ComputeFallbackTests(unittest.TestCase):
         self.assertEqual(inputs["nscfbands.in"], _CRYSTAL_B_INPUT)
         automatic.assert_not_called()
 
+    def test_raw_input_remains_authoritative_over_custom_visual_path(self):
+        for calculation, target in (("Band structure", "nscfbands.in"), ("Phonon dispersion", "matdyn.in")):
+            with self.subTest(calculation=calculation):
+                inputs = {"scf.in": _SCF_INPUT, target: _CRYSTAL_B_INPUT}
+                original = dict(inputs)
+                with patch.object(self.scientific_runner, "seek_path_for_qe") as seek:
+                    result = self.scientific_runner.prepare_automatic_k_path(
+                        calculation, inputs,
+                        {"autoKPath": False, "rawInput": _CRYSTAL_B_INPUT,
+                         "kPathMode": "custom", "kPath": "G-M-K-G"},
+                    )
+                self.assertEqual(result["mode"], "manual")
+                self.assertEqual(inputs, original)
+                seek.assert_not_called()
+
+    def test_custom_path_preserves_disconnected_branches_and_rejects_incomplete_ones(self):
+        path = {"pointCoords": {"GAMMA": [0, 0, 0], "M": [.5, 0, 0], "K": [1/3, 1/3, 0]}}
+        segments, labels = self.kpath.requested_path_segments(path, "Γ-M | K-Γ")
+        self.assertEqual(segments, [["GAMMA", "M"], ["K", "GAMMA"]])
+        self.assertEqual(labels, ["GAMMA", "M", "K", "GAMMA"])
+        _, _, ticks = self.kpath.qe_path_lines({**path, "path": segments}, 24)
+        self.assertEqual(self.kpath.qe_path_break_indices({"path": segments}, ticks), [25])
+        for requested in ("Γ-M | K", "Γ-M | UNKNOWN", "Γ-M |", "| Γ-M"):
+            with self.subTest(requested=requested), self.assertRaises(ValueError):
+                self.kpath.requested_path_segments(path, requested)
+
+    def test_custom_kpath_resolves_from_kpath_setting_fallback(self):
+        inputs = {"scf.in": _SCF_INPUT, "nscfbands.in": _CRYSTAL_B_INPUT}
+        mock_path_result = {
+            "pointCoords": {
+                "GAMMA": [0.0, 0.0, 0.0],
+                "M": [0.5, 0.0, 0.0],
+                "K": [0.33333333, 0.33333333, 0.0],
+                "A": [0.0, 0.0, 0.5],
+            },
+            "path": [["GAMMA", "M"], ["M", "K"], ["K", "GAMMA"], ["GAMMA", "A"]],
+            "spaceGroupNumber": 194,
+            "spaceGroupInternational": "P6_3/mmc",
+            "bravaisLattice": "HEX",
+            "isSupercell": False,
+        }
+        with patch.object(self.scientific_runner, "seek_path_for_qe", return_value=mock_path_result):
+            result = self.scientific_runner.prepare_automatic_k_path(
+                "Band structure",
+                inputs,
+                {"kPathMode": "custom", "kPath": "Γ — M — K — Γ", "kPathPoints": 24},
+            )
+        self.assertEqual(result["mode"], "requested-high-symmetry")
+        self.assertEqual(result["requestedPath"], "Γ — M — K — Γ")
+        self.assertEqual(result["labels"], ["GAMMA", "M", "K", "GAMMA"])
+        self.assertEqual(result["segments"], [["GAMMA", "M"], ["M", "K"], ["K", "GAMMA"]])
+        self.assertIn("K_POINTS crystal_b", inputs["nscfbands.in"])
+        self.assertIn("4\n0.0000000000 0.0000000000 0.0000000000 24 ! GAMMA", inputs["nscfbands.in"])
+
+    def test_default_seekpath_preserves_all_disjoint_branches(self):
+        inputs = {"scf.in": _SCF_INPUT, "nscfbands.in": _CRYSTAL_B_INPUT}
+        mock_raw_seekpath = {
+            "pointCoords": {
+                "GAMMA": [0.0, 0.0, 0.0],
+                "M": [0.5, 0.0, 0.0],
+                "K": [0.33333333, 0.33333333, 0.0],
+                "A": [0.0, 0.0, 0.5],
+                "L": [0.5, 0.0, 0.5],
+                "H": [0.33333333, 0.33333333, 0.5],
+            },
+            # Raw SeeK-path contains L-M and H-K as disjoint trailing branches
+            "path": [
+                ["GAMMA", "M"], ["M", "K"], ["K", "GAMMA"],
+                ["GAMMA", "A"], ["A", "L"], ["L", "H"], ["H", "A"],
+                ["L", "M"], ["H", "K"],
+            ],
+            "spaceGroupNumber": 194,
+            "spaceGroupInternational": "P6_3/mmc",
+            "bravaisLattice": "HEX",
+            "isSupercell": False,
+        }
+        with patch.object(self.scientific_runner, "seek_path_for_qe", return_value=mock_raw_seekpath):
+            result = self.scientific_runner.prepare_automatic_k_path(
+                "Band structure",
+                inputs,
+                {"autoKPath": True},
+            )
+        self.assertEqual(result["mode"], "seekpath-original-cell")
+        # All SeeK-path branches are retained, with plot discontinuities recorded.
+        self.assertEqual(
+            result["segments"],
+            mock_raw_seekpath["path"],
+        )
+        self.assertEqual(len(result["breakIndices"]), 2)
+
+    def test_hexagonal_default_requested_path_is_strictly_continuous(self):
+        inputs = {"scf.in": _SCF_INPUT, "nscfbands.in": _CRYSTAL_B_INPUT}
+        mock_seekpath = {
+            "pointCoords": {
+                "GAMMA": [0.0, 0.0, 0.0],
+                "M": [0.5, 0.0, 0.0],
+                "K": [0.33333333, 0.33333333, 0.0],
+                "A": [0.0, 0.0, 0.5],
+                "L": [0.5, 0.0, 0.5],
+                "H": [0.33333333, 0.33333333, 0.5],
+            },
+            "path": [
+                ["GAMMA", "M"], ["M", "K"], ["K", "GAMMA"],
+                ["GAMMA", "A"], ["A", "L"], ["L", "H"], ["H", "A"],
+                ["L", "M"], ["H", "K"],
+            ],
+            "spaceGroupNumber": 194,
+            "spaceGroupInternational": "P6_3/mmc",
+            "bravaisLattice": "HEX",
+            "isSupercell": False,
+        }
+        with patch.object(self.scientific_runner, "seek_path_for_qe", return_value=mock_seekpath):
+            result = self.scientific_runner.prepare_automatic_k_path(
+                "Band structure",
+                inputs,
+                {"requestedKPath": "Γ — M — K — Γ — A — L — H — A", "kPathPoints": 24},
+            )
+        self.assertEqual(result["mode"], "requested-high-symmetry")
+        self.assertEqual(result["requestedPath"], "Γ — M — K — Γ — A — L — H — A")
+        self.assertEqual(result["labels"], ["GAMMA", "M", "K", "GAMMA", "A", "L", "H", "A"])
+        self.assertEqual(
+            result["segments"],
+            [["GAMMA", "M"], ["M", "K"], ["K", "GAMMA"], ["GAMMA", "A"], ["A", "L"], ["L", "H"], ["H", "A"]],
+        )
+        self.assertEqual(result["breakIndices"], [])
+
     @unittest.skipUnless(importlib.util.find_spec("seekpath") is not None, "requires the scientific Python runtime")
     def test_automatic_path_uses_current_structure_and_requested_point_density(self):
         # Diamond Si primitive cell; exercise real SeeK-path rather than a canned path result.

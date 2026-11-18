@@ -42,6 +42,14 @@ TERMINAL_STATES = {"COMPLETED", "FAILED", "TIMEOUT", "CANCELLED", "NODE_FAIL", "
 MAX_HARVEST_BYTES = 256 * 1024 * 1024
 
 
+def _slurm_exit_code(value: str) -> str:
+    """Keep signal termination distinguishable from a successful allocation."""
+    match = re.fullmatch(r"([0-9]+):([0-9]+)", value.strip())
+    if not match:
+        return ""
+    return match.group(1) if int(match.group(2)) == 0 else match.group(0)
+
+
 class MonitoringDeferred(HpcError):
     """Temporary transport loss; preserve the active job for receipt resumption."""
 
@@ -399,20 +407,31 @@ class HpcRemoteJobManager:
             entries = [row.split("|") for row in stdout.splitlines() if row.split("|", 1)[0] == identifier] if code == 0 else []
             if not entries:
                 q_code, q_out, q_err = self._scheduler_command(["squeue", "--noheader", "--format=%T", "--jobs", identifier])
-                if q_code != 0:
+                if q_code != 0 and "invalid job id specified" not in q_err.lower():
                     raise HpcSshError(f"Remote scheduler status is unavailable: {q_err.strip() or stderr.strip()}")
-                # squeue has no verified allocation exit code; even a terminal
-                # state here must be reconciled through accounting before harvest.
-                return {"schedulerJobId": identifier, "state": q_out.strip() or "UNKNOWN", "exitCode": "", "terminal": False}
+                if q_code == 0 and q_out.strip():
+                    return {"schedulerJobId": identifier, "state": q_out.strip(), "exitCode": "", "terminal": False}
+                sc_code, sc_out, _ = self._scheduler_command(["scontrol", "show", "job", identifier])
+                if sc_code == 0 and sc_out.strip():
+                    state_match = re.search(r"\bJobState=([A-Za-z0-9_]+)", sc_out)
+                    exit_match = re.search(r"\bExitCode=([0-9]+):([0-9]+)", sc_out)
+                    if state_match:
+                        raw_state = state_match.group(1).split()[0].rstrip("+")
+                        state = raw_state
+                        exit_code = _slurm_exit_code(exit_match.group(0).split("=", 1)[1]) if exit_match else ""
+                        return {"schedulerJobId": identifier, "state": state, "exitCode": exit_code, "terminal": state in TERMINAL_STATES and bool(exit_code)}
+                # An absent allocation can mean delayed/disabled accounting or
+                # expired controller history. It is never evidence of success.
+                return {"schedulerJobId": identifier, "state": "UNKNOWN", "exitCode": "", "terminal": False}
             if len(entries[-1]) < 3: raise HpcError("Slurm returned an invalid status response.")
-            raw_state, raw_exit = entries[-1][1:3]; state = raw_state.split()[0].rstrip("+"); exit_code = raw_exit.split(":", 1)[0]
+            raw_state, raw_exit = entries[-1][1:3]; state = raw_state.split()[0].rstrip("+"); exit_code = _slurm_exit_code(raw_exit)
         else:
             code, stdout, _ = self._scheduler_command(["qstat", "-x", "-f", "-F", "json", identifier])
             if code != 0: return {"schedulerJobId": identifier, "state": "UNKNOWN", "exitCode": "", "terminal": False}
             try:
                 data = json.loads(stdout)["Jobs"][identifier]; state = str(data.get("job_state", "UNKNOWN")); exit_code = str(data.get("Exit_status", ""))
             except (KeyError, TypeError, ValueError) as exc: raise HpcError("PBS returned an invalid status response.") from exc
-        return {"schedulerJobId": identifier, "state": state, "exitCode": exit_code, "terminal": state in TERMINAL_STATES}
+        return {"schedulerJobId": identifier, "state": state, "exitCode": exit_code, "terminal": state in TERMINAL_STATES and bool(exit_code)}
 
     def sparse_harvest(self, remote_work_dir: str, local_destination: Path, retain_wavefunctions: bool = False) -> list[str]:
         remote_work_dir = self._remote_dir(remote_work_dir); local_destination.mkdir(mode=0o700, parents=True, exist_ok=True)
