@@ -31,6 +31,12 @@ Use `Core/Range/Appearance value 0` for the captured default contrast reference.
 
 Language popovers must draw above the page content and footer, as in `app/navigation-ui.css`. Keep the popup background and all of its content in one foreground wrapper; text-style and prototype checks alone will not detect a stacking error.
 
+Guide search uses inset 12, gap 10 and a nominal 17 px search icon. The input text fills the remaining width; the slash shortcut or nominal 23 px clear action stays fixed and centered. The Guide toolbar title keeps its original text fragments in a horizontal typography group, with word gap 4 and icon gap 10. Keep these rows below any modal backdrop.
+
+The recovered Guide screenshot dialogs use the existing Core Dialog skin with the source radius 8. Header padding is 12×16, link/icon gap 6, and the close action is nominal 28 with a 20 px icon box. Image padding is 16 on desktop and 8 on mobile; captions use inline/bottom 16 and the shared 12/19.2 Guide caption style. Keep the image viewport clipped and vertically scrollable. Use the shared Guide shadow/backdrop effects. Prototype links reference the local server; focus trapping and return still require runtime checks.
+
+For mobile Guide article pictures, use the source `mobileSrc` asset and preserve its aspect ratio inside the captured image box. Do not fill a portrait image box with the desktop fallback. The current source selects the existing mobile Dark asset for both themes. Keep checksums and the original caption; a screenshot asset does not become editable application controls.
+
 Scaled Guide illustrations, theme preview artwork, empty surfaces and some compound controls retain source geometry with shared paints/type. Inspect these contexts before changing their structure. Full-screen captures remain discrete responsive examples; they are not complete responsive auto-layout implementations.
 
 ## Core component contracts

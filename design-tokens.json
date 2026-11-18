@@ -2139,13 +2139,13 @@
       "applicationCodeChanged": false,
       "applicationPages": 13,
       "capturedFrames": 801,
-      "controlInstances": 5769,
-      "iconInstances": 16734,
+      "controlInstances": 5773,
+      "iconInstances": 16742,
       "sourceTextLayers": 54466,
-      "appliedTextStyles": 120,
-      "iconProfiles": 388,
-      "sharedLayoutFrames": 4343,
-      "remainingSourceCompositions": 1109,
+      "appliedTextStyles": 121,
+      "iconProfiles": 390,
+      "sharedLayoutFrames": 4527,
+      "remainingSourceCompositions": 933,
       "spacing": {
         "gap": 8,
         "ordinaryInline": 12,
@@ -2183,13 +2183,41 @@
           "fieldGap": 16,
           "helperGap": 8,
           "source": "app/local/settings.css; wide inset uses the shared Reference metric20"
+        },
+        "guideSearch": {
+          "inline": 12,
+          "gap": 10,
+          "nominalIcon": 17,
+          "nominalClearAction": 23,
+          "source": "app/public-pages.css:1612-1619; compound source search assembly"
+        },
+        "guideToolbarTitle": {
+          "wordGap": 4,
+          "iconGap": 10,
+          "nominalIcon": 17,
+          "classification": "applied-in-canvas",
+          "source": "Source title fragments retained; shared word gap compensates native Hug trailing-whitespace omission. app/public-pages.css:1611,1755."
+        },
+        "guideImageDialog": {
+          "radius": 8,
+          "headerBlock": 12,
+          "headerInline": 16,
+          "linkGap": 6,
+          "bodyDesktop": 16,
+          "bodyMobile": 8,
+          "captionInline": 16,
+          "captionBottom": 16,
+          "captionSize": 12,
+          "captionLineHeight": 19.2,
+          "source": "app/public-pages.css:1676-1684; local runtime DOM desktop1440/mobile390 Light/Dark"
         }
       },
       "limits": [
         "Compound source geometry and scaled artwork are not fully unified.",
         "Captured viewport variants do not implement complete screen reflow.",
         "Login/data-dependent states need their own references.",
-        "The Appearance range component records the captured value0 only; other values and runtime input behavior need separate evidence."
+        "The Appearance range component records the captured value0 only; other values and runtime input behavior need separate evidence.",
+        "Earlier base Guide captures and off-viewport image bodies still need a separate responsive-asset audit."
       ],
       "verification": {
         "sourceTextUnchanged": 54442,
@@ -2211,7 +2239,7 @@
         "selectValuesTruncateWithoutChangingText": 1074,
         "wrappedParagraphCollisionIssues": 0,
         "inlineTypographyBoundsIssues": 0,
-        "visuallyReviewedCapturedFrames": 94,
+        "visuallyReviewedCapturedFrames": 125,
         "openVisualFindings": 0,
         "recomposedSourceFragments": 52,
         "recomposedParagraphs": 24,
@@ -2220,13 +2248,15 @@
           "privacy": 12,
           "signInDescription": 6
         },
-        "pendingCapturedFrames": 707,
+        "pendingCapturedFrames": 676,
         "visualReviewScope": "Only the recorded captured viewports; unreviewed frames and off-viewport content remain pending.",
         "prototypeHitRegionRealignmentChecked": true,
-        "latestPrototypeHitRegionCorrections": 0
+        "latestPrototypeHitRegionCorrections": 0,
+        "guideDetailIssues": 0,
+        "guideImageAssetChecksums": "All 4 recovered dialog assets and 44 responsive article images match repository SHA-256 hashes."
       },
-      "nativeVariables": 296,
-      "nativeStyles": 144,
+      "nativeVariables": 297,
+      "nativeStyles": 147,
       "artworkOpticalMetrics": {
         "classification": "applied-in-canvas",
         "instances": 624,
@@ -2253,8 +2283,28 @@
         "appearanceRanges": 16,
         "newlyRestoredAppearanceRanges": 14,
         "languagePopoverStackingContexts": 4,
-        "sourceContextRangeMaster": "Core/Range/Appearance value 0"
-      }
+        "sourceContextRangeMaster": "Core/Range/Appearance value 0",
+        "compoundGuideSearchControls": 176,
+        "populatedGuideSearchControls": 8,
+        "guideHeaderBackdropStacks": 184,
+        "guideToolbarTitles": 184,
+        "recoveredGuideImageDialogs": 4,
+        "responsiveGuideArticleImages": 44,
+        "responsiveGuideArticleFrames": 38,
+        "guideDialogEffects": {
+          "shadowOffset": [
+            0,
+            24
+          ],
+          "shadowBlur": 90,
+          "shadowColor": "#00000099",
+          "backdropBlur": 5,
+          "source": "app/public-pages.css:1676-1677"
+        },
+        "guideMobilePictureSource": "lib/guide-visuals.ts:24-25 selects the existing mobile-dark asset in both themes; preserve source selection."
+      },
+      "supplementalRecoveredTextLayers": 8,
+      "guideToolbarTypographyLayouts": 184
     }
   }
 }
