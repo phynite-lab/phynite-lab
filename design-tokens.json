@@ -1,0 +1,1249 @@
+{
+  "$description": "Phynite Lab extracted design tokens. Native canvas is the visual source; CSS resolves intended dimensions and cascade. Additive reference; not application CSS.",
+  "version": 1,
+  "reviewedAt": "2026-11-18",
+  "source": {
+    "document": "phynite-lab-ui",
+    "originalPages": 13,
+    "originalFrames": 801,
+    "originalNodes": 198623,
+    "homeFrame": 4294968082,
+    "appearanceFrame": 4294967558,
+    "baselineCommit": "deb6d3dcc839e079ec27c2afe53161d8514172db",
+    "captureWidths": [
+      360,
+      390,
+      430,
+      768,
+      1024,
+      1440
+    ]
+  },
+  "classification": {
+    "extracted": "Measured in the design/capture or read from the corresponding source rule.",
+    "inferred": "Role, grouping or alias derived from repeated usage; not a new measured value.",
+    "proposed": "New recommendation; not applied to existing screens."
+  },
+  "color": {
+    "canvas": {
+      "$type": "color",
+      "$value": "#fcfcfc",
+      "modes": {
+        "Light": "#fcfcfc",
+        "Dark": "#000000"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "surface": {
+      "$type": "color",
+      "$value": "#ffffff",
+      "modes": {
+        "Light": "#ffffff",
+        "Dark": "#111111"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "raised": {
+      "$type": "color",
+      "$value": "#ffffff",
+      "modes": {
+        "Light": "#ffffff",
+        "Dark": "#151515"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "surface-subtle": {
+      "$type": "color",
+      "$value": "#f0f0f0",
+      "modes": {
+        "Light": "#f0f0f0",
+        "Dark": "#1e1e1e"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "ink": {
+      "$type": "color",
+      "$value": "#171717",
+      "modes": {
+        "Light": "#171717",
+        "Dark": "#ededed"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "muted-ink": {
+      "$type": "color",
+      "$value": "#737373",
+      "modes": {
+        "Light": "#737373",
+        "Dark": "#999999"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4; settings contrast preference can override"
+    },
+    "line": {
+      "$type": "color",
+      "$value": "#e5e5e5",
+      "modes": {
+        "Light": "#e5e5e5",
+        "Dark": "#1d1d1d"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "line-strong": {
+      "$type": "color",
+      "$value": "#aaaaaa",
+      "modes": {
+        "Light": "#aaaaaa",
+        "Dark": "#555555"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "rail/background": {
+      "$type": "color",
+      "$value": "#f7f7f7",
+      "modes": {
+        "Light": "#f7f7f7",
+        "Dark": "#0e0e0e"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "rail/ink": {
+      "$type": "color",
+      "$value": "#888888",
+      "modes": {
+        "Light": "#888888",
+        "Dark": "#777777"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "rail/selected": {
+      "$type": "color",
+      "$value": "#ebebeb",
+      "modes": {
+        "Light": "#ebebeb",
+        "Dark": "#1e1e1e"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "sidebar/background": {
+      "$type": "color",
+      "$value": "#fcfcfc",
+      "modes": {
+        "Light": "#fcfcfc",
+        "Dark": "#050505"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "sidebar/ink": {
+      "$type": "color",
+      "$value": "#404040",
+      "modes": {
+        "Light": "#404040",
+        "Dark": "#cacaca"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "sidebar/muted": {
+      "$type": "color",
+      "$value": "#737373",
+      "modes": {
+        "Light": "#737373",
+        "Dark": "#777777"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "sidebar/selected": {
+      "$type": "color",
+      "$value": "#ebebeb",
+      "modes": {
+        "Light": "#ebebeb",
+        "Dark": "#161616"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "action/primary": {
+      "$type": "color",
+      "$value": "#18181b",
+      "modes": {
+        "Light": "#18181b",
+        "Dark": "#f4f4f5"
+      },
+      "classification": "extracted",
+      "source": "app/globals.css:135-190"
+    },
+    "action/on-primary": {
+      "$type": "color",
+      "$value": "#ffffff",
+      "modes": {
+        "Light": "#ffffff",
+        "Dark": "#090a0d"
+      },
+      "classification": "extracted",
+      "source": "app/globals.css:135-190"
+    },
+    "action/hover": {
+      "$type": "color",
+      "$value": "#000000",
+      "modes": {
+        "Light": "#000000",
+        "Dark": "#ffffff"
+      },
+      "classification": "extracted",
+      "source": "app/globals.css:135-190"
+    },
+    "action/secondary": {
+      "$type": "color",
+      "$value": "#ffffff",
+      "modes": {
+        "Light": "#ffffff",
+        "Dark": "#111111"
+      },
+      "classification": "inferred",
+      "source": "surface alias; role name inferred"
+    },
+    "action/selected": {
+      "$type": "color",
+      "$value": "#f0f0f0",
+      "modes": {
+        "Light": "#f0f0f0",
+        "Dark": "#1e1e1e"
+      },
+      "classification": "inferred",
+      "source": "surface-subtle alias; role name inferred"
+    },
+    "status/success": {
+      "$type": "color",
+      "$value": "#216b40",
+      "modes": {
+        "Light": "#216b40",
+        "Dark": "#76d69b"
+      },
+      "classification": "extracted",
+      "source": "app/globals.css:142-185"
+    },
+    "status/warning": {
+      "$type": "color",
+      "$value": "#95520e",
+      "modes": {
+        "Light": "#95520e",
+        "Dark": "#f3ae62"
+      },
+      "classification": "extracted",
+      "source": "app/globals.css:142-185"
+    },
+    "status/danger": {
+      "$type": "color",
+      "$value": "#ad3039",
+      "modes": {
+        "Light": "#ad3039",
+        "Dark": "#ff9299"
+      },
+      "classification": "extracted",
+      "source": "app/globals.css:142-185"
+    },
+    "status/info": {
+      "$type": "color",
+      "$value": "#3f3f46",
+      "modes": {
+        "Light": "#3f3f46",
+        "Dark": "#d4d4d8"
+      },
+      "classification": "extracted",
+      "source": "app/globals.css:142-185"
+    },
+    "appearance/focus": {
+      "$type": "color",
+      "$value": "#3978ff",
+      "modes": {
+        "Light": "#3978ff",
+        "Dark": "#3978ff"
+      },
+      "classification": "extracted",
+      "source": "app/account/settings.css:340"
+    },
+    "control/active": {
+      "$type": "color",
+      "$value": "#475569",
+      "modes": {
+        "Light": "#475569",
+        "Dark": "#3d4554"
+      },
+      "classification": "extracted",
+      "source": "app/lab-controls.css:6-44"
+    },
+    "control/active-border": {
+      "$type": "color",
+      "$value": "#334155",
+      "modes": {
+        "Light": "#334155",
+        "Dark": "#4d576a"
+      },
+      "classification": "extracted",
+      "source": "app/lab-controls.css:6-44"
+    },
+    "control/on-active": {
+      "$type": "color",
+      "$value": "#ffffff",
+      "modes": {
+        "Light": "#ffffff",
+        "Dark": "#f0f2f5"
+      },
+      "classification": "extracted",
+      "source": "app/lab-controls.css:6-44"
+    },
+    "control/off-track": {
+      "$type": "color",
+      "$value": "#e5e8ee",
+      "modes": {
+        "Light": "#e5e8ee",
+        "Dark": "#1c1f26"
+      },
+      "classification": "extracted",
+      "source": "app/lab-controls.css:6-44"
+    },
+    "control/off-border": {
+      "$type": "color",
+      "$value": "#d0d6e0",
+      "modes": {
+        "Light": "#d0d6e0",
+        "Dark": "#2f3542"
+      },
+      "classification": "extracted",
+      "source": "app/lab-controls.css:6-44"
+    },
+    "control/off-thumb": {
+      "$type": "color",
+      "$value": "#949eb0",
+      "modes": {
+        "Light": "#949eb0",
+        "Dark": "#646c7c"
+      },
+      "classification": "extracted",
+      "source": "app/lab-controls.css:6-44"
+    },
+    "guide/canvas": {
+      "$type": "color",
+      "$value": "#fafafa",
+      "modes": {
+        "Light": "#fafafa",
+        "Dark": "#0a0a0a"
+      },
+      "classification": "extracted",
+      "source": "guide capture + public scope"
+    },
+    "guide/ink": {
+      "$type": "color",
+      "$value": "#202329",
+      "modes": {
+        "Light": "#202329",
+        "Dark": "#f2f1ed"
+      },
+      "classification": "extracted",
+      "source": "guide article captures"
+    },
+    "guide/muted": {
+      "$type": "color",
+      "$value": "#59616e",
+      "modes": {
+        "Light": "#59616e",
+        "Dark": "#9b9da4"
+      },
+      "classification": "extracted",
+      "source": "guide article captures"
+    },
+    "guide/line": {
+      "$type": "color",
+      "$value": "#dddfe3",
+      "modes": {
+        "Light": "#dddfe3",
+        "Dark": "#282a2e"
+      },
+      "classification": "extracted",
+      "source": "guide article captures; verify context before reuse"
+    },
+    "portal/surface": {
+      "$type": "color",
+      "$value": "#fafbfc",
+      "modes": {
+        "Light": "#fafbfc",
+        "Dark": "#000000"
+      },
+      "classification": "extracted",
+      "source": "components/UiSelect.css + app/globals.css; body portal captures"
+    },
+    "portal/raised": {
+      "$type": "color",
+      "$value": "#ffffff",
+      "modes": {
+        "Light": "#ffffff",
+        "Dark": "#14161a"
+      },
+      "classification": "extracted",
+      "source": "app/globals.css; body portal scope"
+    },
+    "portal/ink": {
+      "$type": "color",
+      "$value": "#202936",
+      "modes": {
+        "Light": "#202936",
+        "Dark": "#f0f2f5"
+      },
+      "classification": "extracted",
+      "source": "app/globals.css; body portal scope"
+    },
+    "portal/muted": {
+      "$type": "color",
+      "$value": "#576170",
+      "modes": {
+        "Light": "#576170",
+        "Dark": "#a8adb7"
+      },
+      "classification": "extracted",
+      "source": "app/globals.css; body portal scope"
+    },
+    "portal/line": {
+      "$type": "color",
+      "$value": "#dce1e8",
+      "modes": {
+        "Light": "#dce1e8",
+        "Dark": "#2b2e35"
+      },
+      "classification": "extracted",
+      "source": "app/globals.css; body portal scope"
+    },
+    "portal/selected": {
+      "$type": "color",
+      "$value": "#f4f6f9",
+      "modes": {
+        "Light": "#f4f6f9",
+        "Dark": "#191b20"
+      },
+      "classification": "extracted",
+      "source": "app/globals.css; body portal scope"
+    },
+    "settings/captured-muted": {
+      "$type": "color",
+      "$value": "#737373",
+      "modes": {
+        "Light": "#737373",
+        "Dark": "#828282"
+      },
+      "classification": "extracted",
+      "source": "appearance.capture.json + dark capture; contrast preference context"
+    }
+  },
+  "dimension": {
+    "space/2": {
+      "$type": "dimension",
+      "$value": {
+        "value": 2,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/4": {
+      "$type": "dimension",
+      "$value": {
+        "value": 4,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/6": {
+      "$type": "dimension",
+      "$value": {
+        "value": 6,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/8": {
+      "$type": "dimension",
+      "$value": {
+        "value": 8,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/10": {
+      "$type": "dimension",
+      "$value": {
+        "value": 10,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/12": {
+      "$type": "dimension",
+      "$value": {
+        "value": 12,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/16": {
+      "$type": "dimension",
+      "$value": {
+        "value": 16,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/17": {
+      "$type": "dimension",
+      "$value": {
+        "value": 17,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/18": {
+      "$type": "dimension",
+      "$value": {
+        "value": 18,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/20": {
+      "$type": "dimension",
+      "$value": {
+        "value": 20,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/22": {
+      "$type": "dimension",
+      "$value": {
+        "value": 22,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/24": {
+      "$type": "dimension",
+      "$value": {
+        "value": 24,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/28": {
+      "$type": "dimension",
+      "$value": {
+        "value": 28,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/32": {
+      "$type": "dimension",
+      "$value": {
+        "value": 32,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/40": {
+      "$type": "dimension",
+      "$value": {
+        "value": 40,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/48": {
+      "$type": "dimension",
+      "$value": {
+        "value": 48,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/52": {
+      "$type": "dimension",
+      "$value": {
+        "value": 52,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/56": {
+      "$type": "dimension",
+      "$value": {
+        "value": 56,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/64": {
+      "$type": "dimension",
+      "$value": {
+        "value": 64,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/3": {
+      "$type": "dimension",
+      "$value": {
+        "value": 3,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/4": {
+      "$type": "dimension",
+      "$value": {
+        "value": 4,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/5": {
+      "$type": "dimension",
+      "$value": {
+        "value": 5,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/6": {
+      "$type": "dimension",
+      "$value": {
+        "value": 6,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/7": {
+      "$type": "dimension",
+      "$value": {
+        "value": 7,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/8": {
+      "$type": "dimension",
+      "$value": {
+        "value": 8,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/9": {
+      "$type": "dimension",
+      "$value": {
+        "value": 9,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/10": {
+      "$type": "dimension",
+      "$value": {
+        "value": 10,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/12": {
+      "$type": "dimension",
+      "$value": {
+        "value": 12,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/14": {
+      "$type": "dimension",
+      "$value": {
+        "value": 14,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/16": {
+      "$type": "dimension",
+      "$value": {
+        "value": 16,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/18": {
+      "$type": "dimension",
+      "$value": {
+        "value": 18,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/pill": {
+      "$type": "dimension",
+      "$value": {
+        "value": 999,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "border/default": {
+      "$type": "dimension",
+      "$value": {
+        "value": 1,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "focus/width": {
+      "$type": "dimension",
+      "$value": {
+        "value": 2,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "focus/offset": {
+      "$type": "dimension",
+      "$value": {
+        "value": 2,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "focus/appearance-offset": {
+      "$type": "dimension",
+      "$value": {
+        "value": 3,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "control/default-height": {
+      "$type": "dimension",
+      "$value": {
+        "value": 40,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "control/home-height": {
+      "$type": "dimension",
+      "$value": {
+        "value": 36,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "control/compact-select-height": {
+      "$type": "dimension",
+      "$value": {
+        "value": 28,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "control/compute-height": {
+      "$type": "dimension",
+      "$value": {
+        "value": 32,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "control/touch-height": {
+      "$type": "dimension",
+      "$value": {
+        "value": 44,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "control/chevron-width": {
+      "$type": "dimension",
+      "$value": {
+        "value": 32,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "control/compact-chevron-width": {
+      "$type": "dimension",
+      "$value": {
+        "value": 26,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "layout/rail": {
+      "$type": "dimension",
+      "$value": {
+        "value": 52,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "layout/mobile-rail": {
+      "$type": "dimension",
+      "$value": {
+        "value": 64,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "layout/sidebar": {
+      "$type": "dimension",
+      "$value": {
+        "value": 280,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "layout/topbar": {
+      "$type": "dimension",
+      "$value": {
+        "value": 44,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "layout/mobile-header": {
+      "$type": "dimension",
+      "$value": {
+        "value": 52,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "layout/home-max": {
+      "$type": "dimension",
+      "$value": {
+        "value": 840,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "layout/settings-max": {
+      "$type": "dimension",
+      "$value": {
+        "value": 960,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "layout/inset": {
+      "$type": "dimension",
+      "$value": {
+        "value": 8,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "breakpoint/shell-max": {
+      "$type": "dimension",
+      "$value": {
+        "value": 960,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "breakpoint/shell-desktop-min": {
+      "$type": "dimension",
+      "$value": {
+        "value": 961,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "breakpoint/settings-container": {
+      "$type": "dimension",
+      "$value": {
+        "value": 540,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "breakpoint/home-container": {
+      "$type": "dimension",
+      "$value": {
+        "value": 500,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "breakpoint/small-settings": {
+      "$type": "dimension",
+      "$value": {
+        "value": 440,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "opacity/select-disabled": {
+      "$type": "number",
+      "$value": 50,
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css",
+      "unit": "percent",
+      "note": "Percentage points; divide by 100 for CSS opacity."
+    },
+    "opacity/option-disabled": {
+      "$type": "number",
+      "$value": 45,
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css",
+      "unit": "percent",
+      "note": "Percentage points; divide by 100 for CSS opacity."
+    },
+    "opacity/lab-disabled": {
+      "$type": "number",
+      "$value": 42,
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css",
+      "unit": "percent",
+      "note": "Percentage points; divide by 100 for CSS opacity."
+    },
+    "motion/control-ms": {
+      "$type": "number",
+      "$value": 120,
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css",
+      "unit": "ms"
+    },
+    "motion/rail-hover-ms": {
+      "$type": "number",
+      "$value": 120,
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css",
+      "unit": "ms"
+    },
+    "motion/sidebar-exit-ms": {
+      "$type": "number",
+      "$value": 180,
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css",
+      "unit": "ms"
+    },
+    "motion/spinner-ms": {
+      "$type": "number",
+      "$value": 800,
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css",
+      "unit": "ms"
+    }
+  },
+  "typography": {
+    "Brand/UI": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist Pixel",
+        "fontStyle": "Square",
+        "fontSize": 16,
+        "lineHeight": 20.5,
+        "letterSpacing": -0.32
+      },
+      "classification": "extracted",
+      "source": "Home/Settings wordmark; CSS family Geist Pixel Square",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Heading/Appearance": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist",
+        "fontStyle": "Medium",
+        "fontSize": 27,
+        "lineHeight": 32.4,
+        "letterSpacing": -0.675
+      },
+      "classification": "extracted",
+      "source": "appearance heading override, 4294967558",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Heading/Home": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist",
+        "fontStyle": "Medium",
+        "fontSize": 22,
+        "lineHeight": 28.6,
+        "letterSpacing": -0.55
+      },
+      "classification": "extracted",
+      "source": "Home heading, 4294968082",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Heading/Navigation": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist",
+        "fontStyle": "Medium",
+        "fontSize": 20,
+        "lineHeight": 26,
+        "letterSpacing": -0.5
+      },
+      "classification": "extracted",
+      "source": "Settings navigation, 4294967558",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Heading/Appearance section": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist",
+        "fontStyle": "Medium",
+        "fontSize": 17,
+        "lineHeight": 22.1,
+        "letterSpacing": 0
+      },
+      "classification": "extracted",
+      "source": "appearance visual style",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Heading/Section": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist",
+        "fontStyle": "Semi Bold",
+        "fontSize": 14,
+        "lineHeight": 21,
+        "letterSpacing": -0.35
+      },
+      "classification": "extracted",
+      "source": "settings section; other sections use 550 axes",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Body/UI": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist",
+        "fontStyle": "Regular",
+        "fontSize": 14,
+        "lineHeight": 20.3,
+        "letterSpacing": 0
+      },
+      "classification": "extracted",
+      "source": "shell body 14 / 1.45",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Label/Navigation": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist",
+        "fontStyle": "Regular",
+        "fontSize": 13,
+        "lineHeight": 17,
+        "letterSpacing": 0
+      },
+      "classification": "extracted",
+      "source": "Settings navigation",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Label/Button": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist",
+        "fontStyle": "Medium",
+        "fontSize": 13,
+        "lineHeight": 18.85,
+        "letterSpacing": 0
+      },
+      "classification": "extracted",
+      "source": "lab-button default; Home uses 12",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Caption/Default": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist",
+        "fontStyle": "Regular",
+        "fontSize": 12,
+        "lineHeight": 15.5,
+        "letterSpacing": 0
+      },
+      "classification": "extracted",
+      "source": "captured shell captions",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Label/Group": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist",
+        "fontStyle": "Medium",
+        "fontSize": 11,
+        "lineHeight": 14,
+        "letterSpacing": 0
+      },
+      "classification": "extracted",
+      "source": "Settings group label",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Code/Default": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist Mono",
+        "fontStyle": "Regular",
+        "fontSize": 13,
+        "lineHeight": 19.5,
+        "letterSpacing": 0
+      },
+      "classification": "extracted",
+      "source": "typography code default; specimen is not solver output",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Code/Compact": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist Mono",
+        "fontStyle": "Medium",
+        "fontSize": 11.5,
+        "lineHeight": 14.95,
+        "letterSpacing": 0
+      },
+      "classification": "extracted",
+      "source": "dense parameter labels; small text needs zoom support",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Body/Reading": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist",
+        "fontStyle": "Regular",
+        "fontSize": 16,
+        "lineHeight": 28.8,
+        "letterSpacing": 0
+      },
+      "classification": "extracted",
+      "source": "reading token 16 / 1.8; guide has context overrides",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    }
+  },
+  "effects": {
+    "sidebar/floating": {
+      "$type": "shadow",
+      "$value": {
+        "x": 0,
+        "y": 8,
+        "blur": 30,
+        "spread": 0,
+        "color": "#00000014"
+      },
+      "modes": {
+        "Light": "0 8px 30px rgb(0 0 0 / 8%)",
+        "Dark": "0 8px 30px rgb(0 0 0 / 24%)"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:16-17"
+    },
+    "select/menu": {
+      "$type": "shadow",
+      "$value": "0 18px 46px rgb(0 0 0 / 42%), 0 0 0 1px rgb(255 255 255 / 3%)",
+      "classification": "extracted",
+      "source": "components/UiSelect.css:117-137",
+      "note": "Light-specific selector changes this to rgb(31 40 52 / 18%) and 3%."
+    },
+    "theme/selected": {
+      "$type": "shadow",
+      "$value": "0 1px 2px color-mix(in srgb, var(--ink) 10%, transparent)",
+      "classification": "extracted",
+      "source": "app/account/settings.css:70"
+    }
+  },
+  "proposed": {
+    "focus/strong": {
+      "$type": "color",
+      "$value": "#171717",
+      "modes": {
+        "Light": "#171717",
+        "Dark": "#ededed"
+      },
+      "classification": "proposed",
+      "reason": "Neutral focus candidate with at least 3:1 against the base canvas; verify every adjacent fill."
+    },
+    "target/coarse-min": {
+      "$type": "dimension",
+      "$value": {
+        "value": 44,
+        "unit": "px"
+      },
+      "classification": "proposed",
+      "reason": "Extend existing coarse-pointer target rule to linked labels, slider hit boxes and custom actuators."
+    },
+    "action/pressed": {
+      "$type": "string",
+      "$value": "Use primary hover tone during press; retain geometry",
+      "classification": "proposed",
+      "reason": "No distinct pressed tone was established in the captures/source."
+    }
+  }
+}
