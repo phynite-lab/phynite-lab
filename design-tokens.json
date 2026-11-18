@@ -2139,12 +2139,12 @@
       "applicationCodeChanged": false,
       "applicationPages": 13,
       "capturedFrames": 801,
-      "controlInstances": 5773,
+      "controlInstances": 5847,
       "iconInstances": 16742,
-      "sourceTextLayers": 54466,
-      "appliedTextStyles": 122,
+      "sourceTextLayers": 54436,
+      "appliedTextStyles": 124,
       "iconProfiles": 390,
-      "sharedLayoutFrames": 4527,
+      "sharedLayoutFrames": 4549,
       "remainingSourceCompositions": 933,
       "spacing": {
         "gap": 8,
@@ -2259,6 +2259,45 @@
           "maxLines": 1,
           "classification": "applied-in-canvas",
           "source": "components/CalculationConfigDrawer.tsx:120-123; mobile card inner width340"
+        },
+        "nativeTrajectoryInput": {
+          "opticalInline": 9.5,
+          "gap": 4,
+          "classification": "applied-in-canvas",
+          "source": "Measured native Chrome file-input labels retained in original source field bounds."
+        },
+        "sourceFeedback": {
+          "spinnerSize": 16,
+          "uncheckedCheckboxSize": 13,
+          "classification": "extracted",
+          "source": "Observed local Chrome rendering in Light/Dark."
+        },
+        "guideProcedure": {
+          "size": [
+            26,
+            26
+          ],
+          "radius": 4,
+          "fontFamily": "Geist Mono",
+          "fontSize": 12,
+          "alignment": "center",
+          "numberProperty": "Number",
+          "classification": "extracted",
+          "source": "app/public-pages.css:1652-1654; actual source counter resets."
+        },
+        "guideListDisc": {
+          "diameter": 5,
+          "font14Offset": [
+            -21,
+            7
+          ],
+          "font16Offset": [
+            -22,
+            9
+          ],
+          "offsetOrigin": "top-left of first retained text line",
+          "classification": "applied-in-canvas",
+          "source": "Chrome native marker alpha area 19.93px² in 14px and 16px body contexts."
         }
       },
       "limits": [
@@ -2266,11 +2305,12 @@
         "Captured viewport variants do not implement complete screen reflow.",
         "Login/data-dependent states need their own references.",
         "The Appearance range component records the captured value0 only; other values and runtime input behavior need separate evidence.",
-        "Earlier base Guide captures and off-viewport image bodies still need a separate responsive-asset audit.",
-        "Mobile MD script-inspector title and copy/close actions are clipped in the actual app at workflow y44; canvas preserves the reproduced source state."
+        "Mobile MD script-inspector title and copy/close actions are clipped in the actual app at workflow y44; canvas preserves the reproduced source state.",
+        "Historical Guide capture masks and omitted article bodies remain; the three retained mobile images are source-verified.",
+        "Mobile Run menu opens near x=-79.17 in both source themes and clips left labels; canvas preserves that source state."
       ],
       "verification": {
-        "sourceTextUnchanged": 54442,
+        "sourceTextUnchanged": 54396,
         "prototypeActionNodesUnchanged": 11317,
         "brokenNativeReferences": 0,
         "appliedInlineLayoutIssues": 0,
@@ -2285,31 +2325,35 @@
           "appearanceRangeMutation": "pass; master opacity 1 → 0.8 → 1; all 16 instances propagated and restoration verified",
           "mathVectorSizeMutation": "pass; shared10 →10.125 →10 reaches base letter and ranged combining mark",
           "settingsSwitchInstances": 46,
-          "settingsSwitchMutation": "pass; two masters opacity1 to0.9 to1; all46instances propagated and restoration verified"
+          "settingsSwitchMutation": "pass; two masters opacity1 to0.9 to1; all46instances propagated and restoration verified",
+          "nativeFeedbackInstances": 52,
+          "nativeFeedbackMutation": "pass; spinner/checkbox masters opacity 1 to 0.9 to 1; all instances propagated and restored",
+          "guideProcedureAndDiscInstances": 1979,
+          "guideMarkerMutation": "pass; both masters opacity 1 to 0.9 to 1; all instances propagated and restored"
         },
         "containerBodyBoundsIssues": 0,
         "narrowExplanationLinesWrapped": 15,
         "selectValuesTruncateWithoutChangingText": 1074,
         "wrappedParagraphCollisionIssues": 0,
         "inlineTypographyBoundsIssues": 0,
-        "visuallyReviewedCapturedFrames": 342,
-        "openVisualFindings": 1,
-        "recomposedSourceFragments": 52,
-        "recomposedParagraphs": 24,
-        "sourceTextVerification": "54,442 untouched source nodes compared byte-for-byte; 52 captured fragments rebuilt into 24 paragraphs with saved-fragment and repository wording checks. Normalize only intentional NBSPs when checking paragraph wording.",
+        "visuallyReviewedCapturedFrames": 801,
+        "openVisualFindings": 2,
+        "recomposedSourceFragments": 98,
+        "recomposedParagraphs": 40,
+        "sourceTextVerification": "54,396 original fragments compared byte-for-byte; 98 fragments reconstructed into 40 paragraphs with saved-fragment and source wording checks. Normalize only intentional NBSPs.",
         "nonbreakingSpaceParagraphs": {
           "privacy": 12,
           "signInDescription": 6
         },
-        "pendingCapturedFrames": 459,
-        "visualReviewScope": "Only the recorded captured viewports; unreviewed frames and off-viewport content remain pending.",
+        "pendingCapturedFrames": 0,
+        "visualReviewScope": "All 801 recorded captured viewports. A separate pass reviews retained off-viewport bodies for three Guide topics in both themes/devices. Other article bodies, omitted source content and unrepresented app states remain outside that coverage.",
         "prototypeHitRegionRealignmentChecked": true,
         "latestPrototypeHitRegionCorrections": 0,
         "guideDetailIssues": 0,
-        "guideImageAssetChecksums": "All 4 recovered dialog assets and 44 responsive article images match repository SHA-256 hashes.",
+        "guideImageAssetChecksums": "All 4 recovered dialog assets and 47 responsive article/base images match repository SHA-256 hashes.",
         "localMenuDetailIssues": 0,
         "sourceLanguageFlagIssues": 0,
-        "openSourceUiIssues": 1,
+        "openSourceUiIssues": 2,
         "round05DetailIssues": 0,
         "matchedPrototypeHitRegions": 808,
         "prototypeHitRegionDisplacementIssues": 0,
@@ -2329,11 +2373,26 @@
             "headerHeight": 85,
             "status": "open; source screenshot reproduces missing title/copy/close",
             "source": "components/MdSimulationConfigDrawer.tsx:1079-1103; app/md-studio.css:1342-1403"
+          },
+          {
+            "id": "mobile-run-menu-left-clipping",
+            "capturedFrames": 2,
+            "runtimeThemesMeasured": [
+              "Light",
+              "Dark"
+            ],
+            "menuLeft": -79.17,
+            "status": "open; source app reproduces clipped left labels",
+            "source": "app/project-workflow.css:335; right-aligned 180px menu on the mobile Run control"
           }
-        ]
+        ],
+        "hpcAndSettingsDetailIssues": 0,
+        "nativeFeedbackIssues": 0,
+        "guideMarkerIssues": 0,
+        "guideMarkerTopicCoverage": 41
       },
-      "nativeVariables": 303,
-      "nativeStyles": 151,
+      "nativeVariables": 306,
+      "nativeStyles": 153,
       "artworkOpticalMetrics": {
         "classification": "applied-in-canvas",
         "instances": 624,
@@ -2455,13 +2514,34 @@
           "source": "Database source backdrop; app/project-workflow.css:635 color-mix rules"
         },
         "mobilePrepareHeaderForegroundWrappers": 1,
-        "mobilePrepareHeaderSourceLayersRetained": 16
+        "mobilePrepareHeaderSourceLayersRetained": 16,
+        "historicalGuideImagesCorrected": 3,
+        "hpcNativeSelectsRecovered": 10,
+        "hpcInputViewportsClippedWithoutTextLoss": 6,
+        "hpcViewportBackdropsRestored": 11,
+        "nativeTrajectoryFileInputsRecovered": 12,
+        "nativeFileInputTextLayers": 24,
+        "settingsNotesRecomposed": 16,
+        "settingsNoteSourceFragments": 46,
+        "sourceSpinnerInstances": 4,
+        "sourceNativeCheckboxInstances": 48,
+        "guideProcedureNumberInstances": 1047,
+        "guideProcedureNumberFrames": 125,
+        "guideDiscInstances": 932,
+        "guideDiscFrames": 167,
+        "guideDiscModernTopics": 41,
+        "historicalGuideFramesCorrected": 2,
+        "responsiveGuideImagesTotal": 47,
+        "responsiveGuideImageFramesTotal": 40
       },
-      "supplementalRecoveredTextLayers": 8,
+      "supplementalRecoveredTextLayers": 1089,
       "guideToolbarTypographyLayouts": 184,
       "flagInstances": 180,
       "flagMasters": 2,
-      "mathVectorTypographyLayouts": 36
+      "mathVectorTypographyLayouts": 36,
+      "registeredControlAndProcedureInstances": 6894,
+      "procedureNumberInstances": 1047,
+      "listDiscInstances": 932
     }
   }
 }

@@ -51,6 +51,14 @@ Center camera glyphs within the existing icon-only control bounds. Database scri
 
 Center viewport-dependent dialogs and empty states using the destination viewport height. Recheck their actions after movement. The mobile MD script-inspector header is clipped in the current local app; that source issue remains documented until an implementation change supplies a new reference.
 
+Preserve native controls where their source geometry is intentional. HPC selects retain their observed values; long mobile placeholders clip inside the input viewport without shortening the stored string. HPC backdrops cover the destination viewport and sit above the captured page footer. Trajectory file inputs keep the native browser labels in a horizontal row with 9.5 px optical inset and shared gap 4.
+
+Use the shared 16 px source spinner and 13 px native unchecked checkbox for those captured browser states. Theme bindings belong on their painted parts. Keep the checkbox state from the source; a loading specimen does not implement runtime animation or announcements.
+
+Guide procedure badges use the shared 26×26 px master with radius 4 and its Number property. Keep the source list reset and center the Geist Mono 12 label through auto layout. Native Guide disc markers use the shared 5 px master: relative to the first retained text line, offset x=-21/y=7 at font 14 and x=-22/y=9 at font 16. These offsets reproduce the measured browser marker; preserve the source text, list spacing and link actions. Audit every topic independently of the viewport review queue.
+
+The mobile Run menu clips its left labels in the current source app. Record that source issue separately; viewport clamping requires an application change and a new reference.
+
 Scaled Guide illustrations, theme preview artwork, empty surfaces and some compound controls retain source geometry with shared paints/type. Inspect these contexts before changing their structure. Full-screen captures remain discrete responsive examples; they are not complete responsive auto-layout implementations.
 
 ## Core component contracts
