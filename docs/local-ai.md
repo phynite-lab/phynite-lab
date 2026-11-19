@@ -66,6 +66,28 @@ Evidence, recorded tool outputs and attachments use escaped XML delimiters and
 remain untrusted data. Instructions embedded in them cannot change permissions,
 project scope or scientific validation requirements.
 
+Select text in a saved AI answer to **Add to chat** or **Ask in side chat**.
+The first action attaches the passage to your current draft; the second opens a
+separate draft with the original chat's model, reasoning effort and permissions.
+Neither action sends a prompt. Use **View source** to return to the original
+message, or remove the quote before sending. With a text selection active,
+**Alt+Enter** focuses the quote actions and **Escape** dismisses them.
+
+Quotes retain the conversation and message IDs, exact source range in Unicode
+code points, and source checksum. The server accepts only saved AI messages from
+the same owner and project, and rejects changed or deleted sources. A quote is
+model output to discuss, not verified scientific evidence. Selections across
+messages, unsaved streaming text, and rendered content that cannot be matched to
+the source are not quotable. Each passage is limited to 4,000 characters.
+
+The executor persists the first text delta immediately, then batches subsequent
+deltas for up to 40 ms. Control events and final flushes preserve persistence
+order. Event delivery drains full pages without a polling sleep, polls active
+local streams every 100 ms, and backs off idle polling to one second. These
+changes reduce delivery overhead; they do not shorten provider reasoning or
+prove scientific correctness. They retain the selected model, tool budget,
+approval checks and scientific validation.
+
 ## QE on local HPC clusters
 
 Configure and probe a Slurm or OpenPBS profile in **Settings → Compute → HPC
