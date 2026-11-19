@@ -7,6 +7,7 @@
   --panel-bg: var(--surface-bg);
   --panel-raised: var(--surface-raised);
   --panel-hover: var(--surface-selected);
+  --panel-selected: var(--surface-selected);
   --panel-border: var(--surface-border);
   --panel-text: var(--surface-text);
   --panel-muted: var(--surface-muted);
@@ -45,8 +46,6 @@
 .lab-config-drawer-title small { margin-top: 2px; color: var(--surface-muted); font-size: 9px; }
 .lab-config-drawer-actions { grid-area: actions; display: flex; gap: 5px; }
 .lab-config-drawer-modes { grid-area: modes; display: flex; padding: 3px; border: 1px solid var(--surface-border); border-radius: 6px; background: var(--surface-raised); }
-.lab-config-drawer-modes button { min-height: 28px; padding: 0 10px; border: 0; border-radius: 4px; background: transparent; color: var(--surface-muted); font-family: var(--font-sans); font-size: 10px; font-weight: 600; }
-.lab-config-drawer-modes button[aria-selected='true'] { background: var(--surface-selected); color: var(--surface-text); }
 .lab-config-drawer-close { grid-area: close; }
 .lab-config-drawer-body { min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; background: var(--canvas); }
 .lab-config-drawer-footer { display: flex; min-height: 54px; flex: 0 0 auto; align-items: center; justify-content: flex-end; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--surface-border); background: var(--surface-bg); }

@@ -17,7 +17,8 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { ConfigurationModeControl } from './ConfigurationModeControl';
 import { useLocale } from '@/app/locale-provider';
 import {
   type Accuracy,
@@ -864,6 +865,7 @@ export function CalculationConfigDrawer({ calculation, draft, material, structur
 }) {
   const { t } = useLocale();
   const reducedMotion = useReducedMotion();
+  const modeDescriptionId = useId();
   const [mode, setMode] = useState<Mode>('simple');
   const [copiedInput, setCopiedInput] = useState(false);
   const [inputError, setInputError] = useState<string | null>(null);
@@ -908,10 +910,12 @@ export function CalculationConfigDrawer({ calculation, draft, material, structur
     try { generateQuantumEspressoInputFiles(draft, calculation, material); setInputError(null); onRun(); }
     catch (error) { setInputError(error instanceof Error ? error.message : 'Invalid QE input'); }
   };
-  const modes = <div className="config-workbench-mode grid h-9 grid-cols-2 items-center rounded-[7px] border border-[var(--panel-border)] bg-[var(--panel-bg)] p-0.5" role="group" aria-label={t('Configuration mode', 'Mode konfigurasi')}>
-    <button type="button" aria-pressed={mode === 'simple'} onClick={() => setMode('simple')} className={cn('h-8 rounded-[5px] px-3 text-[11px] font-semibold transition-colors', mode === 'simple' ? 'bg-[var(--panel-selected)] text-[var(--panel-text)] shadow-xs' : 'text-[var(--panel-muted)] hover:bg-[var(--panel-hover)] hover:text-[var(--panel-text)]')}>Simple</button>
-    <button type="button" aria-pressed={mode === 'manual'} onClick={() => setMode('manual')} className={cn('h-8 rounded-[5px] px-3 text-[11px] font-semibold transition-colors', mode === 'manual' ? 'bg-[var(--panel-selected)] text-[var(--panel-text)] shadow-xs' : 'text-[var(--panel-muted)] hover:bg-[var(--panel-hover)] hover:text-[var(--panel-text)]')}>Manual</button>
-  </div>;
+  const modeOptions: Array<{ id: Mode; label: string; description: string }> = [
+    { id: 'simple', label: t('Simple', 'Sederhana'), description: t('Guided controls for the selected calculation.', 'Kontrol terpandu untuk kalkulasi terpilih.') },
+    { id: 'manual', label: 'Manual', description: t('Detailed Quantum ESPRESSO parameters and input cards.', 'Parameter Quantum ESPRESSO dan kartu input terperinci.') },
+  ];
+  const modes = scfSourceLabel ? <span className="config-workbench-mode config-inherited-mode">{t('Inherited SCF', 'SCF terhubung')}</span>
+    : <ConfigurationModeControl className="config-workbench-mode" label={t('Configuration mode', 'Mode konfigurasi')} value={mode} options={modeOptions} onChange={setMode} descriptionId={modeDescriptionId} />;
 
   const downloadButton = (
     <CalculationDownloadDropdown
@@ -939,6 +943,7 @@ export function CalculationConfigDrawer({ calculation, draft, material, structur
       <button type="button" onClick={onClose} aria-label="Close configuration" className="config-workbench-close grid h-8 w-8 shrink-0 place-items-center rounded-[6px] text-[var(--panel-muted)] hover:bg-[var(--panel-hover)] hover:text-[var(--panel-text)]"><X className="h-4 w-4" /></button>
     </header>}
 
+    <p className="configuration-mode-description" id={modeDescriptionId}><strong>{scfSourceLabel ? t('Inherited SCF', 'SCF terhubung') : modeOptions.find(item => item.id === mode)?.label}</strong> · {scfSourceLabel ? t('Ground-state inputs are inherited from the connected SCF module.', 'Input keadaan dasar diwarisi dari modul SCF yang terhubung.') : modeOptions.find(item => item.id === mode)?.description}</p>
     {scfSourceLabel ? <div className="config-drawer-body min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
       <section className="config-simple-card"><SectionTitle>Ground state from {scfSourceLabel}</SectionTitle><p className="mt-2 text-[11px] leading-5 text-[var(--panel-muted)]">Structure, functional, pseudopotentials, cutoffs, charge, spin and SCF convergence are inherited. Open the SCF node to change the ground state.</p><p className="mt-2 font-mono text-[10px] text-[var(--panel-text)]">{draft.functional} · {draft.pseudoFamily} · {draft.cutoff}/{draft.chargeDensityCutoff} Ry</p></section>
       {calculation !== 'Phonon dispersion' && <section className="config-specific-card mt-3"><SectionTitle>Analysis sampling</SectionTitle><div className="mt-2 config-form-grid config-form-grid--4"><NumberField label="nk1" value={draft.kPoint} min={1} max={64} onChange={kPoint => onChange({ kPoint })} /><NumberField label="nk2" value={draft.kPointY} min={1} max={64} onChange={kPointY => onChange({ kPointY })} /><NumberField label="nk3" value={draft.kPointZ} min={1} max={64} onChange={kPointZ => onChange({ kPointZ })} /><NumberField label="Bands" value={draft.numberOfBands} min={1} onChange={numberOfBands => onChange({ numberOfBands })} /></div></section>}

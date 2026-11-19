@@ -54,6 +54,7 @@ import {
   type MdSimulationMode,
 } from '@/lib/md-simulation-types';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/app/locale-provider';
 
 function SectionTitle({ children, detail, code }: { children: React.ReactNode; detail?: string; code?: string }) {
   return (
@@ -1134,6 +1135,7 @@ export function MdSimulationConfigDrawer(props: {
     onRunSimulation,
     onClose,
   } = props;
+  const { t } = useLocale();
   const [portalTarget, setPortalTarget] = useState<Element | null>(null);
   const [showInspector, setShowInspector] = useState(false);
 
@@ -1168,8 +1170,8 @@ export function MdSimulationConfigDrawer(props: {
         title={config.name}
         mode={mode}
         modes={[
-          { id: 'guided', label: 'Simple' },
-          { id: 'manual', label: 'Advanced' },
+          { id: 'guided', label: t('Simple', 'Sederhana'), description: t('Guided controls for this simulation step.', 'Kontrol terpandu untuk langkah simulasi ini.') },
+          { id: 'manual', label: t('Advanced', 'Lanjutan'), description: t('Edit LAMMPS directive blocks. Inspect the generated script before running.', 'Edit blok perintah LAMMPS. Periksa skrip yang dihasilkan sebelum menjalankan.') },
         ]}
         onModeChange={(nextMode: MdSimulationMode) => onChange({
           mode: nextMode,

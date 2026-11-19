@@ -158,6 +158,10 @@
 .workflow-config-tools { display:flex; flex:none; align-items:center; gap:12px; }
 .workflow-config-tools .config-workbench-mode { min-width:144px; height:34px; }
 .workflow-config-tools .config-workbench-mode button { height:28px; font-weight:500; cursor:pointer; }
+@media (pointer: coarse), (max-width: 600px) {
+  .workflow-config-tools .configuration-mode-control { height:auto; }
+  .workflow-config-tools .configuration-mode-control > button { height:auto; min-height:44px; }
+}
 .workflow-config-tools > .workflow-primary { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:34px; padding:6px 14px; border:0; border-radius:6px; font:inherit; cursor:pointer; }
 .calculation-config-drawer.workflow-embedded-config .config-manual-nav { background-color:var(--canvas) !important; border-color:var(--line) !important; }
 .calculation-config-drawer.workflow-embedded-config .config-manual-tab--active { background:var(--surface-subtle); color:var(--ink); }

@@ -18,7 +18,13 @@ export function useSettingsAnchor(ready: boolean) {
       if (!id) return;
       const find = () => {
         const element = document.getElementById(id);
-        if (!element || !element.getClientRects().length) return false;
+        if (!element) return false;
+        if (element instanceof HTMLDetailsElement) element.open = true;
+        // Search can target a control inside a collapsed Advanced disclosure.
+        // Reveal its ancestors before checking visibility and moving focus.
+        let details = element.parentElement?.closest('details');
+        while (details) { details.open = true; details = details.parentElement?.closest('details'); }
+        if (!element.getClientRects().length) return false;
         frame = requestAnimationFrame(() => { frame = requestAnimationFrame(() => {
           if (activeGeneration !== generation || location !== window.location.pathname + window.location.search + window.location.hash
             || !element.isConnected || !element.getClientRects().length) return;
