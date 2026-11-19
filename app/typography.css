@@ -37,7 +37,7 @@
   --text-section: calc(16px * var(--ui-text-scale, 1));
   --text-wordmark: 20px;
   --text-chapter: calc(24px * var(--ui-text-scale, 1));
-  --text-page-title: calc(24px * var(--ui-text-scale, 1));
+  --text-page-title: calc(28px * var(--ui-text-scale, 1));
   --text-code: var(--ui-code-size, 13px);
   --weight-regular: 400;
   --weight-medium: 500;

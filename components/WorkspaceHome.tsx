@@ -32,8 +32,8 @@ export function WorkspaceHome<T extends HomeProject>({ projects, query, renderAc
   return <div className="research-home" aria-busy={!shell.projectsReady && !shell.projectsError}>
     {shell.projectsError && <p className="research-home-account-error" role="alert">{shell.projectsError} <button type="button" onClick={shell.refreshProjects}>{t('Retry', 'Coba lagi')}</button></p>}
     {!shell.projectsReady ? !shell.projectsError && <WorkspaceLoading layout="list" label={t('Loading your projects…', 'Memuat project Anda…')} /> : <>
-      {!!pinned.length && <section><header className="research-home-section"><h2>{t('Pinned projects', 'Project yang dipin')}</h2></header>{projectRows(pinned)}</section>}
-      {(others.length > 0 || !pinned.length) && <section><header className="research-home-section"><h2>{query ? t('Search results', 'Hasil pencarian') : t('Projects', 'Project')}</h2></header>{others.length ? projectRows(others) : <div className="research-home-start" role={query ? 'status' : undefined}>
+      {!!pinned.length && <section><header className="research-home-section"><h2>{t('Pinned projects', 'Project yang dipin')}</h2><span>{pinned.length}</span></header>{projectRows(pinned)}</section>}
+      {(others.length > 0 || !pinned.length) && <section><header className="research-home-section"><h2>{query ? t('Search results', 'Hasil pencarian') : t('Projects', 'Project')}</h2><span>{others.length}</span></header>{others.length ? projectRows(others) : <div className="research-home-start" role={query ? 'status' : undefined}>
         {query ? <Search size={24} aria-hidden="true" /> : <FolderOpen size={26} aria-hidden="true" />}
         <h3>{query ? t('No matching projects', 'Tidak ada project yang cocok') : t('Create your first project', 'Buat project pertama Anda')}</h3>
         <p>{query ? t('Try a project name, description or chemical formula.', 'Coba nama project, deskripsi, atau rumus kimia.') : t('Keep structures, calculations, notes and AI conversations together in one project.', 'Simpan struktur, kalkulasi, catatan, dan percakapan AI bersama dalam satu project.')}</p>
@@ -41,11 +41,11 @@ export function WorkspaceHome<T extends HomeProject>({ projects, query, renderAc
       </div>}</section>}
       {!query && <section className="research-home-setup" aria-label={t('Workspace tools', 'Tool workspace')}><header className="research-home-section"><h2>{t('Workspace tools', 'Tool workspace')}</h2></header><nav className="research-home-tools" aria-label={t('Setup and help', 'Setup dan bantuan')}>
         {[
-          { href: '/account/compute', label: t('Compute setup', 'Setup komputasi'), icon: Cpu },
-          ...(session?.mode === 'local' ? [{ href: '/account/ai-providers', label: t('AI providers', 'Provider AI'), icon: Sparkles }] : []),
-          { href: '/guide', label: t('User guide', 'Panduan pengguna'), icon: BookOpen },
-          { href: '/account/keyboard', label: t('Keyboard shortcuts', 'Pintasan keyboard'), icon: Keyboard },
-        ].map(item => <Link key={item.href} href={item.href} onClick={event => { if (!item.href.startsWith('/account/') || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); shell.navigate('account', item.href); }}><item.icon size={17} aria-hidden="true" /><span>{item.label}</span><ArrowRight size={14} aria-hidden="true" /></Link>)}
+          { href: '/account/compute', label: t('Compute setup', 'Setup komputasi'), description: t('Manage this computer and compute destinations.', 'Kelola komputer ini dan tujuan komputasi.'), icon: Cpu },
+          ...(session?.mode === 'local' ? [{ href: '/account/ai-providers', label: t('AI providers', 'Provider AI'), description: t('Manage connections and available models.', 'Kelola koneksi dan model yang tersedia.'), icon: Sparkles }] : []),
+          { href: '/guide', label: t('User guide', 'Panduan pengguna'), description: t('Learn the workspace and research tools.', 'Pelajari workspace dan tool riset.'), icon: BookOpen },
+          { href: '/account/keyboard', label: t('Keyboard shortcuts', 'Pintasan keyboard'), description: t('View and customize your shortcuts.', 'Lihat dan sesuaikan pintasan Anda.'), icon: Keyboard },
+        ].map(item => <Link key={item.href} href={item.href} onClick={event => { if (!item.href.startsWith('/account/') || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); shell.navigate('account', item.href); }}><item.icon size={17} aria-hidden="true" /><span><strong>{item.label}</strong><small>{item.description}</small></span><ArrowRight size={14} aria-hidden="true" /></Link>)}
       </nav>{session?.mode === 'local' && <p>{t('Projects stay on this computer. Cloud and AI connections are optional.', 'Project tetap di komputer ini. Koneksi cloud dan AI bersifat opsional.')}</p>}</section>}
     </>}
   </div>;

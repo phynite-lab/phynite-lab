@@ -6,6 +6,7 @@ import type { PhyniteSession } from '@/app/auth-client';
 import { StudioMobileHeader } from '@/app/lab-header';
 import { useLocale } from '@/app/locale-provider';
 import { useResearchShell } from './ResearchShellContext';
+import { WorkspacePageHeading } from './WorkspacePageHeading';
 import { SettingsNavigation } from './SettingsNavigation';
 import { useSettingsAnchor } from '@/app/use-settings-anchor';
 import '@/app/account/settings.css';
@@ -35,7 +36,7 @@ export function SettingsPage({ session, title, description, children, actions, e
   return <main className={`lab-page studio-page settings-page ${className}`}><div className={`settings-frame${shell ? '' : ' settings-frame--standalone'}`}>
     {!shell && <aside className="settings-local-navigation"><SettingsNavigation /></aside>}
     <div className="settings-body"><StudioMobileHeader session={session} /><div ref={content} className="settings-content settings-main">
-      {!hideHeading && <header className="settings-page-heading"><div><p className="settings-eyebrow">{eyebrow ?? t('Settings', 'Pengaturan')}</p><h1>{title}</h1><p>{description}</p></div>{actions}</header>}
+      {!hideHeading && <WorkspacePageHeading className="settings-page-heading" eyebrow={eyebrow ?? t('Settings', 'Pengaturan')} title={title} description={description} actions={actions} />}
       {sections.length > 1 && <nav className="settings-section-index" aria-label={t('On this page', 'Di halaman ini')}><span>{t('On this page', 'Di halaman ini')}</span><div>{sections.map(section => <a key={section.id} href={`#${encodeURIComponent(section.id)}`} onClick={event => {
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
         event.preventDefault();

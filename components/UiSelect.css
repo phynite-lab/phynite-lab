@@ -63,7 +63,8 @@
 .ui-select-trigger:focus-visible {
   border-color: var(--select-border-active) !important;
   background: var(--field-focus-surface, var(--select-bg)) !important;
-  outline: 0 !important;
+  outline: 2px solid var(--focus-ring) !important;
+  outline-offset: 2px;
   box-shadow: none !important;
 }
 
@@ -100,7 +101,7 @@
 }
 
 .ui-select--compact .ui-select-trigger {
-  height: 28px;
+  height: var(--control-height-compact);
   margin-top: 0;
 }
 
@@ -131,9 +132,9 @@
   --surface-muted: var(--muted-ink);
   padding: 5px;
   border: 1px solid var(--surface-border) !important;
-  border-radius: 9px !important;
+  border-radius: var(--radius-panel) !important;
   background: var(--surface-bg) !important;
-  box-shadow: 0 18px 46px rgb(0 0 0 / 42%), 0 0 0 1px rgb(255 255 255 / 3%) !important;
+  box-shadow: var(--shadow-popover) !important;
   transform-origin: top center;
 }
 
@@ -141,7 +142,7 @@
   transform-origin: bottom center;
 }
 
-.ui-select-menu--compact .ui-select-option { min-height: 30px; padding: 5px 8px; gap: 8px; }
+.ui-select-menu--compact .ui-select-option { min-height: var(--control-target); padding: 6px 8px; gap: 8px; }
 .ui-select-menu--compact .ui-select-option + .ui-select-option { margin-top: 2px; }
 .ui-select-menu--compact .ui-select-option:has(.ui-select-option-detail) { min-height: 42px; }
 .ui-select-menu--compact .ui-select-option > svg { flex-shrink: 0; color: var(--surface-text); }
@@ -150,17 +151,17 @@
   position: relative;
   display: flex;
   width: 100%;
-  min-height: 38px;
+  min-height: var(--control-target);
   align-items: center;
   gap: 9px;
   overflow: hidden;
   padding: 6px 7px 6px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   color: var(--surface-text);
   text-align: left;
 }
 
-.ui-select-option + .ui-select-option { margin-top: 6px; }
+.ui-select-option + .ui-select-option { margin-top: 2px; }
 
 .ui-select-option[data-highlighted='true']:not(:disabled) {
   background: var(--surface-selected) !important;
@@ -221,5 +222,5 @@
   --surface-border: var(--line);
   --surface-text: var(--ink);
   --surface-muted: var(--muted-ink);
-  box-shadow: 0 18px 46px rgb(31 40 52 / 18%), 0 0 0 1px rgb(31 40 52 / 3%) !important;
+  box-shadow: var(--shadow-popover) !important;
 }

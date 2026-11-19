@@ -1,5 +1,7 @@
 # Home, Settings, Configure and AI review
 
+This records the initial interaction pass. The later [workspace consistency overhaul](../workspace-consistency/README.md) contains the current shared design system, screenshots, and expanded checks.
+
 Reviewed on macOS arm64, 19 November 2026, against local app base `47bfbe5`. Antigravity prepared the implementation plan; Codex developed the FigCraft designs, implemented the changes, and ran the checks. The task focuses on workspace setup and project interaction.
 
 ## Behavior and decisions

@@ -2,9 +2,9 @@
 .project-workflow button:not(:where(.crystal-builder-editor button, .calculation-config-drawer button)) { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 32px; padding: 6px 10px; border: 0; border-radius: 6px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .project-workflow button:disabled { cursor: default; opacity: .4; }
 .project-workflow button:not(:disabled):not(:where(.crystal-builder-editor button, .calculation-config-drawer button)):hover { background: var(--surface-subtle); }
-.project-workflow button:focus-visible, .project-workflow input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.project-workflow .workflow-primary { color: var(--paper); background: var(--ink); }
-.project-workflow .workflow-primary:not(:disabled):hover { opacity: .85; background: var(--ink); }
+.project-workflow button:focus-visible, .project-workflow input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.project-workflow .workflow-primary { color: var(--on-accent); background: var(--accent); }
+.project-workflow .workflow-primary:not(:disabled):hover { background: var(--accent-strong); }
 .workflow-topbar { display:flex; align-items:center; width:100%; min-width:0; height:44px; gap:8px; padding:0; border-bottom:1px solid var(--line); background:var(--research-rail-bg,var(--surface-subtle)); color:var(--ink); font:12px var(--font-ui); }
 .workflow-topbar button { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-width:0; min-height:32px; border:0; border-radius:7px; padding:6px 10px; background:transparent; color:var(--muted-ink); font:inherit; cursor:pointer; }
 .workflow-topbar button:hover { background:var(--surface-subtle); color:var(--ink); }
@@ -150,19 +150,18 @@
   --surface-border:var(--line);
   background-color:var(--canvas) !important; border:0 !important; box-shadow:none !important;
 }
-.workflow-config-toolbar { display:flex; flex:none; align-items:center; justify-content:space-between; gap:12px; padding:10px 16px; border-bottom:1px solid var(--line); background:var(--canvas); }
+.workflow-config-toolbar { display:flex; flex:none; align-items:center; justify-content:space-between; gap:16px; padding:12px 20px; border-bottom:1px solid var(--line); background:var(--canvas); }
 .workflow-config-input { flex:0 1 320px; min-width:0; }
 .workflow-config-input .ui-select { display:flex; align-items:center; gap:10px; }
 .workflow-config-input .ui-select-label { flex:none; }
 .workflow-config-input .ui-select-trigger { flex:1; min-width:0; }
 .workflow-config-tools { display:flex; flex:none; align-items:center; gap:12px; }
-.workflow-config-tools .config-workbench-mode { min-width:144px; height:34px; }
-.workflow-config-tools .config-workbench-mode button { height:28px; font-weight:500; cursor:pointer; }
+.workflow-config-tools .config-workbench-mode { min-width:144px; height:auto; }
+.workflow-config-tools .config-workbench-mode button { height:auto; font-weight:500; cursor:pointer; }
 @media (pointer: coarse), (max-width: 600px) {
   .workflow-config-tools .configuration-mode-control { height:auto; }
   .workflow-config-tools .configuration-mode-control > button { height:auto; min-height:44px; }
 }
-.workflow-config-tools > .workflow-primary { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:34px; padding:6px 14px; border:0; border-radius:6px; font:inherit; cursor:pointer; }
 .calculation-config-drawer.workflow-embedded-config .config-manual-nav { background-color:var(--canvas) !important; border-color:var(--line) !important; }
 .calculation-config-drawer.workflow-embedded-config .config-manual-tab--active { background:var(--surface-subtle); color:var(--ink); }
 .calculation-config-drawer.workflow-embedded-config :is(.config-drawer-body,.config-manual-body) { padding:20px; }

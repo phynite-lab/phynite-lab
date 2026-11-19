@@ -9,6 +9,7 @@ import { useSession } from '../use-session';
 import { StudioMobileHeader } from '../lab-header';
 import { useWorkspaceCloudSync } from '../use-workspace-cloud-sync';
 import { StudioNavigation } from '../studio-navigation';
+import { WorkspacePageHeading } from '@/components/WorkspacePageHeading';
 import { WorkspaceHome } from '@/components/WorkspaceHome';
 import { useResearchShell } from '@/components/ResearchShellContext';
 import { useSearchParams } from 'next/navigation';
@@ -254,7 +255,7 @@ export function WorkspaceShell() {
   return <main className="lab-page studio-page studio-shell-page">
     <WorkspaceResources open={resourcesOpen} onOpen={() => setResourcesOpen(true)} onClose={() => setResourcesOpen(false)} owner={session.user.id} workload="qe" scope="workspace" jobs={[]} />
     <div className="studio-layout"><StudioNavigation active="workspace" standalone /><div className="studio-body"><StudioMobileHeader session={session} /><div className="studio-main studio-main--home" id="studio-content">
-      <header className="studio-heading"><h1>Home</h1><div className="research-home-heading-actions">
+      <WorkspacePageHeading title={t('Home', 'Beranda')} eyebrow={t('Workspace', 'Workspace')} description={t('Your projects, research tools and workspace preferences.', 'Project, tool riset, dan preferensi workspace Anda.')} actions={<div className="research-home-heading-actions">
         <button ref={searchTrigger} type="button" className="research-home-icon" aria-label={t('Search projects', 'Cari project')} title={t('Search projects', 'Cari project')} aria-expanded={searchOpen} aria-controls="home-project-search" onClick={() => { setSearchOpen(current => !current); setQuery(''); }}><Search size={17} /></button>
         <div className="studio-project-actions research-home-options" data-project-actions onKeyDown={event => {
           if (event.key === 'Escape') { event.preventDefault(); setProjectMenuId(''); event.currentTarget.querySelector('button')?.focus(); return; }
@@ -270,7 +271,7 @@ export function WorkspaceShell() {
           <hr /><button type="button" role="menuitem" onClick={() => { setProjectMenuId(''); trashDialog.current?.showModal(); }}><Trash2 size={14} />{t('Trash', 'Trash')}{workspace.trashCount > 0 && <span>{workspace.trashCount}</span>}</button>
         </div>}</div>
         <button className="lab-button lab-button-primary" onClick={openCreate} disabled={cloud.status !== 'synced'}><Plus size={17} />{t('New project', 'Project baru')}</button>
-      </div></header>
+      </div>} />
       {searchOpen && <label id="home-project-search" className="research-home-search"><Search size={16} /><input autoFocus type="search" value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setQuery(''); setSearchOpen(false); searchTrigger.current?.focus(); } }} placeholder={t('Search projects or formula', 'Cari project atau rumus kimia')} aria-label={t('Search projects', 'Cari project')} /><button type="button" aria-label={t('Close search', 'Tutup pencarian')} onClick={() => { setQuery(''); setSearchOpen(false); searchTrigger.current?.focus(); }}><X size={15} /></button></label>}
       {cloud.status === 'error' && <div className="lab-notice" role="alert"><span>{t('Workspace synchronization is unavailable. Keep your browser data and reload to reconnect.', 'Sinkronisasi Workspace belum tersedia. Pertahankan data browser dan muat ulang untuk menyambungkan kembali.')}</span><button onClick={() => window.location.reload()}>{t('Reload', 'Muat ulang')}</button></div>}
       {projectActionError && <div className="lab-notice" role="alert"><span>{projectActionError}</span><button type="button" onClick={() => setProjectActionError('')}>{t('Dismiss', 'Tutup')}</button></div>}
