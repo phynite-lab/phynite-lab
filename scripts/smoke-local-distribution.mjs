@@ -10,6 +10,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
 import { expect } from '@playwright/test';
 import { resolveDistribution } from '../packages/phynite-lab/lib/distribution.mjs';
+import { verifyHpcDownloadUi } from './verify-hpc-download-ui.mjs';
 
 const usage = 'Usage: node scripts/smoke-local-distribution.mjs --tarball LAUNCHER.tgz [--runtime-tarball NATIVE_PACKAGE.tgz] [--output NEW_DIRECTORY] [--browser-executable CHROMIUM]';
 const options = {};
@@ -425,6 +426,10 @@ try {
   assert.deepEqual(desktop.externalRequests, []); assert.deepEqual(mobile.externalRequests, []);
   report.checkIds.push('ui-desktop-mobile');
   report.checks.push('Workspace, setup and project tabs fit 320px; compact model selection and Discovery presets in +, evidence, modal focus, Escape/outside dismissal, single-overlay ownership and the complete composer remain reachable in six desktop/mobile/short/zoom-equivalent viewports, without any AI submission. No external network requests before cloud/AI opt-in.');
+  await verifyHpcDownloadUi(page, initial.origin, output);
+  await verifyHpcDownloadUi(mobilePage, initial.origin, output, { width: 390, height: 844 });
+  report.checkIds.push('hpc-download-layout');
+  report.checks.push('Feature-branch Download/Simple/Manual/Run toolbar on desktop/mobile; grouped menu; distinct ZIP paths and visible result-fetch errors. Explicit synthetic UI fixtures; no solver execution.');
   await desktop.context.close(); await mobile.context.close();
   await stop();
   const restarted = await start();
@@ -454,7 +459,7 @@ try {
 } finally {
   await browser?.close();
   try { await stop(); } catch (error) { report.passed = false; report.shutdownFailure = error instanceof Error ? error.message : 'Shutdown failed'; process.exitCode = 1; }
-  for (const name of ['desktop-workspace.png', 'desktop-local.png', 'desktop-connections.png', 'desktop-project.png', 'mobile-workspace.png', 'mobile-local.png', 'mobile-settings.png', 'mobile-connections.png', 'mobile-project.png', 'mobile-discovery.png', 'failure.png', 'launcher.log']) {
+  for (const name of ['desktop-workspace.png', 'desktop-local.png', 'desktop-connections.png', 'desktop-project.png', 'mobile-workspace.png', 'mobile-local.png', 'mobile-settings.png', 'mobile-connections.png', 'mobile-project.png', 'mobile-discovery.png', 'desktop-hpc-editor.png', 'desktop-hpc-download.png', 'mobile-hpc-editor.png', 'mobile-hpc-download.png', 'failure.png', 'launcher.log']) {
     try { report.artifacts.push({ path: name, sha256: createHash('sha256').update(await readFile(join(output, name))).digest('hex') }); } catch { /* Failed acceptance may have no screenshot yet. */ }
   }
   await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });
