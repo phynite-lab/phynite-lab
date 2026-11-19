@@ -1,0 +1,57 @@
+/* Geometry is shared by chapters, inspectors and portals. Colours remain semantic
+   so theme, contrast and device preferences can supply their own palette. */
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --radius-control: 8px;
+  --radius-panel: 12px;
+  --radius-dialog: 16px;
+  --control-radius: var(--radius-control);
+  --control-height: 40px;
+  --control-height-compact: 32px;
+  --control-target: 36px;
+  --page-width: 960px;
+  --page-gutter: clamp(20px, 4vw, 48px);
+  --page-top: 48px;
+  --section-gap: 32px;
+  --panel-padding: 24px;
+  --row-padding: 20px;
+  --focus-ring: var(--accent);
+  --shadow-popover: 0 8px 28px color-mix(in srgb, var(--ink) 14%, transparent);
+  --shadow-dialog: 0 24px 80px color-mix(in srgb, var(--ink) 18%, transparent);
+}
+.workspace-page-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: var(--section-gap); }
+.workspace-page-heading-copy { min-width: 0; }
+.workspace-page-heading .workspace-page-eyebrow { margin: 0 0 8px; color: var(--muted-ink); font-size: var(--text-caption); line-height: var(--leading-ui); }
+.workspace-page-heading h1 { margin: 0; color: var(--ink); font: var(--weight-semibold) var(--text-page-title)/var(--leading-heading) var(--font-ui); letter-spacing: var(--tracking-heading); overflow-wrap: anywhere; }
+.workspace-page-heading .workspace-page-description { max-width: 580px; margin: 10px 0 0; color: var(--muted-ink); font-size: var(--text-body); line-height: var(--leading-body); }
+.workspace-page-heading-actions { display: flex; align-items: center; flex: none; gap: 8px; }
+.workspace-page-heading-actions:empty { display: none; }
+/* Legacy surface names adapt to one action contract during migration. */
+:is(.lab-page .lab-button, .ai-button, .lab-primary-button, .lab-secondary-button, .workflow-config-tools > .workflow-primary) {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: var(--control-height); padding: 8px 13px;
+  border: 1px solid var(--line); border-radius: var(--radius-control);
+  background: var(--surface); color: var(--ink);
+  font: 500 var(--text-label)/var(--leading-ui) var(--font-ui);
+  text-decoration: none; cursor: pointer;
+}
+:is(.lab-page .lab-button-primary, .ai-button:not(.ai-button-secondary), .lab-primary-button, .workflow-config-tools > .workflow-primary) { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+:is(.lab-page .lab-button, .ai-button-secondary, .lab-secondary-button):hover:not(:disabled) { background: var(--surface-subtle); border-color: var(--line-strong); }
+:is(.lab-page .lab-button-primary, .ai-button:not(.ai-button-secondary), .lab-primary-button, .workflow-config-tools > .workflow-primary):hover:not(:disabled) { border-color: var(--accent-strong); background: var(--accent-strong); color: var(--on-accent); }
+:is(.lab-page .lab-button, .ai-button, .lab-primary-button, .lab-secondary-button):focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+:is(.lab-page .lab-button, .ai-button, .lab-primary-button, .lab-secondary-button):disabled { opacity: .45; cursor: not-allowed; }
+@media (max-width: 600px) {
+  :root { --page-gutter: 20px; --page-top: 28px; --panel-padding: 16px; --row-padding: 16px; --section-gap: 24px; --control-height: 44px; --control-height-compact: 44px; --control-target: 44px; }
+  .workspace-page-heading { flex-wrap: wrap; gap: 16px; }
+  .workspace-page-heading-actions { flex-wrap: wrap; max-width: 100%; }
+}
+@media (pointer: coarse) {
+  :root { --control-height: 44px; --control-height-compact: 44px; --control-target: 44px; }
+}

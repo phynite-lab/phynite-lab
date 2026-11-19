@@ -41,6 +41,24 @@ test('DFT pseudopotentials is discoverable in local settings in either language'
   assert.equal(searchSettingsControls('sssp', 'hosted').length, 0);
 });
 
+test('search results name their destination section, including local account aliases', () => {
+  const pseudo = searchSettingsControls('sssp', 'local')[0];
+  assert.equal(pseudo.sectionEn, 'Compute');
+  assert.equal(pseudo.sectionIdn, 'Komputasi');
+  const localIdentity = searchSettingsControls('username', 'local').find(item => item.anchor === 'sign-in-details');
+  assert.equal(localIdentity?.href, '/account/account#account-identity');
+  assert.equal(localIdentity?.sectionEn, 'Account');
+});
+
+test('runtime installation search reaches the local runtime instead of a hosted pairing flow', () => {
+  for (const query of ['runtime', 'lammps', 'pasang', 'quantum espresso']) {
+    assert.ok(searchSettingsControls(query, 'local').some(item => item.href === '/account/compute#your-computer'), query);
+  }
+  assert.equal(searchSettingsControls('runtime', 'hosted').length, 0);
+  assert.equal(searchSettingsControls('worker', 'local').some(item => item.en === 'Worker connection'), false);
+  assert.equal(searchSettingsControls('worker', 'hosted').some(item => item.en === 'Worker connection'), true);
+});
+
 test('run and solver time remain distinct and incomplete history is unavailable', () => {
   const run = { startedAt: '2026-10-28T00:00:00Z', completedAt: '2026-10-28T02:00:00Z', computeSeconds: 3600 };
   assert.equal(recordedRunSeconds(run), 7200);

@@ -1,0 +1,49 @@
+{
+  "scenarios": [
+    {
+      "width": 1440,
+      "height": 960,
+      "theme": "light",
+      "language": "en",
+      "status": "passed"
+    },
+    {
+      "width": 1440,
+      "height": 960,
+      "theme": "dark",
+      "language": "en",
+      "status": "passed"
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "language": "en",
+      "status": "passed"
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "language": "en",
+      "status": "passed"
+    },
+    {
+      "width": 360,
+      "height": 800,
+      "theme": "light",
+      "language": "id",
+      "status": "passed"
+    },
+    {
+      "width": 768,
+      "height": 1024,
+      "theme": "dark",
+      "language": "en",
+      "status": "passed"
+    }
+  ],
+  "forbiddenRequests": 0,
+  "browserErrors": [],
+  "evidence": "Disposable input fixtures only; no scientific output or real model invocation."
+}

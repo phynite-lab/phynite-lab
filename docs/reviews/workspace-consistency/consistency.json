@@ -1,0 +1,549 @@
+{
+  "reports": [
+    {
+      "width": 1440,
+      "height": 960,
+      "theme": "light",
+      "chapters": [
+        {
+          "path": "/workspace",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/appearance",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/keyboard",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/notifications",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/compute",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/ai-providers",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/account",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/usage",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/storage",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/privacy",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        }
+      ],
+      "geometry": [
+        {
+          "tab": "scf",
+          "height": 40,
+          "radius": "8px",
+          "valueSize": "13px"
+        },
+        {
+          "tab": "md",
+          "height": 40,
+          "radius": "8px",
+          "valueSize": "13px"
+        }
+      ],
+      "compactHeight": 32,
+      "preferenceStyle": {
+        "focus": "rgb(36, 84, 186)",
+        "accent": "#2454ba",
+        "codeSize": "17px"
+      },
+      "status": "passed"
+    },
+    {
+      "width": 1440,
+      "height": 960,
+      "theme": "dark",
+      "chapters": [
+        {
+          "path": "/workspace",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/appearance",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/keyboard",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/notifications",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/compute",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/ai-providers",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/account",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/usage",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/storage",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/privacy",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        }
+      ],
+      "geometry": [
+        {
+          "tab": "scf",
+          "height": 40,
+          "radius": "8px",
+          "valueSize": "13px"
+        },
+        {
+          "tab": "md",
+          "height": 40,
+          "radius": "8px",
+          "valueSize": "13px"
+        }
+      ],
+      "compactHeight": 32,
+      "preferenceStyle": {
+        "focus": "rgb(156, 184, 255)",
+        "accent": "#9cb8ff",
+        "codeSize": "17px"
+      },
+      "status": "passed"
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "theme": "light",
+      "chapters": [
+        {
+          "path": "/workspace",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/appearance",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/keyboard",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/notifications",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/compute",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/ai-providers",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/account",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/usage",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/storage",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/privacy",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        }
+      ],
+      "geometry": [
+        {
+          "tab": "scf",
+          "height": 44,
+          "radius": "8px",
+          "valueSize": "16px"
+        },
+        {
+          "tab": "md",
+          "height": 44,
+          "radius": "8px",
+          "valueSize": "16px"
+        }
+      ],
+      "compactHeight": 44,
+      "preferenceStyle": {
+        "focus": "rgb(36, 84, 186)",
+        "accent": "#2454ba",
+        "codeSize": "17px"
+      },
+      "status": "passed"
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "theme": "dark",
+      "chapters": [
+        {
+          "path": "/workspace",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/appearance",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/keyboard",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/notifications",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/compute",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/ai-providers",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/account",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/usage",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/storage",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/privacy",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        }
+      ],
+      "geometry": [
+        {
+          "tab": "scf",
+          "height": 44,
+          "radius": "8px",
+          "valueSize": "16px"
+        },
+        {
+          "tab": "md",
+          "height": 44,
+          "radius": "8px",
+          "valueSize": "16px"
+        }
+      ],
+      "compactHeight": 44,
+      "preferenceStyle": {
+        "focus": "rgb(156, 184, 255)",
+        "accent": "#9cb8ff",
+        "codeSize": "17px"
+      },
+      "status": "passed"
+    },
+    {
+      "width": 768,
+      "height": 1024,
+      "theme": "light",
+      "touch": true,
+      "chapters": [
+        {
+          "path": "/workspace",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/appearance",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/keyboard",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/notifications",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/compute",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/ai-providers",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/account",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/usage",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/storage",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        },
+        {
+          "path": "/account/privacy",
+          "heading": {
+            "size": "28px",
+            "weight": "600",
+            "family": "Geist, Arial, sans-serif, sans-serif"
+          }
+        }
+      ],
+      "geometry": [
+        {
+          "tab": "scf",
+          "height": 44,
+          "radius": "8px",
+          "valueSize": "16px"
+        },
+        {
+          "tab": "md",
+          "height": 44,
+          "radius": "8px",
+          "valueSize": "16px"
+        }
+      ],
+      "compactHeight": 44,
+      "preferenceStyle": {
+        "focus": "rgb(36, 84, 186)",
+        "accent": "#2454ba",
+        "codeSize": "17px"
+      },
+      "status": "passed"
+    }
+  ],
+  "fixtureOpenSaves": 25,
+  "fixtureInputSaves": 5,
+  "blockedWrites": [],
+  "errors": []
+}

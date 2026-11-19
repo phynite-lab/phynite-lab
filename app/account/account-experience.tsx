@@ -13,7 +13,6 @@ import { useSession } from '../use-session';
 import { useLabAccount } from '../use-lab-account';
 import { useAccountUsage } from '../use-account-usage';
 import { useAccountComputeUsage } from '../use-account-compute-usage';
-import { useSettingsAnchor } from '../use-settings-anchor';
 import { useLocale } from '../locale-provider';
 import { accountLinks, legacyAccountDestination, type AccountSection } from '../account-navigation';
 import { accountRequest, type AccountResponse } from '@/lib/account-api';
@@ -41,7 +40,6 @@ export function AccountExperience({ section = 'profile' }: { section?: AccountSe
   const profileAvailable = hasUserProfile(session);
   const [notice, setNotice] = useState(''), [busy, setBusy] = useState(false), [confirmation, setConfirmation] = useState(false);
   const [signOutBusy, setSignOutBusy] = useState(false), [signOutError, setSignOutError] = useState('');
-  useSettingsAnchor(Boolean(ready && session && (account || section !== 'profile')));
   useEffect(() => {
     if (section !== 'profile') return;
     const legacy = window.location.hash.slice(1), alias = legacyAccountDestination(legacy);

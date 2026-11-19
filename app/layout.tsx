@@ -8,6 +8,7 @@ import './workspace-feedback.css';
 import './studio-ui.css';
 import './navigation-ui.css';
 import './pilot-design.css';
+import './workspace-foundations.css';
 import './device-preferences.css';
 import '@/components/UiSelect.css';
 import { DevicePreferences } from '@/components/DevicePreferences';

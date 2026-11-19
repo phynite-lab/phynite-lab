@@ -1,0 +1,44 @@
+{
+  "platform": "macOS arm64",
+  "browser": "Playwright Chromium",
+  "sourceBase": "47bfbe5",
+  "checks": {
+    "test:structures": {
+      "passed": 865,
+      "failed": 0
+    },
+    "lint": {
+      "status": "passed",
+      "warnings": 1,
+      "note": "Existing no-img-element warning in untouched AiProviderLogo.tsx"
+    },
+    "typecheck": {
+      "status": "passed"
+    },
+    "build": {
+      "status": "passed"
+    },
+    "diffCheck": {
+      "status": "passed"
+    },
+    "workspaceBehavior": {
+      "passed": 6,
+      "evidence": "verification.json"
+    },
+    "workspaceConsistency": {
+      "passed": 5,
+      "evidence": "consistency.json"
+    },
+    "hpcDownload": {
+      "passed": 2,
+      "viewports": [
+        "1440x900",
+        "390x844"
+      ]
+    }
+  },
+  "liveAiTurns": 0,
+  "solverRuns": 0,
+  "nativeRuntimeQualification": false,
+  "hostedDeploymentTested": false
+}

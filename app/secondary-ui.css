@@ -1634,13 +1634,13 @@ html[data-workspace-theme="dark"] .developer-empty > span {
 
 .studio-context h3 { margin-bottom: 8px; }
 
-.studio-dialog { margin: auto; padding: 28px; width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); border: 1px solid var(--lab-border); border-radius: 6px; color: var(--lab-text); background: var(--lab-surface); box-shadow: 0 24px 90px color-mix(in srgb, black 20%, transparent); }
+.studio-dialog { margin: auto; padding: var(--panel-padding); width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); border: 1px solid var(--lab-border); border-radius: var(--radius-dialog); color: var(--lab-text); background: var(--lab-surface); box-shadow: var(--shadow-dialog); }
 
 .studio-dialog::backdrop { background: color-mix(in srgb, black 53%, transparent); }
 
 .studio-dialog header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 
-.studio-dialog h2 { font-size: 22px; }
+.studio-dialog h2 { font-size: var(--text-section); font-weight: 600; line-height: var(--leading-heading); }
 
 .studio-dialog h2 + p { margin-top: 10px; color: var(--lab-muted); font-size: var(--text-body); }
 
@@ -1648,7 +1648,7 @@ html[data-workspace-theme="dark"] .developer-empty > span {
 
 .studio-dialog label > span { float: right; color: var(--lab-muted); font-weight: 400; }
 
-.studio-dialog :is(input,textarea) { display: block; width: 100%; min-height: 42px; padding: 10px 12px; margin-top: 8px; border: 1px solid var(--lab-border); border-radius: 4px; color: var(--lab-text); background: var(--lab-subtle); font: var(--text-body)/1.5 var(--font-ui); resize: vertical; }
+.studio-dialog :is(input,textarea) { display: block; width: 100%; min-height: var(--control-height); padding: 10px 12px; margin-top: 8px; border: 1px solid var(--lab-border); border-radius: var(--radius-control); color: var(--lab-text); background: var(--lab-subtle); font: var(--text-label)/1.5 var(--font-ui); resize: vertical; }
 
 .studio-dialog footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 28px; }
 

@@ -47,7 +47,8 @@ export function SettingsNavigation({ onNavigate, className = '' }: { onNavigate?
         return <Link key={item.id} href={item.href} aria-current={pathname === item.href || item.id === 'billing' && pathname.startsWith('/billing/') ? 'page' : undefined} onClick={event => visit(event, item.href, item.id === 'billing')}><Icon size={17} /><span>{t(item.en, item.idn)}</span></Link>;
       })}</section>;
     })}
-    {controls.length > 0 && <section className="settings-nav-group settings-search-results" aria-label={t('Matching settings', 'Pengaturan yang cocok')}><h3>{t('Settings', 'Pengaturan')}</h3>{controls.map(item => <Link key={item.href} href={item.href} onClick={event => visit(event, item.href, item.section === 'billing')}><Search size={15} /><span>{t(item.en, item.idn)}</span></Link>)}</section>}
+    {controls.length > 0 && <section className="settings-nav-group settings-search-results" aria-label={t('Matching settings', 'Pengaturan yang cocok')}><h3>{t('Matching settings', 'Pengaturan yang cocok')}</h3>{controls.map(item => <Link key={`${item.href}:${item.en}`} href={item.href} onClick={event => visit(event, item.href, item.section === 'billing')}><Search size={15} aria-hidden="true" /><span><small>{t(item.sectionEn, item.sectionIdn)}</small>{t(item.en, item.idn)}</span></Link>)}</section>}
+    {query.trim() && <p className="sr-only" role="status">{t(`${sections.length + controls.length} matching settings`, `${sections.length + controls.length} pengaturan yang cocok`)}</p>}
     {sections.length === 0 && controls.length === 0 && <p className="settings-search-empty" role="status">{t('No matching settings. Try “compute”, “storage”, or “email”.', 'Pengaturan tidak ditemukan. Coba “komputasi”, “penyimpanan”, atau “email”.')}</p>}</div>
   </nav>;
 }
