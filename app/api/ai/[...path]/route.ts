@@ -14,6 +14,7 @@ import type { AiBackend } from '@/lib/ai-tools';
 import { ControlPlaneTimeoutError } from '@/lib/control-plane-fetch';
 import { localAppMode } from '@/lib/local-runtime';
 import { localAiFetch } from '@/lib/local-ai';
+import { aiEventPollDelay, waitForAiEvents } from '@/lib/ai-event-poll';
 
 type Context = { params: Promise<{ path: string[] }> | { path: string[] } };
 async function handle(request: NextRequest, context: Context): Promise<Response> {
@@ -146,7 +147,8 @@ async function handle(request: NextRequest, context: Context): Promise<Response>
       const base = `conversations/${events[1]}`;
       await call(base, undefined, 'GET');
       const encoder = new TextEncoder(); let cursor = request.nextUrl.searchParams.get('after')?.slice(0, 30) ?? '';
-      let detached = false;
+      let detached = false, emptyReads = 0;
+      const detach = new AbortController(), eventSignal = AbortSignal.any([request.signal, detach.signal]);
       const stream = new ReadableStream<Uint8Array>({
         start(controller) {
           void (async () => {
@@ -160,15 +162,16 @@ async function handle(request: NextRequest, context: Context): Promise<Response>
                 }
                 cursor = batch.cursor;
                 controller.enqueue(encoder.encode(': heartbeat\n\n'));
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                emptyReads = batch.events.length ? 0 : emptyReads + 1;
+                await waitForAiEvents(aiEventPollDelay(batch.events.length, emptyReads, local), eventSignal);
               }
             } catch (error) { if (!detached && !request.signal.aborted) { try { controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'error', code: error instanceof AiError ? error.code : 'AI_EVENTS_UNAVAILABLE', message: 'Reconnect to retrieve the saved conversation.', requestId })}\n\n`)); } catch {} } }
             finally { try { controller.close(); } catch {} }
           })();
         },
-        cancel() { detached = true; },
+        cancel() { detached = true; detach.abort(); },
       });
-      return cookies(new NextResponse(stream, { headers: { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store, no-transform' } }));
+      return cookies(new NextResponse(stream, { headers: { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store, no-transform', 'X-Accel-Buffering': 'no' } }));
     }
     const queued = /^conversations\/aic_[a-z0-9]+\/(?:queue(?:\/aiq_[a-z0-9]+)?|steer\/aiq_[a-z0-9]+|continue)$/.test(path);
     if (queued && ['GET', 'POST', 'PATCH', 'DELETE'].includes(method)) {

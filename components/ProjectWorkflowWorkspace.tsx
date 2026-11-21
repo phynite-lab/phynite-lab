@@ -1,4 +1,5 @@
 'use client';
+import type { AiMessageQuote } from '@/lib/ai-message-quote';
 import { AiViewportScope } from './AiViewportScope';
 import { WorkspaceLoading } from '@/components/WorkspaceLoading';
 import { WorkflowDraftTransfer } from './WorkflowDraftTransfer';
@@ -185,6 +186,7 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
   const dispatchEditor = editor.dispatch;
   const { activeTab } = editor.state;
   const [spaceHand, setSpaceHand] = useState(false), [containerWidth, setContainerWidth] = useState(0), [containerHeight, setContainerHeight] = useState(0), [floatingHeight, setFloatingHeight] = useState(200);
+  const [quoteSourceRequest, setQuoteSourceRequest] = useState<{ tabId: string; nonce: number; quote: AiMessageQuote }>();
   const [contextRequest, setContextRequest] = useState<{ tabId: string; nonce: number; items: AiContextItem[] }>();
   const root = useRef<HTMLElement>(null), canvasRoot = useRef<HTMLDivElement>(null);
   // Panning is momentary; a saved legacy Hand preference must not latch this mode.
@@ -617,15 +619,17 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
     } catch (failure) { setHistoryError((failure as Error).message); }
     finally { historyDeleting.current = false; setHistoryBusy(false); void refreshAiChats().catch(() => undefined); }
   };
-  const newAiChat = useCallback(async (floating = false) => {
+  const newAiChat = useCallback(async (floating = false, source?: AiConversation) => {
     if (!project || creatingAi.current) return;
     creatingAi.current = true; setAiCreating(true);
     try {
       // The hosted default is not a valid selection in a local workspace. Read
       // the native catalogue before creating the conversation so opening AI
       // never sends the local backend a fabricated Phynite model selection.
-      let selection: { modelId: string; providerId: string; effort: string } = { modelId: defaultAiModel, providerId: defaultAiProvider, effort: 'auto' };
-      if (session.mode === 'local') {
+      let selection: { modelId: string; providerId: string; effort: string } = source
+        ? { modelId: source.modelId, providerId: source.providerId ?? defaultAiProvider, effort: source.effort ?? 'auto' }
+        : { modelId: defaultAiModel, providerId: defaultAiProvider, effort: 'auto' };
+      if (session.mode === 'local' && !source) {
         const catalogResponse = await fetch('/api/ai/models', { cache: 'no-store' });
         const catalog = await catalogResponse.json() as { providers?: Array<{ id: string; models?: Array<{ id: string; capabilities?: { available?: boolean; efforts?: string[] } }> }>; error?: string };
         if (!catalogResponse.ok) throw new Error(catalog.error || t('Local AI is unavailable. Open Local settings and sign in first.', 'AI lokal belum tersedia. Buka pengaturan lokal dan login terlebih dahulu.'));
@@ -635,7 +639,7 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
         const efforts = model.capabilities?.efforts ?? ['auto'];
         selection = { modelId: model.id, providerId: 'local', effort: efforts.includes('auto') ? 'auto' : efforts[0] ?? 'auto' };
       }
-      const response = await fetch('/api/ai/conversations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectKey: `project:${projectId}`, ...selection, mode: 'approval' }) });
+      const response = await fetch('/api/ai/conversations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectKey: `project:${projectId}`, ...selection, mode: source?.mode ?? 'approval' }) });
       const data = await response.json() as { conversation?: AiConversation; error?: string };
       if (!response.ok || !data.conversation) throw new Error(data.error || 'Could not create the research conversation.');
       addAiChat(data.conversation);
@@ -1202,6 +1206,7 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
            />}
         <WorkflowPanelBoundary label="Phynite AI" onCanvas={() => dispatchWorkspace({ type: 'open', id: 'canvas' })}>
           <AiWorkspace onCanvasPreview={(preview, actionId) => { if (preview && state.status !== 'synced') throw new Error(t('Save Canvas changes before previewing.', 'Simpan perubahan Kanvas sebelum preview.')); const frozen = preview ? frozenCanvasPreview(latestGraph.current, preview) : null; setCanvasPreview(current => frozen ?? (!actionId || current?.actionId === actionId ? null : current)); }} projectId={projectId} legacyProjectId={project.legacyId} conversationId={aiConversationFromTab(tabId)} visible={visibleTabs.includes(tabId) || Boolean(panel && panel.presentation !== 'minimized')} composerOnly={panel?.presentation === 'composer' || panel?.presentation === 'minimized'} savedContext={state.status === 'synced'} contextRequest={contextRequest?.tabId === tabId ? contextRequest : undefined}
+            onSideChat={(item, source) => { void newAiChat(true, source).then(tabId => { if (tabId) setContextRequest({ tabId, nonce: Date.now(), items: [item] }); }); }} quoteSourceRequest={quoteSourceRequest?.tabId === tabId ? quoteSourceRequest : undefined} onQuoteSource={quote => { const sourceTab = aiConversationTab(quote.conversationId); openEditor(sourceTab); setQuoteSourceRequest({ tabId: sourceTab, nonce: Date.now(), quote }); }}
             onStatusChange={status => setAiStatuses(current => current[tabId] === status ? current : { ...current, [tabId]: status })}
             onProjectChange={() => void client.refresh()} onConversationChange={() => void refreshAiChats().catch(() => undefined)} onOpenConversation={() => changeAiPresentation(tabId, 'tab')} onConversationReady={id => { if (tabId === workflowAiTab) dispatchEditor({ type: 'resolve-launcher', tabId, nodeId: aiConversationTab(id) }); }}
             onShowCanvas={ids => { setSelected(ids.filter(id => graph.nodes.some(node => node.id === id))); setSelectedEdges(ids.filter(id => graph.edges.some(edge => edge.id === id))); setStudyReveal([...new Set([...ids.filter(id => graph.nodes.some(node => node.id === id)), ...graph.edges.filter(edge => ids.includes(edge.id)).flatMap(edge => [edge.source, edge.target])])]); dispatchWorkspace({type:'open',id:'canvas'}); }} />

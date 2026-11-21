@@ -7,6 +7,7 @@ export type AiContextRef =
   | { kind: 'field'; id: string; path: string[]; revision?: number }
   | { kind: 'atom'; id: string; atomId: string; image?: [number, number, number]; revision?: number }
   | { kind: 'resource'; id: string; resourceKind: string; revision?: number }
+  | { kind: 'message'; id: string; conversationId: string; start: number; end: number; quote: string }
   | { kind: 'attachment'; id: string };
 export type AiContextItem = { ref: AiContextRef; label: string; detail?: string };
 export type AiContextManifest = AiContextItem & { sourceId: string; sha256: string; value?: unknown };
@@ -23,7 +24,7 @@ export type AiArtifactHunk = { id: string; before: string; after: string; reason
 export type AiArtifactPatch = { id: string; revision: number; baseArtifactId: string; baseSha256: string; artifactGroupId: string; expectedArtifactId: string; hunks: AiArtifactHunk[]; author: AiArtifactAuthor; status: 'open' | 'stale' | 'expired' | 'complete'; createdAt: string; expiresAt: number };
 
 export function aiEffectivePermission(mode: AiPermissionMode, task: AiTaskMode = 'work'): AiPermissionMode { return task === 'work' ? mode : 'chat'; }
-export function aiContextKey(ref: AiContextRef): string { return JSON.stringify([ref.kind, ref.id, ref.kind === 'field' ? ref.path : ref.kind === 'atom' ? [ref.atomId, ref.image ?? [0, 0, 0]] : ref.kind === 'resource' ? ref.resourceKind : null]); }
+export function aiContextKey(ref: AiContextRef): string { return JSON.stringify([ref.kind, ref.id, ref.kind === 'field' ? ref.path : ref.kind === 'atom' ? [ref.atomId, ref.image ?? [0, 0, 0]] : ref.kind === 'resource' ? ref.resourceKind : ref.kind === 'message' ? [ref.conversationId, ref.start, ref.end, ref.quote] : null]); }
 export function aiTaskInstruction(task: AiTaskMode): string {
   if (task === 'plan') return 'In Plan mode, inspect saved context and develop an actionable research plan around the user’s objective. Connect the supporting evidence to the proposed steps and exact parameter changes, explaining missing scientific choices, validation and risks where relevant. This mode is read-only: do not modify project data or submit jobs. The user can choose Implement plan in a later Work turn.';
   if (task === 'research') return 'In Research mode, investigate the question using public keyword queries and relevant project or attachment evidence. Compare Crossref/arXiv records, deduplicate DOI/arXiv IDs and follow useful gaps iteratively. Support claims with returned URLs, source IDs and actually read sections, distinguishing metadata from abstracts and document evidence. Explain conflicts and gaps that affect the synthesis without implying broad web or full-text coverage. This mode is read-only: do not change project data or run jobs. Near the tool limit, save a useful partial synthesis with focused continuation questions.';
@@ -34,5 +35,5 @@ export function aiTaskInstruction(task: AiTaskMode): string {
 export function isAiContextItem(value: unknown): value is AiContextItem {
   if (!value || typeof value !== 'object') return false;
   const item = value as Partial<AiContextItem>, ref = item.ref;
-  return typeof item.label === 'string' && item.label.length <= 500 && Boolean(ref && typeof ref === 'object' && typeof ref.id === 'string' && ['node', 'edge', 'field', 'atom', 'resource', 'attachment'].includes(ref.kind));
+  return typeof item.label === 'string' && item.label.length <= 500 && Boolean(ref && typeof ref === 'object' && typeof ref.id === 'string' && ['node', 'edge', 'field', 'atom', 'resource', 'attachment', 'message'].includes(ref.kind) && (ref.kind !== 'message' || typeof ref.conversationId === 'string' && Number.isInteger(ref.start) && ref.start >= 0 && Number.isInteger(ref.end) && ref.end > ref.start && typeof ref.quote === 'string' && Array.from(ref.quote).length <= 4000));
 }
