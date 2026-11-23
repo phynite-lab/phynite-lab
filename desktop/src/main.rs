@@ -2,9 +2,9 @@ use std::{
     io::{BufRead, BufReader},
     path::PathBuf,
     process::{ChildStdin, Command, Stdio},
-    sync::Mutex,
+    sync::{Condvar, Mutex},
     thread,
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tauri::{
     webview::{DownloadEvent, NewWindowResponse},
@@ -18,11 +18,13 @@ const STARTUP: &str = "tauri://localhost/index.html";
 struct Service {
     status: String,
     input: Option<ChildStdin>,
+    running: bool,
     quitting: bool,
 }
 
 struct Desktop {
     service: Mutex<Service>,
+    stopped: Condvar,
     data_dir: Option<PathBuf>,
 }
 
@@ -43,7 +45,7 @@ fn open_external(url: &Url) {
 fn start(app: &AppHandle) -> Result<(), String> {
     let state = app.state::<Desktop>();
     let mut service = state.service.lock().unwrap();
-    if service.input.is_some() || service.quitting {
+    if service.running || service.quitting {
         return Ok(());
     }
     let payload = app
@@ -72,6 +74,7 @@ fn start(app: &AppHandle) -> Result<(), String> {
     };
     service.status = "starting".into();
     service.input = child.stdin.take();
+    service.running = true;
     let errors = child.stderr.take().unwrap();
     let output = child.stdout.take().unwrap();
     let app = app.clone();
@@ -97,8 +100,9 @@ fn start(app: &AppHandle) -> Result<(), String> {
         let state = app.state::<Desktop>();
         let mut service = state.service.lock().unwrap();
         service.input.take();
+        service.running = false;
+        state.stopped.notify_all();
         if service.quitting {
-            service.status = "stopped".into();
             drop(service);
             app.exit(0);
             return;
@@ -156,8 +160,10 @@ fn main() {
             service: Mutex::new(Service {
                 status: "starting".into(),
                 input: None,
+                running: false,
                 quitting: false,
             }),
+            stopped: Condvar::new(),
             data_dir,
         })
         .invoke_handler(tauri::generate_handler![startup_status, retry_startup])
@@ -224,11 +230,25 @@ fn main() {
             RunEvent::ExitRequested { api, .. } => {
                 let state = app.state::<Desktop>();
                 let mut service = state.service.lock().unwrap();
-                if service.input.is_some() || service.quitting && service.status != "stopped" {
+                if service.running {
                     api.prevent_exit();
                     service.quitting = true;
                     service.input.take();
                 }
+            }
+            RunEvent::Exit => {
+                // AppKit's native Quit can reach Exit directly. Close the
+                // launcher pipe and give its existing shutdown time to finish.
+                let state = app.state::<Desktop>();
+                let mut service = state.service.lock().unwrap();
+                service.quitting = true;
+                service.input.take();
+                drop(
+                    state
+                        .stopped
+                        .wait_timeout_while(service, Duration::from_secs(20), |service| service.running)
+                        .unwrap(),
+                );
             }
             RunEvent::Reopen { .. } => show_workspace(app),
             _ => {}
