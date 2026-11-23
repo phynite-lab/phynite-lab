@@ -1,4 +1,8 @@
+mod cloud_mark;
+mod startup;
+
 use std::{
+    cell::OnceCell,
     io::{BufRead, BufReader},
     path::PathBuf,
     process::{ChildStdin, Command, Stdio},
@@ -6,19 +10,28 @@ use std::{
     thread,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
+
+use startup::StartupView;
 use tauri::{
-    webview::{DownloadEvent, NewWindowResponse},
-    AppHandle, Manager, RunEvent, State, Url, Webview, WebviewUrl, WebviewWindowBuilder,
-    WindowEvent,
+    webview::{DownloadEvent, NewWindowResponse, PageLoadEvent, WebviewBuilder},
+    window::WindowBuilder,
+    AppHandle, LogicalPosition, Manager, RunEvent, Url, WebviewUrl, WindowEvent,
 };
 
 const ORIGIN: &str = "http://127.0.0.1:47739";
-const STARTUP: &str = "tauri://localhost/index.html";
+const WINDOW: &str = "workspace";
+const WEBVIEW: &str = "workspace-view";
 
+thread_local! {
+    static STARTUP: OnceCell<StartupView> = const { OnceCell::new() };
+}
+
+#[derive(Default)]
 struct Service {
-    status: String,
     input: Option<ChildStdin>,
     running: bool,
+    ready: bool,
+    presenting: bool,
     quitting: bool,
 }
 
@@ -28,11 +41,12 @@ struct Desktop {
     data_dir: Option<PathBuf>,
 }
 
-fn is_startup(url: &Url) -> bool {
-    matches!(
-        url.as_str(),
-        "tauri://localhost" | "tauri://localhost/" | STARTUP
-    )
+fn with_startup(action: impl FnOnce(&StartupView)) {
+    STARTUP.with(|startup| {
+        if let Some(view) = startup.get() {
+            action(view);
+        }
+    });
 }
 
 fn is_workspace(url: &Url) -> bool {
@@ -45,7 +59,21 @@ fn open_external(url: &Url) {
     }
 }
 
-fn start(app: &AppHandle) -> Result<(), String> {
+fn show_error(app: &AppHandle, message: &str) {
+    if let Some(webview) = app.get_webview(WEBVIEW) {
+        let _ = webview.hide();
+    }
+    with_startup(|view| view.error(message));
+}
+
+fn start(app: &AppHandle) {
+    with_startup(StartupView::loading);
+    if let Err(error) = spawn_launcher(app) {
+        show_error(app, &error);
+    }
+}
+
+fn spawn_launcher(app: &AppHandle) -> Result<(), String> {
     let state = app.state::<Desktop>();
     let mut service = state.service.lock().unwrap();
     if service.running || service.quitting {
@@ -68,14 +96,9 @@ fn start(app: &AppHandle) -> Result<(), String> {
     if let Some(path) = &state.data_dir {
         command.arg("--data-dir").arg(path);
     }
-    let mut child = match command.spawn() {
-        Ok(child) => child,
-        Err(error) => {
-            service.status = format!("Could not start the bundled launcher. {error}");
-            return Ok(());
-        }
-    };
-    service.status = "starting".into();
+    let mut child = command
+        .spawn()
+        .map_err(|error| format!("Could not start the bundled launcher. {error}"))?;
     service.input = child.stdin.take();
     service.running = true;
     let errors = child.stderr.take().unwrap();
@@ -84,70 +107,147 @@ fn start(app: &AppHandle) -> Result<(), String> {
     thread::spawn(move || {
         let errors =
             thread::spawn(move || BufReader::new(errors).lines().map_while(Result::ok).last());
+        let mut display_error = None;
         for line in BufReader::new(output).lines().map_while(Result::ok) {
-            if line == "PHYNITE_DESKTOP_READY" {
-                let state = app.state::<Desktop>();
+            if line != "PHYNITE_DESKTOP_READY" {
+                continue;
+            }
+            let state = app.state::<Desktop>();
+            {
                 let mut service = state.service.lock().unwrap();
-                if service.quitting {
+                if service.quitting || service.ready {
                     continue;
                 }
-                service.status = "ready".into();
-                drop(service);
-                if let Some(window) = app.get_webview_window("workspace") {
-                    let _ = window.navigate(Url::parse(&format!("{ORIGIN}/workspace")).unwrap());
-                }
+                service.ready = true;
+                service.presenting = true;
             }
+            let main = app.clone();
+            let _ = app.run_on_main_thread(move || {
+                if let Err(error) = open_workspace(&main) {
+                    let state = main.state::<Desktop>();
+                    let mut service = state.service.lock().unwrap();
+                    service.ready = false;
+                    service.presenting = false;
+                    service.input.take();
+                    drop(service);
+                    show_error(&main, &format!("Could not open the workspace. {error}"));
+                }
+            });
         }
         let result = child.wait();
         let error = errors.join().ok().flatten();
         let state = app.state::<Desktop>();
-        let mut service = state.service.lock().unwrap();
-        service.input.take();
-        service.running = false;
-        state.stopped.notify_all();
-        if service.quitting {
-            drop(service);
-            app.exit(0);
-            return;
-        }
-        service.status = error.unwrap_or_else(|| match result {
-            Ok(code) => format!("The local launcher stopped ({code})."),
-            Err(error) => format!("Could not wait for the local launcher. {error}"),
-        });
-        drop(service);
-        if let Some(window) = app.get_webview_window("workspace") {
-            if window.url().is_ok_and(|url| is_workspace(&url)) {
-                let _ = window.navigate(Url::parse(STARTUP).unwrap());
+        {
+            let mut service = state.service.lock().unwrap();
+            service.input.take();
+            service.running = false;
+            service.presenting = false;
+            state.stopped.notify_all();
+            if service.quitting {
+                drop(service);
+                app.exit(0);
+                return;
             }
+            if service.ready
+                || error.is_some()
+                || result.as_ref().is_err()
+                || !matches!(result, Ok(code) if code.success())
+            {
+                display_error = Some(error.unwrap_or_else(|| match result {
+                    Ok(code) => format!("The local launcher stopped ({code})."),
+                    Err(error) => format!("Could not wait for the local launcher. {error}"),
+                }));
+            }
+            service.ready = false;
+        }
+        if let Some(message) = display_error {
+            let main = app.clone();
+            let _ = app.run_on_main_thread(move || show_error(&main, &message));
         }
     });
     Ok(())
 }
 
-fn verify_startup(webview: &Webview) -> Result<(), String> {
-    if webview.url().is_ok_and(|url| is_startup(&url)) {
-        Ok(())
-    } else {
-        Err("This command is only available on the startup page.".into())
+fn open_workspace(app: &AppHandle) -> tauri::Result<()> {
+    let state = app.state::<Desktop>();
+    {
+        let service = state.service.lock().unwrap();
+        if !service.ready || service.quitting {
+            return Ok(());
+        }
     }
+    let url = Url::parse(&format!("{ORIGIN}/workspace")).unwrap();
+    if let Some(webview) = app.get_webview(WEBVIEW) {
+        return webview.navigate(url);
+    }
+    let window = app.get_window(WINDOW).expect("workspace window");
+    let main = app.clone();
+    let builder = WebviewBuilder::new(WEBVIEW, WebviewUrl::External(url))
+        .auto_resize()
+        .initialization_script(format!(
+            "if (location.origin === '{ORIGIN}') Object.defineProperty(window, 'phyniteDesktop', {{ value: true }});"
+        ))
+        .on_navigation(move |url| {
+            if is_workspace(url) {
+                return main.state::<Desktop>().service.lock().unwrap().ready;
+            }
+            open_external(url);
+            false
+        })
+        .on_page_load(|webview, payload| {
+            if payload.event() == PageLoadEvent::Finished && is_workspace(payload.url()) {
+                let app = webview.app_handle().clone();
+                let _ = webview.run_on_main_thread(move || present_workspace(&app));
+            }
+        })
+        .on_new_window(|url, _| {
+            open_external(&url);
+            NewWindowResponse::Deny
+        })
+        .on_download(|webview, event| {
+            if let DownloadEvent::Requested { destination, .. } = event {
+                let Some(name) = destination.file_name().map(|name| name.to_owned()) else {
+                    return false;
+                };
+                let Ok(downloads) = webview.path().download_dir() else {
+                    return false;
+                };
+                let mut path = downloads.join(&name);
+                if path.exists() {
+                    let stamp = SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_millis();
+                    path = downloads.join(format!("{stamp}-{}", name.to_string_lossy()));
+                }
+                *destination = path;
+            }
+            true
+        });
+    let size = window.inner_size()?;
+    let webview = window.add_child(builder, LogicalPosition::new(0.0, 0.0), size)?;
+    webview.hide()
 }
 
-#[tauri::command]
-fn startup_status(webview: Webview, state: State<'_, Desktop>) -> Result<String, String> {
-    verify_startup(&webview)?;
-    Ok(state.service.lock().unwrap().status.clone())
-}
-
-#[tauri::command]
-fn retry_startup(webview: Webview, app: AppHandle) -> Result<(), String> {
-    verify_startup(&webview)?;
-    start(&app)
-}
-
-fn show_workspace(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("workspace") {
-        let _ = window.show();
-        let _ = window.set_focus();
+fn present_workspace(app: &AppHandle) {
+    let Some(webview) = app.get_webview(WEBVIEW) else {
+        return;
+    };
+    let state = app.state::<Desktop>();
+    {
+        let mut service = state.service.lock().unwrap();
+        if !service.ready || !service.presenting || service.quitting {
+            return;
+        }
+        service.presenting = false;
+    }
+    with_startup(StartupView::hide);
+    let _ = webview.show();
+    if app
+        .get_window(WINDOW)
+        .is_some_and(|window| window.is_visible().unwrap_or(false))
+    {
+        let _ = webview.set_focus();
     }
 }
 
@@ -160,63 +260,21 @@ fn main() {
         .map(PathBuf::from);
     tauri::Builder::default()
         .manage(Desktop {
-            service: Mutex::new(Service {
-                status: "starting".into(),
-                input: None,
-                running: false,
-                quitting: false,
-            }),
+            service: Mutex::new(Service::default()),
             stopped: Condvar::new(),
             data_dir,
         })
-        .invoke_handler(tauri::generate_handler![startup_status, retry_startup])
         .setup(|app| {
-            let app_handle = app.handle().clone();
-            let builder =
-                WebviewWindowBuilder::new(app, "workspace", WebviewUrl::App("index.html".into()))
-                    .title("Phynite Lab")
-                    .inner_size(1320.0, 860.0)
-                    .min_inner_size(760.0, 540.0)
-                    .initialization_script(format!(
-                        "if (location.origin === '{ORIGIN}') Object.defineProperty(window, 'phyniteDesktop', {{ value: true }});"
-                    ))
-                    .on_navigation(move |url| {
-                        if is_startup(url) {
-                            return true;
-                        }
-                        if is_workspace(url) {
-                            return app_handle.state::<Desktop>().service.lock().unwrap().status == "ready";
-                        }
-                        open_external(url);
-                        false
-                    })
-                    .on_new_window(|url, _| {
-                        open_external(&url);
-                        NewWindowResponse::Deny
-                    })
-                    .on_download(|window, event| {
-                        if let DownloadEvent::Requested { destination, .. } = event {
-                            let Some(name) = destination.file_name().map(|name| name.to_owned())
-                            else {
-                                return false;
-                            };
-                            let Ok(downloads) = window.path().download_dir() else {
-                                return false;
-                            };
-                            let mut path = downloads.join(&name);
-                            if path.exists() {
-                                let stamp = SystemTime::now()
-                                    .duration_since(UNIX_EPOCH)
-                                    .unwrap_or_default()
-                                    .as_millis();
-                                path =
-                                    downloads.join(format!("{stamp}-{}", name.to_string_lossy()));
-                            }
-                            *destination = path;
-                        }
-                        true
-                    });
-            let window = builder.build()?;
+            let window = WindowBuilder::new(app, WINDOW)
+                .title("Phynite Lab")
+                .inner_size(1320.0, 860.0)
+                .min_inner_size(760.0, 540.0)
+                .visible(false)
+                .build()?;
+            let main = app.handle().clone();
+            let startup = StartupView::new(&window, move || start(&main))?;
+            STARTUP.with(|slot| assert!(slot.set(startup).is_ok()));
+
             let close_window = window.clone();
             window.on_window_event(move |event| {
                 if let WindowEvent::CloseRequested { api, .. } = event {
@@ -224,7 +282,10 @@ fn main() {
                     let _ = close_window.hide();
                 }
             });
-            start(app.handle()).map_err(std::io::Error::other)?;
+            window.show()?;
+            if let Err(error) = spawn_launcher(app.handle()) {
+                show_error(app.handle(), &error);
+            }
             Ok(())
         })
         .build(tauri::generate_context!())
@@ -240,8 +301,7 @@ fn main() {
                 }
             }
             RunEvent::Exit => {
-                // AppKit's native Quit can reach Exit directly. Close the
-                // launcher pipe and give its existing shutdown time to finish.
+                // AppKit's native Quit can reach Exit directly.
                 let state = app.state::<Desktop>();
                 let mut service = state.service.lock().unwrap();
                 service.quitting = true;
@@ -249,11 +309,18 @@ fn main() {
                 drop(
                     state
                         .stopped
-                        .wait_timeout_while(service, Duration::from_secs(20), |service| service.running)
+                        .wait_timeout_while(service, Duration::from_secs(20), |service| {
+                            service.running
+                        })
                         .unwrap(),
                 );
             }
-            RunEvent::Reopen { .. } => show_workspace(app),
+            RunEvent::Reopen { .. } => {
+                if let Some(window) = app.get_window(WINDOW) {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
             _ => {}
         });
 }

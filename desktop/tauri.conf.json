@@ -1,12 +1,9 @@
 {
   "productName": "Phynite Lab",
   "identifier": "com.phynitelab.desktop",
-  "build": { "frontendDist": "startup" },
   "app": {
-    "withGlobalTauri": true,
     "windows": [],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src ipc: http://ipc.localhost",
       "capabilities": []
     }
   },

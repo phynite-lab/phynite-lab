@@ -1,5 +1,0 @@
-:root { color-scheme: light dark; font: 16px -apple-system, sans-serif; }
-body { min-height: 100vh; display: grid; place-items: center; margin: 0; }
-main { width: min(36rem, 85vw); }
-p { line-height: 1.5; overflow-wrap: anywhere; }
-button { padding: .5rem 1rem; font: inherit; }

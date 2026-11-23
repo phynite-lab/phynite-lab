@@ -5,8 +5,12 @@ preview uses an ad-hoc signature. It has no Developer ID signature or Apple
 notarization ticket. Verify the download against `SHA256SUMS` before trying
 the app. macOS may ask you to approve the verified app on first launch.
 
-Phynite Lab opens the local workspace in WKWebView and runs the local
-services with bundled Node.js and the frozen native core. It uses
+Phynite Lab opens with a native macOS startup screen. The pixel cloud
+assembles while local services start. macOS Reduce Motion displays the
+assembled cloud immediately. Startup errors and Retry use native controls.
+
+The workspace opens in WKWebView. Local services use bundled Node.js and
+the frozen native core. The app uses
 `~/.phynite-lab`, including projects, results and installed runtimes saved by
 the npm application. Stop the npm launcher before opening the same workspace
 in the desktop app. Install any additional solvers in **Settings → Compute**.
