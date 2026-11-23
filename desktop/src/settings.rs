@@ -178,12 +178,14 @@ impl SettingsView {
         let native = unsafe { &*window.ns_window()?.cast::<NSWindow>() };
         let root = native.contentView().expect("settings content view");
         let callback: Rc<dyn Fn(Action)> = Rc::new(on_action);
-        let title = label(mtm, 32.0, 286.0, 436.0);
+        let top = root.convertRect_fromView(native.contentLayoutRect(), None);
+        let top = top.origin.y + top.size.height;
+        let title = label(mtm, 32.0, top - 49.0, 436.0);
         title.setFont(Some(&NSFont::systemFontOfSize_weight(25.0, unsafe {
             NSFontWeightSemibold
         })));
         title.setFrameSize(NSSize::new(436.0, 35.0));
-        let status = label(mtm, 32.0, 251.0, 436.0);
+        let status = label(mtm, 32.0, top - 72.0, 436.0);
         status.setTextColor(Some(&NSColor::secondaryLabelColor()));
         root.addSubview(&title);
         root.addSubview(&status);
