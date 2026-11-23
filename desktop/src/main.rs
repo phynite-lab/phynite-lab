@@ -29,7 +29,10 @@ struct Desktop {
 }
 
 fn is_startup(url: &Url) -> bool {
-    url.as_str() == STARTUP || url.as_str() == "tauri://localhost/"
+    matches!(
+        url.as_str(),
+        "tauri://localhost" | "tauri://localhost/" | STARTUP
+    )
 }
 
 fn is_workspace(url: &Url) -> bool {
