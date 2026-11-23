@@ -73,9 +73,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--executable', type=Path, required=True, help='Actual just-built PyInstaller core')
-    parser.add_argument('--pkg-toc', type=Path, required=True, help='Matching PyInstaller PKG-00.toc')
+    toc = parser.add_mutually_exclusive_group(required=True)
+    toc.add_argument('--pkg-toc', type=Path, help='Matching PyInstaller PKG-00.toc')
+    toc.add_argument('--collect-toc', type=Path, help='Matching PyInstaller COLLECT-00.toc for desktop')
     args = parser.parse_args()
-    native_content, inventory = collect_native_notices(args.executable, args.pkg_toc)
+    native_content, inventory = collect_native_notices(args.executable, args.pkg_toc or args.collect_toc,
+                                                       onedir=args.collect_toc is not None)
     content = installed_notices() + '\n' + native_content
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open('w', encoding='utf-8') as output:

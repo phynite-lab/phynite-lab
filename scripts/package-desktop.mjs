@@ -98,9 +98,14 @@ try {
   const bundledNode = join(extracted, 'bin', 'node');
   const { version } = JSON.parse(await readFile(join(root, 'packages', 'phynite-lab', 'package.json'), 'utf8'));
   const notices = await cargoNotices(version);
+  const wasmTarget = 'wasm32-unknown-unknown';
+  const wasmOutput = join(temporary, 'wasm');
+  run(process.env.PHYNITE_WASM_CARGO || 'cargo', ['build', '--locked', '--release',
+    '--target', wasmTarget, '--manifest-path', join(root, 'native/md-parser/Cargo.toml'), '--target-dir', wasmOutput]);
   const assembly = join(temporary, 'assembly');
   run(bundledNode, [join(root, 'scripts', 'package-local.mjs'), '--target', 'darwin-arm64',
     '--core', join(core, 'phynite-core'), '--notices', join(core, 'THIRD_PARTY_NOTICES.md'),
+    '--desktop-core', '--desktop-md-parser', join(wasmOutput, wasmTarget, 'release/phynite_md_parser.wasm'),
     '--source-commit', sourceCommit, '--output', assembly]);
   const staged = join(temporary, 'payload');
   const launcher = join(staged, 'phynite-lab');

@@ -1,7 +1,11 @@
 import { readdir, lstat, readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveDistribution, verifyLauncherManifest, verifyRuntimePackage } from './distribution.mjs';
+
+const desktopCaBundle = 'core/darwin-arm64/_internal/botocore/cacert.pem';
+const desktopCaSha256 = '4658f1ddf2d0a9e70c8f760323704c8fb9c0bf2f1f1e7d2dbc5939ca04ea2612';
 
 export function prohibitedDistributionPath(path) {
   const parts = path.split(/[\\/]/);
@@ -28,9 +32,16 @@ export async function checkDistribution(root) {
   async function inspect(directory) {
     for (const entry of await readdir(directory)) {
       const path = join(directory, entry), name = relative(root, path);
-      if (prohibitedDistributionPath(name)) throw new Error(`Prohibited distribution file: ${name}`);
       const info = await lstat(path);
       if (info.isSymbolicLink()) throw new Error(`Distribution symlinks are not allowed: ${name}`);
+      if (prohibitedDistributionPath(name)) {
+        // The unpacked runtime exposes the public CA roots already carried
+        // inside the one-file core. Require the reviewed bytes at this path.
+        const knownCaBundle = manifest.targets?.['darwin-arm64']?.contents && name === desktopCaBundle
+          && info.isFile() && info.size < 512 * 1024
+          && createHash('sha256').update(await readFile(path)).digest('hex') === desktopCaSha256;
+        if (!knownCaBundle) throw new Error(`Prohibited distribution file: ${name}`);
+      }
       if (info.isDirectory()) await inspect(path);
       else if (manifest.schemaVersion === 2 && name.startsWith('node_modules/')) {
         if (entry === 'binding.gyp') throw new Error('Native release dependencies cannot trigger implicit npm builds.');

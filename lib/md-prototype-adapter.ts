@@ -29,16 +29,42 @@ export function fromPrototypeModifier(modifier: ModifierItem): MdModifier {
 }
 export function toPrototypeFrame(analysis: MdAnalysis, settings: MdSettings, totalFrames: number): FrameData {
   const { frame, attributes } = analysis;
-  const species = [...new Set(frame.species)];
+  const species = new Map([...new Set(frame.species)].map((label, index) => [label, { index: index + 1, ...mdAppearanceFor(label) }]));
+  const colorCache = new Map<string, [number, number, number]>();
+  const cachedRgb = (style: string) => {
+    const color = colorCache.get(style);
+    if (color) return color;
+    const computed = rgb(style);
+    colorCache.set(style, computed);
+    return computed;
+  };
+  const phaseById = new Map<number, string>();
+  for (const phase of analysis.phases) {
+    if (!phaseById.has(phase.id)) phaseById.set(phase.id, phase.color);
+  }
   const scalarValues = settings.colorBy === 'Species' || settings.colorBy === 'Structure Type' ? undefined : frame.properties[settings.colorBy];
   const range = scalarValues ? propertyRange(scalarValues) : null;
-  const colors = frame.ids.flatMap((_, i) => {
-    if (frame.properties.Selection?.[i]) return rgb('#ffcb57');
-    const phase = settings.colorBy === 'Structure Type' ? analysis.phases.find(p => p.id === frame.properties['Structure Type']?.[i]) : null;
-    if (phase) return rgb(phase.color);
+  const particleColor = (i: number, defaultColor: string) => {
+    if (frame.properties.Selection?.[i]) return cachedRgb('#ffcb57');
+    const phase = settings.colorBy === 'Structure Type' ? phaseById.get(frame.properties['Structure Type']?.[i]) : undefined;
+    if (phase !== undefined) return cachedRgb(phase);
     if (range && scalarValues && Number.isFinite(scalarValues[i])) return sampleColormap(range[0] === range[1] ? .5 : (scalarValues[i] - range[0]) / (range[1] - range[0]), settings.palette);
-    return rgb(mdAppearanceFor(frame.species[i]).color);
-  });
+    return cachedRgb(defaultColor);
+  };
+  const colors = new Array<number>(frame.ids.length * 3);
+  const radii = new Array<number>(frame.ids.length);
+  const types = frame.species.map(label => species.get(label)!.index);
+  for (let index = 0; index < frame.ids.length; index++) {
+    const appearance = species.get(frame.species[index])!;
+    const [r, g, b] = particleColor(index, appearance.color);
+    colors[index * 3] = r;
+    colors[index * 3 + 1] = g;
+    colors[index * 3 + 2] = b;
+    const explicitRadius = frame.properties.Radius?.[index];
+    radii[index] = Number.isFinite(explicitRadius) && explicitRadius! > 0
+      ? explicitRadius!
+      : appearance.radius > 0 ? appearance.radius : 1.2;
+  }
   const histogram = range ? Array.from({ length: 24 }, (_, i) => ({ x0: range[0] + i / 24 * (range[1] - range[0]), x1: range[0] + (i + 1) / 24 * (range[1] - range[0]), count: 0, colorHex: '#' + sampleColormap((i + .5) / 24, settings.palette).map(v => Math.round(v * 255).toString(16).padStart(2, '0')).join('') })) : [];
   scalarValues?.forEach(v => { if (range && Number.isFinite(v)) histogram[Math.min(23, Math.floor((v - range[0]) / (range[1] - range[0] || 1) * 24))].count++; });
   const length = analysis.dislocations.reduce((sum, line) => sum + line.length, 0);
@@ -48,13 +74,7 @@ export function toPrototypeFrame(analysis: MdAnalysis, settings: MdSettings, tot
   const cutoff = Math.max(3, ...settings.modifiers.filter(m => m.kind === 'bonds' && m.enabled).map(m => Number(m.params.cutoff)));
   return {
     frame: frame.index, totalFrames, numParticles: frame.ids.length, ids: frame.ids, species: frame.species,
-    positions: frame.positions, colors, radii: frame.ids.map((_, i) => {
-      const explicitRadius = frame.properties.Radius?.[i];
-      if (Number.isFinite(explicitRadius) && explicitRadius! > 0) return explicitRadius!;
-      const elementRadius = mdAppearanceFor(frame.species[i]).radius;
-      return elementRadius > 0 ? elementRadius : 1.2;
-    }),
-    types: frame.species.map(s => species.indexOf(s) + 1), structureTypes: frame.properties['Structure Type'] ?? [],
+    positions: frame.positions, colors, radii, types, structureTypes: frame.properties['Structure Type'] ?? [],
     phaseCounts: Object.fromEntries(analysis.phases.map(p => [p.name, p.count])), phaseColors: Object.fromEntries(analysis.phases.map(p => [p.name, p.color])), phaseLabels: Object.fromEntries(analysis.phases.map(p => [p.id, p.name])),
     bulkStructureType: analysis.phases.filter(p => p.id !== 0).sort((a, b) => b.count - a.count)[0]?.id,
     speciesCounts: Object.fromEntries(speciesCounts(frame).map(c => [c.name, c.count])), scalarValues,

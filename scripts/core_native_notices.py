@@ -46,13 +46,14 @@ def distribution_notices(distribution: metadata.Distribution) -> list[dict[str, 
     return result
 
 
-def toc_native_sources(toc_path: Path) -> dict[str, Path]:
+def toc_native_sources(toc_path: Path, *, onedir: bool = False) -> dict[str, Path]:
     """Read the build-generated literal, never execute a spec or TOC as code."""
     document = ast.literal_eval(toc_path.read_text(encoding='utf-8'))
-    if not isinstance(document, tuple) or len(document) < 3 or not isinstance(document[2], list):
-        raise ValueError('Unsupported PyInstaller PKG TOC format')
+    index = 0 if onedir else 2
+    if not isinstance(document, tuple) or len(document) <= index or not isinstance(document[index], list):
+        raise ValueError('Unsupported PyInstaller TOC format')
     result: dict[str, Path] = {}
-    for record in document[2]:
+    for record in document[index]:
         if not isinstance(record, tuple) or len(record) != 3:
             raise ValueError('Invalid PyInstaller TOC entry')
         name, source, kind = record
@@ -208,20 +209,29 @@ class InstalledOwners:
                 'provenance': {'ownership': 'dpkg-query exact file owner', 'sourcePackage': info[1:3]}, 'notices': notices}
 
 
-def collect_native_notices(executable: Path, toc: Path) -> tuple[str, dict[str, Any]]:
+def collect_native_notices(executable: Path, toc: Path, *, onedir: bool = False) -> tuple[str, dict[str, Any]]:
     from PyInstaller.archive.readers import CArchiveReader
     import PyInstaller
 
-    sources = toc_native_sources(toc)
-    archive = CArchiveReader(str(executable))
-    validate_archive_members(sources, archive.toc)
+    sources = toc_native_sources(toc, onedir=onedir)
+    if onedir:
+        contents = executable.parent / '_internal'
+        def extract(name):
+            path = (contents / name).resolve(strict=True)
+            if not path.is_relative_to(contents.resolve()):
+                raise ValueError(f'Native content escapes the core directory: {name}')
+            return path.read_bytes()
+    else:
+        archive = CArchiveReader(str(executable))
+        validate_archive_members(sources, archive.toc)
+        extract = archive.extract
     owners = InstalledOwners()
     components: dict[str, dict] = {}
     entries = []
     for name, original in sorted(sources.items()):
         owner = owners.owner(original)
         components[owner['id']] = owner
-        content = archive.extract(name)
+        content = extract(name)
         if not isinstance(content, bytes) or not content:
             raise ValueError(f'Native payload cannot be extracted: {name}')
         entries.append({'path': name, 'sha256': sha256(content), 'sourceSha256': sha256(original.read_bytes()),
@@ -236,7 +246,7 @@ def collect_native_notices(executable: Path, toc: Path) -> tuple[str, dict[str, 
             component['staticSourceEvidence'] = evidence
             component['notices'].extend(extra_notices)
     sections = ['## Native files copied into the frozen core\n\n'
-                'This inventory was read from the built executable and matched against its build TOC. '
+                'This inventory was read from the built core and matched against its build TOC. '
                 'System libraries that remain on the target operating system are not claimed as bundled. '
                 'License metadata is not a substitute for the original texts below.']
     for identifier, component in sorted(components.items()):

@@ -15,12 +15,13 @@ import { validateBundledNoticeIndex } from '../packages/phynite-lab/lib/bundled-
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2), options = {}, inputs = { core: [], notices: [], standalone: [], bootstrap: [] };
-const usage = 'Usage: node scripts/package-local.mjs --core [TARGET=]EXECUTABLE --notices [TARGET=]NOTICES --source-commit FULL_PUBLIC_COMMIT [--target TARGET] [--standalone [TARGET=]DIRECTORY] [--bootstrap TARGET=DIRECTORY] [--output DIRECTORY] [--cloud-config PUBLIC_CONFIG_JSON | --offline-only]';
+const usage = 'Usage: node scripts/package-local.mjs --core [TARGET=]EXECUTABLE --notices [TARGET=]NOTICES --source-commit FULL_PUBLIC_COMMIT [--target TARGET] [--standalone [TARGET=]DIRECTORY] [--bootstrap TARGET=DIRECTORY] [--output DIRECTORY] [--desktop-core [--desktop-md-parser WASM]] [--cloud-config PUBLIC_CONFIG_JSON | --offline-only]';
 for (let i = 0; i < args.length; i++) {
   const name = args[i];
   if (name === '--offline-only') { options.offlineOnly = true; continue; }
+  if (name === '--desktop-core') { options.desktopCore = true; continue; }
   const value = args[++i], key = name.slice(2);
-  if (!['core', 'notices', 'target', 'output', 'standalone', 'bootstrap', 'cloud-config', 'source-commit'].includes(key) || !value || value.startsWith('--')) throw new Error(usage);
+  if (!['core', 'notices', 'target', 'output', 'standalone', 'bootstrap', 'cloud-config', 'source-commit', 'desktop-md-parser'].includes(key) || !value || value.startsWith('--')) throw new Error(usage);
   if (key in inputs) inputs[key].push(value);
   else {
     if (options[key]) throw new Error(`Repeated option: ${name}`);
@@ -50,6 +51,8 @@ function targetPaths(values, label, targets) {
   return result;
 }
 const cores = targetPaths(inputs.core, 'core'), targets = Object.keys(cores);
+if (options.desktopCore && (targets.length !== 1 || targets[0] !== 'darwin-arm64')) throw new Error('The unpacked desktop core requires a single darwin-arm64 build.');
+if (options['desktop-md-parser'] && !options.desktopCore) throw new Error('The desktop parser requires the unpacked desktop core.');
 const notices = targetPaths(inputs.notices, 'notices', targets);
 const standalones = targetPaths(inputs.standalone, 'standalone', targets);
 const bootstraps = targetPaths(inputs.bootstrap, 'bootstrap', targets);
@@ -187,6 +190,28 @@ for (const target of targets) {
   await cp(join(dirname(notices[target]), 'THIRD_PARTY_NATIVE.json'), join(coreDirectory, 'THIRD_PARTY_NATIVE.json'));
   const nativeInventory = { path: `core/${target}/THIRD_PARTY_NATIVE.json`, sha256: createHash('sha256').update(await readFile(join(coreDirectory, 'THIRD_PARTY_NATIVE.json'))).digest('hex'), notices: `core/${target}/THIRD_PARTY_NOTICES.md` };
   const core = { executable: `core/${target}/phynite-core`, sha256: createHash('sha256').update(await readFile(cores[target])).digest('hex') };
+  let desktopMdParser;
+  if (options['desktop-md-parser']) {
+    const file = join(destination, 'app/public/native/md-parser.wasm');
+    const bytes = await readFile(resolve(options['desktop-md-parser']));
+    if (!bytes.subarray(0, 8).equals(Buffer.from([0, 97, 115, 109, 1, 0, 0, 0]))) throw new Error('Invalid desktop MD parser module.');
+    await mkdir(dirname(file), { recursive: true });
+    await writeFile(file, bytes);
+    desktopMdParser = { sha256: createHash('sha256').update(bytes).digest('hex') };
+  }
+  if (options.desktopCore) {
+    const internal = join(coreDirectory, '_internal');
+    // PyInstaller uses internal aliases for framework and library names. Copy
+    // their bytes into the package so runtime verification needs no symlinks.
+    await cp(join(dirname(cores[target]), '_internal'), internal, { recursive: true, dereference: true });
+    const files = (await readdir(internal, { recursive: true, withFileTypes: true }))
+      .filter(entry => !entry.isDirectory()).map(entry => relative(internal, join(entry.parentPath, entry.name))).sort();
+    const entries = {};
+    for (const file of files) entries[file] = createHash('sha256').update(await readFile(join(internal, file))).digest('hex');
+    const inventory = JSON.stringify(entries);
+    core.contents = { sha256: createHash('sha256').update(inventory).digest('hex') };
+    await writeFile(join(coreDirectory, 'DESKTOP-CORE-FILES.json'), inventory);
+  }
   let bootstrap;
   if (bootstraps[target]) {
     await cp(bootstraps[target], join(destination, 'bootstrap'), { recursive: true, dereference: false });
@@ -194,7 +219,7 @@ for (const target of targets) {
     if (document.schemaVersion !== 1 || document.target !== target || !document.tools?.bwrap) throw new Error('The native isolation bootstrap manifest does not match its target.');
     bootstrap = { directory: 'bootstrap', sha256: createHash('sha256').update(await readFile(join(destination, 'bootstrap', 'manifest.json'))).digest('hex') };
   }
-  await writeFile(join(destination, 'distribution.json'), `${JSON.stringify({ schemaVersion: 2, kind: 'runtime', target, version, source, targets: { [target]: core }, nativeInventory, bundledNotices, ...(bootstrap ? { bootstrap } : {}) }, null, 2)}\n`);
+  await writeFile(join(destination, 'distribution.json'), `${JSON.stringify({ schemaVersion: 2, kind: 'runtime', target, version, source, targets: { [target]: core }, nativeInventory, bundledNotices, ...(desktopMdParser ? { desktopMdParser } : {}), ...(bootstrap ? { bootstrap } : {}) }, null, 2)}\n`);
   await checkDistribution(destination);
   runtimes[target] = { name, directory: name };
 }

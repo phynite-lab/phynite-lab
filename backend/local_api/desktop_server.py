@@ -795,8 +795,13 @@ def main():
     application.publish_transport()
     application.connections.start()
     threading.Thread(target=application.maintain, daemon=True).start()
+    shutdown_requested = False
+
     def shutdown(*_):
-        application.closed.set(); threading.Thread(target=server.shutdown, daemon=True).start()
+        # The one-file bootloader can forward a second signal to this process.
+        # Keep the handler free of locks and leave cleanup to the server thread.
+        nonlocal shutdown_requested
+        shutdown_requested = True
     signal.signal(signal.SIGTERM, shutdown); signal.signal(signal.SIGINT, shutdown)
     parent = int(os.environ.get("PHYNITE_PARENT_PID", "0"))
     if parent:
@@ -836,7 +841,9 @@ def main():
                     shutdown(); return
         threading.Thread(target=monitor_parent, daemon=True).start()
     try:
-        server.serve_forever(poll_interval=0.25)
+        server.timeout = 0.25
+        while not shutdown_requested:
+            server.handle_request()
     finally:
         application.close(); server.server_close()
 

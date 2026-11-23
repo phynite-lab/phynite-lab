@@ -2,7 +2,6 @@
 import type { AiMessageQuote } from '@/lib/ai-message-quote';
 import { AiViewportScope } from './AiViewportScope';
 import { WorkspaceLoading } from '@/components/WorkspaceLoading';
-import { WorkflowDraftTransfer } from './WorkflowDraftTransfer';
 import { WorkflowModulePicker, type WorkflowPickerPlacement } from './WorkflowModulePicker';
 import type { CrystalDatabaseInput } from '@/lib/crystal-database-input';
 
@@ -29,13 +28,11 @@ import { workflowPaneDrag, workflowPaneGeometry } from '@/lib/workflow-pane-layo
 import { workflowFloatingPanelPosition, workflowPanelMotionDuration } from '@/lib/workflow-floating-panel';
 import { AiPanelHeader, AiPanelResize } from './AiPanelHeader';
 import type { AiContextItem } from '@/lib/ai-workbench';
-import { ProjectNotesWorkspace } from './ProjectNotesWorkspace';
 import type { AiWorkspaceStatus } from './AiWorkspace';
 import { WorkflowPanelBoundary } from './WorkflowPanelBoundary';
 import { useProjectAiHistory } from '@/app/use-project-ai-history';
 import { defaultAiModel, defaultAiProvider, type AiConversation } from '@/lib/ai-contract';
 import { createWorkflowModule } from '@/lib/workflow-module-factory';
-import { ParameterStudyWorkspace } from './ParameterStudyWorkspace';
 import { WorkflowTabBar } from './WorkflowTabBar';
 import { WorkflowProjectSidebar } from './WorkflowProjectSidebar';
 import { WorkflowChatSidebar } from './WorkflowChatSidebar';
@@ -57,15 +54,12 @@ import { createMdSimulationWorkflowV2, type MdSimulationComponentInstance } from
 import { copyWorkflowNodes, pasteWorkflowSelection, parseWorkflowClipboard, removeWorkflowNodes, scientificWorkflowConfiguration, stableWorkflowJson, workflowConnectionError, workflowModules, workflowOrder, type ProjectWorkflow, type WorkflowNode, type WorkflowClipboardV2, type ProjectRun, type WorkflowPlan, type WorkflowPort } from '@/lib/project-workflow';
 import { nextWorkflowModuleName } from '@/lib/workflow-navigation';
 import { workflowCanvasConnection, workflowConnectionAnchors, workflowModuleChoices, workflowNewNodeConnection, type WorkflowConnectionAnchor } from '@/lib/project-workflow-interaction';
-import { loadResearch } from '@/lib/research-storage';
-import { listMdTrajectories } from '@/lib/md-workspace';
 import { workflowDeviceTrajectories } from '@/lib/workflow-md-migration';
 import { alignCanvasSelection, canvasSelection, snapCanvasPositions, canvasBounds, type CanvasAlignment, type CanvasGuide } from '@/lib/workflow-canvas';
 import { structureFormula } from '@/lib/structure-formula';
 import { workflowNodeSummary, workflowPathFocus } from '@/lib/workflow-canvas-presentation';
-import { parseStructureFile, type ParsedStructure } from '@/lib/structure-parsers';
+import type { ParsedStructure } from '@/lib/structure-parsers';
 import { ResearchSidebarSlot, ResearchWorkspaceHeaderSlot, useResearchNavigation, useResearchShell, useResearchSidebarSearch } from './ResearchShellContext';
-import { ResearchContextPanel } from './ResearchContextPanel';
 import '@xyflow/react/dist/style.css';
 import '@/app/project-workflow.css';
 
@@ -124,12 +118,16 @@ const CanvasProjectSidebar = memo(WorkflowProjectSidebar), CanvasTabBar = memo(W
 
 const AiWorkspace = lazy(() => import('./AiWorkspace').then(module => ({ default: module.AiWorkspace })));
 const ConnectedFilesWorkspace = lazy(() => import('./ConnectedFilesWorkspace').then(module => ({ default: module.ConnectedFilesWorkspace })));
+const ProjectNotesWorkspace = lazy(() => import('./ProjectNotesWorkspace').then(module => ({ default: module.ProjectNotesWorkspace })));
+const ParameterStudyWorkspace = lazy(() => import('./ParameterStudyWorkspace').then(module => ({ default: module.ParameterStudyWorkspace })));
+const ResearchContextPanel = lazy(() => import('./ResearchContextPanel').then(module => ({ default: module.ResearchContextPanel })));
+const WorkflowDraftTransfer = lazy(() => import('./WorkflowDraftTransfer').then(module => ({ default: module.WorkflowDraftTransfer })));
 const WorkflowNodeEditor = lazy(() => import('./WorkflowNodeEditor').then(module => ({ default: module.WorkflowNodeEditor })));
 
 function DeferredWorkflowPanel({ visible, label, children }: { visible: boolean; label: string; children: ReactNode }) {
   const [opened, setOpened] = useState(visible);
   if (visible && !opened) setOpened(true);
-  // Keep the Files draft and any running chat alive when switching tabs.
+  // Keep drafts and any running chat alive when switching tabs.
   return opened && <Suspense fallback={<WorkspaceLoading label={label} />}>{children}</Suspense>;
 }
 
@@ -413,7 +411,7 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
     if (!deviceMigrationReady || deviceMigrated.current) return;
     deviceMigrated.current = true; let live = true;
     const key = `phynite:workflow-md-migration:${owner}:${projectId}`;
-    void listMdTrajectories(owner).then(records => {
+    void import('@/lib/md-workspace').then(({ listMdTrajectories }) => listMdTrajectories(owner)).then(records => {
       if (!live) return;
       let seen: string[] = []; try { seen = JSON.parse(localStorage.getItem(key) ?? '[]'); } catch {}
       const nodes = workflowDeviceTrajectories(latestGraph.current, owner, records, new Set(seen));
@@ -428,7 +426,7 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
     if (!deviceMigrationReady || !project || figuresMigrated.current) return;
     figuresMigrated.current = true; let live = true;
     const key = `phynite:workflow-figure-migration:${owner}:${projectId}`;
-    void loadResearch(owner, false).then(({ records }) => {
+    void import('@/lib/research-storage').then(({ loadResearch }) => loadResearch(owner, false)).then(({ records }) => {
       if (!live) return;
       let seen: string[] = []; try { seen = JSON.parse(localStorage.getItem(key) ?? '[]'); } catch {}
       const figures = records.filter(record => record.collection === 'figures' && [projectId, project.legacyId].includes(record.document.projectId));
@@ -530,25 +528,27 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
     return () => { observer.disconnect(); cancelAnimationFrame(frame); window.removeEventListener('resize', schedule); window.visualViewport?.removeEventListener('resize', schedule); window.visualViewport?.removeEventListener('scroll', schedule); };
   }, []);
   const restoredCamera = useRef(false);
-  useEffect(()=>{
-    if(canvasMounted||!editor.hydrated||state.status==='loading'||!canvasVisible)return;
-    let live=true;queueMicrotask(()=>{if(live)setCanvasMounted(true);});return()=>{live=false;};
-  },[canvasMounted,editor.hydrated,state.status,activeTab,split,canvasVisible]);
+  if (!canvasMounted && editor.hydrated && state.status !== 'loading' && canvasVisible) setCanvasMounted(true);
   useEffect(() => {
     if (!canvasMounted || !flow.viewportInitialized || !canvasVisible || cameraReady) return;
     // A missed initial ResizeObserver notification must not leave camera restore
     // waiting forever. Measure the mounted nodes explicitly before fitting them.
     updateNodeInternals([...graph.groups, ...graph.nodes].map(node => node.id));
   }, [canvasMounted, flow.viewportInitialized, canvasVisible, cameraReady, graph.groups, graph.nodes, updateNodeInternals]);
-  useEffect(() => {
-    if (!canvasMounted || !flow.viewportInitialized || graph.nodes.length>0&&!nodesInitialized || !editor.hydrated || restoredCamera.current || state.status === 'loading' || !canvasVisible) return;
-    let live=true;
-    const frame=requestAnimationFrame(() => {
-      const restore=editor.state.viewport ? flow.setViewport(editor.state.viewport) : graph.nodes.length ? flow.fitView({padding:.2,maxZoom:1,duration:0}) : Promise.resolve(true);
-      void restore.then(()=>{if(live){restoredCamera.current=true;dispatchEditor({type:'viewport',viewport:flow.getViewport()});setCameraReady(true);}});
+  useLayoutEffect(() => {
+    const saved = editor.state.viewport;
+    const needsFit = !saved && graph.nodes.length > 0;
+    if (!canvasMounted || !flow.viewportInitialized || needsFit && !nodesInitialized || restoredCamera.current || !canvasVisible) return;
+    let live = true;
+    const restore = saved ? flow.setViewport(saved) : needsFit ? flow.fitView({ padding: .2, maxZoom: 1, duration: 0 }) : Promise.resolve(true);
+    void restore.then(() => {
+      if (!live) return;
+      restoredCamera.current = true;
+      dispatchEditor({ type: 'viewport', viewport: flow.getViewport() });
+      setCameraReady(true);
     });
-    return ()=>{live=false;cancelAnimationFrame(frame);};
-  }, [canvasMounted,nodesInitialized,activeTab,split,canvasVisible,editor.hydrated, editor.state.viewport, graph.nodes.length, flow, state.status,dispatchEditor]);
+    return () => { live = false; };
+  }, [canvasMounted, nodesInitialized, canvasVisible, editor.state.viewport, graph.nodes.length, flow, dispatchEditor]);
   useEffect(() => {
     const release = () => { setSpaceHand(false); bypassSnap.current = false; }, keyup = (event:KeyboardEvent) => { if(event.code === 'Space') setSpaceHand(false); if(event.key === 'Alt') bypassSnap.current = false; }; window.addEventListener('blur', release); window.addEventListener('keyup', keyup);
     return () => { window.removeEventListener('blur', release); window.removeEventListener('keyup', keyup); };
@@ -946,7 +946,10 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
     const cleanedMissing = Array.isArray(node.configuration.missingInputs) ? node.configuration.missingInputs.filter((value: unknown) => !value || typeof value !== 'object' || !('kind' in value) || value.kind !== 'structure') : undefined;
     if (!node.configuration.savedStructureSignature && existing) {
       const currentInput = await projectWorkflowApi.input(projectId, existing.id).catch(() => null);
-      const doc = (currentInput?.structure ?? (currentInput?.text ? await parseStructureFile(new File([currentInput.text], currentInput.filename)).catch(() => null) : null)) as (ParsedStructure & { periodic?: [boolean, boolean, boolean] }) | null | undefined;
+      const legacyStructure = currentInput?.text && !currentInput.structure
+        ? await import('@/lib/structure-parsers').then(({ parseStructureFile }) => parseStructureFile(new File([currentInput.text!], currentInput.filename))).catch(() => null)
+        : null;
+      const doc = (currentInput?.structure ?? legacyStructure) as (ParsedStructure & { periodic?: [boolean, boolean, boolean] }) | null | undefined;
       if (doc && stableWorkflowJson(scientificWorkflowConfiguration({ structure: raw }, 'structure').structure) === stableWorkflowJson(scientificWorkflowConfiguration({ structure: doc }, 'structure').structure)) {
         const next = { ...node, resources: node.resources.map(ref => ref.kind === 'structure' && ref.id === existing.id && currentInput?.sha256 ? { ...ref, sha256: currentInput.sha256 } : ref), configuration: { ...node.configuration, savedStructureSignature: signature, formula, ...(cleanedMissing !== undefined ? { missingInputs: cleanedMissing } : {}) } };
         if (!updateNode(next)) throw new Error(t('Input could not be added to this workflow. Resolve the save error first.', 'Input belum dapat ditambahkan ke workflow. Selesaikan masalah penyimpanan dahulu.'));
@@ -1202,7 +1205,7 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
       {(selectedModules.length>0 || selectedEdges.length>0)&&<div className="workflow-selection-actions" role="toolbar" aria-label={t('Selection actions','Aksi pilihan')}><span>{t(`${selectedModules.length} modules selected`,`${selectedModules.length} modul dipilih`)}{selectedEdges.length>0&&` · ${selectedEdges.length} ${t('connections','koneksi')}`}</span>{selectedCalculationNodes.length > 0 && <button type="button" aria-label={t(`Set compute destination for ${selectedCalculationNodes.length} modules`, `Atur tujuan compute untuk ${selectedCalculationNodes.length} modul`)} title={t('Compute destination', 'Tujuan compute')} onClick={() => { setResourceMode('compute'); setResourcesOpen(true); }}><Gauge size={16} /><span>{t('Compute', 'Compute')}</span></button>}<button aria-label={t('Copy selected','Salin pilihan')} disabled={!selectedModules.length} onClick={()=>void copy(selectedModules)}><Copy size={18}/></button><button aria-label={t('Delete selected','Hapus pilihan')} title="Delete" onClick={deleteSelection}><Trash2 size={18}/></button></div>}
       {!graph.nodes.length && state.status !== 'loading' && <div className="workflow-empty"><Box size={26} /><h1>{project?.name}</h1><p>{t('Start with a structure. Connect the steps of your study.', 'Mulai dari struktur. Hubungkan langkah-langkah riset Anda.')}</p><button onClick={openPalette}><Plus size={18} />{t('Add your first module', 'Tambah modul pertama')}</button></div>}
     </div>
-    {visibleTabs.filter(isWorkflowLauncherTab).map(launcherId => <section className="workflow-editor workflow-launcher-editor" data-pane={pane(launcherId)} data-pane-tab={launcherId} key={launcherId}><WorkflowStartTab nodes={graph.nodes} conversations={aiChats} onNewAiChat={() => void newAiChat()} onOpen={id => dispatchWorkspace({type:'resolve-launcher',tabId:launcherId,nodeId:id})} onAdd={openPalette} onCanvas={()=>dispatchWorkspace({type:'open',id:'canvas'})} onRuns={()=>setShowRuns(true)}><WorkflowDraftTransfer graph={graph} owner={owner} name={project?.name??'Project'} onError={setMessage}/></WorkflowStartTab></section>)}
+    {visibleTabs.filter(isWorkflowLauncherTab).map(launcherId => <section className="workflow-editor workflow-launcher-editor" data-pane={pane(launcherId)} data-pane-tab={launcherId} key={launcherId}><WorkflowStartTab nodes={graph.nodes} conversations={aiChats} onNewAiChat={() => void newAiChat()} onOpen={id => dispatchWorkspace({type:'resolve-launcher',tabId:launcherId,nodeId:id})} onAdd={openPalette} onCanvas={()=>dispatchWorkspace({type:'open',id:'canvas'})} onRuns={()=>setShowRuns(true)}><Suspense fallback={null}><WorkflowDraftTransfer graph={graph} owner={owner} name={project?.name??'Project'} onError={setMessage}/></Suspense></WorkflowStartTab></section>)}
     {project && editor.state.tabs.filter(isWorkflowAiTab).map(tabId => {
       const panel = effectivePanel?.id === tabId ? effectivePanel : undefined;
       const chatVisible = panel?.presentation !== 'minimized' && (visibleTabs.includes(tabId) || Boolean(panel));
@@ -1240,8 +1243,8 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
         </DeferredWorkflowPanel>
       </WorkflowPanelBoundary>
     </section>
-    <section className="workflow-editor workflow-notes-editor" role="tabpanel" aria-label={t('Notes','Catatan')} data-pane-tab={workflowNotesTab} data-pane={pane(workflowNotesTab)} hidden={!visibleTabs.includes(workflowNotesTab)}><ProjectNotesWorkspace owner={owner} projectId={projectId} visible={visibleTabs.includes(workflowNotesTab)} onAttach={item => { void openProjectAi().then(tabId => { if (tabId) setContextRequest({ tabId, nonce: Date.now(), items: [item] }); }); }} onSide={() => { const peer = splitPair?.find(id => id !== workflowNotesTab && !isWorkflowAiTab(id)) ?? (activeTab !== workflowNotesTab && !isWorkflowAiTab(activeTab) ? activeTab : 'canvas'); const chat = workflowPreferredAiTab(editor.state); dispatchWorkspace({ type: 'split', id: workflowNotesTab, beside: peer }); if (chat) changeAiPresentation(chat, 'composer'); }} /></section>
-    {editor.state.tabs.includes(workflowStudyTab) && <section className="workflow-editor workflow-study-editor" data-workflow-editor role="tabpanel" aria-label={t('Parameter study','Studi parameter')} data-pane-tab={workflowStudyTab} data-pane={pane(workflowStudyTab)} hidden={!visibleTabs.includes(workflowStudyTab)}><WorkflowPanelBoundary label={t('Parameter study', 'Studi parameter')} onCanvas={() => dispatchWorkspace({ type: 'open', id: 'canvas' })}><ParameterStudyWorkspace onShowCases={ids => { setSelected(ids); setSelectedEdges([]); setStudyReveal(ids); dispatchWorkspace({type:'open',id:'canvas'}); }} graph={graph} attempts={runs.flatMap(run => run.attempts)} disabled={busy || !canPrepareRun} onCanvas={() => dispatchWorkspace({type:'open',id:'canvas'})} onOpen={openEditor} onRun={targets => void prepareRun(targets)} onApply={result => { if (busy || !canPrepareRun || stableWorkflowJson(latestGraph.current) !== result.baseSignature) return false; if (!change(result.workflow)) return false; setSelected(result.nodeIds); setSelectedEdges([]); return true; }} /></WorkflowPanelBoundary></section>}
+    <section className="workflow-editor workflow-notes-editor" role="tabpanel" aria-label={t('Notes','Catatan')} data-pane-tab={workflowNotesTab} data-pane={pane(workflowNotesTab)} hidden={!visibleTabs.includes(workflowNotesTab)}><DeferredWorkflowPanel visible={visibleTabs.includes(workflowNotesTab)} label={t('Opening Notes…', 'Membuka Catatan…')}><ProjectNotesWorkspace owner={owner} projectId={projectId} visible={visibleTabs.includes(workflowNotesTab)} onAttach={item => { void openProjectAi().then(tabId => { if (tabId) setContextRequest({ tabId, nonce: Date.now(), items: [item] }); }); }} onSide={() => { const peer = splitPair?.find(id => id !== workflowNotesTab && !isWorkflowAiTab(id)) ?? (activeTab !== workflowNotesTab && !isWorkflowAiTab(activeTab) ? activeTab : 'canvas'); const chat = workflowPreferredAiTab(editor.state); dispatchWorkspace({ type: 'split', id: workflowNotesTab, beside: peer }); if (chat) changeAiPresentation(chat, 'composer'); }} /></DeferredWorkflowPanel></section>
+    {editor.state.tabs.includes(workflowStudyTab) && <section className="workflow-editor workflow-study-editor" data-workflow-editor role="tabpanel" aria-label={t('Parameter study','Studi parameter')} data-pane-tab={workflowStudyTab} data-pane={pane(workflowStudyTab)} hidden={!visibleTabs.includes(workflowStudyTab)}><WorkflowPanelBoundary label={t('Parameter study', 'Studi parameter')} onCanvas={() => dispatchWorkspace({ type: 'open', id: 'canvas' })}><DeferredWorkflowPanel visible={visibleTabs.includes(workflowStudyTab)} label={t('Opening study…', 'Membuka studi…')}><ParameterStudyWorkspace onShowCases={ids => { setSelected(ids); setSelectedEdges([]); setStudyReveal(ids); dispatchWorkspace({type:'open',id:'canvas'}); }} graph={graph} attempts={runs.flatMap(run => run.attempts)} disabled={busy || !canPrepareRun} onCanvas={() => dispatchWorkspace({type:'open',id:'canvas'})} onOpen={openEditor} onRun={targets => void prepareRun(targets)} onApply={result => { if (busy || !canPrepareRun || stableWorkflowJson(latestGraph.current) !== result.baseSignature) return false; if (!change(result.workflow)) return false; setSelected(result.nodeIds); setSelectedEdges([]); return true; }} /></DeferredWorkflowPanel></WorkflowPanelBoundary></section>}
     {split && <div className="workflow-splitter" role="separator" tabIndex={0} aria-label={t('Resize editor','Ubah lebar editor')} aria-orientation={vertical ? 'horizontal' : 'vertical'} aria-valuenow={Math.round(editorWidth)} aria-valuemin={primaryMinimum} aria-valuemax={Math.round(containerExtent-secondaryMinimum)} onKeyDown={event => {
       if (event.key === 'Escape' && splitDrag.current) { event.preventDefault(); event.stopPropagation(); clearSplitDrag(); return; }
       if ([...(vertical ? ['ArrowUp', 'ArrowDown'] : ['ArrowLeft','ArrowRight']), 'Home','End'].includes(event.key)) {
@@ -1285,10 +1288,10 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
       <button role="menuitemcheckbox" aria-checked={editor.state.snapToGrid !== false} onClick={() => editor.dispatch({ type:'snapping', grid:editor.state.snapToGrid === false, guides:editor.state.showGuides !== false })}>{t('Snap to grid', 'Snap ke grid')} · {editor.state.snapToGrid !== false ? t('On','Aktif') : t('Off','Nonaktif')}</button>
       <button role="menuitemcheckbox" aria-checked={editor.state.showGuides !== false} onClick={() => editor.dispatch({ type:'snapping', grid:editor.state.snapToGrid !== false, guides:editor.state.showGuides === false })}>{t('Alignment guides', 'Garis pandu')} · {editor.state.showGuides !== false ? t('On','Aktif') : t('Off','Nonaktif')}</button>
       <button role="menuitem" onClick={() => { fit(); setMenu(null); }}>{t('Fit all', 'Tampilkan semua')}</button><button role="menuitem" onClick={() => { setShortcutHelp(true); setMenu(null); }}>{t('Keyboard shortcuts', 'Pintasan keyboard')}</button></div>}
-    {picker && <WorkflowModulePicker placement={picker.screen} container={picker.container} kinds={workflowModuleChoices(graph, picker.anchor)} error={pickerError} onAdd={addNode} onStudy={picker.anchor ? undefined : () => { setPicker(null); openEditor(workflowStudyTab); }} onClose={closePicker}><WorkflowDraftTransfer graph={graph} owner={owner} name={project?.name??'Project'} onError={setMessage}/></WorkflowModulePicker>}
+    {picker && <WorkflowModulePicker placement={picker.screen} container={picker.container} kinds={workflowModuleChoices(graph, picker.anchor)} error={pickerError} onAdd={addNode} onStudy={picker.anchor ? undefined : () => { setPicker(null); openEditor(workflowStudyTab); }} onClose={closePicker}><Suspense fallback={null}><WorkflowDraftTransfer graph={graph} owner={owner} name={project?.name??'Project'} onError={setMessage}/></Suspense></WorkflowModulePicker>}
     <dialog ref={shortcutDialog} className="workflow-shortcut-help" aria-labelledby="workflow-shortcuts-title" onClose={() => { setShortcutHelp(false); canvasRoot.current?.focus(); }}><header><h2 id="workflow-shortcuts-title">{t('Canvas shortcuts','Pintasan kanvas')}</h2><button onClick={() => shortcutDialog.current?.close()} aria-label={t('Close','Tutup')}><X size={18}/></button></header><dl>{[['Ctrl/Cmd Z / Shift Z · Ctrl Y','Undo / Redo'],['Ctrl/Cmd X / C / V','Cut / Copy / Paste'],['Ctrl/Cmd D / A','Duplicate / Select all'],['Ctrl/Cmd G / Shift G','Group / Ungroup'],['Delete / Backspace','Delete selection'],['Arrow / Shift Arrow','Move 1 / 24 units'],['0 / Shift 0','Fit all / selection'],['Space + drag · Right/middle drag','Pan'],['Alt + drag','Temporarily disable snapping'],['?','Keyboard shortcuts']].map(([keys,action]) => <div key={keys}><dt>{keys}</dt><dd>{action}</dd></div>)}</dl><p>{t('Shortcuts apply to the focused canvas. Text and scientific editors keep their own controls.','Pintasan berlaku pada kanvas yang difokuskan. Teks dan editor ilmiah tetap memakai kontrolnya sendiri.')}</p></dialog>
     <dialog ref={runDialog} className="workflow-run-plan" aria-labelledby="workflow-run-title" onClose={() => { setPlan(null); setComputePlan(null); setReviewResourceId(''); }}><header><h2 id="workflow-run-title">{t('Review run', 'Tinjau eksekusi')}</h2><button onClick={() => runDialog.current?.close()} aria-label={t('Close', 'Tutup')}><X size={18} /></button></header>{plan && <>{reviewResourceNode && <>{reviewResourceNodes.length > 1 && <UiSelect label={t('Resources for module', 'Resource untuk modul')} value={isAllReviewSelected ? 'all' : reviewResourceNode.id} options={[{ value: 'all', label: t(`All ${reviewResourceNodes.length} calculation modules in this run`, `Semua ${reviewResourceNodes.length} modul kalkulasi dalam run ini`) }, ...reviewResourceNodes.map(node => ({ value: node.id, label: node.name }))]} onChange={setReviewResourceId} />}{isAllReviewSelected && !commonReviewCompute && <p role="status">{t('Modules have different allocations. Changes below replace the allocation of every module in this run.', 'Alokasi modul berbeda. Perubahan di bawah mengganti alokasi semua modul dalam run ini.')}</p>}<LabComputeDestination key={isAllReviewSelected ? 'all' : reviewResourceNode.id} scope="run" selection={activeReviewSelection} onChange={selection => { if (isAllReviewSelected) { changeRunCompute(selection, 'all'); } else { changeRunCompute(selection, reviewResourceNode); } }} disabled={busy} requiredCapability={reviewWorkload} sharedAvailable={reviewWorkload === 'qe'} fixedTarget={reviewWorkload === 'qe' ? undefined : 'personal'} atomCount={reviewMaterial?.atomCount} kPoints={reviewKPoints} calculationType={workflowCalculationTypes[reviewResourceNode.kind]} defaultClusterId={activeClusterId} /></>}<p>{t('Prerequisites are included once. Valid retained results are reused.', 'Prasyarat disertakan sekali. Hasil tersimpan yang valid digunakan ulang.')}</p>{computePlan && <section className="workflow-compute-plan" aria-label={t('Compute plan checklist', 'Checklist rencana compute')}><header><strong>{t('Compute plan', 'Rencana compute')}</strong><span data-status={computePlan.ready ? 'ready' : 'review'}>{computePlan.ready ? t('Ready', 'Siap') : t('Review required', 'Perlu ditinjau')}</span></header><ul>{computePlan.checks.map(item => <li key={item.id} data-status={item.status}><span aria-hidden="true" /> <div><strong>{item.label}</strong><small>{item.detail}</small></div></li>)}</ul>{computePlan.estimate && <p>{t(`Estimated artifact space ${(computePlan.estimate.bytes / 1024 ** 2).toFixed(1)} MiB · ${computePlan.estimate.fits ? 'fits reported disk' : 'exceeds reported disk'}`, `Perkiraan artefak ${(computePlan.estimate.bytes / 1024 ** 2).toFixed(1)} MiB · ${computePlan.estimate.fits ? 'cukup pada disk' : 'melebihi disk'}`)}</p>}</section>}<ol>{plan.nodes.map(item => { const node = graph.nodes.find(n => n.id === item.nodeId); return <li key={item.nodeId}><span>{node?.name}</span><small>{item.sourceScfNodeId && <span>{t('SCF source','Sumber SCF')}: {graph.nodes.find(n => n.id === item.sourceScfNodeId)?.name} · </span>}{item.error || (item.validationDeferred ? t('Validate geometry after prerequisite', 'Validasi geometri setelah prasyarat') : item.action)}</small><div className="workflow-plan-item-actions">{item.error && <button type="button" disabled={busy} onClick={() => { runDialog.current?.close(); openEditor(item.nodeId); }}>{t('Open module', 'Buka modul')}</button>}{!['structure', 'trajectory', 'figure', 'legacy'].includes(node?.kind ?? '') && !item.error && <button type="button" disabled={busy} aria-pressed={rerun.includes(item.nodeId)} onClick={() => { const targets = plan.targets, next = rerun.includes(item.nodeId) ? rerun.filter(id => id !== item.nodeId) : [...rerun, item.nodeId]; void prepareRun(targets, next); }}>{rerun.includes(item.nodeId) ? t('Automatic reuse', 'Gunakan ulang otomatis') : t('Run fresh', 'Jalankan baru')}</button>}</div></li>; })}</ol><p>{runComputeSummary}</p><footer>{(plan.errors.length > 0 || !computePlan?.ready) && <button disabled={busy} onClick={() => { const targets = plan.targets; void prepareRun(targets, rerun); }}>{t('Refresh checks', 'Periksa ulang')}</button>}<button onClick={() => runDialog.current?.close()}>{t('Cancel', 'Batal')}</button><button className="workflow-primary" disabled={busy || !!plan.errors.length || !computePlan?.ready || client.getSnapshot().revision !== plan.revision} onClick={() => void submitRun()}><Play size={16} />{t('Start run', 'Mulai eksekusi')}</button></footer></>}</dialog>
-    {showResearchContext && <ResearchContextPanel projectId={projectId} onClose={() => setShowResearchContext(false)} onAddToAi={session.mode === 'local' ? item => void addResearchContextToAi(item) : undefined} />}
+    {showResearchContext && <Suspense fallback={<WorkspaceLoading label={t('Opening research context…', 'Membuka konteks riset…')} />}><ResearchContextPanel projectId={projectId} onClose={() => setShowResearchContext(false)} onAddToAi={session.mode === 'local' ? item => void addResearchContextToAi(item) : undefined} /></Suspense>}
     {showRuns && <aside className="workflow-run-history" aria-label={t('Run history', 'Histori eksekusi')}><header><strong>{t('Runs', 'Riwayat')}</strong><button onClick={() => setShowRuns(false)} aria-label={t('Close history', 'Tutup histori')}><X size={18} /></button></header>{!runs.length && <p>{t('No runs yet.', 'Belum ada eksekusi.')}</p>}{runs.map(run => <article key={run.id}><strong>{new Date(run.createdAt).toLocaleString()}</strong><small>{run.status}</small>{run.attempts.map(attempt => <div key={attempt.nodeId}><span>{graph.nodes.find(node => node.id === attempt.nodeId)?.name ?? attempt.nodeId}</span><small>{attempt.status}</small>{attempt.error && <p role="status">{attempt.error}</p>}{['running', 'queued', 'pending'].includes(attempt.status) && <button onClick={() => void projectWorkflowApi.cancel(projectId, run.id, [attempt.nodeId]).then(() => refreshRuns()).catch(failure => setMessage(failure.message))}>{t('Cancel branch', 'Batalkan cabang')}</button>}</div>)}{['running', 'pending'].includes(run.status) && <button onClick={() => void projectWorkflowApi.cancel(projectId, run.id).then(() => refreshRuns()).catch(failure => setMessage(failure.message))}>{t('Cancel run', 'Batalkan eksekusi')}</button>}</article>)}</aside>}
   </main>;
 }

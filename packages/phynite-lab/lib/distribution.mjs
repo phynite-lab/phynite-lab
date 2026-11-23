@@ -1,7 +1,7 @@
 /** Public release metadata and native-package verification; no downloads. */
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { constants } from 'node:fs';
-import { access, lstat, readFile, realpath } from 'node:fs/promises';
+import { access, lstat, readFile, readdir, realpath } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { validateCloudConfig } from './cloud-config.mjs';
@@ -15,6 +15,7 @@ export const DISTRIBUTION_TARGETS = Object.freeze(['darwin-arm64', 'linux-arm64'
 export const NPM_RELEASE_TARGETS = Object.freeze([...DISTRIBUTION_TARGETS]);
 const VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 const HASH = /^[a-f0-9]{64}$/;
+const safePath = value => typeof value === 'string' && value.length && !value.includes('\\') && !value.startsWith('/') && value.split('/').every(part => part && part !== '.' && part !== '..');
 
 export function platformPackageName(target) {
   if (!DISTRIBUTION_TARGETS.includes(target)) throw new Error('Unsupported native runtime platform.');
@@ -38,13 +39,28 @@ async function readJson(path) {
   catch { throw new Error('The installed release metadata is missing or invalid. Reinstall a verified Phynite Lab release.'); }
 }
 
-async function verifiedFile(root, relative, expected) {
+async function verifiedFile(root, relative, expected, allowEmpty = false) {
   if (!HASH.test(expected ?? '')) throw new Error('The packaged runtime checksum is invalid.');
   const path = join(root, relative), info = await lstat(path);
-  if (!info.isFile() || info.isSymbolicLink() || !info.size || await realpath(path) !== join(await realpath(root), relative)) throw new Error('A packaged runtime file is missing or unsafe.');
+  if (!info.isFile() || info.isSymbolicLink() || (!allowEmpty && !info.size) || await realpath(path) !== join(await realpath(root), relative)) throw new Error('A packaged runtime file is missing or unsafe.');
   const actual = createHash('sha256').update(await readFile(path)).digest();
   if (!timingSafeEqual(actual, Buffer.from(expected, 'hex'))) throw new Error('The packaged runtime checksum does not match the release manifest. Reinstall the package.');
   return path;
+}
+
+async function verifyDesktopCore(root, target, contents) {
+  const directory = `core/${target}`;
+  if (target !== 'darwin-arm64') throw new Error('Unsupported unpacked desktop core.');
+  const inventory = await verifiedFile(root, `${directory}/DESKTOP-CORE-FILES.json`, contents.sha256);
+  const entries = Object.entries(await readJson(inventory));
+  if (!entries.length || entries.some(([path, hash]) => !safePath(path) || !HASH.test(hash))) throw new Error('Invalid desktop core inventory.');
+  const internal = join(root, directory, '_internal');
+  if (await realpath(internal) !== join(await realpath(root), directory, '_internal')) throw new Error('Unsafe desktop core directory.');
+  const actual = (await readdir(internal, { recursive: true, withFileTypes: true })).filter(entry => !entry.isDirectory()).length;
+  if (actual !== entries.length) throw new Error('The unpacked desktop core contents differ from the release manifest.');
+  for (let start = 0; start < entries.length; start += 16) {
+    await Promise.all(entries.slice(start, start + 16).map(([file, hash]) => verifiedFile(internal, file, hash, true)));
+  }
 }
 
 export async function verifyLauncherManifest(root) {
@@ -80,6 +96,11 @@ export async function verifyRuntimePackage(root, target, expected) {
   if (!core || Object.keys(manifest.targets).length !== 1 || core.executable !== `core/${target}/phynite-core`) throw new Error('The native runtime manifest is invalid.');
   const executable = await verifiedFile(root, core.executable, core.sha256);
   await access(executable, constants.X_OK);
+  if (core.contents) await verifyDesktopCore(root, target, core.contents);
+  if (manifest.desktopMdParser) {
+    if (!core.contents) throw new Error('The desktop parser requires the desktop runtime.');
+    await verifiedFile(root, 'app/public/native/md-parser.wasm', manifest.desktopMdParser.sha256);
+  }
   if (manifest.nativeInventory) {
     const inventory = manifest.nativeInventory, expected = `core/${target}/THIRD_PARTY_NATIVE.json`, notices = `core/${target}/THIRD_PARTY_NOTICES.md`;
     if (inventory.path !== expected || inventory.notices !== notices) throw new Error('The native inventory path is invalid.');
@@ -110,7 +131,6 @@ export async function verifyRuntimePackage(root, target, expected) {
     const document = await readJson(join(root, 'bootstrap', 'manifest.json'));
     if (document.schemaVersion !== 1 || document.target !== target || !document.tools?.bwrap) throw new Error('The native isolation bootstrap manifest is invalid.');
     const tool = document.tools.bwrap;
-    const safePath = value => typeof value === 'string' && value.length && !value.includes('\\') && !value.startsWith('/') && value.split('/').every(part => part && part !== '.' && part !== '..');
     if (!safePath(tool.executable) || !Array.isArray(tool.libraries)) throw new Error('The native isolation bootstrap file list is invalid.');
     const binary = await verifiedFile(root, `bootstrap/${tool.executable}`, tool.sha256);
     const mode = (await lstat(binary)).mode;

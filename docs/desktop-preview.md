@@ -29,7 +29,8 @@ installation.
 
 ```sh
 brew install python@3.12
-# Install native Rust and Apple's command line developer tools before building.
+# Install Rust with the wasm32-unknown-unknown target and Apple's developer tools.
+rustup target add wasm32-unknown-unknown
 mkdir -p build/desktop-tools
 curl -fL https://nodejs.org/dist/v22.23.5/node-v22.23.5-darwin-arm64.tar.gz \
   -o build/desktop-tools/node.tar.gz
@@ -39,10 +40,10 @@ npm ci
 npm run build:local
 "$(brew --prefix python@3.12)/bin/python3.12" -m venv build/desktop-core-venv
 build/desktop-core-venv/bin/python -m pip install -r scripts/local-core-requirements.txt
-build/desktop-core-venv/bin/python scripts/build-local-core.py --output build/desktop-core
+build/desktop-core-venv/bin/python scripts/build-local-core.py --desktop --output build/desktop-core
 node scripts/package-desktop.mjs \
   --node-archive build/desktop-tools/node.tar.gz \
-  --core-dir build/desktop-core/darwin-arm64 \
+  --core-dir build/desktop-core/darwin-arm64/phynite-core \
   --output build/desktop-preview
 ```
 
