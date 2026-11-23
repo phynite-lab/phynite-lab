@@ -7,7 +7,9 @@ import { downloadMdCloudFile } from '@/lib/md-cloud-download';
 import { listMdTrajectories, saveMdTrajectory, frameXyz, frameLammpsDump, downloadMdFile } from '@/lib/md-workspace';
 import { createMdSimulationWorkflowV2 } from '@/lib/md-simulation-types';
 import { defaultMdSettings, type MdFrame, type MdTrajectoryRecord } from '@/lib/md-types';
-import { parseMdText } from '@/lib/md-parser';
+import type { MdParseResult } from '@/lib/md-parser';
+import { createMdWorkerClient, type MdWorkerClient } from '@/lib/md-worker-client';
+import MdWorker from '../lib/md-worker.ts?worker';
 import { toPrototypeFrame } from '@/lib/md-prototype-adapter';
 import { saveWorkflowTrajectory } from '@/lib/workflow-md-input';
 import type { WorkflowNode } from '@/lib/project-workflow';
@@ -29,6 +31,7 @@ export function WorkflowTrajectoryEditor({ node, owner, projectId, onChange, onE
   useEffect(() => {
     if (!resourceId) return;
     const controller = new AbortController(); let live = true;
+    let parser: MdWorkerClient | undefined;
     void (async () => {
       let blob: Blob, filename = String(node.configuration.filename || node.name);
       if (deviceOnly) {
@@ -44,10 +47,13 @@ export function WorkflowTrajectoryEditor({ node, owner, projectId, onChange, onE
         if (checksum !== detail.trajectory.sha256 || resourceSha && checksum !== resourceSha) throw new Error('Input checksum failed. Reopen the current source.');
       }
       if (blob.size > MD_MAX_BYTES) throw new Error('Browser trajectory previews support 64 MiB.');
-      const parsed = parseMdText(await blob.text(), filename);
+      if (!live) return;
+      parser = createMdWorkerClient(() => new MdWorker({ name: 'phynite-md-parser' }), { requestTimeoutMs: 120_000 });
+      const parsed = await parser.run<MdParseResult>({ operation: 'parse', blob, name: filename }, { signal: controller.signal });
       if (live) { setSource(new File([blob], filename)); setFrames(parsed.frames); setWarnings(parsed.warnings); setSettledSource({ key: resourceKey, loaded: true }); }
-    })().catch(error => { if (live) { setSettledSource({ key: resourceKey, loaded: false }); onError(error.message); } });
-    return () => { live = false; controller.abort(); };
+    })().catch(error => { if (live) { setSettledSource({ key: resourceKey, loaded: false }); onError(error.message); } })
+      .finally(() => parser?.dispose());
+    return () => { live = false; controller.abort(); parser?.dispose(); };
   }, [resourceId, resourceSha, deviceOnly, resourceKey, owner, projectId, node.name, node.configuration.filename, onError, t]);
   const frame = sourceReady ? frames[Math.min(frameIndex, frames.length - 1)] : undefined;
   const frameData = useMemo(() => frame ? toPrototypeFrame({ frame, attributes: {}, phases: [], rdf: [], bonds: [], dislocations: [], surface: null, warnings: [], engine: 'Source input' }, defaultMdSettings(), frames.length) : null, [frame, frames.length]);

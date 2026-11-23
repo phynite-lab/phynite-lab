@@ -1,0 +1,11 @@
+[package]
+name = "phynite-lab-desktop"
+version = "0.1.33"
+edition = "2021"
+license = "AGPL-3.0-only"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }

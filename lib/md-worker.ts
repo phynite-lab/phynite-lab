@@ -1,9 +1,12 @@
 import { parseMdText } from './md-parser';
 import { analyzeMdFrame } from './md-analysis';
 
-self.onmessage = (event) => {
-  const { id, operation, text, name, frame, modifiers } = event.data;
-  try { self.postMessage({ id, result: operation === 'parse' ? parseMdText(text, name) : analyzeMdFrame(frame, { modifiers }) }); }
+self.onmessage = async (event) => {
+  const { id, operation, text, blob, name, frame, modifiers } = event.data;
+  try {
+    const result = operation === 'parse' ? parseMdText(blob instanceof Blob ? await blob.text() : text, name) : analyzeMdFrame(frame, { modifiers });
+    self.postMessage({ id, result });
+  }
   catch (error) { self.postMessage({ id, error: error instanceof Error ? error.message : 'Trajectory operation failed.' }); }
 };
 

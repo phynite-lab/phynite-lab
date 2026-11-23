@@ -92,8 +92,12 @@ export function WorkspaceShell() {
     return () => { cancelled = true; };
   }, [shell, session, cloud.ready]);
   const allProjectRows = useMemo<WorkspaceProjectEntry[]>(() => {
+    const localById = new Map<string, CalculationProjectSummary>();
+    for (const project of workspace.projects) {
+      if (!localById.has(project.id)) localById.set(project.id, project);
+    }
     return (shell?.projects ?? mergeStudioProjects(workspace.projects, remoteProjects, workspace.trashProjects)).map((item): WorkspaceProjectEntry => {
-      const local = item.kind === 'dft' ? workspace.projects.find(project => project.id === item.id) : undefined;
+      const local = item.kind === 'dft' ? localById.get(item.id) : undefined;
       if (local) return { ...local, key: item.key, primaryFormula: item.primaryFormula, remoteId: item.remoteId, kind: 'dft', assetCount: local.structureCount, activityLabel: activityLabels[local.activityState], href: item.href, tags: item.tags, local };
       return {
         key: item.key, id: item.id, kind: item.kind, name: item.name, description: item.description, primaryStructure: null, structureCount: 0, assetCount: item.mdTrajectoryCount ?? 0, runCount: 0, runningCount: 0,

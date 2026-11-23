@@ -38,9 +38,15 @@ export function mergeStudioProjects(
   remoteProjects: PhyniteProject[],
   trashedProjects: Array<{ id: string; remoteId?: string }> = [],
 ): StudioProjectItem[] {
-  remoteProjects = remoteProjects.filter(remote => !trashedProjects.some(project => project.remoteId === remote.id || project.id === remote.legacyId));
-  const localRemoteId = (project: CalculationProjectSummary) => project.remoteId || remoteProjects.find(remote => remote.legacyId === project.id)?.id;
+  const trashedRemoteIds = new Set(trashedProjects.map(project => project.remoteId));
+  const trashedLegacyIds = new Set<string | undefined>(trashedProjects.map(project => project.id));
+  remoteProjects = remoteProjects.filter(remote => !trashedRemoteIds.has(remote.id) && !trashedLegacyIds.has(remote.legacyId));
   const remoteById = new Map(remoteProjects.map(project => [project.id, project]));
+  const remoteByLegacyId = new Map<string, PhyniteProject>();
+  for (const project of remoteProjects) {
+    if (project.legacyId !== undefined && !remoteByLegacyId.has(project.legacyId)) remoteByLegacyId.set(project.legacyId, project);
+  }
+  const localRemoteId = (project: CalculationProjectSummary) => project.remoteId || remoteByLegacyId.get(project.id)?.id;
   const linkedRemoteIds = new Set(localProjects.map(localRemoteId).filter((id): id is string => Boolean(id)));
 
   const localItems = localProjects.map((project): StudioProjectItem => {

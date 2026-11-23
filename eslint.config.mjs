@@ -5,7 +5,7 @@ import nextTs from 'eslint-config-next/typescript';
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
-  globalIgnores(['.local-backend/**', '.next/**', 'out/**', 'build/**', '.agent-state/**', '**/.wrangler/**', 'backend/.aws-sam/**', 'next-env.d.ts', 'playwright-report/**', 'test-results/**', '**/.venv*/**']),
+  globalIgnores(['.local-backend/**', '.next/**', 'out/**', 'build/**', '.agent-state/**', '**/.wrangler/**', 'backend/.aws-sam/**', 'next-env.d.ts', 'playwright-report/**', 'test-results/**', '**/.venv*/**', 'desktop/target/**', 'desktop/payload/**', 'desktop/gen/**']),
 ]);
 
 export default eslintConfig;

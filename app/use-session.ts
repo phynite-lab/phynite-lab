@@ -28,8 +28,10 @@ export function useSession() {
         mode?: 'local';
         cloud?: PhyniteSession['cloud'];
       };
-      const { ensureResearchReset } = await import('@/lib/research-reset');
-      if (payload.mode !== 'local') await ensureResearchReset();
+      if (payload.mode !== 'local') {
+        const { ensureResearchReset } = await import('@/lib/research-reset');
+        await ensureResearchReset();
+      }
       if (active !== generation.current) return;
       // Bind preferences before authenticated children can read or change them.
       try { bindAccountSettingsToUser(payload.user.id); } catch { /* A disabled cache must not prevent sign-in. */ }
