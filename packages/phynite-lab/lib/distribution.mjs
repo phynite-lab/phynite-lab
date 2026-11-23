@@ -99,7 +99,7 @@ export async function verifyRuntimePackage(root, target, expected) {
   if (core.contents) await verifyDesktopCore(root, target, core.contents);
   if (manifest.desktopMdParser) {
     if (!core.contents) throw new Error('The desktop parser requires the desktop runtime.');
-    await verifiedFile(root, 'app/public/native/md-parser.wasm', manifest.desktopMdParser.sha256);
+    await verifiedFile(root, 'app/dist/client/native/md-parser.wasm', manifest.desktopMdParser.sha256);
   }
   if (manifest.nativeInventory) {
     const inventory = manifest.nativeInventory, expected = `core/${target}/THIRD_PARTY_NATIVE.json`, notices = `core/${target}/THIRD_PARTY_NOTICES.md`;
