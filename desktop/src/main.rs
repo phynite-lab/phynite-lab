@@ -1,4 +1,7 @@
 mod cloud_mark;
+mod native_controls;
+mod project_tabs;
+mod settings;
 mod startup;
 
 use std::{
@@ -63,6 +66,8 @@ fn show_error(app: &AppHandle, message: &str) {
     if let Some(webview) = app.get_webview(WEBVIEW) {
         let _ = webview.hide();
     }
+    native_controls::reset_tabs(app);
+    native_controls::reset_preferences();
     with_startup(|view| view.error(message));
 }
 
@@ -183,10 +188,7 @@ fn open_workspace(app: &AppHandle) -> tauri::Result<()> {
     let window = app.get_window(WINDOW).expect("workspace window");
     let main = app.clone();
     let builder = WebviewBuilder::new(WEBVIEW, WebviewUrl::External(url))
-        .auto_resize()
-        .initialization_script(format!(
-            "if (location.origin === '{ORIGIN}') Object.defineProperty(window, 'phyniteDesktop', {{ value: true }});"
-        ))
+        .initialization_script(native_controls::bootstrap_script())
         .on_navigation(move |url| {
             if is_workspace(url) {
                 return main.state::<Desktop>().service.lock().unwrap().ready;
@@ -195,7 +197,13 @@ fn open_workspace(app: &AppHandle) -> tauri::Result<()> {
             false
         })
         .on_page_load(|webview, payload| {
-            if payload.event() == PageLoadEvent::Finished && is_workspace(payload.url()) {
+            if !is_workspace(payload.url()) {
+                return;
+            }
+            if payload.event() == PageLoadEvent::Started {
+                let app = webview.app_handle().clone();
+                let _ = webview.run_on_main_thread(move || native_controls::reset_tabs(&app));
+            } else if payload.event() == PageLoadEvent::Finished {
                 let app = webview.app_handle().clone();
                 let _ = webview.run_on_main_thread(move || present_workspace(&app));
             }
@@ -259,6 +267,17 @@ fn main() {
         .and_then(|_| args.next())
         .map(PathBuf::from);
     tauri::Builder::default()
+        .menu(native_controls::menu)
+        .on_menu_event(|app, event| {
+            if event.id() == native_controls::SETTINGS_MENU {
+                let _ = native_controls::show_settings(app);
+            }
+        })
+        .invoke_handler(tauri::generate_handler![
+            native_controls::update_project_tabs,
+            native_controls::update_appearance,
+            native_controls::open_settings
+        ])
         .manage(Desktop {
             service: Mutex::new(Service::default()),
             stopped: Condvar::new(),
@@ -274,13 +293,18 @@ fn main() {
             let main = app.handle().clone();
             let startup = StartupView::new(&window, move || start(&main))?;
             STARTUP.with(|slot| assert!(slot.set(startup).is_ok()));
+            native_controls::attach(&window)?;
 
             let close_window = window.clone();
-            window.on_window_event(move |event| {
-                if let WindowEvent::CloseRequested { api, .. } = event {
+            window.on_window_event(move |event| match event {
+                WindowEvent::CloseRequested { api, .. } => {
                     api.prevent_close();
                     let _ = close_window.hide();
                 }
+                WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
+                    let _ = native_controls::layout(&close_window);
+                }
+                _ => {}
             });
             window.show()?;
             if let Err(error) = spawn_launcher(app.handle()) {

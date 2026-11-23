@@ -258,6 +258,16 @@ function ResearchApplicationShell({ children }: { children: ReactNode }) {
       } catch { setNavigationError(t('Your changes could not be saved. Retry before leaving this workspace.', 'Perubahan belum dapat disimpan. Coba lagi sebelum meninggalkan workspace ini.')); }
     })();
   }, [section, cloud, router, t, setPreview]);
+  useEffect(() => {
+    if (!(window as Window & { phyniteDesktop?: boolean }).phyniteDesktop) return;
+    const follow = (event: Event) => {
+      const href = (event as CustomEvent<{ href?: string }>).detail?.href;
+      if (typeof href !== 'string' || !/^\/account\/[a-z-]+$/.test(href)) return;
+      navigate('account', href);
+    };
+    window.addEventListener('phynite:native-navigation', follow);
+    return () => window.removeEventListener('phynite:native-navigation', follow);
+  }, [navigate]);
   const traverseHistory = (direction: -1 | 1) => {
     if (traversingHistory.current || !(direction === -1 ? historyAvailability.back : historyAvailability.forward)) return;
     traversingHistory.current = true;
