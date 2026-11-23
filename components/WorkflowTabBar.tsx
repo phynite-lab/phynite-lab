@@ -1,6 +1,6 @@
 'use client';
 import { ArrowLeft, ArrowRight, NotebookPen, PanelLeft, LayoutGrid, Folder, MoreHorizontal, Columns2, PanelTopClose, PanelTopOpen, Maximize2, Pin, PinOff, Plus, X } from 'lucide-react';
-import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { WorkflowModuleIcon } from './WorkflowStartTab';
 import { UiSelect } from './UiSelect';
@@ -39,29 +39,13 @@ export function WorkflowTabBar({ state, nodes, projectName, chatTitles = {}, dis
   const owner = useRef<symbol | undefined>(undefined);
   const published = useRef<string | undefined>(undefined);
   const showNativeTabs = Boolean(native && compact && !disabled && !state.tabsHidden);
-  const nativeTabAction = useEffectEvent((event: Event) => {
-    if (!showNativeTabs || owner.current !== nativeTabsOwner) return;
-    const detail = (event as CustomEvent<{ action?: string; id?: string }>).detail;
-    if (detail?.action === 'new') { onAdd(); return; }
-    const id = detail?.id;
-    if (!id || !allTabs.includes(id)) return;
-    if (detail.action === 'close' && id !== 'canvas') dispatch({ type: 'close', id });
-    if (detail.action === 'select') {
-      const pane = splitVisible ? views.find(view => view.tabs.includes(id))?.index : undefined;
-      onTarget?.(id);
-      dispatch({ type: 'open', id, pane });
-    }
-  });
   useLayoutEffect(() => {
     if (!native) return;
     const token = Symbol();
     nativeTabsOwner = token;
     owner.current = token;
     published.current = undefined;
-    const receive = (event: Event) => nativeTabAction(event);
-    window.addEventListener('phynite:native-project-tab', receive);
     return () => {
-      window.removeEventListener('phynite:native-project-tab', receive);
       owner.current = undefined;
       // A replacement project may have mounted in the same navigation commit.
       queueMicrotask(() => {

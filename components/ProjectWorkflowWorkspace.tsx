@@ -710,6 +710,26 @@ function WorkflowCanvas({ owner, projectId, session }: { owner: string; projectI
   const openRuns = useCallback(() => setShowRuns(true), [setShowRuns]);
   const focusedNewPane = splitPair?.indexOf(focusedPaneTab);
   const newTab = (pane?: 0 | 1) => { const focused = focusedNewPane; dispatchWorkspace({type:'open',id:`new:${crypto.randomUUID()}`,pane: pane ?? (focused === 0 || focused === 1 ? focused : undefined)}); shell?.closeMobileNavigation(); };
+  useEffect(() => {
+    if (!nativeProjectTabs() || !editor.hydrated || showPaneTabs || editor.state.tabsHidden) return;
+    const receive = (event: Event) => {
+      const detail = (event as CustomEvent<{ action?: string; id?: string }>).detail;
+      if (detail?.action === 'new') {
+        newTab();
+        return;
+      }
+      const id = detail?.id;
+      if (!id || id !== 'canvas' && !displayState.tabs.includes(id)) return;
+      if (detail.action === 'close' && id !== 'canvas') dispatchWorkspace({ type: 'close', id });
+      if (detail.action === 'select') {
+        const pane = split ? paneViews.find(view => view.tabs.includes(id))?.index : undefined;
+        focusTab(id);
+        dispatchWorkspace({ type: 'open', id, pane });
+      }
+    };
+    window.addEventListener('phynite:native-project-tab', receive);
+    return () => window.removeEventListener('phynite:native-project-tab', receive);
+  });
   const visiblePoint = useCallback(() => {
     const viewport=workflowEditorCamera(editor.state);
     return {x:((canvasRoot.current?.clientWidth || containerWidth)/2-viewport.x)/viewport.zoom,y:((canvasRoot.current?.clientHeight || root.current?.clientHeight || 600)/2-viewport.y)/viewport.zoom};
