@@ -8,7 +8,10 @@ type ParserExports = {
 
 export async function loadMdWasm(): Promise<ParseNumericRows | undefined> {
   try {
-    const response = await fetch('/native/md-parser.wasm', { signal: AbortSignal.timeout(1000) });
+    const response = await fetch('/_next/static/native/md-parser.wasm', {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(1000),
+    });
     if (!response.ok) return;
     const compiled = await WebAssembly.compile(await response.arrayBuffer());
     const instance = await WebAssembly.instantiate(compiled);

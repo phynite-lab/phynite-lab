@@ -192,7 +192,7 @@ for (const target of targets) {
   const core = { executable: `core/${target}/phynite-core`, sha256: createHash('sha256').update(await readFile(cores[target])).digest('hex') };
   let desktopMdParser;
   if (options['desktop-md-parser']) {
-    const file = join(destination, 'app/dist/client/native/md-parser.wasm');
+    const file = join(destination, 'app/dist/client/_next/static/native/md-parser.wasm');
     const bytes = await readFile(resolve(options['desktop-md-parser']));
     if (!bytes.subarray(0, 8).equals(Buffer.from([0, 97, 115, 109, 1, 0, 0, 0]))) throw new Error('Invalid desktop MD parser module.');
     await mkdir(dirname(file), { recursive: true });

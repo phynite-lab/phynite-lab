@@ -18,7 +18,8 @@ export function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-phynite-document-path', path);
   response ??= NextResponse.next({ request: { headers: requestHeaders } });
-  for (const [name, value] of Object.entries(securityHeaders(process.env.NODE_ENV === 'production', path))) {
+  const desktopWasm = path.startsWith('/projects/') && process.env.PHYNITE_DESKTOP_WASM === 'true';
+  for (const [name, value] of Object.entries(securityHeaders(process.env.NODE_ENV === 'production', path, desktopWasm))) {
     if (name !== 'Strict-Transport-Security') response.headers.set(name, value);
   }
   response.headers.set('Cache-Control', 'no-store');

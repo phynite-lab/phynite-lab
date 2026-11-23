@@ -467,6 +467,7 @@ export async function runCli(args = process.argv.slice(2), { packageRoot = PACKA
         url = `http://${HOST}:${webPort}`;
         const apiOrigin = `http://${HOST}:${corePort}`;
         const env = safeChildEnvironment(dataDir, apiOrigin, url, distribution.cloud, heartbeatFile, instanceId);
+        if (desktop) env.PHYNITE_DESKTOP_WASM = 'true';
         if (distribution.source) Object.assign(env, {
           PHYNITE_RELEASE_SOURCE_COMMIT: distribution.source.commit,
           PHYNITE_RELEASE_VERSION: distribution.manifest.version,
