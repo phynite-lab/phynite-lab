@@ -1,0 +1,2547 @@
+{
+  "$description": "Phynite Lab design tokens. Top-level values preserve the extracted Reference catalog; core records the reviewed library contract and canvas adoption. Native canvas is the visual source. Annotated reference, not application CSS or a DTCG schema.",
+  "version": 2,
+  "reviewedAt": "2026-11-19",
+  "source": {
+    "document": "phynite-lab-ui",
+    "originalPages": 13,
+    "originalFrames": 801,
+    "originalNodes": 198623,
+    "homeFrame": 4294968082,
+    "appearanceFrame": 4294967558,
+    "baselineCommit": "deb6d3dcc839e079ec27c2afe53161d8514172db",
+    "captureWidths": [
+      360,
+      390,
+      430,
+      768,
+      1024,
+      1440
+    ]
+  },
+  "classification": {
+    "extracted": "Measured in the design/capture or read from the corresponding source rule.",
+    "inferred": "Role, grouping or alias derived from repeated usage; not a new measured value.",
+    "proposed": "Library recommendation for application implementation; canvas adoption is recorded under core.canvasAdoption."
+  },
+  "color": {
+    "canvas": {
+      "$type": "color",
+      "$value": "#fcfcfc",
+      "modes": {
+        "Light": "#fcfcfc",
+        "Dark": "#000000"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "surface": {
+      "$type": "color",
+      "$value": "#ffffff",
+      "modes": {
+        "Light": "#ffffff",
+        "Dark": "#111111"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "raised": {
+      "$type": "color",
+      "$value": "#ffffff",
+      "modes": {
+        "Light": "#ffffff",
+        "Dark": "#151515"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "surface-subtle": {
+      "$type": "color",
+      "$value": "#f0f0f0",
+      "modes": {
+        "Light": "#f0f0f0",
+        "Dark": "#1e1e1e"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "ink": {
+      "$type": "color",
+      "$value": "#171717",
+      "modes": {
+        "Light": "#171717",
+        "Dark": "#ededed"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "muted-ink": {
+      "$type": "color",
+      "$value": "#737373",
+      "modes": {
+        "Light": "#737373",
+        "Dark": "#999999"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4; settings contrast preference can override"
+    },
+    "line": {
+      "$type": "color",
+      "$value": "#e5e5e5",
+      "modes": {
+        "Light": "#e5e5e5",
+        "Dark": "#1d1d1d"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "line-strong": {
+      "$type": "color",
+      "$value": "#aaaaaa",
+      "modes": {
+        "Light": "#aaaaaa",
+        "Dark": "#555555"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "rail/background": {
+      "$type": "color",
+      "$value": "#f7f7f7",
+      "modes": {
+        "Light": "#f7f7f7",
+        "Dark": "#0e0e0e"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "rail/ink": {
+      "$type": "color",
+      "$value": "#888888",
+      "modes": {
+        "Light": "#888888",
+        "Dark": "#777777"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "rail/selected": {
+      "$type": "color",
+      "$value": "#ebebeb",
+      "modes": {
+        "Light": "#ebebeb",
+        "Dark": "#1e1e1e"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "sidebar/background": {
+      "$type": "color",
+      "$value": "#fcfcfc",
+      "modes": {
+        "Light": "#fcfcfc",
+        "Dark": "#050505"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "sidebar/ink": {
+      "$type": "color",
+      "$value": "#404040",
+      "modes": {
+        "Light": "#404040",
+        "Dark": "#cacaca"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "sidebar/muted": {
+      "$type": "color",
+      "$value": "#737373",
+      "modes": {
+        "Light": "#737373",
+        "Dark": "#777777"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "sidebar/selected": {
+      "$type": "color",
+      "$value": "#ebebeb",
+      "modes": {
+        "Light": "#ebebeb",
+        "Dark": "#161616"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:3-4"
+    },
+    "action/primary": {
+      "$type": "color",
+      "$value": "#18181b",
+      "modes": {
+        "Light": "#18181b",
+        "Dark": "#f4f4f5"
+      },
+      "classification": "extracted",
+      "source": "app/globals.css:135-190"
+    },
+    "action/on-primary": {
+      "$type": "color",
+      "$value": "#ffffff",
+      "modes": {
+        "Light": "#ffffff",
+        "Dark": "#090a0d"
+      },
+      "classification": "extracted",
+      "source": "app/globals.css:135-190"
+    },
+    "action/hover": {
+      "$type": "color",
+      "$value": "#000000",
+      "modes": {
+        "Light": "#000000",
+        "Dark": "#ffffff"
+      },
+      "classification": "extracted",
+      "source": "app/globals.css:135-190"
+    },
+    "action/secondary": {
+      "$type": "color",
+      "$value": "#ffffff",
+      "modes": {
+        "Light": "#ffffff",
+        "Dark": "#111111"
+      },
+      "classification": "inferred",
+      "source": "surface alias; role name inferred"
+    },
+    "action/selected": {
+      "$type": "color",
+      "$value": "#f0f0f0",
+      "modes": {
+        "Light": "#f0f0f0",
+        "Dark": "#1e1e1e"
+      },
+      "classification": "inferred",
+      "source": "surface-subtle alias; role name inferred"
+    },
+    "status/success": {
+      "$type": "color",
+      "$value": "#216b40",
+      "modes": {
+        "Light": "#216b40",
+        "Dark": "#76d69b"
+      },
+      "classification": "extracted",
+      "source": "app/globals.css:142-185"
+    },
+    "status/warning": {
+      "$type": "color",
+      "$value": "#95520e",
+      "modes": {
+        "Light": "#95520e",
+        "Dark": "#f3ae62"
+      },
+      "classification": "extracted",
+      "source": "app/globals.css:142-185"
+    },
+    "status/danger": {
+      "$type": "color",
+      "$value": "#ad3039",
+      "modes": {
+        "Light": "#ad3039",
+        "Dark": "#ff9299"
+      },
+      "classification": "extracted",
+      "source": "app/globals.css:142-185"
+    },
+    "status/info": {
+      "$type": "color",
+      "$value": "#3f3f46",
+      "modes": {
+        "Light": "#3f3f46",
+        "Dark": "#d4d4d8"
+      },
+      "classification": "extracted",
+      "source": "app/globals.css:142-185"
+    },
+    "appearance/focus": {
+      "$type": "color",
+      "$value": "#3978ff",
+      "modes": {
+        "Light": "#3978ff",
+        "Dark": "#3978ff"
+      },
+      "classification": "extracted",
+      "source": "app/account/settings.css:340"
+    },
+    "control/active": {
+      "$type": "color",
+      "$value": "#475569",
+      "modes": {
+        "Light": "#475569",
+        "Dark": "#3d4554"
+      },
+      "classification": "extracted",
+      "source": "app/lab-controls.css:6-44"
+    },
+    "control/active-border": {
+      "$type": "color",
+      "$value": "#334155",
+      "modes": {
+        "Light": "#334155",
+        "Dark": "#4d576a"
+      },
+      "classification": "extracted",
+      "source": "app/lab-controls.css:6-44"
+    },
+    "control/on-active": {
+      "$type": "color",
+      "$value": "#ffffff",
+      "modes": {
+        "Light": "#ffffff",
+        "Dark": "#f0f2f5"
+      },
+      "classification": "extracted",
+      "source": "app/lab-controls.css:6-44"
+    },
+    "control/off-track": {
+      "$type": "color",
+      "$value": "#e5e8ee",
+      "modes": {
+        "Light": "#e5e8ee",
+        "Dark": "#1c1f26"
+      },
+      "classification": "extracted",
+      "source": "app/lab-controls.css:6-44"
+    },
+    "control/off-border": {
+      "$type": "color",
+      "$value": "#d0d6e0",
+      "modes": {
+        "Light": "#d0d6e0",
+        "Dark": "#2f3542"
+      },
+      "classification": "extracted",
+      "source": "app/lab-controls.css:6-44"
+    },
+    "control/off-thumb": {
+      "$type": "color",
+      "$value": "#949eb0",
+      "modes": {
+        "Light": "#949eb0",
+        "Dark": "#646c7c"
+      },
+      "classification": "extracted",
+      "source": "app/lab-controls.css:6-44"
+    },
+    "guide/canvas": {
+      "$type": "color",
+      "$value": "#fafafa",
+      "modes": {
+        "Light": "#fafafa",
+        "Dark": "#0a0a0a"
+      },
+      "classification": "extracted",
+      "source": "guide capture + public scope"
+    },
+    "guide/ink": {
+      "$type": "color",
+      "$value": "#202329",
+      "modes": {
+        "Light": "#202329",
+        "Dark": "#f2f1ed"
+      },
+      "classification": "extracted",
+      "source": "guide article captures"
+    },
+    "guide/muted": {
+      "$type": "color",
+      "$value": "#59616e",
+      "modes": {
+        "Light": "#59616e",
+        "Dark": "#9b9da4"
+      },
+      "classification": "extracted",
+      "source": "guide article captures"
+    },
+    "guide/line": {
+      "$type": "color",
+      "$value": "#dddfe3",
+      "modes": {
+        "Light": "#dddfe3",
+        "Dark": "#282a2e"
+      },
+      "classification": "extracted",
+      "source": "guide article captures; verify context before reuse"
+    },
+    "portal/surface": {
+      "$type": "color",
+      "$value": "#fafbfc",
+      "modes": {
+        "Light": "#fafbfc",
+        "Dark": "#000000"
+      },
+      "classification": "extracted",
+      "source": "components/UiSelect.css + app/globals.css; body portal captures"
+    },
+    "portal/raised": {
+      "$type": "color",
+      "$value": "#ffffff",
+      "modes": {
+        "Light": "#ffffff",
+        "Dark": "#14161a"
+      },
+      "classification": "extracted",
+      "source": "app/globals.css; body portal scope"
+    },
+    "portal/ink": {
+      "$type": "color",
+      "$value": "#202936",
+      "modes": {
+        "Light": "#202936",
+        "Dark": "#f0f2f5"
+      },
+      "classification": "extracted",
+      "source": "app/globals.css; body portal scope"
+    },
+    "portal/muted": {
+      "$type": "color",
+      "$value": "#576170",
+      "modes": {
+        "Light": "#576170",
+        "Dark": "#a8adb7"
+      },
+      "classification": "extracted",
+      "source": "app/globals.css; body portal scope"
+    },
+    "portal/line": {
+      "$type": "color",
+      "$value": "#dce1e8",
+      "modes": {
+        "Light": "#dce1e8",
+        "Dark": "#2b2e35"
+      },
+      "classification": "extracted",
+      "source": "app/globals.css; body portal scope"
+    },
+    "portal/selected": {
+      "$type": "color",
+      "$value": "#f4f6f9",
+      "modes": {
+        "Light": "#f4f6f9",
+        "Dark": "#191b20"
+      },
+      "classification": "extracted",
+      "source": "app/globals.css; body portal scope"
+    },
+    "settings/captured-muted": {
+      "$type": "color",
+      "$value": "#737373",
+      "modes": {
+        "Light": "#737373",
+        "Dark": "#828282"
+      },
+      "classification": "extracted",
+      "source": "appearance.capture.json + dark capture; contrast preference context"
+    }
+  },
+  "dimension": {
+    "space/2": {
+      "$type": "dimension",
+      "$value": {
+        "value": 2,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/4": {
+      "$type": "dimension",
+      "$value": {
+        "value": 4,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/6": {
+      "$type": "dimension",
+      "$value": {
+        "value": 6,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/8": {
+      "$type": "dimension",
+      "$value": {
+        "value": 8,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/10": {
+      "$type": "dimension",
+      "$value": {
+        "value": 10,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/12": {
+      "$type": "dimension",
+      "$value": {
+        "value": 12,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/16": {
+      "$type": "dimension",
+      "$value": {
+        "value": 16,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/17": {
+      "$type": "dimension",
+      "$value": {
+        "value": 17,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/18": {
+      "$type": "dimension",
+      "$value": {
+        "value": 18,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/20": {
+      "$type": "dimension",
+      "$value": {
+        "value": 20,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/22": {
+      "$type": "dimension",
+      "$value": {
+        "value": 22,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/24": {
+      "$type": "dimension",
+      "$value": {
+        "value": 24,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/28": {
+      "$type": "dimension",
+      "$value": {
+        "value": 28,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/32": {
+      "$type": "dimension",
+      "$value": {
+        "value": 32,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/40": {
+      "$type": "dimension",
+      "$value": {
+        "value": 40,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/48": {
+      "$type": "dimension",
+      "$value": {
+        "value": 48,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/52": {
+      "$type": "dimension",
+      "$value": {
+        "value": 52,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/56": {
+      "$type": "dimension",
+      "$value": {
+        "value": 56,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "space/64": {
+      "$type": "dimension",
+      "$value": {
+        "value": 64,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/3": {
+      "$type": "dimension",
+      "$value": {
+        "value": 3,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/4": {
+      "$type": "dimension",
+      "$value": {
+        "value": 4,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/5": {
+      "$type": "dimension",
+      "$value": {
+        "value": 5,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/6": {
+      "$type": "dimension",
+      "$value": {
+        "value": 6,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/7": {
+      "$type": "dimension",
+      "$value": {
+        "value": 7,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/8": {
+      "$type": "dimension",
+      "$value": {
+        "value": 8,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/9": {
+      "$type": "dimension",
+      "$value": {
+        "value": 9,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/10": {
+      "$type": "dimension",
+      "$value": {
+        "value": 10,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/12": {
+      "$type": "dimension",
+      "$value": {
+        "value": 12,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/14": {
+      "$type": "dimension",
+      "$value": {
+        "value": 14,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/16": {
+      "$type": "dimension",
+      "$value": {
+        "value": 16,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/18": {
+      "$type": "dimension",
+      "$value": {
+        "value": 18,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "radius/pill": {
+      "$type": "dimension",
+      "$value": {
+        "value": 999,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "border/default": {
+      "$type": "dimension",
+      "$value": {
+        "value": 1,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "focus/width": {
+      "$type": "dimension",
+      "$value": {
+        "value": 2,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "focus/offset": {
+      "$type": "dimension",
+      "$value": {
+        "value": 2,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "focus/appearance-offset": {
+      "$type": "dimension",
+      "$value": {
+        "value": 3,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "control/default-height": {
+      "$type": "dimension",
+      "$value": {
+        "value": 40,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "control/home-height": {
+      "$type": "dimension",
+      "$value": {
+        "value": 36,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "control/compact-select-height": {
+      "$type": "dimension",
+      "$value": {
+        "value": 28,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "control/compute-height": {
+      "$type": "dimension",
+      "$value": {
+        "value": 32,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "control/touch-height": {
+      "$type": "dimension",
+      "$value": {
+        "value": 44,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "control/chevron-width": {
+      "$type": "dimension",
+      "$value": {
+        "value": 32,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "control/compact-chevron-width": {
+      "$type": "dimension",
+      "$value": {
+        "value": 26,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "layout/rail": {
+      "$type": "dimension",
+      "$value": {
+        "value": 52,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "layout/mobile-rail": {
+      "$type": "dimension",
+      "$value": {
+        "value": 64,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "layout/sidebar": {
+      "$type": "dimension",
+      "$value": {
+        "value": 280,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "layout/topbar": {
+      "$type": "dimension",
+      "$value": {
+        "value": 44,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "layout/mobile-header": {
+      "$type": "dimension",
+      "$value": {
+        "value": 52,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "layout/home-max": {
+      "$type": "dimension",
+      "$value": {
+        "value": 840,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "layout/settings-max": {
+      "$type": "dimension",
+      "$value": {
+        "value": 960,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "layout/inset": {
+      "$type": "dimension",
+      "$value": {
+        "value": 8,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "breakpoint/shell-max": {
+      "$type": "dimension",
+      "$value": {
+        "value": 960,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "breakpoint/shell-desktop-min": {
+      "$type": "dimension",
+      "$value": {
+        "value": 961,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "breakpoint/settings-container": {
+      "$type": "dimension",
+      "$value": {
+        "value": 540,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "breakpoint/home-container": {
+      "$type": "dimension",
+      "$value": {
+        "value": 500,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "breakpoint/small-settings": {
+      "$type": "dimension",
+      "$value": {
+        "value": 440,
+        "unit": "px"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css"
+    },
+    "opacity/select-disabled": {
+      "$type": "number",
+      "$value": 50,
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css",
+      "unit": "percent",
+      "note": "Percentage points; divide by 100 for CSS opacity."
+    },
+    "opacity/option-disabled": {
+      "$type": "number",
+      "$value": 45,
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css",
+      "unit": "percent",
+      "note": "Percentage points; divide by 100 for CSS opacity."
+    },
+    "opacity/lab-disabled": {
+      "$type": "number",
+      "$value": 42,
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css",
+      "unit": "percent",
+      "note": "Percentage points; divide by 100 for CSS opacity."
+    },
+    "motion/control-ms": {
+      "$type": "number",
+      "$value": 120,
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css",
+      "unit": "ms"
+    },
+    "motion/rail-hover-ms": {
+      "$type": "number",
+      "$value": 120,
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css",
+      "unit": "ms"
+    },
+    "motion/sidebar-exit-ms": {
+      "$type": "number",
+      "$value": 180,
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css",
+      "unit": "ms"
+    },
+    "motion/spinner-ms": {
+      "$type": "number",
+      "$value": 800,
+      "classification": "extracted",
+      "source": "app/research-shell.css; app/account/settings.css; components/UiSelect.css; app/lab-controls.css",
+      "unit": "ms"
+    }
+  },
+  "typography": {
+    "Brand/UI": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist Pixel",
+        "fontStyle": "Square",
+        "fontSize": 16,
+        "lineHeight": 20.5,
+        "letterSpacing": -0.32
+      },
+      "classification": "extracted",
+      "source": "Home/Settings wordmark; CSS family Geist Pixel Square",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Heading/Appearance": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist",
+        "fontStyle": "Medium",
+        "fontSize": 27,
+        "lineHeight": 32.4,
+        "letterSpacing": -0.675
+      },
+      "classification": "extracted",
+      "source": "appearance heading override, 4294967558",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Heading/Home": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist",
+        "fontStyle": "Medium",
+        "fontSize": 22,
+        "lineHeight": 28.6,
+        "letterSpacing": -0.55
+      },
+      "classification": "extracted",
+      "source": "Home heading, 4294968082",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Heading/Navigation": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist",
+        "fontStyle": "Medium",
+        "fontSize": 20,
+        "lineHeight": 26,
+        "letterSpacing": -0.5
+      },
+      "classification": "extracted",
+      "source": "Settings navigation, 4294967558",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Heading/Appearance section": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist",
+        "fontStyle": "Medium",
+        "fontSize": 17,
+        "lineHeight": 22.1,
+        "letterSpacing": 0
+      },
+      "classification": "extracted",
+      "source": "appearance visual style",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Heading/Section": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist",
+        "fontStyle": "Semi Bold",
+        "fontSize": 14,
+        "lineHeight": 21,
+        "letterSpacing": -0.35
+      },
+      "classification": "extracted",
+      "source": "settings section; other sections use 550 axes",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Body/UI": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist",
+        "fontStyle": "Regular",
+        "fontSize": 14,
+        "lineHeight": 20.3,
+        "letterSpacing": 0
+      },
+      "classification": "extracted",
+      "source": "shell body 14 / 1.45",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Label/Navigation": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist",
+        "fontStyle": "Regular",
+        "fontSize": 13,
+        "lineHeight": 17,
+        "letterSpacing": 0
+      },
+      "classification": "extracted",
+      "source": "Settings navigation",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Label/Button": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist",
+        "fontStyle": "Medium",
+        "fontSize": 13,
+        "lineHeight": 18.85,
+        "letterSpacing": 0
+      },
+      "classification": "extracted",
+      "source": "lab-button default; Home uses 12",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Caption/Default": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist",
+        "fontStyle": "Regular",
+        "fontSize": 12,
+        "lineHeight": 15.5,
+        "letterSpacing": 0
+      },
+      "classification": "extracted",
+      "source": "captured shell captions",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Label/Group": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist",
+        "fontStyle": "Medium",
+        "fontSize": 11,
+        "lineHeight": 14,
+        "letterSpacing": 0
+      },
+      "classification": "extracted",
+      "source": "Settings group label",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Code/Default": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist Mono",
+        "fontStyle": "Regular",
+        "fontSize": 13,
+        "lineHeight": 19.5,
+        "letterSpacing": 0
+      },
+      "classification": "extracted",
+      "source": "typography code default; specimen is not solver output",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Code/Compact": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist Mono",
+        "fontStyle": "Medium",
+        "fontSize": 11.5,
+        "lineHeight": 14.95,
+        "letterSpacing": 0
+      },
+      "classification": "extracted",
+      "source": "dense parameter labels; small text needs zoom support",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    },
+    "Body/Reading": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Geist",
+        "fontStyle": "Regular",
+        "fontSize": 16,
+        "lineHeight": 28.8,
+        "letterSpacing": 0
+      },
+      "classification": "extracted",
+      "source": "reading token 16 / 1.8; guide has context overrides",
+      "note": "Role name inferred. Values are contextual; no synthetic H1–H6 scale."
+    }
+  },
+  "effects": {
+    "sidebar/floating": {
+      "$type": "shadow",
+      "$value": {
+        "x": 0,
+        "y": 8,
+        "blur": 30,
+        "spread": 0,
+        "color": "#00000014"
+      },
+      "modes": {
+        "Light": "0 8px 30px rgb(0 0 0 / 8%)",
+        "Dark": "0 8px 30px rgb(0 0 0 / 24%)"
+      },
+      "classification": "extracted",
+      "source": "app/research-shell.css:16-17"
+    },
+    "select/menu": {
+      "$type": "shadow",
+      "$value": "0 18px 46px rgb(0 0 0 / 42%), 0 0 0 1px rgb(255 255 255 / 3%)",
+      "classification": "extracted",
+      "source": "components/UiSelect.css:117-137",
+      "note": "Light-specific selector changes this to rgb(31 40 52 / 18%) and 3%."
+    },
+    "theme/selected": {
+      "$type": "shadow",
+      "$value": "0 1px 2px color-mix(in srgb, var(--ink) 10%, transparent)",
+      "classification": "extracted",
+      "source": "app/account/settings.css:70"
+    }
+  },
+  "proposed": {
+    "focus/strong": {
+      "$type": "color",
+      "$value": "#171717",
+      "modes": {
+        "Light": "#171717",
+        "Dark": "#ededed"
+      },
+      "classification": "proposed",
+      "reason": "Neutral focus candidate with at least 3:1 against the base canvas; verify every adjacent fill.",
+      "supersededBy": "core.color.focus/outline"
+    },
+    "target/coarse-min": {
+      "$type": "dimension",
+      "$value": {
+        "value": 44,
+        "unit": "px"
+      },
+      "classification": "proposed",
+      "reason": "Extend existing coarse-pointer target rule to linked labels, slider hit boxes and custom actuators.",
+      "supersededBy": "core.density.control/height"
+    },
+    "action/pressed": {
+      "$type": "string",
+      "$value": "Use primary hover tone during press; retain geometry",
+      "classification": "proposed",
+      "reason": "No distinct pressed tone was established in the captures/source.",
+      "supersededBy": "core.color.action/pressed"
+    }
+  },
+  "core": {
+    "classification": "proposed",
+    "description": "Shared library contract applied to the FigCraft screen map through native variables, text styles and instances. Application code is unchanged. Extracted values remain in the top-level reference namespaces.",
+    "nativeCollections": {
+      "theme": "Core · Theme",
+      "metrics": "Core · Metrics",
+      "density": "Core · Density",
+      "typography": "Core · Typography",
+      "contentColors": "Core · Content colors"
+    },
+    "color": {
+      "canvas": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#FCFCFC",
+          "Dark": "#000000"
+        }
+      },
+      "surface/default": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#FFFFFF",
+          "Dark": "#111111"
+        }
+      },
+      "surface/raised": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#FFFFFF",
+          "Dark": "#151515"
+        }
+      },
+      "surface/hover": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#F0F0F0",
+          "Dark": "#1E1E1E"
+        }
+      },
+      "surface/pressed": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#E5E5E5",
+          "Dark": "#2B2B2B"
+        }
+      },
+      "text/primary": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#171717",
+          "Dark": "#EDEDED"
+        }
+      },
+      "text/secondary": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#595959",
+          "Dark": "#AAAAAA"
+        }
+      },
+      "border/subtle": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#E5E5E5",
+          "Dark": "#1D1D1D"
+        }
+      },
+      "border/control": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#808080",
+          "Dark": "#808080"
+        }
+      },
+      "focus/outline": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#171717",
+          "Dark": "#EDEDED"
+        }
+      },
+      "action/primary": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#18181B",
+          "Dark": "#F4F4F5"
+        }
+      },
+      "action/on-primary": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#FFFFFF",
+          "Dark": "#090A0D"
+        }
+      },
+      "action/hover": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#000000",
+          "Dark": "#FFFFFF"
+        }
+      },
+      "action/pressed": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#303033",
+          "Dark": "#D4D4D8"
+        }
+      },
+      "status/success": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#216B40",
+          "Dark": "#76D69B"
+        }
+      },
+      "status/warning": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#95520E",
+          "Dark": "#F3AE62"
+        }
+      },
+      "status/danger": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#AD3039",
+          "Dark": "#FF9299"
+        }
+      },
+      "status/info": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#3F3F46",
+          "Dark": "#D4D4D8"
+        }
+      },
+      "button/fill": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": {
+            "alias": "core.color.action/primary"
+          },
+          "Dark": {
+            "alias": "core.color.action/primary"
+          }
+        }
+      },
+      "button/ink": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": {
+            "alias": "core.color.action/on-primary"
+          },
+          "Dark": {
+            "alias": "core.color.action/on-primary"
+          }
+        }
+      },
+      "field/fill": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": {
+            "alias": "core.color.surface/default"
+          },
+          "Dark": {
+            "alias": "core.color.surface/default"
+          }
+        }
+      },
+      "field/border": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": {
+            "alias": "core.color.border/control"
+          },
+          "Dark": {
+            "alias": "core.color.border/control"
+          }
+        }
+      },
+      "selection/fill": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": {
+            "alias": "core.color.action/primary"
+          },
+          "Dark": {
+            "alias": "core.color.action/primary"
+          }
+        }
+      },
+      "selection/ink": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": {
+            "alias": "core.color.action/on-primary"
+          },
+          "Dark": {
+            "alias": "core.color.action/on-primary"
+          }
+        }
+      },
+      "nav/selected": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": {
+            "alias": "core.color.surface/hover"
+          },
+          "Dark": {
+            "alias": "core.color.surface/hover"
+          }
+        }
+      },
+      "shadow/floating": {
+        "$type": "color",
+        "classification": "proposed",
+        "nativeCollection": "Core · Theme",
+        "modes": {
+          "Light": "#0000001F",
+          "Dark": "#00000052"
+        }
+      }
+    },
+    "dimension": {
+      "space/4": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 4
+        },
+        "unit": "px",
+        "$value": 4
+      },
+      "space/8": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 8
+        },
+        "unit": "px",
+        "$value": 8
+      },
+      "space/12": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 12
+        },
+        "unit": "px",
+        "$value": 12
+      },
+      "space/16": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 16
+        },
+        "unit": "px",
+        "$value": 16
+      },
+      "space/24": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 24
+        },
+        "unit": "px",
+        "$value": 24
+      },
+      "space/32": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 32
+        },
+        "unit": "px",
+        "$value": 32
+      },
+      "space/48": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 48
+        },
+        "unit": "px",
+        "$value": 48
+      },
+      "space/64": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 64
+        },
+        "unit": "px",
+        "$value": 64
+      },
+      "radius/control": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 8
+        },
+        "unit": "px",
+        "$value": 8
+      },
+      "radius/container": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 12
+        },
+        "unit": "px",
+        "$value": 12
+      },
+      "radius/dialog": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 16
+        },
+        "unit": "px",
+        "$value": 16
+      },
+      "radius/pill": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 999
+        },
+        "unit": "px",
+        "$value": 999
+      },
+      "border/width": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 1
+        },
+        "unit": "px",
+        "$value": 1
+      },
+      "focus/width": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 2
+        },
+        "unit": "px",
+        "$value": 2
+      },
+      "focus/offset": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 2
+        },
+        "unit": "px",
+        "$value": 2
+      },
+      "icon/size": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 16
+        },
+        "unit": "px",
+        "$value": 16
+      },
+      "gap/control": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 8
+        },
+        "unit": "px",
+        "$value": 8
+      },
+      "padding/container": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 24
+        },
+        "unit": "px",
+        "$value": 24
+      },
+      "padding/mobile": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 16
+        },
+        "unit": "px",
+        "$value": 16
+      },
+      "opacity/disabled": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 50
+        },
+        "unit": "percent",
+        "$value": 50
+      },
+      "textarea/min-height": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 96
+        },
+        "unit": "px",
+        "$value": 96
+      },
+      "selection/indicator": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 2
+        },
+        "unit": "px",
+        "$value": 2
+      },
+      "status/dot": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 6
+        },
+        "unit": "px",
+        "$value": 6
+      },
+      "table/min-width": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 420
+        },
+        "unit": "px",
+        "$value": 420
+      },
+      "range/thumb-size": {
+        "$type": "number",
+        "classification": "extracted",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 16
+        },
+        "unit": "px",
+        "$value": 16,
+        "source": "Appearance native range optical geometry; app/account/settings.css:404-406 and captured advanced frame4294967808"
+      },
+      "range/track-thickness": {
+        "$type": "number",
+        "classification": "extracted",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 3
+        },
+        "unit": "px",
+        "$value": 3,
+        "source": "Appearance native range optical geometry; app/account/settings.css:404-406 and captured advanced frame4294967808"
+      },
+      "range/track-radius": {
+        "$type": "number",
+        "classification": "extracted",
+        "nativeCollection": "Core · Metrics",
+        "modes": {
+          "Default": 1.5
+        },
+        "unit": "px",
+        "$value": 1.5,
+        "source": "Appearance native range optical geometry; app/account/settings.css:404-406 and captured advanced frame4294967808"
+      }
+    },
+    "density": {
+      "control/height": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Density",
+        "modes": {
+          "Default": 40,
+          "Compact": 32,
+          "Touch": 44
+        },
+        "unit": "px"
+      },
+      "control/padding-inline": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Density",
+        "modes": {
+          "Default": 12,
+          "Compact": 12,
+          "Touch": 16
+        },
+        "unit": "px"
+      },
+      "button/height": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Density",
+        "modes": {
+          "Default": {
+            "alias": "core.density.control/height"
+          },
+          "Compact": {
+            "alias": "core.density.control/height"
+          },
+          "Touch": {
+            "alias": "core.density.control/height"
+          }
+        },
+        "unit": "px"
+      },
+      "field/height": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Density",
+        "modes": {
+          "Default": {
+            "alias": "core.density.control/height"
+          },
+          "Compact": {
+            "alias": "core.density.control/height"
+          },
+          "Touch": {
+            "alias": "core.density.control/height"
+          }
+        },
+        "unit": "px"
+      },
+      "nav/height": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Density",
+        "modes": {
+          "Default": {
+            "alias": "core.density.control/height"
+          },
+          "Compact": {
+            "alias": "core.density.control/height"
+          },
+          "Touch": {
+            "alias": "core.density.control/height"
+          }
+        },
+        "unit": "px"
+      },
+      "control/padding-block": {
+        "$type": "number",
+        "classification": "proposed",
+        "nativeCollection": "Core · Density",
+        "modes": {
+          "Default": 9,
+          "Compact": 5,
+          "Touch": 11
+        },
+        "unit": "px"
+      }
+    },
+    "typography": {
+      "Brand": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "Geist Pixel",
+          "fontStyle": "Square",
+          "fontSize": 16.0,
+          "lineHeight": 20.0,
+          "letterSpacing": 0.0
+        },
+        "classification": "proposed",
+        "unit": "px",
+        "nativeStyle": "Core/Brand",
+        "fallbacks": [
+          "Geist Mono",
+          "monospace"
+        ]
+      },
+      "Display": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "Geist",
+          "fontStyle": "Medium",
+          "fontSize": 28.0,
+          "lineHeight": 36.0,
+          "letterSpacing": -0.56
+        },
+        "classification": "proposed",
+        "unit": "px",
+        "nativeStyle": "Core/Display",
+        "fallbacks": [
+          "Arial",
+          "sans-serif"
+        ]
+      },
+      "Heading": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "Geist",
+          "fontStyle": "Medium",
+          "fontSize": 20.0,
+          "lineHeight": 28.0,
+          "letterSpacing": -0.4
+        },
+        "classification": "proposed",
+        "unit": "px",
+        "nativeStyle": "Core/Heading",
+        "fallbacks": [
+          "Arial",
+          "sans-serif"
+        ]
+      },
+      "Section": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "Geist",
+          "fontStyle": "Medium",
+          "fontSize": 16.0,
+          "lineHeight": 24.0,
+          "letterSpacing": 0.0
+        },
+        "classification": "proposed",
+        "unit": "px",
+        "nativeStyle": "Core/Section",
+        "fallbacks": [
+          "Arial",
+          "sans-serif"
+        ]
+      },
+      "Body": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "Geist",
+          "fontStyle": "Regular",
+          "fontSize": 14.0,
+          "lineHeight": 20.0,
+          "letterSpacing": 0.0
+        },
+        "classification": "proposed",
+        "unit": "px",
+        "nativeStyle": "Core/Body",
+        "fallbacks": [
+          "Arial",
+          "sans-serif"
+        ]
+      },
+      "Label": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "Geist",
+          "fontStyle": "Medium",
+          "fontSize": 13.0,
+          "lineHeight": 20.0,
+          "letterSpacing": 0.0
+        },
+        "classification": "proposed",
+        "unit": "px",
+        "nativeStyle": "Core/Label",
+        "fallbacks": [
+          "Arial",
+          "sans-serif"
+        ]
+      },
+      "Caption": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "Geist",
+          "fontStyle": "Regular",
+          "fontSize": 12.0,
+          "lineHeight": 16.0,
+          "letterSpacing": 0.0
+        },
+        "classification": "proposed",
+        "unit": "px",
+        "nativeStyle": "Core/Caption",
+        "fallbacks": [
+          "Arial",
+          "sans-serif"
+        ]
+      },
+      "Code": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "Geist Mono",
+          "fontStyle": "Regular",
+          "fontSize": 12.0,
+          "lineHeight": 20.0,
+          "letterSpacing": 0.0
+        },
+        "classification": "proposed",
+        "unit": "px",
+        "nativeStyle": "Core/Code",
+        "fallbacks": [
+          "monospace"
+        ]
+      }
+    },
+    "effects": {
+      "floating": {
+        "$type": "shadow",
+        "$value": {
+          "x": 0,
+          "y": 8,
+          "blur": 24,
+          "spread": 0,
+          "color": {
+            "alias": "core.color.shadow/floating"
+          }
+        },
+        "classification": "proposed",
+        "unit": "px",
+        "nativeStyle": "Core/Elevation/Floating"
+      }
+    },
+    "layout": {
+      "withinField": 8,
+      "headingDescription": 8,
+      "cardSections": 16,
+      "formGroups": 24,
+      "dialogPadding": 24,
+      "narrowDialogPadding": 16,
+      "dialogDefaultWidth": 480,
+      "dialogActionLayout": "Equal Fill widths, Hug heights, bottom alignment.",
+      "note": "Values in px. Phynite conventions applying proximity and alignment, not universal design laws."
+    },
+    "components": {
+      "Button": {
+        "variantTuples": 20
+      },
+      "Input": {
+        "variantTuples": 5
+      },
+      "Select": {
+        "variantTuples": 5
+      },
+      "Textarea": {
+        "variantTuples": 5
+      },
+      "Checkbox": {
+        "variantTuples": 10
+      },
+      "Switch": {
+        "variantTuples": 10
+      },
+      "Icon button": {
+        "variantTuples": 5
+      },
+      "Field group": {
+        "variantTuples": 2
+      },
+      "Navigation item": {
+        "variantTuples": 5
+      },
+      "Tab": {
+        "variantTuples": 5
+      },
+      "Alert": {
+        "variantTuples": 4
+      },
+      "Status": {
+        "variantTuples": 4
+      },
+      "Range/Appearance value 0": {
+        "classification": "applied-in-canvas",
+        "mainComponents": 1,
+        "capturedValue": 0,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "widths": [
+          155,
+          115
+        ],
+        "trackHeight": 3,
+        "thumbSize": 16,
+        "runtimeBehavior": "Requires separate application testing."
+      }
+    },
+    "verification": {
+      "variantInstances": 480,
+      "themes": [
+        "Light",
+        "Dark"
+      ],
+      "densities": [
+        "Compact",
+        "Default",
+        "Touch"
+      ],
+      "dialogLongLabelWidths": [
+        320,
+        390,
+        480
+      ],
+      "compositionWidths": [
+        288,
+        320,
+        390,
+        480
+      ],
+      "compositionCases": 48,
+      "contrastPairs": 86,
+      "minimumCheckedTextContrast": 4.775118494935906,
+      "minimumCheckedNonTextContrast": 3.1352446657999753,
+      "originalNodesUnchanged": 198623,
+      "runtimeAccessibility": "Requires separate application testing; visual library checks do not certify WCAG conformance.",
+      "longContentCases": 24,
+      "longContentWidth": 288,
+      "scope": "Core library audit before cross-page canvas migration; originalNodesUnchanged refers to that saved phase, not the edited live source layers."
+    },
+    "canvasAdoption": {
+      "classification": "applied-in-canvas",
+      "applicationCodeChanged": false,
+      "applicationPages": 13,
+      "capturedFrames": 801,
+      "controlInstances": 5847,
+      "iconInstances": 16742,
+      "sourceTextLayers": 54436,
+      "appliedTextStyles": 124,
+      "iconProfiles": 390,
+      "sharedLayoutFrames": 4549,
+      "remainingSourceCompositions": 933,
+      "spacing": {
+        "gap": 8,
+        "ordinaryInline": 12,
+        "compactInline": 8,
+        "touchInline": 16,
+        "numericValueInline": 12,
+        "settingsGroup": {
+          "inline": 24,
+          "block": 24
+        },
+        "appearancePanel": {
+          "inline": 16,
+          "block": 8
+        },
+        "workflowCard": {
+          "inline": 12,
+          "block": 12
+        },
+        "guideNotice": 16,
+        "menuOuter": 4,
+        "dialog": 24,
+        "compactTextNotice": {
+          "inline": 24,
+          "block": 16
+        },
+        "colorValue": {
+          "inline": 10,
+          "gap": 8,
+          "source": "app/account/settings.css:383; shared Reference metric10 and Core gap8"
+        },
+        "localSignIn": {
+          "wideInset": 20,
+          "mobileInset": 16,
+          "labelGap": 8,
+          "fieldGap": 16,
+          "helperGap": 8,
+          "source": "app/local/settings.css; wide inset uses the shared Reference metric20"
+        },
+        "guideSearch": {
+          "inline": 12,
+          "gap": 10,
+          "nominalIcon": 17,
+          "nominalClearAction": 23,
+          "source": "app/public-pages.css:1612-1619; compound source search assembly"
+        },
+        "guideToolbarTitle": {
+          "wordGap": 4,
+          "iconGap": 10,
+          "nominalIcon": 17,
+          "classification": "applied-in-canvas",
+          "source": "Source title fragments retained; shared word gap compensates native Hug trailing-whitespace omission. app/public-pages.css:1611,1755."
+        },
+        "guideImageDialog": {
+          "radius": 8,
+          "headerBlock": 12,
+          "headerInline": 16,
+          "linkGap": 6,
+          "bodyDesktop": 16,
+          "bodyMobile": 8,
+          "captionInline": 16,
+          "captionBottom": 16,
+          "captionSize": 12,
+          "captionLineHeight": 19.2,
+          "source": "app/public-pages.css:1676-1684; local runtime DOM desktop1440/mobile390 Light/Dark"
+        },
+        "mathVectorBadge": {
+          "width": 30,
+          "height": 32,
+          "mainAlign": "center",
+          "crossAlign": "center",
+          "baseFamily": "Geist Mono",
+          "combiningMarkFamily": "STIX Two Math",
+          "size": 10,
+          "classification": "applied-in-canvas",
+          "source": "Source vector badge dimensions; macOS CoreText fallback for U+20D7."
+        },
+        "scaledWorkflow": {
+          "scale": 0.2637037130502554,
+          "sourceLabelSize": 13,
+          "sourceRadius": 5.5,
+          "sourceStroke": 1,
+          "classification": "applied-in-canvas",
+          "source": "Captured React Flow artwork at optical zoom0.26370371; retain card outer bounds."
+        },
+        "mobileRuntimeAction": {
+          "titleHelperGap": 8,
+          "copyActionGap": 16,
+          "rowSeparation": 24,
+          "classification": "applied-in-canvas",
+          "source": "app/account/settings.css:157 mobile row gap16; Core label/helper and section metrics"
+        },
+        "settingsSwitchSource": {
+          "track": [
+            34,
+            20
+          ],
+          "thumb": 14,
+          "inset": 3,
+          "thumbTravel": 14,
+          "labelGap": 8,
+          "classification": "applied-in-canvas",
+          "source": "Captured Settings source geometry; two applied On/Off masters, separate from canonical Core switch."
+        },
+        "mobileDftSectionTitle": {
+          "width": 340,
+          "gap": 8,
+          "crossAlign": "baseline",
+          "titleSizing": "fixed",
+          "detailSizing": "fill",
+          "detailOverflow": "truncate",
+          "maxLines": 1,
+          "classification": "applied-in-canvas",
+          "source": "components/CalculationConfigDrawer.tsx:120-123; mobile card inner width340"
+        },
+        "nativeTrajectoryInput": {
+          "opticalInline": 9.5,
+          "gap": 4,
+          "classification": "applied-in-canvas",
+          "source": "Measured native Chrome file-input labels retained in original source field bounds."
+        },
+        "sourceFeedback": {
+          "spinnerSize": 16,
+          "uncheckedCheckboxSize": 13,
+          "classification": "extracted",
+          "source": "Observed local Chrome rendering in Light/Dark."
+        },
+        "guideProcedure": {
+          "size": [
+            26,
+            26
+          ],
+          "radius": 4,
+          "fontFamily": "Geist Mono",
+          "fontSize": 12,
+          "alignment": "center",
+          "numberProperty": "Number",
+          "classification": "extracted",
+          "source": "app/public-pages.css:1652-1654; actual source counter resets."
+        },
+        "guideListDisc": {
+          "diameter": 5,
+          "font14Offset": [
+            -21,
+            7
+          ],
+          "font16Offset": [
+            -22,
+            9
+          ],
+          "offsetOrigin": "top-left of first retained text line",
+          "classification": "applied-in-canvas",
+          "source": "Chrome native marker alpha area 19.93px² in 14px and 16px body contexts."
+        }
+      },
+      "limits": [
+        "Compound source geometry and scaled artwork are not fully unified.",
+        "Captured viewport variants do not implement complete screen reflow.",
+        "Login/data-dependent states need their own references.",
+        "The Appearance range component records the captured value0 only; other values and runtime input behavior need separate evidence.",
+        "Mobile MD script-inspector title and copy/close actions are clipped in the actual app at workflow y44; canvas preserves the reproduced source state.",
+        "Historical Guide capture masks and omitted article bodies remain; the three retained mobile images are source-verified.",
+        "Mobile Run menu opens near x=-79.17 in both source themes and clips left labels; canvas preserves that source state."
+      ],
+      "verification": {
+        "sourceTextUnchanged": 54396,
+        "prototypeActionNodesUnchanged": 11317,
+        "brokenNativeReferences": 0,
+        "appliedInlineLayoutIssues": 0,
+        "propagation": {
+          "LightPrimaryTextPages": 10,
+          "buttonInstancesSampled": 13,
+          "actualPaddingMovement": true,
+          "restored": true,
+          "fontMutation": "pass; 12 → 12.125 → 12 px",
+          "fontPagesSampled": 13,
+          "appearanceRangeInstances": 16,
+          "appearanceRangeMutation": "pass; master opacity 1 → 0.8 → 1; all 16 instances propagated and restoration verified",
+          "mathVectorSizeMutation": "pass; shared10 →10.125 →10 reaches base letter and ranged combining mark",
+          "settingsSwitchInstances": 46,
+          "settingsSwitchMutation": "pass; two masters opacity1 to0.9 to1; all46instances propagated and restoration verified",
+          "nativeFeedbackInstances": 52,
+          "nativeFeedbackMutation": "pass; spinner/checkbox masters opacity 1 to 0.9 to 1; all instances propagated and restored",
+          "guideProcedureAndDiscInstances": 1979,
+          "guideMarkerMutation": "pass; both masters opacity 1 to 0.9 to 1; all instances propagated and restored"
+        },
+        "containerBodyBoundsIssues": 0,
+        "narrowExplanationLinesWrapped": 15,
+        "selectValuesTruncateWithoutChangingText": 1074,
+        "wrappedParagraphCollisionIssues": 0,
+        "inlineTypographyBoundsIssues": 0,
+        "visuallyReviewedCapturedFrames": 801,
+        "openVisualFindings": 2,
+        "recomposedSourceFragments": 98,
+        "recomposedParagraphs": 40,
+        "sourceTextVerification": "54,396 original fragments compared byte-for-byte; 98 fragments reconstructed into 40 paragraphs with saved-fragment and source wording checks. Normalize only intentional NBSPs.",
+        "nonbreakingSpaceParagraphs": {
+          "privacy": 12,
+          "signInDescription": 6
+        },
+        "pendingCapturedFrames": 0,
+        "visualReviewScope": "All 801 recorded captured viewports. A separate pass reviews retained off-viewport bodies for three Guide topics in both themes/devices. Other article bodies, omitted source content and unrepresented app states remain outside that coverage.",
+        "prototypeHitRegionRealignmentChecked": true,
+        "latestPrototypeHitRegionCorrections": 0,
+        "guideDetailIssues": 0,
+        "guideImageAssetChecksums": "All 4 recovered dialog assets and 47 responsive article/base images match repository SHA-256 hashes.",
+        "localMenuDetailIssues": 0,
+        "sourceLanguageFlagIssues": 0,
+        "openSourceUiIssues": 2,
+        "round05DetailIssues": 0,
+        "matchedPrototypeHitRegions": 808,
+        "prototypeHitRegionDisplacementIssues": 0,
+        "sourceUiIssues": [
+          {
+            "id": "mobile-md-inspector-header-clipping",
+            "capturedFrames": 2,
+            "runtimeThemeMeasured": "Light",
+            "matchingCapturedTheme": "Dark",
+            "workflowClipTop": 44,
+            "modalRect": [
+              0,
+              0,
+              390,
+              844
+            ],
+            "headerHeight": 85,
+            "status": "open; source screenshot reproduces missing title/copy/close",
+            "source": "components/MdSimulationConfigDrawer.tsx:1079-1103; app/md-studio.css:1342-1403"
+          },
+          {
+            "id": "mobile-run-menu-left-clipping",
+            "capturedFrames": 2,
+            "runtimeThemesMeasured": [
+              "Light",
+              "Dark"
+            ],
+            "menuLeft": -79.17,
+            "status": "open; source app reproduces clipped left labels",
+            "source": "app/project-workflow.css:335; right-aligned 180px menu on the mobile Run control"
+          }
+        ],
+        "hpcAndSettingsDetailIssues": 0,
+        "nativeFeedbackIssues": 0,
+        "guideMarkerIssues": 0,
+        "guideMarkerTopicCoverage": 41
+      },
+      "nativeVariables": 306,
+      "nativeStyles": 153,
+      "artworkOpticalMetrics": {
+        "classification": "applied-in-canvas",
+        "instances": 624,
+        "cornerRadii": [
+          1.4504,
+          5.5
+        ],
+        "strokeWeights": [
+          0.2637,
+          1
+        ],
+        "unit": "px in illustration"
+      },
+      "inlineTypographyLayouts": 33,
+      "settingsFieldsConnectedInDetailPass": 109,
+      "paragraphCardBodiesReflowed": 17,
+      "baselineSourceTextLayers": 54494,
+      "detailPass": {
+        "blankLoginInputs": 28,
+        "loginCompositions": 14,
+        "colorValueLayouts": 52,
+        "privacyParagraphStacks": 12,
+        "appearanceFontInputs": 24,
+        "appearanceRanges": 16,
+        "newlyRestoredAppearanceRanges": 14,
+        "languagePopoverStackingContexts": 4,
+        "sourceContextRangeMaster": "Core/Range/Appearance value 0",
+        "compoundGuideSearchControls": 176,
+        "populatedGuideSearchControls": 8,
+        "guideHeaderBackdropStacks": 184,
+        "guideToolbarTitles": 184,
+        "recoveredGuideImageDialogs": 4,
+        "responsiveGuideArticleImages": 44,
+        "responsiveGuideArticleFrames": 38,
+        "guideDialogEffects": {
+          "shadowOffset": [
+            0,
+            24
+          ],
+          "shadowBlur": 90,
+          "shadowColor": "#00000099",
+          "backdropBlur": 5,
+          "source": "app/public-pages.css:1676-1677"
+        },
+        "guideMobilePictureSource": "lib/guide-visuals.ts:24-25 selects the existing mobile-dark asset in both themes; preserve source selection.",
+        "localMenuStackingContexts": 9,
+        "localMenuShadowProfiles": 3,
+        "mathVectorLabels": 36,
+        "scaledWorkflowLabels": 48,
+        "scaledWorkflowCards": 48,
+        "brandStylesResolvedToInstalledSquareFace": 7,
+        "brandTextLayers": 523,
+        "workflowZoomGlyphs": 186,
+        "sourceLanguageFlagInstances": 180,
+        "indonesiaFlagOptionsCorrected": 4,
+        "languageArtwork": {
+          "us": 176,
+          "indonesia": 4,
+          "masters": 2,
+          "white": "#FFFFFF",
+          "indonesiaRed": "#E70011",
+          "source": "app/locale-provider.tsx:98-99",
+          "classification": "applied-in-canvas",
+          "provenance": "180 original captured groups retained hidden; no source text or actions inside them."
+        },
+        "localMenuShadows": {
+          "MDpotential": {
+            "offset": [
+              0,
+              12
+            ],
+            "blur": 30,
+            "blackAlpha": 0.28
+          },
+          "HomeProjectActions": {
+            "offset": [
+              0,
+              12
+            ],
+            "blur": 34,
+            "blackAlpha": 0.13
+          },
+          "SidebarProjectActions": {
+            "offset": [
+              0,
+              8
+            ],
+            "blur": 20,
+            "blackAlpha": 0.2
+          }
+        },
+        "brandFace": {
+          "family": "Geist Pixel",
+          "face": "Square",
+          "source": "app/typography.css:17-23,96; installed FigCraft font faces"
+        },
+        "runtimeActionCardsReflowed": 1,
+        "runtimeActionFlowLayouts": 6,
+        "settingsSwitchInstances": 46,
+        "settingsSwitchMasters": 2,
+        "settingsSwitchFrames": 12,
+        "databaseScrimsRestored": 8,
+        "cameraIconControlsCentered": 31,
+        "researchPrivacyNoticesAlphaRestored": 4,
+        "mobileDatabaseViewportFramesCorrected": 1,
+        "mobileFigureViewportFramesCorrected": 2,
+        "mobileDftSectionTitleLayouts": 6,
+        "sourcePaintAlpha": {
+          "databaseScrim": {
+            "color": "#000000",
+            "alpha": 0.55
+          },
+          "researchPrivacy": {
+            "role": "accent",
+            "fillAlpha": 0.08,
+            "strokeAlpha": 0.28
+          },
+          "classification": "applied-in-canvas",
+          "source": "Database source backdrop; app/project-workflow.css:635 color-mix rules"
+        },
+        "mobilePrepareHeaderForegroundWrappers": 1,
+        "mobilePrepareHeaderSourceLayersRetained": 16,
+        "historicalGuideImagesCorrected": 3,
+        "hpcNativeSelectsRecovered": 10,
+        "hpcInputViewportsClippedWithoutTextLoss": 6,
+        "hpcViewportBackdropsRestored": 11,
+        "nativeTrajectoryFileInputsRecovered": 12,
+        "nativeFileInputTextLayers": 24,
+        "settingsNotesRecomposed": 16,
+        "settingsNoteSourceFragments": 46,
+        "sourceSpinnerInstances": 4,
+        "sourceNativeCheckboxInstances": 48,
+        "guideProcedureNumberInstances": 1047,
+        "guideProcedureNumberFrames": 125,
+        "guideDiscInstances": 932,
+        "guideDiscFrames": 167,
+        "guideDiscModernTopics": 41,
+        "historicalGuideFramesCorrected": 2,
+        "responsiveGuideImagesTotal": 47,
+        "responsiveGuideImageFramesTotal": 40
+      },
+      "supplementalRecoveredTextLayers": 1089,
+      "guideToolbarTypographyLayouts": 184,
+      "flagInstances": 180,
+      "flagMasters": 2,
+      "mathVectorTypographyLayouts": 36,
+      "registeredControlAndProcedureInstances": 6894,
+      "procedureNumberInstances": 1047,
+      "listDiscInstances": 932
+    }
+  }
+}
