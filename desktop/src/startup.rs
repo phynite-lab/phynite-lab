@@ -17,8 +17,9 @@ use crate::cloud_mark::{COLUMNS, ROWS, TILES};
 
 const GROUP_WIDTH: f64 = 510.0;
 const GROUP_HEIGHT: f64 = 228.0;
-const TILE_SIZE: f64 = 20.0;
-const TILE_PITCH: f64 = 23.0;
+const TILE_SIZE: f64 = 22.0;
+const TILE_STAGGER: f64 = 0.035;
+const TILE_DURATION: f64 = 0.24;
 
 define_class!(
     // NSObject has no subclassing requirements. AppKit sends button actions
@@ -40,6 +41,7 @@ pub struct StartupView {
     root: Retained<NSBox>,
     status: Retained<NSTextField>,
     retry: Retained<NSButton>,
+    guides: Retained<NSView>,
     tiles: Vec<Retained<NSBox>>,
     _retry_action: Retained<RetryAction>,
     indonesian: bool,
@@ -78,7 +80,7 @@ impl StartupView {
                 | NSAutoresizingMaskOptions::ViewMaxYMargin,
         );
         surface.addSubview(&center);
-        let tiles = make_cloud(mtm, &center);
+        let (guides, tiles) = make_cloud(mtm, &center);
 
         let title = NSTextField::labelWithString(ns_string!("Phynite Lab"), mtm);
         title.setFrame(rect(0.0, 99.0, GROUP_WIDTH, 32.0));
@@ -125,6 +127,7 @@ impl StartupView {
             root,
             status,
             retry,
+            guides,
             tiles,
             _retry_action: retry_action,
             indonesian,
@@ -146,7 +149,8 @@ impl StartupView {
             let now = CACurrentMediaTime();
             for (index, tile) in self.tiles.iter().enumerate() {
                 if let Some(layer) = tile.layer() {
-                    let begin = layer.convertTime_fromLayer(now, None) + index as f64 * 0.035;
+                    let begin =
+                        layer.convertTime_fromLayer(now, None) + index as f64 * TILE_STAGGER;
                     animate(
                         &layer,
                         ns_string!("transform.translation.y"),
@@ -156,6 +160,12 @@ impl StartupView {
                     );
                     animate(&layer, ns_string!("opacity"), 0.0, 1.0, begin);
                 }
+            }
+            if let Some(layer) = self.guides.layer() {
+                layer.setOpacity(0.0);
+                let begin = layer.convertTime_fromLayer(now, None)
+                    + (TILES.len() - 1) as f64 * TILE_STAGGER;
+                animate(&layer, ns_string!("opacity"), 1.0, 0.0, begin);
             }
         }
     }
@@ -184,6 +194,10 @@ impl StartupView {
     }
 
     fn finish_assembly(&self) {
+        if let Some(layer) = self.guides.layer() {
+            layer.removeAllAnimations();
+            layer.setOpacity(0.0);
+        }
         for tile in &self.tiles {
             if let Some(layer) = tile.layer() {
                 layer.removeAllAnimations();
@@ -206,25 +220,35 @@ fn flat_box(mtm: MainThreadMarker, bounds: NSRect, fill: &NSColor) -> Retained<N
     surface
 }
 
-fn make_cloud(mtm: MainThreadMarker, center: &NSView) -> Vec<Retained<NSBox>> {
-    let width = TILE_PITCH * (COLUMNS - 1) as f64 + TILE_SIZE;
+fn make_cloud(mtm: MainThreadMarker, center: &NSView) -> (Retained<NSView>, Vec<Retained<NSBox>>) {
+    let width = TILE_SIZE * COLUMNS as f64;
     let left = ((GROUP_WIDTH - width) / 2.0).floor();
     let frame = |column: usize, row: usize| {
         rect(
-            left + column as f64 * TILE_PITCH,
-            153.0 + row as f64 * TILE_PITCH,
+            left + column as f64 * TILE_SIZE,
+            153.0 + row as f64 * TILE_SIZE,
             TILE_SIZE,
             TILE_SIZE,
         )
     };
     let ink = NSColor::labelColor();
-    let guide = ink.colorWithAlphaComponent(0.07);
+    let guide = ink.colorWithAlphaComponent(0.05);
+    let guides = NSView::initWithFrame(NSView::alloc(mtm), center.bounds());
+    guides.setWantsLayer(true);
     for row in 0..ROWS {
         for column in 0..COLUMNS {
-            center.addSubview(&flat_box(mtm, frame(column, row), &guide));
+            let origin = frame(column, row).origin;
+            let inset = rect(
+                origin.x + 1.0,
+                origin.y + 1.0,
+                TILE_SIZE - 2.0,
+                TILE_SIZE - 2.0,
+            );
+            guides.addSubview(&flat_box(mtm, inset, &guide));
         }
     }
-    TILES
+    center.addSubview(&guides);
+    let tiles = TILES
         .into_iter()
         .map(|(column, row)| {
             let tile = flat_box(mtm, frame(column, row), &ink);
@@ -232,7 +256,8 @@ fn make_cloud(mtm: MainThreadMarker, center: &NSView) -> Vec<Retained<NSBox>> {
             center.addSubview(&tile);
             tile
         })
-        .collect()
+        .collect();
+    (guides, tiles)
 }
 
 fn animate(layer: &CALayer, key: &NSString, from: f64, to: f64, begin: f64) {
@@ -245,7 +270,7 @@ fn animate(layer: &CALayer, key: &NSString, from: f64, to: f64, begin: f64) {
             kCAMediaTimingFunctionEaseOut,
         )));
     }
-    animation.setDuration(0.24);
+    animation.setDuration(TILE_DURATION);
     animation.setBeginTime(begin);
     layer.addAnimation_forKey(&animation, Some(key));
 }
