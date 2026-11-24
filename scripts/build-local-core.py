@@ -29,8 +29,8 @@ def source_manifest(root: Path) -> dict:
     return document
 
 
-def build_command(root: Path, output: Path, target: str, manifest: dict) -> list[str]:
-    command = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--onefile", "--name", "phynite-core",
+def build_command(root: Path, output: Path, target: str, manifest: dict, *, desktop: bool = False) -> list[str]:
+    command = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--onedir" if desktop else "--onefile", "--name", "phynite-core",
                "--distpath", str(output / target), "--workpath", str(output / "work" / target),
                "--specpath", str(output / "spec" / target), "--paths", str(root),
                "--paths", str(root / "backend/local_worker"), "--paths", str(root / "backend/compute")]
@@ -54,6 +54,7 @@ def main() -> None:
     root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=root / "build/local-core")
+    parser.add_argument("--desktop", action="store_true", help="Build the macOS desktop core with its runtime already unpacked")
     parser.add_argument("--check-sources", action="store_true", help="Validate public source paths without building or requiring generated compiler data")
     args = parser.parse_args()
     try:
@@ -78,13 +79,19 @@ def main() -> None:
     except ImportError:
         parser.error("Install the pinned core build requirements in an isolated build environment first.")
     target = f"{operating_system}-{architecture}"
+    if args.desktop and target != "darwin-arm64":
+        parser.error("The desktop core is built on Apple Silicon.")
     output = args.output.resolve()
-    subprocess.run(build_command(root, output, target, manifest), cwd=root, check=True)
-    notices = output / target / "THIRD_PARTY_NOTICES.md"
+    subprocess.run(build_command(root, output, target, manifest, desktop=args.desktop), cwd=root, check=True)
+    core_dir = output / target
+    if args.desktop:
+        core_dir /= "phynite-core"
+    notices = core_dir / "THIRD_PARTY_NOTICES.md"
+    toc = "COLLECT-00.toc" if args.desktop else "PKG-00.toc"
     subprocess.run([sys.executable, str(root / "scripts/local-core-notices.py"), "--output", str(notices),
-                    "--executable", str(output / target / "phynite-core"),
-                    "--pkg-toc", str(output / "work" / target / "phynite-core" / "PKG-00.toc")], cwd=root, check=True)
-    print(f"Built {output / target / 'phynite-core'}. Dependency notices: {notices}. Review corresponding-source obligations before distribution.")
+                    "--executable", str(core_dir / "phynite-core"),
+                    "--collect-toc" if args.desktop else "--pkg-toc", str(output / "work" / target / "phynite-core" / toc)], cwd=root, check=True)
+    print(f"Built {core_dir / 'phynite-core'}. Dependency notices: {notices}. Review corresponding-source obligations before distribution.")
 
 
 if __name__ == "__main__":

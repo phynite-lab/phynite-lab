@@ -4,6 +4,7 @@ import type { MdFrame, MdIndex } from './md-types.ts';
 import { readMdRunSnapshot } from './md-run-snapshot.ts';
 
 export type MdParseResult = { frames: MdFrame[]; index: MdIndex; warnings: string[]; loadFrame?: (index: number) => Promise<MdFrame> };
+export type ParseNumericRows = (lines: string[], cursor: number, count: number, width: number, idColumn: number, typeColumn: number) => Float64Array | undefined;
 export const MD_MAX_ATOMS = 1_000_000;
 export const MD_MAX_COORDINATES = 12_000_000;
 const number = (value: string | undefined, context: string) => {
@@ -52,7 +53,7 @@ function box(header: string, rows: string[]) {
   validateCell(vectors);
   return { vectors, origin, periodic };
 }
-function lammps(text: string) {
+function lammps(text: string, parseNumericRows?: ParseNumericRows) {
   const lines = text.replaceAll('\r', '').split('\n'), frames: MdFrame[] = [], warnings: string[] = [];
   let cursor = 0, total = 0;
   let unitStyle = '';
@@ -105,20 +106,33 @@ function lammps(text: string) {
     const elementIndex = columns.findIndex(name => ['element', 'species', 'typelabel'].includes(name));
     const properties: Record<string, number[]> = Object.create(null);
     columns.forEach(name => { if (!['element', 'species', 'typelabel', 'id'].includes(name)) properties[name] = []; });
+    const propertyColumns = Object.entries(properties).map(([name, values]) => ({
+      index: columns.indexOf(name), values, factor: /^(x|y|z|xu|yu|zu)$/.test(name) ? factor : 1,
+    }));
+    const values = elementIndex < 0 ? parseNumericRows?.(lines, cursor, count, columns.length, idIndex, typeIndex) : undefined;
     const ids: string[] = [], species: string[] = [], positions: number[] = [];
     for (let atom = 0; atom < count; atom++) {
-      const row = next().trim().split(/\s+/);
-      if (row.length !== columns.length) throw new Error('Frame ' + (frames.length + 1) + ', atom ' + (atom + 1) + ': column count mismatch.');
-      ids.push(idIndex >= 0 ? row[idIndex] : String(atom + 1));
-      species.push(elementIndex >= 0 ? row[elementIndex] : typeIndex >= 0 ? row[typeIndex] : 'X');
-      const p = coords.map(i => number(row[i], 'Position')) as CellVector;
+      let p: CellVector;
+      if (values) {
+        const offset = atom * columns.length;
+        ids.push(idIndex >= 0 ? String(values[offset + idIndex]) : String(atom + 1));
+        species.push(typeIndex >= 0 ? String(values[offset + typeIndex]) : 'X');
+        p = [values[offset + coords[0]], values[offset + coords[1]], values[offset + coords[2]]];
+        for (const prop of propertyColumns) prop.values.push(values[offset + prop.index] * prop.factor);
+      } else {
+        const row = next().trim().split(/\s+/);
+        if (row.length !== columns.length) throw new Error('Frame ' + (frames.length + 1) + ', atom ' + (atom + 1) + ': column count mismatch.');
+        ids.push(idIndex >= 0 ? row[idIndex] : String(atom + 1));
+        species.push(elementIndex >= 0 ? row[elementIndex] : typeIndex >= 0 ? row[typeIndex] : 'X');
+        p = [number(row[coords[0]], 'Position'), number(row[coords[1]], 'Position'), number(row[coords[2]], 'Position')];
+        for (const prop of propertyColumns) {
+          const value = Number(row[prop.index]);
+          prop.values.push(Number.isFinite(value) ? value * prop.factor : NaN);
+        }
+      }
       positions.push(...(scaled ? fractionalVectorToCartesian(p, cell.vectors).map((v, i) => v + cell.origin[i]) : p.map(value => value * factor)));
-      Object.keys(properties).forEach(name => {
-        const value = row[columns.indexOf(name)];
-        const geometryColumn = /^(x|y|z|xu|yu|zu)$/.test(name);
-        properties[name].push(Number.isFinite(Number(value)) ? Number(value) * (geometryColumn ? factor : 1) : NaN);
-      });
     }
+    if (values) cursor += count;
     if (new Set(ids).size !== count) throw new Error('Duplicate particle identifiers in frame ' + (frames.length + 1) + '.');
     if (idIndex < 0 && !warnings.length) warnings.push('No particle IDs: tracking between frames assumes a stable row order.');
     if (nativeTime !== null && !unitStyle && !warnings.includes('LAMMPS TIME has unknown units; physical time is unavailable. Declare ITEM: UNITS to convert it.')) warnings.push('LAMMPS TIME has unknown units; physical time is unavailable. Declare ITEM: UNITS to convert it.');
@@ -181,12 +195,12 @@ function xyz(text: string) {
   }
   return { frames, warnings: [] as string[] };
 }
-export function parseMdText(text: string, fileName = 'trajectory'): MdParseResult {
+export function parseMdText(text: string, fileName = 'trajectory', parseNumericRows?: ParseNumericRows): MdParseResult {
   if (!text.trim()) throw new Error('Trajectory file is empty.');
   let format: MdIndex['format'];
   let result: { frames: MdFrame[]; warnings: string[] };
   if (/^\s*\{/.test(text) && fileName.endsWith('.phynite-md.json')) { format = 'phynite-frame'; result = { frames: [readMdRunSnapshot(text, MD_MAX_ATOMS).frame], warnings: [] }; }
-  else if (/^\s*ITEM:\s*TIMESTEP/m.test(text)) { format = 'lammps'; result = lammps(text); }
+  else if (/^\s*ITEM:\s*TIMESTEP/m.test(text)) { format = 'lammps'; result = lammps(text, parseNumericRows); }
   else if (/^\s*\d+\s*\r?\n/.test(text)) { format = 'xyz'; result = xyz(text); }
   else {
     format = 'structure';

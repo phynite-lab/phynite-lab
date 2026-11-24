@@ -141,6 +141,23 @@ export async function listMdTrajectories(owner: string): Promise<MdTrajectoryRec
     tx.onerror = () => { database.close(); reject(tx.error); };
   });
 }
+
+export async function getMdTrajectory(owner: string, id: string): Promise<MdTrajectoryRecord | null> {
+  const database = await db();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction(['trajectories', 'sources']);
+    const record = tx.objectStore('trajectories').get(id);
+    const source = tx.objectStore('sources').get(id);
+    tx.oncomplete = () => {
+      database.close();
+      if (source.result) knownMdSources.add(id);
+      resolve(record.result?.owner === owner ? hydrateMdTrajectory(record.result, source.result) : null);
+    };
+    tx.onabort = () => { database.close(); reject(tx.error); };
+    tx.onerror = () => { database.close(); reject(tx.error); };
+  });
+}
+
 export async function saveMdTrajectory(record: MdTrajectoryRecord) {
   const stored = serializeMdTrajectory(record);
   const source = knownMdSources.has(record.id) ? null : await serializeMdSource(record);

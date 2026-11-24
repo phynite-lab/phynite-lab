@@ -119,14 +119,14 @@ export function publicRateGroup(path: string): 'auth' | 'form' | null {
   return ['/api/waitlist', '/api/contact', '/api/invitation'].includes(path) ? 'form' : null;
 }
 
-export function securityHeaders(production: boolean, path = ''): Record<string, string> {
+export function securityHeaders(production: boolean, path = '', desktopWasm = false): Record<string, string> {
   const privateAiSource = /^\/api\/ai\/conversations\/aic_[a-z0-9]+\/attachments\/aif_[a-z0-9]+\/content$/.test(path);
   return {
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-    'Content-Security-Policy': privateAiSource ? "sandbox; default-src 'none'; frame-ancestors 'none'" : production ? "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.amazonaws.com; font-src 'self'; connect-src 'self' https://*.amazonaws.com; worker-src 'self' blob:; media-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'" : "base-uri 'self'; object-src 'none'; frame-ancestors 'none'",
+    'Content-Security-Policy': privateAiSource ? "sandbox; default-src 'none'; frame-ancestors 'none'" : production ? `default-src 'self'; script-src 'self' 'unsafe-inline'${desktopWasm ? " 'wasm-unsafe-eval'" : ''}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.amazonaws.com; font-src 'self'; connect-src 'self' https://*.amazonaws.com; worker-src 'self' blob:; media-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'` : "base-uri 'self'; object-src 'none'; frame-ancestors 'none'",
     ...(production ? { 'Strict-Transport-Security': 'max-age=31536000' } : {}),
   };
 }

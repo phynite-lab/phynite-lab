@@ -14,6 +14,7 @@ import { useCalculationWorkspace } from '@/app/use-calculation-workspace';
 import { useWorkspaceCloudSync, WorkspaceCloudSyncContext } from '@/app/use-workspace-cloud-sync';
 import { useInboxUnread } from '@/app/use-inbox-unread';
 import { useSiteTheme } from '@/app/use-site-theme';
+import { confirmUnsavedSettings } from '@/lib/settings-navigation';
 import { SettingsNavigation } from './SettingsNavigation';
 import { CalculationIcon, FiguresIcon, MdLabIcon } from '@/app/tool-icons';
 import { navigationSection, researchShellRoute, hasContextualSidebar, type NavigationAction, type NavigationFeature, type NavigationSection } from '@/lib/navigation-preferences';
@@ -258,6 +259,17 @@ function ResearchApplicationShell({ children }: { children: ReactNode }) {
       } catch { setNavigationError(t('Your changes could not be saved. Retry before leaving this workspace.', 'Perubahan belum dapat disimpan. Coba lagi sebelum meninggalkan workspace ini.')); }
     })();
   }, [section, cloud, router, t, setPreview]);
+  useEffect(() => {
+    if (!(window as Window & { phyniteDesktop?: boolean }).phyniteDesktop) return;
+    const openSettings = (event: Event) => {
+      event.preventDefault();
+      if (window.location.pathname === '/account/appearance') return;
+      if (!confirmUnsavedSettings(t('Discard unsaved settings changes?', 'Abaikan perubahan pengaturan yang belum disimpan?'))) return;
+      navigate('account', '/account/appearance');
+    };
+    window.addEventListener('phynite:native-settings', openSettings);
+    return () => window.removeEventListener('phynite:native-settings', openSettings);
+  }, [navigate, t]);
   const traverseHistory = (direction: -1 | 1) => {
     if (traversingHistory.current || !(direction === -1 ? historyAvailability.back : historyAvailability.forward)) return;
     traversingHistory.current = true;

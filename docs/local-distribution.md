@@ -8,6 +8,13 @@ The package templates are deliberately incomplete: npm prepack refuses a package
 without its release manifest, corresponding-source metadata and required notices.
 Commands below assemble reviewable artifacts; none publishes or deploys a service.
 
+## macOS desktop preview
+
+The Apple Silicon preview opens the local workspace in a Phynite Lab window
+with its own bundled Node.js and native core. See the
+[desktop preview guide](desktop-preview.md) for installation, storage,
+and build instructions.
+
 For the user-facing installation path, start with the bilingual guide at
 https://phynitelab.com/guide/npm-local-app. It includes annotated screenshots
 from a clean demo workspace, platform-specific launcher commands, update

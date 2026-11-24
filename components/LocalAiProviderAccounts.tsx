@@ -126,11 +126,12 @@ export function LocalAiProviderAccounts({ view = 'accounts' }: { view?: 'account
     void localRequest('ai/models', 'POST', {}).then(() => refresh().catch(() => {})).catch(() => {});
   }, [nativeAi, refresh]);
   const action = async (path: string, body: unknown = {}) => {
+    const desktop = (window as Window & { phyniteDesktop?: true }).phyniteDesktop;
     // Open the provider window in the click handler's synchronous turn. If we
     // wait for the local bridge response first, Safari and Chromium may treat
     // the later window.open call as an unsolicited popup and silently block
     // the sign-in flow.
-    const loginWindow = path === 'login' ? window.open('about:blank', '_blank') : null;
+    const loginWindow = path === 'login' && !desktop ? window.open('about:blank', '_blank') : null;
     if (loginWindow) loginWindow.opener = null;
     const provider = typeof body === 'object' && body !== null && 'provider' in body && typeof body.provider === 'string' ? body.provider : '';
     if (path === 'login' && provider) pendingLogins.current.add(provider);
@@ -139,7 +140,8 @@ export function LocalAiProviderAccounts({ view = 'accounts' }: { view?: 'account
       const result = await localRequest<Record<string, unknown>>(`ai/${path}`, 'POST', body);
       const loginUrl = providerLoginUrl(typeof result.authUrl === 'string' ? result.authUrl : typeof result.verificationUrl === 'string' ? result.verificationUrl : '');
       if (loginUrl) {
-        if (loginWindow && !loginWindow.closed) loginWindow.location.replace(loginUrl);
+        if (desktop) window.location.assign(loginUrl);
+        else if (loginWindow && !loginWindow.closed) loginWindow.location.replace(loginUrl);
         else window.open(loginUrl, '_blank', 'noopener,noreferrer');
       } else {
         loginWindow?.close();

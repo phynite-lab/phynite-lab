@@ -1,0 +1,23 @@
+{
+  "productName": "Phynite Lab",
+  "identifier": "com.phynitelab.desktop",
+  "app": {
+    "windows": [],
+    "security": {
+      "capabilities": [{
+        "identifier": "workspace-native-controls",
+        "local": false,
+        "remote": { "urls": ["http://127.0.0.1:47739/*"] },
+        "webviews": ["workspace-view"],
+        "permissions": ["allow-update-theme"]
+      }]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg"],
+    "icon": ["icons/icon.png", "icons/icon.icns"],
+    "resources": { "payload/": "payload/" },
+    "macOS": { "minimumSystemVersion": "12.0" }
+  }
+}

@@ -232,7 +232,7 @@ async function healthyExistingWorkspace(dataDir) {
   } catch { return null; }
 }
 
-async function freePort(preferred = 0) {
+async function freePort(preferred = 0, fixed = false) {
   const server = createNetServer();
   try {
     await new Promise((accept, reject) => { server.once('error', reject); server.listen(preferred, HOST, accept); });
@@ -240,7 +240,10 @@ async function freePort(preferred = 0) {
     await new Promise(accept => server.close(accept));
     return port;
   } catch (error) {
-    if (preferred && error.code === 'EADDRINUSE') return freePort();
+    if (preferred && error.code === 'EADDRINUSE') {
+      if (fixed) throw new Error(`Desktop port ${preferred} is already in use. Close the application using it and retry.`);
+      return freePort();
+    }
     throw error;
   }
 }
@@ -273,15 +276,16 @@ export async function startupFailure(name, child, logPath, reason = 'stopped dur
   return new Error(message);
 }
 
-async function waitReady(url, child, validate, timeout = 30000, name = 'local service', logPath) {
+async function waitReady(url, child, validate, timeout = 30000, name = 'local service', logPath, signal) {
   const end = Date.now() + timeout;
   while (Date.now() < end) {
+    signal?.throwIfAborted();
     if (child.exitCode !== null || child.signalCode !== null || child.spawnError) throw await startupFailure(name, child, logPath);
     try {
       const reply = await requestJson(url, { timeout: 1000 });
       if ((reply.ok || [301, 302, 303, 307, 308].includes(reply.status)) && await validate(reply)) return;
     } catch { /* A starting service is not ready yet. */ }
-    await delay(100);
+    await delay(100, undefined, { signal });
   }
   throw await startupFailure(name, child, logPath, `did not become ready at ${url} before the startup timeout`);
 }
@@ -330,7 +334,7 @@ async function stopChild(child) {
   if (child.exitCode === null && child.signalCode === null) signal('SIGKILL');
 }
 
-export async function runCli(args = process.argv.slice(2), { packageRoot = PACKAGE_ROOT } = {}) {
+export async function runCli(args = process.argv.slice(2), { packageRoot = PACKAGE_ROOT, desktop } = {}) {
   const options = parseArguments(args);
   if (options.help) {
     console.log('Usage: phynite-lab [start|status|stop|doctor] [--no-open] [--port 3000] [--data-dir PATH]\nStart a private local workspace. Windows users run this command inside WSL2.');
@@ -384,8 +388,10 @@ export async function runCli(args = process.argv.slice(2), { packageRoot = PACKA
   await chmod(runtimeDir, 0o700);
   const instanceFile = join(runtimeDir, INSTANCE_NAME), lockFile = join(runtimeDir, LOCK_NAME);
   const existing = await control(await readJson(instanceFile), 'status');
+  if (existing && desktop) throw new Error('Another Phynite Lab launcher is using this workspace. Stop it and retry.');
   if (existing) { console.log(`Phynite Lab is running at ${existing.url}`); if (options.open) await openBrowser(existing.url); return; }
   const adopted = await healthyExistingWorkspace(dataDir);
+  if (adopted && desktop) throw new Error('Another Phynite Lab service is using this workspace. Stop it and retry.');
   if (adopted) {
     console.log(`Phynite Lab is already running at ${adopted.url}`);
     console.log(`Using the healthy local service for ${dataDir}; its owner remains responsible for stopping it.`);
@@ -395,7 +401,7 @@ export async function runCli(args = process.argv.slice(2), { packageRoot = PACKA
   // A previous launcher can die while its detached native core remains alive.
   // Recover only when the scheduler owner is an identified Phynite core for
   // this exact data directory; never unlink the lock as a shortcut.
-  await stopOrphanCore(dataDir);
+  if (!desktop) await stopOrphanCore(dataDir);
   const distribution = await verifyDistribution(packageRoot, target);
   const instanceId = randomBytes(16).toString('hex');
   let lock;
@@ -404,6 +410,7 @@ export async function runCli(args = process.argv.slice(2), { packageRoot = PACKA
     if (error.code !== 'EEXIST') throw error;
     const owner = await readJson(lockFile);
     const started = await control(await readJson(instanceFile), 'status');
+    if (started && desktop) throw new Error('Another Phynite Lab launcher is using this workspace. Stop it and retry.');
     if (started) { console.log(`Phynite Lab is running at ${started.url}`); if (options.open) await openBrowser(started.url); return; }
     if (!owner || processExists(owner.pid)) throw new Error('Another launcher is starting or stopping this workspace. Retry after it finishes.');
     // A dead launcher cannot own processes through this lock. Never signal its saved PID.
@@ -441,19 +448,26 @@ export async function runCli(args = process.argv.slice(2), { packageRoot = PACKA
   })();
   const onSignal = () => { void shutdown(); };
   process.once('SIGINT', onSignal); process.once('SIGTERM', onSignal);
+  const onDesktopAbort = () => { if (ready) onSignal(); };
+  desktop?.signal.addEventListener('abort', onDesktopAbort, { once: true });
   try {
+    if (desktop?.signal.aborted) throw new Error('Local startup was interrupted.');
+    // Acquire workspace ownership before attempting recovery. An npm launcher
+    // can hold this lock before its control or web endpoint starts accepting.
+    if (desktop) await stopOrphanCore(dataDir);
     const logsDir = join(dataDir, 'logs'); await mkdir(logsDir, { recursive: true, mode: 0o700 });
     aiServer = await createLocalAiServer({ dataDir });
     let url;
     for (let attempt = 0; attempt < 3; attempt++) {
       const attemptedChildren = [];
       try {
-        const webPort = await freePort(attempt === 0 ? options.port : 0);
+        const webPort = await freePort(attempt === 0 ? options.port : 0, Boolean(desktop));
         let corePort = await freePort();
         while (corePort === webPort) corePort = await freePort();
         url = `http://${HOST}:${webPort}`;
         const apiOrigin = `http://${HOST}:${corePort}`;
         const env = safeChildEnvironment(dataDir, apiOrigin, url, distribution.cloud, heartbeatFile, instanceId);
+        if (desktop) env.PHYNITE_DESKTOP_WASM = 'true';
         if (distribution.source) Object.assign(env, {
           PHYNITE_RELEASE_SOURCE_COMMIT: distribution.source.commit,
           PHYNITE_RELEASE_VERSION: distribution.manifest.version,
@@ -461,7 +475,7 @@ export async function runCli(args = process.argv.slice(2), { packageRoot = PACKA
         if (distribution.bootstrap) env.PHYNITE_NATIVE_TOOLS_DIR = distribution.bootstrap;
         Object.assign(env, { PHYNITE_LOCAL_AI_URL: aiServer.origin, PHYNITE_LOCAL_AI_TOKEN: aiServer.token });
         const launch = async (name, command, argv, cwd, extraEnv = {}) => {
-          if (closing) throw new Error('Local startup was interrupted.');
+          if (closing || desktop?.signal.aborted) throw new Error('Local startup was interrupted.');
           const log = await open(join(logsDir, `${name}.log`), 'a', 0o600);
           let child;
           try { child = spawn(command, argv, { cwd, env: { ...env, ...extraEnv }, stdio: ['ignore', log.fd, log.fd], detached: true }); }
@@ -472,7 +486,7 @@ export async function runCli(args = process.argv.slice(2), { packageRoot = PACKA
           return child;
         };
         const core = await launch('core', distribution.executable, ['--data-dir', dataDir, '--port', String(corePort), '--ui-origin', url], dirname(distribution.executable));
-        await waitReady(`${apiOrigin}/__local/health`, core, async response => { const value = await response.json(); return value.ready === true && (value.environment === 'local' || value.mode === 'local'); }, 30000, 'core', join(logsDir, 'core.log'));
+        await waitReady(`${apiOrigin}/__local/health`, core, async response => { const value = await response.json(); return value.ready === true && (value.environment === 'local' || value.mode === 'local'); }, 30000, 'core', join(logsDir, 'core.log'), desktop?.signal);
         const service = await readJson(join(dataDir, 'core-service.json'));
         if (!service || service.origin !== apiOrigin || service.uiOrigin !== url || typeof service.token !== 'string' || service.token.length < 32) {
           throw new Error('The local core did not provide a valid private service session.');
@@ -484,7 +498,7 @@ export async function runCli(args = process.argv.slice(2), { packageRoot = PACKA
         if (!coreSessionReply.ok || coreSession.mode !== 'local' || typeof coreSession.user?.id !== 'string' || !coreSession.user.id) throw new Error('The native core session did not identify this local workspace.');
         if (distribution.manifest.executor) {
           const executor = await launch('executor', process.execPath, [join(packageRoot, distribution.manifest.executor.path)], packageRoot, { PHYNITE_LOCAL_SERVICE_TOKEN: service.token });
-          await waitExecutor(apiOrigin, service.token, executor);
+          await waitExecutor(apiOrigin, service.token, executor, undefined, desktop?.signal);
           env.PHYNITE_LOCAL_EXECUTOR = '1';
         }
         const web = await launch('web', process.execPath, [join(packageRoot, 'lib', 'web-server.mjs')], dirname(distribution.server), {
@@ -494,15 +508,15 @@ export async function runCli(args = process.argv.slice(2), { packageRoot = PACKA
         await waitReady(`${url}/api/auth/session`, web, async response => {
           const session = await response.json();
           return session.mode === 'local' && session.user?.id === coreSession.user.id;
-        }, 30000, 'web', join(logsDir, 'web.log'));
+        }, 30000, 'web', join(logsDir, 'web.log'), desktop?.signal);
         break;
       } catch (error) {
         for (const child of attemptedChildren) children.delete(child);
         await Promise.allSettled(attemptedChildren.reverse().map(stopChild));
-        if (closing || attempt === 2) throw error;
+        if (closing || desktop || attempt === 2) throw error;
       }
     }
-    if (closing) throw new Error('Local startup was interrupted.');
+    if (closing || desktop?.signal.aborted) throw new Error('Local startup was interrupted.');
     const token = randomBytes(32).toString('hex');
     controlServer = createServer((request, response) => {
       response.setHeader('Content-Type', 'application/json'); response.setHeader('Cache-Control', 'no-store');
@@ -513,12 +527,16 @@ export async function runCli(args = process.argv.slice(2), { packageRoot = PACKA
     });
     await new Promise((accept, reject) => { controlServer.once('error', reject); controlServer.listen(0, HOST, accept); });
     await atomicJson(instanceFile, { instanceId, pid: process.pid, token, url, controlPort: controlServer.address().port });
+    if (desktop?.signal.aborted) throw new Error('Local startup was interrupted.');
     ready = true;
     console.log(`Phynite Lab is running at ${url}\nData: ${dataDir}\nPress Ctrl+C to stop.`);
+    const closed = new Promise(accept => controlServer.once('close', accept));
+    desktop?.onReady();
     if (options.open) await openBrowser(url);
-    await new Promise(accept => controlServer.once('close', accept));
+    await closed;
   } finally {
     await shutdown();
+    desktop?.signal.removeEventListener('abort', onDesktopAbort);
     process.removeListener('SIGINT', onSignal); process.removeListener('SIGTERM', onSignal);
   }
 }
