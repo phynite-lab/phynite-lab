@@ -2401,7 +2401,6 @@ dependencies = [
  "objc2-foundation",
  "objc2-quartz-core",
  "serde",
- "serde_json",
  "tauri",
  "tauri-build",
 ]

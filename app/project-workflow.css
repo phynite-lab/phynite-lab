@@ -685,8 +685,6 @@ body.workflow-dragging-tab .workflow-split-dropzones { display: grid; }
   .research-workspace-header > .workflow-topbar {
     display:grid; grid-template-columns:110px minmax(0,1fr); grid-template-rows:44px 44px; height:88px; gap:0;
   }
-  .research-workspace-header > .workflow-topbar[data-compact=true] { grid-template-rows:44px; height:44px; }
-  .research-workspace-header:has(> .workflow-topbar[data-compact=true]) { height:44px; }
   .research-workspace-header .workflow-project-navigation { grid-area:1 / 1; width:110px; height:44px; }
   .research-workspace-header .workflow-global-controls { grid-area:1 / 2; height:44px; }
   .research-workspace-header .workflow-tab-strip { grid-area:2 / 1 / 3 / -1; width:100%; max-width:100%; height:44px; padding-inline:8px; border-top:1px solid var(--line); }

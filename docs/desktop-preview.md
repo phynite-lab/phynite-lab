@@ -1,12 +1,21 @@
 # macOS Apple Silicon desktop preview
 
 Open the disk image and drag Phynite Lab to Applications. The internal
-preview uses an ad-hoc signature. It has no Developer ID signature or Apple
-notarization ticket. Verify the download against `SHA256SUMS` before trying
-the app. macOS may ask you to approve the verified app on first launch.
+preview uses an ad-hoc signature. Verify the download against `SHA256SUMS`.
+If Gatekeeper blocks the first launch because it cannot verify the developer,
+open **System Settings → Privacy & Security → Open Anyway** for this app.
+See [Apple's guide to opening an app safely](https://support.apple.com/en-us/102445).
+
+Distribution without that approval prompt requires a **Developer ID Application**
+certificate, hardened runtime signing for the app and its bundled executables,
+and [Apple notarization](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution).
+Attach the notarization ticket to the distributed app or disk image and verify
+Gatekeeper on a fresh installation.
 
 Phynite Lab opens with a native macOS startup screen. The pixel cloud
-assembles while local services start. macOS Reduce Motion displays the
+assembles while local services start on the default Phynite canvas colors.
+On later launches, the screen follows the remembered workspace theme.
+macOS Reduce Motion displays the
 assembled cloud immediately. Startup errors and Retry use native controls.
 
 The workspace opens in WKWebView. Local services use bundled Node.js and

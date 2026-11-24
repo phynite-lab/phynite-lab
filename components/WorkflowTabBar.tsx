@@ -10,23 +10,11 @@ import { useLocale } from '@/app/locale-provider';
 import type { WorkflowNode } from '@/lib/project-workflow';
 import { isWorkflowLauncherTab, isWorkflowAiTab, aiConversationFromTab, workflowStudyTab, workflowFilesTab, workflowNotesTab, workflowEditorTabs, workflowSplitTabs, workflowPaneViews, workflowSplitPeer, type WorkflowEditorAction, type WorkflowEditorState } from '@/lib/workflow-editor-state';
 
-type Props = { state: WorkflowEditorState; nodes: WorkflowNode[]; chatTitles?: Record<string, string>; projectName: string; dispatch: (action: WorkflowEditorAction) => void; onAdd: (pane?: 0 | 1) => void; onOpenSidebar?: () => void; status: string; disabled?: boolean; splitWidth?: number; splitVisible?: boolean; splitAvailable?: boolean; secondaryOnly?: boolean; targetId?: string; floatingId?: string; onTarget?: (id: string) => void; aiControl?: ReactNode; paneTabsOpen?: boolean; onPaneTabsOpen?: (open: boolean) => void };
-type NativeTab = { id: string; label: string; closable: boolean };
-type NativeProjectWindow = Window & { phyniteDesktop?: true; phyniteNative?: { updateProjectTabs: (tabs: NativeTab[], active: string) => void | Promise<void> } };
-let nativeTabsOwner: symbol | undefined;
-
-export function nativeProjectTabs() {
-  if (typeof window === 'undefined') return;
-  const desktop = window as NativeProjectWindow;
-  return desktop.phyniteDesktop && typeof desktop.phyniteNative?.updateProjectTabs === 'function' ? desktop.phyniteNative : undefined;
-}
-
-export function WorkflowTabBar({ state, nodes, projectName, chatTitles = {}, dispatch, onAdd, onOpenSidebar, status, disabled = false, splitWidth, splitVisible = false, splitAvailable = true, secondaryOnly = false, targetId, floatingId, onTarget, aiControl, paneTabsOpen = false, onPaneTabsOpen }: Props) {
+type Props = { state: WorkflowEditorState; nodes: WorkflowNode[]; chatTitles?: Record<string, string>; projectName: string; dispatch: (action: WorkflowEditorAction) => void; onAdd: (pane?: 0 | 1) => void; onOpenSidebar?: () => void; status: string; disabled?: boolean; splitWidth?: number; splitVisible?: boolean; splitAvailable?: boolean; secondaryOnly?: boolean; targetId?: string; floatingId?: string; onTarget?: (id: string) => void; aiControl?: ReactNode };
+export function WorkflowTabBar({ state, nodes, projectName, chatTitles = {}, dispatch, onAdd, onOpenSidebar, status, disabled = false, splitWidth, splitVisible = false, splitAvailable = true, secondaryOnly = false, targetId, floatingId, onTarget, aiControl }: Props) {
   const { t } = useLocale(), header = useRef<HTMLElement>(null), primary = useRef<HTMLDivElement>(null), menuRef = useRef<HTMLDivElement>(null), menuTrigger = useRef<HTMLElement | null>(null);
   const shell = useResearchShell();
   const [menu, setMenu] = useState<{ id: string; pane: 0 | 1; x: number; y: number; host: Element } | null>(null);
-  const native = secondaryOnly ? undefined : nativeProjectTabs();
-  const compact = Boolean(native && (!paneTabsOpen || state.tabsHidden));
   const allTabs = workflowEditorTabs(state), pair = workflowSplitTabs(state), views = workflowPaneViews(state, splitVisible);
   const target = targetId && allTabs.includes(targetId) ? targetId : state.activeTab;
   const targetPane = (pair?.indexOf(target) === 1 ? 1 : 0) as 0 | 1;
@@ -35,38 +23,6 @@ export function WorkflowTabBar({ state, nodes, projectName, chatTitles = {}, dis
   const floatingTarget = (floatingId ?? (state.aiPanel?.presentation !== 'minimized' ? state.aiPanel?.id : undefined)) === target && !views.some(view => view.id === target);
   const restoring = !splitVisible && !floatingTarget && Boolean(state.splitTabs);
   const layoutLabel = splitVisible || floatingTarget ? t('Full view', 'Tampilan penuh') : restoring ? t('Restore split', 'Pulihkan split') : t('Split view', 'Tampilan split');
-  const paneTabsLabel = compact ? t('Show pane tabs', 'Tampilkan tab panel') : t('Hide pane tabs', 'Sembunyikan tab panel');
-  const owner = useRef<symbol | undefined>(undefined);
-  const published = useRef<string | undefined>(undefined);
-  const showNativeTabs = Boolean(native && compact && !disabled && !state.tabsHidden);
-  useLayoutEffect(() => {
-    if (!native) return;
-    const token = Symbol();
-    nativeTabsOwner = token;
-    owner.current = token;
-    published.current = undefined;
-    return () => {
-      owner.current = undefined;
-      // A replacement project may have mounted in the same navigation commit.
-      queueMicrotask(() => {
-        if (nativeTabsOwner !== token) return;
-        nativeTabsOwner = undefined;
-        void Promise.resolve(native.updateProjectTabs([], '')).catch(() => undefined);
-      });
-    };
-  }, [native]);
-  useEffect(() => {
-    if (!native || !owner.current || owner.current !== nativeTabsOwner) return;
-    const tabs = showNativeTabs ? allTabs.map(id => ({ id, label: nameFor(id), closable: id !== 'canvas' })) : [];
-    const active = showNativeTabs ? target : '';
-    const snapshot = JSON.stringify([tabs, active]);
-    if (published.current === snapshot) return;
-    const token = owner.current;
-    published.current = snapshot;
-    void Promise.resolve(native.updateProjectTabs(tabs, active)).catch(() => {
-      if (showNativeTabs && owner.current === token && published.current === snapshot) onPaneTabsOpen?.(true);
-    });
-  });
   const finishMenu = () => {
     const closing = menuRef.current, trigger = menuTrigger.current;
     setMenu(null);
@@ -91,7 +47,7 @@ export function WorkflowTabBar({ state, nodes, projectName, chatTitles = {}, dis
   const closeTab = (id: string) => { dispatch({ type: 'close', id }); setMenu(null); requestAnimationFrame(() => header.current?.querySelector<HTMLButtonElement>('[role=tab][aria-selected=true]')?.focus({ preventScroll: true })); };
   useLayoutEffect(() => {
     const strip = primary.current, bar = header.current, panes = bar?.closest('.research-app-shell')?.querySelector('.workflow-panes');
-    if (compact || splitWidth === undefined || !strip || !bar || !panes) return;
+    if (splitWidth === undefined || !strip || !bar || !panes) return;
     let frame = 0;
     const align = () => {
       cancelAnimationFrame(frame);
@@ -103,7 +59,7 @@ export function WorkflowTabBar({ state, nodes, projectName, chatTitles = {}, dis
     align(); const observer = new ResizeObserver(align); observer.observe(panes); observer.observe(bar);
     const navigation = bar.querySelector('.workflow-project-navigation'); if (navigation) observer.observe(navigation);
     return () => { observer.disconnect(); cancelAnimationFrame(frame); };
-  }, [compact, splitWidth]);
+  }, [splitWidth]);
   useLayoutEffect(() => { if (menu) menuRef.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus(); }, [menu]);
   useEffect(() => {
     if (!menu) return;
@@ -117,7 +73,7 @@ export function WorkflowTabBar({ state, nodes, projectName, chatTitles = {}, dis
   const splitWith = (id: string, direction?: 'left' | 'right' | 'top' | 'bottom') => {
     const beside = workflowSplitPeer(state, id); if (beside) dispatch({ type: 'split', id, beside, direction }); finishMenu();
   };
-  return <><header ref={header} className={`workflow-topbar${secondaryOnly ? ' workflow-secondary-topbar' : ''}`} data-split={splitVisible} data-compact={compact || undefined}>
+  return <><header ref={header} className={`workflow-topbar${secondaryOnly ? ' workflow-secondary-topbar' : ''}`} data-split={splitVisible}>
     {!secondaryOnly && <div className="workflow-project-navigation">
       {shell && <nav className="workflow-history-controls" aria-label={t('Workspace navigation', 'Navigasi workspace')}>
         <button type="button" disabled={!shell.canGoBack} aria-label={t('Back', 'Kembali')} title={t('Back', 'Kembali')} onClick={() => shell.traverseHistory(-1)}><ArrowLeft size={17} /></button>
@@ -126,10 +82,9 @@ export function WorkflowTabBar({ state, nodes, projectName, chatTitles = {}, dis
       </nav>}
       <button disabled={disabled} className="workflow-project-context" title={projectName} onClick={() => { dispatch({ type: 'open', id: 'canvas' }); onTarget?.('canvas'); onOpenSidebar?.(); }}><span>{projectName}</span></button>
     </div>}
-    {!compact && views.filter(view => secondaryOnly ? view.index === 1 : view.index === 0 || splitWidth !== undefined).map(view => <PaneStrip key={view.index} primaryRef={view.index === 0 ? primary : undefined} view={view} state={state} nodes={nodes} disabled={disabled} splitVisible={splitVisible} splitWidth={splitWidth} targeted={target === view.id} nameFor={nameFor} onAdd={onAdd} dispatch={dispatch} onTarget={onTarget} onMenu={openMenu} onClose={closeTab} />)}
+    {views.filter(view => secondaryOnly ? view.index === 1 : view.index === 0 || splitWidth !== undefined).map(view => <PaneStrip key={view.index} primaryRef={view.index === 0 ? primary : undefined} view={view} state={state} nodes={nodes} disabled={disabled} splitVisible={splitVisible} splitWidth={splitWidth} targeted={target === view.id} nameFor={nameFor} onAdd={onAdd} dispatch={dispatch} onTarget={onTarget} onMenu={openMenu} onClose={closeTab} />)}
     {!secondaryOnly && <div className="workflow-global-controls">
       {aiControl}
-      {native && onPaneTabsOpen && <button type="button" disabled={disabled} aria-label={paneTabsLabel} title={paneTabsLabel} aria-pressed={!compact} onClick={() => { onPaneTabsOpen(compact); if (state.tabsHidden) dispatch({ type: 'tabs-hidden', hidden: false }); }}>{compact ? <PanelTopOpen size={16} /> : <PanelTopClose size={16} />}</button>}
       <button data-workspace-layout type="button" disabled={disabled || isWorkflowLauncherTab(target) || !splitVisible && !floatingTarget && !splitAvailable} aria-label={layoutLabel} title={`${layoutLabel} · ${nameFor(target)}${restoring && !splitAvailable ? t(' · More space needed', ' · Perlu ruang lebih luas') : ''}`} onClick={() => layout(target)}>{splitVisible || floatingTarget ? <Maximize2 size={16} /> : <Columns2 size={16} />}</button>
       <button data-workspace-menu type="button" disabled={disabled} aria-label={t('Workspace options', 'Pilihan workspace')} aria-haspopup="menu" aria-expanded={Boolean(menu)} title={`${t('Workspace options', 'Pilihan workspace')} · ${nameFor(target)}`} onClick={event => menu ? finishMenu() : openMenu(target, targetPane, event.currentTarget)}><MoreHorizontal size={18} /></button>
     </div>}

@@ -1,11 +1,13 @@
 use objc2::{define_class, msg_send, rc::Retained, sel, DefinedClass, MainThreadOnly};
 use objc2_app_kit::{
+    NSAppearanceCustomization, NSAppearanceNameAqua, NSAppearanceNameDarkAqua,
     NSAutoresizingMaskOptions, NSBezelStyle, NSBox, NSBoxType, NSButton, NSColor, NSFont,
     NSFontWeightSemibold, NSTextAlignment, NSTextField, NSTitlePosition, NSView, NSWindow,
     NSWindowOrderingMode, NSWorkspace,
 };
 use objc2_foundation::{
-    ns_string, MainThreadMarker, NSLocale, NSNumber, NSObject, NSPoint, NSRect, NSSize, NSString,
+    ns_string, MainThreadMarker, NSArray, NSLocale, NSNumber, NSObject, NSPoint, NSRect, NSSize,
+    NSString,
 };
 use objc2_quartz_core::{
     kCAFillModeBackwards, kCAMediaTimingFunctionEaseOut, CABasicAnimation, CACurrentMediaTime,
@@ -39,6 +41,7 @@ define_class!(
 
 pub struct StartupView {
     root: Retained<NSBox>,
+    title: Retained<NSTextField>,
     status: Retained<NSTextField>,
     retry: Retained<NSButton>,
     guides: Retained<NSView>,
@@ -95,7 +98,6 @@ impl StartupView {
         status.setPreferredMaxLayoutWidth(GROUP_WIDTH);
         status.setMaximumNumberOfLines(3);
         status.setAlignment(NSTextAlignment::Center);
-        status.setTextColor(Some(&NSColor::secondaryLabelColor()));
         status.setFont(Some(&NSFont::systemFontOfSize(13.0)));
         center.addSubview(&status);
 
@@ -125,6 +127,7 @@ impl StartupView {
         content.addSubview(&root);
         let view = Self {
             root,
+            title,
             status,
             retry,
             guides,
@@ -190,7 +193,35 @@ impl StartupView {
         if let Some(content) = unsafe { self.root.superview() } {
             content.addSubview_positioned_relativeTo(&self.root, NSWindowOrderingMode::Above, None);
         }
+        self.apply_palette();
         self.root.setHidden(false);
+    }
+
+    fn apply_palette(&self) {
+        let (light, dark) = unsafe { (NSAppearanceNameAqua, NSAppearanceNameDarkAqua) };
+        let dark = self
+            .root
+            .effectiveAppearance()
+            .bestMatchFromAppearancesWithNames(&NSArray::from_slice(&[light, dark]))
+            .as_deref()
+            == Some(dark);
+        // Phynite's default canvas, ink, and muted ink tokens.
+        let (canvas, ink, muted) = if dark {
+            (0x00, 0xed, 0x99)
+        } else {
+            (0xfc, 0x17, 0x73)
+        };
+        let color = |shade| {
+            let level = f64::from(shade) / 255.0;
+            NSColor::colorWithSRGBRed_green_blue_alpha(level, level, level, 1.0)
+        };
+        let ink = color(ink);
+        self.root.setFillColor(&color(canvas));
+        self.title.setTextColor(Some(&ink));
+        self.status.setTextColor(Some(&color(muted)));
+        for tile in &self.tiles {
+            tile.setFillColor(&ink);
+        }
     }
 
     fn finish_assembly(&self) {
