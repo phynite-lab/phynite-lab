@@ -1,5 +1,5 @@
 fn main() {
-    const COMMANDS: &[&str] = &["update_project_tabs", "update_appearance", "open_settings"];
+    const COMMANDS: &[&str] = &["update_project_tabs", "update_theme"];
     tauri_build::try_build(
         tauri_build::Attributes::new()
             .app_manifest(tauri_build::AppManifest::new().commands(COMMANDS)),

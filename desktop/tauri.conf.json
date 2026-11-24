@@ -9,7 +9,7 @@
         "local": false,
         "remote": { "urls": ["http://127.0.0.1:47739/*"] },
         "webviews": ["workspace-view"],
-        "permissions": ["allow-update-project-tabs", "allow-update-appearance", "allow-open-settings"]
+        "permissions": ["allow-update-project-tabs", "allow-update-theme"]
       }]
     }
   },

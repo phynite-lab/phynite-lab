@@ -14,6 +14,8 @@ the frozen native core. The app uses
 `~/.phynite-lab`, including projects, results and installed runtimes saved by
 the npm application. Stop the npm launcher before opening the same workspace
 in the desktop app. Install any additional solvers in **Settings → Compute**.
+Open Settings from the gear or with **Cmd+,**. The page uses the regular
+workspace Settings layout and opens in the same desktop window.
 
 Closing the window leaves local jobs running. Click the Dock icon to return
 to the workspace. Quit with **Cmd+Q** to stop the local services. External

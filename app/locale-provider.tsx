@@ -4,15 +4,13 @@ import { createContext, useCallback, useContext, useEffect, useId, useRef, useSt
 import { Check, ChevronDown, Globe2, X } from 'lucide-react';
 import { LOCALE_STORAGE_KEY, localePreference, resolveLocale, type Locale, type LocalePreference } from '@/lib/locale';
 import { guidePath, guideRoute } from '@/lib/guide-routing';
-import { useNativeAppearance } from './native-desktop';
 
 type LocaleContextValue = { locale: Locale; preference: LocalePreference; setPreference: (value: LocalePreference) => void };
 const LocaleContext = createContext<LocaleContextValue>({ locale: 'en', preference: 'auto', setPreference: () => {} });
 
 export function LocaleProvider({ children, initialLocale = 'en', initialPreference = 'auto', initialCountry, forcedDocumentLocale }: { children: React.ReactNode; initialLocale?: Locale; initialPreference?: LocalePreference; initialCountry?: string; forcedDocumentLocale?: Locale }) {
   const [locale, setLocale] = useState(initialLocale);
-  const [loadedPreference, setPreferenceState] = useState<LocalePreference>();
-  const preference = loadedPreference ?? initialPreference;
+  const [preference, setPreferenceState] = useState(initialPreference);
   const [suggestion, setSuggestion] = useState<Locale | null>(null);
   const apply = useCallback((next: LocalePreference) => {
     const resolved = forcedDocumentLocale ?? resolveLocale(next, navigator.languages, initialCountry);
@@ -57,7 +55,6 @@ export function LocaleProvider({ children, initialLocale = 'en', initialPreferen
     window.addEventListener('languagechange', sync);
     return () => { window.removeEventListener('storage', onStorage); window.removeEventListener('languagechange', sync); };
   }, [apply, initialCountry, initialPreference, forcedDocumentLocale]);
-  useNativeAppearance(loadedPreference, setPreference);
   useEffect(() => {
     if (forcedDocumentLocale || preference !== 'auto' || !initialCountry || !/^[A-Z]{2}$/.test(initialCountry) || initialCountry === 'XX') return;
     const regional: Locale = initialCountry === 'ID' ? 'id' : 'en';

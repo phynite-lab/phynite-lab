@@ -4,7 +4,7 @@ import '@/app/lab-ui.css';
 import '@/app/navigation-ui.css';
 import '@/app/workspace-utilities.css';
 
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Bell, BookOpen, ChevronUp, Settings, CreditCard, HardDrive, LogOut, SlidersHorizontal, Tags } from 'lucide-react';
 import { useResearchShell } from './ResearchShellContext';
@@ -13,7 +13,6 @@ import { confirmUnsavedSettings } from '@/app/use-unsaved-settings';
 import { useAccountSettings } from '@/app/use-account-settings';
 import { useLocale } from '@/app/locale-provider';
 import { useInboxUnread } from '@/app/use-inbox-unread';
-import { openNativeSettings } from '@/app/native-desktop';
 
 export function ProfileAvatar({ photo, name, large = false }: { photo?: string; name: string; large?: boolean }) {
   return <span className={`lab-avatar${large ? ' lab-avatar-large' : ''}`}>{photo
@@ -55,9 +54,8 @@ export function AccountMenu({ session, variant = 'header', onNavigate }: { sessi
     return () => document.removeEventListener('pointerdown', outside);
   }, [open]);
   const close = () => { setOpen(false); onNavigate?.(); };
-  const openSettings = (event: MouseEvent<HTMLAnchorElement>) => { openNativeSettings(event); close(); };
   const localConnections = <div className={`lab-local-connection-actions${variant === 'rail' ? ' lab-local-connection-actions--rail' : ''}`} data-account-variant={variant} aria-label={t('Workspace settings', 'Pengaturan workspace')}>
-    <Link href="/account/appearance" aria-label={t('Settings', 'Pengaturan')} title={t('Settings', 'Pengaturan')} onClick={openSettings}><Settings size={16} aria-hidden="true" /><span className="lab-local-action-label">{t('Settings', 'Pengaturan')}</span></Link>
+    <Link href="/account/appearance" aria-label={t('Settings', 'Pengaturan')} title={t('Settings', 'Pengaturan')} onClick={onNavigate}><Settings size={16} aria-hidden="true" /><span className="lab-local-action-label">{t('Settings', 'Pengaturan')}</span></Link>
   </div>;
   if (shell && variant === 'header') return local && !hasUserProfile(session) ? localConnections : null;
   // Local workspaces always expose device settings, including without a
@@ -93,7 +91,7 @@ export function AccountMenu({ session, variant = 'header', onNavigate }: { sessi
             <span>{local ? cloudConnected ? session.cloud?.account || t('Phynite Cloud connected', 'Phynite Cloud terhubung') : t('Local only · no cloud account', 'Lokal saja · tanpa akun cloud') : session.user.email}</span>
           </div>
         </a>
-        {local && <div className="lab-account-menu-group" role="group">{localMenu.map(item => <a key={item.href} role="menuitem" href={item.href} onClick={item.href === '/account/appearance' ? openSettings : close}><item.Icon size={16} /><span>{t(item.en, item.idn)}</span></a>)}</div>}
+        {local && <div className="lab-account-menu-group" role="group">{localMenu.map(item => <a key={item.href} role="menuitem" href={item.href} onClick={close}><item.Icon size={16} /><span>{t(item.en, item.idn)}</span></a>)}</div>}
         {!local && !session.user.isDeveloper && menuGroups.map((items, index) => <div className="lab-account-menu-group" role="group" key={index}>{items.map(item => <a role="menuitem" href={item.href} key={item.id} onClick={event => {
           if (shell && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); shell.navigate(item.id === 'inbox' ? 'inbox' : item.id === 'guide' || item.id === 'pricing' ? 'home' : item.id === 'billing' ? 'billing' : 'account', item.href); }
           close();

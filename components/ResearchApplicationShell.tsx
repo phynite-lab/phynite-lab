@@ -14,6 +14,7 @@ import { useCalculationWorkspace } from '@/app/use-calculation-workspace';
 import { useWorkspaceCloudSync, WorkspaceCloudSyncContext } from '@/app/use-workspace-cloud-sync';
 import { useInboxUnread } from '@/app/use-inbox-unread';
 import { useSiteTheme } from '@/app/use-site-theme';
+import { confirmUnsavedSettings } from '@/lib/settings-navigation';
 import { SettingsNavigation } from './SettingsNavigation';
 import { CalculationIcon, FiguresIcon, MdLabIcon } from '@/app/tool-icons';
 import { navigationSection, researchShellRoute, hasContextualSidebar, type NavigationAction, type NavigationFeature, type NavigationSection } from '@/lib/navigation-preferences';
@@ -260,14 +261,15 @@ function ResearchApplicationShell({ children }: { children: ReactNode }) {
   }, [section, cloud, router, t, setPreview]);
   useEffect(() => {
     if (!(window as Window & { phyniteDesktop?: boolean }).phyniteDesktop) return;
-    const follow = (event: Event) => {
-      const href = (event as CustomEvent<{ href?: string }>).detail?.href;
-      if (typeof href !== 'string' || !/^\/account\/[a-z-]+$/.test(href)) return;
-      navigate('account', href);
+    const openSettings = (event: Event) => {
+      event.preventDefault();
+      if (window.location.pathname === '/account/appearance') return;
+      if (!confirmUnsavedSettings(t('Discard unsaved settings changes?', 'Abaikan perubahan pengaturan yang belum disimpan?'))) return;
+      navigate('account', '/account/appearance');
     };
-    window.addEventListener('phynite:native-navigation', follow);
-    return () => window.removeEventListener('phynite:native-navigation', follow);
-  }, [navigate]);
+    window.addEventListener('phynite:native-settings', openSettings);
+    return () => window.removeEventListener('phynite:native-settings', openSettings);
+  }, [navigate, t]);
   const traverseHistory = (direction: -1 | 1) => {
     if (traversingHistory.current || !(direction === -1 ? historyAvailability.back : historyAvailability.forward)) return;
     traversingHistory.current = true;

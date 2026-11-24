@@ -1,7 +1,6 @@
 mod cloud_mark;
 mod native_controls;
 mod project_tabs;
-mod settings;
 mod startup;
 
 use std::{
@@ -67,7 +66,6 @@ fn show_error(app: &AppHandle, message: &str) {
         let _ = webview.hide();
     }
     native_controls::reset_tabs(app);
-    native_controls::reset_preferences();
     with_startup(|view| view.error(message));
 }
 
@@ -275,8 +273,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             native_controls::update_project_tabs,
-            native_controls::update_appearance,
-            native_controls::open_settings
+            native_controls::update_theme
         ])
         .manage(Desktop {
             service: Mutex::new(Service::default()),

@@ -15,6 +15,6 @@ tauri = { version = "2", features = ["unstable"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 objc2 = "0.6.5"
-objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSAccessibility", "NSAccessibilityConstants", "NSAccessibilityProtocols", "NSAppearance", "NSBox", "NSButton", "NSButtonCell", "NSClipView", "NSColor", "NSControl", "NSFont", "NSFontDescriptor", "NSGraphics", "NSLayoutConstraint", "NSMenuItem", "NSPopUpButton", "NSResponder", "NSScroller", "NSScrollView", "NSText", "NSTextField", "NSView", "NSWindow", "NSWorkspace", "objc2-core-graphics", "objc2-quartz-core"] }
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSAccessibility", "NSAccessibilityConstants", "NSAccessibilityProtocols", "NSAppearance", "NSBox", "NSButton", "NSButtonCell", "NSClipView", "NSColor", "NSControl", "NSFont", "NSFontDescriptor", "NSGraphics", "NSLayoutConstraint", "NSResponder", "NSScroller", "NSScrollView", "NSText", "NSTextField", "NSView", "NSWindow", "NSWorkspace", "objc2-core-graphics", "objc2-quartz-core"] }
 objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSArray", "NSAttributedString", "NSGeometry", "NSLocale", "NSObject", "NSString", "NSValue"] }
 objc2-quartz-core = { version = "0.3.2", default-features = false, features = ["std", "CAAnimation", "CABase", "CALayer", "CAMediaTiming", "CAMediaTimingFunction", "CATransaction", "objc2-core-graphics"] }
