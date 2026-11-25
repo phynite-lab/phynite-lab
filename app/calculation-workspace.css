@@ -301,38 +301,16 @@ html[data-workspace-theme='light'] .workspace-crystal-stage {
   box-shadow: 0 -12px 42px rgba(0, 0, 0, 0.12) !important;
 }
 
-/* Drawer form field harmonization: ensure UiSelect perfectly aligns with NumberField & TextField */
+/* DFT and MD share field geometry, type and unit treatment. */
 .calculation-config-drawer .ui-select {
-  --control-height: 36px;
-  --control-radius: 6px;
   --select-bg: var(--panel-raised);
   --select-border: var(--panel-border);
-  --select-border-active: var(--field-focus-border);
+  --select-border-active: var(--focus-ring);
   --select-text: var(--panel-text);
   --select-muted: var(--panel-muted);
 }
-
-.calculation-config-drawer .ui-select-label {
-  font-size: 11px !important;
-  line-height: 1rem !important;
-  font-weight: 500 !important;
-  color: var(--panel-muted) !important;
-  margin-bottom: 0 !important;
-}
-
-.calculation-config-drawer .ui-select:not(.ui-select--compact) .ui-select-trigger {
-  height: 36px !important;
-  margin-top: 6px !important;
-  border-radius: 6px !important;
-  border-color: var(--panel-border) !important;
-  background-color: var(--panel-raised) !important;
-  font-size: 11.5px !important;
-}
-
-.calculation-config-drawer .ui-select:not(.ui-select--compact) .ui-select-value {
-  font-size: 11.5px !important;
-  padding: 0 10px !important;
-}
+.calculation-config-drawer .ui-select-label { font-size: var(--text-caption); font-weight: 400; }
+.calculation-config-drawer .ui-select-value { font-size: var(--text-label); }
 
 .config-workbench-header {
   display: grid;
@@ -447,16 +425,16 @@ html[data-workspace-theme='light'] .workspace-crystal-stage {
 
 .config-simple-grid {
   display: grid;
-  gap: 12px;
+  gap: 16px;
 }
 
 .config-simple-card,
 .config-specific-card {
   min-width: 0;
   border: 1px solid var(--surface-border, var(--line));
-  border-radius: 8px;
+  border-radius: var(--radius-panel);
   background: var(--config-card, var(--raised));
-  padding: 12px;
+  padding: 16px;
 }
 
 .config-accuracy-card {

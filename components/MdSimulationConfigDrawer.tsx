@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CommittedNumberInput } from '@/components/CommittedNumberInput';
 import { LabConfigurationDrawer } from '@/components/LabConfigurationDrawer';
 import { UiSelect } from '@/components/UiSelect';
 import {
@@ -54,81 +53,9 @@ import {
   type MdSimulationMode,
 } from '@/lib/md-simulation-types';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/app/locale-provider';
 
-function SectionTitle({ children, detail, code }: { children: React.ReactNode; detail?: string; code?: string }) {
-  return (
-    <div className="mb-2.5 flex min-w-0 items-baseline justify-between gap-2">
-      <div className="flex min-w-0 items-baseline gap-2">
-        <h3 className="shrink-0 font-sans text-[11px] font-semibold tracking-[-0.01em] text-[var(--surface-text)]">
-          {children}
-        </h3>
-        {detail && <span className="min-w-0 truncate font-sans text-[10px] text-[var(--surface-muted)]">{detail}</span>}
-      </div>
-      {code && <code className="shrink-0 font-mono text-[9px] text-[var(--surface-muted)]">{code}</code>}
-    </div>
-  );
-}
-
-function NumberField({
-  label,
-  value,
-  unit,
-  min,
-  max,
-  step = 1,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  unit?: string;
-  min?: number;
-  max?: number;
-  step?: number;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <label className="md-number-field block min-w-0 font-sans">
-      <span className="block truncate text-[11px] font-normal text-[var(--surface-muted)]">{label}</span>
-      <span className="md-number-control mt-1.5 flex h-9 min-w-0 items-center overflow-hidden rounded-[6px] border border-[var(--surface-border)] bg-[var(--surface-bg)] focus-within:border-[var(--field-focus-border)] transition-colors">
-        <CommittedNumberInput
-          value={value}
-          min={min}
-          max={max}
-          step={step}
-          onCommit={onChange}
-          className="md-number-input min-w-0 flex-1 border-0 bg-transparent px-2.5 font-mono text-[11px] text-[var(--surface-text)] outline-none focus:ring-0"
-        />
-        {unit && <span className="md-number-unit shrink-0 font-mono text-[9px] text-[var(--surface-muted)]">{unit}</span>}
-      </span>
-    </label>
-  );
-}
-
-function TextField({
-  label,
-  value,
-  mono = false,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="block min-w-0 overflow-hidden font-sans">
-      <span className="block truncate text-[11px] font-normal text-[var(--surface-muted)]">{label}</span>
-      <input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className={cn(
-          'mt-1.5 h-9 w-full min-w-0 rounded-[6px] border border-[var(--surface-border)] bg-[var(--surface-bg)] px-2.5 text-[11px] text-[var(--surface-text)] outline-none focus:border-[var(--field-focus-border)] transition-colors',
-          mono ? 'font-mono' : 'font-sans'
-        )}
-      />
-    </label>
-  );
-}
+import { ConfigurationNumberField as NumberField, ConfigurationTextField as TextField, ConfigurationSectionHeading as SectionTitle } from './ConfigurationField';
 
 function ConfigSection({
   title,
@@ -202,17 +129,17 @@ function PotentialPicker({
 
   return (
     <div ref={wrapRef} className="md-potential-picker col-span-full relative font-sans">
-      <span className="block truncate text-[11px] font-normal text-[var(--surface-muted)]">Potential</span>
+      <span className="block truncate text-[length:var(--text-caption)] font-normal text-[var(--surface-muted)]">Potential</span>
       <button
         type="button"
-        className="mt-1.5 flex h-9 w-full items-center justify-between rounded-[6px] border border-[var(--surface-border)] bg-[var(--surface-bg)] px-2.5 text-left transition-colors hover:border-[var(--field-focus-border)]"
+        className="configuration-picker-trigger mt-1.5 flex h-9 w-full items-center justify-between rounded-[6px] border border-[var(--surface-border)] bg-[var(--surface-bg)] px-2.5 text-left transition-colors hover:border-[var(--field-focus-border)]"
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
         <span className="min-w-0 flex-1 truncate">
-          <strong className="block truncate font-sans text-[11px] font-semibold text-[var(--surface-text)]">{selected.label}</strong>
-          <small className="block truncate font-sans text-[10px] text-[var(--surface-muted)]">{selected.detail}</small>
+          <strong className="block truncate font-sans text-[length:var(--text-caption)] font-semibold text-[var(--surface-text)]">{selected.label}</strong>
+          <small className="block truncate font-sans text-[length:var(--text-caption)] text-[var(--surface-muted)]">{selected.detail}</small>
         </span>
         <ChevronDown size={14} className="shrink-0 text-[var(--surface-muted)]" />
       </button>
@@ -372,7 +299,7 @@ function OutputEvidenceControls({ config, onChange }: { config: MdSimulationConf
     <NumberField label="Periodic restart interval" value={config.restartEverySteps ?? 10000} unit="steps" min={1} max={100_000_000} onChange={(restartEverySteps) => onChange({ restartEverySteps })} />
     <label className="col-span-full flex items-center gap-2 text-xs"><input type="checkbox" checked={config.productionStartPs !== undefined} onChange={event => onChange(event.target.checked ? { productionStartPs: 0, productionEndPs: config.timestepFs * config.totalSteps / 1000 } : { productionStartPs: undefined, productionEndPs: undefined })} />Choose production window for sampling evidence</label>
     {config.productionStartPs !== undefined && <><NumberField label="Production start" value={config.productionStartPs} unit="ps" min={0} max={1e12} step={.1} onChange={productionStartPs => onChange({ productionStartPs })} /><NumberField label="Production end" value={config.productionEndPs ?? 0} unit="ps" min={0} max={1e12} step={.1} onChange={productionEndPs => onChange({ productionEndPs })} /></>}
-    <p className="col-span-full text-[10px] text-[var(--surface-muted)]">Choose an equilibrated physical-time window across the workflow. Restart files retain solver state; continuing thermostat/barostat state requires the recorded runtime and expert replay instructions.</p>
+    <p className="col-span-full text-[length:var(--text-caption)] text-[var(--surface-muted)]">Choose an equilibrated physical-time window across the workflow. Restart files retain solver state; continuing thermostat/barostat state requires the recorded runtime and expert replay instructions.</p>
   </>;
 }
 
@@ -544,10 +471,10 @@ function GuidedConfiguration({
           <UiSelect label="Nearest neighbors" value={String(config.analysisNeighbors ?? 12)} options={[2, 4, 6, 8, 10, 12, 14, 16, 18, 20].map((value) => ({ value: String(value), label: String(value) }))} onChange={(value) => onChange({ analysisNeighbors: Number(value) })} mono />
         )}
         {mechanicalPlan && (
-          <div className="col-span-full rounded-[6px] border border-[var(--surface-border)] bg-[var(--surface-bg)] p-2.5 text-[10px] text-[var(--surface-muted)]">
+          <div className="col-span-full rounded-[6px] border border-[var(--surface-border)] bg-[var(--surface-bg)] p-2.5 text-[length:var(--text-caption)] text-[var(--surface-muted)]">
             <span className="font-semibold text-[var(--surface-text)]">Planned strain: </span>
             <code className="font-mono font-semibold text-[var(--accent)]">{mechanicalPlan.planned.toPrecision(4)}</code>
-            <span className="mt-0.5 block text-[9px]">The runtime converts s⁻¹ to ps⁻¹ and blocks runs above the configured safety limit.</span>
+            <span className="mt-0.5 block text-[length:var(--text-caption)]">The runtime converts s⁻¹ to ps⁻¹ and blocks runs above the configured safety limit.</span>
           </div>
         )}
       </ConfigSection>
@@ -616,7 +543,7 @@ function AdvancedConfiguration({
               aria-pressed={active}
               onClick={() => setSection(item.id)}
               className={cn(
-                'config-manual-tab flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-[6px] px-1.5 font-sans text-[11px] font-medium text-[var(--surface-muted)] transition-colors hover:bg-[var(--surface-raised)] hover:text-[var(--surface-text)]',
+                'config-manual-tab flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-[6px] px-1.5 font-sans text-[length:var(--text-caption)] font-medium text-[var(--surface-muted)] transition-colors hover:bg-[var(--surface-raised)] hover:text-[var(--surface-text)]',
                 active && 'bg-[#232323] font-semibold text-[#f4f4f5]'
               )}
             >
@@ -647,10 +574,10 @@ function AdvancedConfiguration({
                 />
                 <NumberField label="Timestep" value={config.timestepFs} unit="fs" min={0.0001} max={100} step={0.1} onChange={(timestepFs) => onChange({ timestepFs })} />
                 <NumberField label="Total steps" value={config.totalSteps} unit="steps" min={1} max={100_000_000} onChange={(totalSteps) => onChange({ totalSteps })} />
-                <div className="col-span-full flex items-center gap-2 rounded-[6px] border border-[var(--surface-border)] bg-[var(--surface-bg)] px-3 py-2 text-[10px]">
+                <div className="col-span-full flex items-center gap-2 rounded-[6px] border border-[var(--surface-border)] bg-[var(--surface-bg)] px-3 py-2 text-[length:var(--text-caption)]">
                   <span className="text-[var(--surface-muted)]">Simulated duration:</span>
-                  <strong className="font-mono text-[11px] text-[var(--surface-text)]">{simulatedTimePs} ps</strong>
-                  <span className="text-[9px] text-[var(--surface-muted)]">({(Number(simulatedTimePs) / 1000).toFixed(4)} ns)</span>
+                  <strong className="font-mono text-[length:var(--text-caption)] text-[var(--surface-text)]">{simulatedTimePs} ps</strong>
+                  <span className="text-[length:var(--text-caption)] text-[var(--surface-muted)]">({(Number(simulatedTimePs) / 1000).toFixed(4)} ns)</span>
                 </div>
               </ConfigSection>
 
@@ -688,9 +615,9 @@ function AdvancedConfiguration({
                   onChange={(boundaryType) => onChange({ boundaryType: boundaryType as MdSimulationConfig['boundaryType'] })}
                   mono
                 />
-                <div className="col-span-full flex items-center gap-2 rounded-[6px] border border-[var(--surface-border)] bg-[var(--surface-bg)] px-3 py-2 text-[10px]">
+                <div className="col-span-full flex items-center gap-2 rounded-[6px] border border-[var(--surface-border)] bg-[var(--surface-bg)] px-3 py-2 text-[length:var(--text-caption)]">
                   <span className="text-[var(--surface-muted)]">Box symmetry:</span>
-                  <strong className="font-mono text-[10px] text-[var(--surface-text,var(--ink))] font-medium">{config.recipeId === 'shear' ? 'Triclinic box tilt enabled' : 'Orthogonal / General triclinic'}</strong>
+                  <strong className="font-mono text-[length:var(--text-caption)] text-[var(--surface-text,var(--ink))] font-medium">{config.recipeId === 'shear' ? 'Triclinic box tilt enabled' : 'Orthogonal / General triclinic'}</strong>
                 </div>
               </ConfigSection>
 
@@ -712,10 +639,10 @@ function AdvancedConfiguration({
               </ConfigSection>
 
               <ConfigSection title="Neighbor List Configuration" code="neighbor / neigh_modify">
-                <div className="col-span-full flex flex-wrap gap-2 text-[10px] text-[var(--surface-muted)]">
-                  <span className="rounded border border-[var(--surface-border)] bg-[var(--surface-bg)] px-2 py-1 font-mono text-[9px] text-[var(--surface-text)]">skin 2.0 Å</span>
-                  <span className="rounded border border-[var(--surface-border)] bg-[var(--surface-bg)] px-2 py-1 font-mono text-[9px] text-[var(--surface-text)]">style bin (O(N))</span>
-                  <span className="rounded border border-[var(--surface-border)] bg-[var(--surface-bg)] px-2 py-1 font-mono text-[9px] text-[var(--surface-text)]">delay 0 every 1 check yes</span>
+                <div className="col-span-full flex flex-wrap gap-2 text-[length:var(--text-caption)] text-[var(--surface-muted)]">
+                  <span className="rounded border border-[var(--surface-border)] bg-[var(--surface-bg)] px-2 py-1 font-mono text-[length:var(--text-caption)] text-[var(--surface-text)]">skin 2.0 Å</span>
+                  <span className="rounded border border-[var(--surface-border)] bg-[var(--surface-bg)] px-2 py-1 font-mono text-[length:var(--text-caption)] text-[var(--surface-text)]">style bin (O(N))</span>
+                  <span className="rounded border border-[var(--surface-border)] bg-[var(--surface-bg)] px-2 py-1 font-mono text-[length:var(--text-caption)] text-[var(--surface-text)]">delay 0 every 1 check yes</span>
                 </div>
               </ConfigSection>
             </>
@@ -763,22 +690,22 @@ function AdvancedConfiguration({
                 <TextField label="Checkpoint restart label" value={config.restartLabel ?? 'checkpoint'} mono onChange={(restartLabel) => onChange({ restartLabel: restartLabel.replace(/[^A-Za-z0-9_-]/g, '') })} />
                 <OutputEvidenceControls config={config} onChange={onChange} />
                 <div className="col-span-full space-y-2 border-t border-[var(--surface-border)] pt-2.5">
-                  <span className="block text-[10px] font-semibold text-[var(--surface-text)]">Thermodynamic properties recorded:</span>
+                  <span className="block text-[length:var(--text-caption)] font-semibold text-[var(--surface-text)]">Thermodynamic properties recorded:</span>
                   <div className="flex flex-wrap gap-1.5">
                     {['step', 'time', 'temp', 'press', 'pe', 'ke', 'etotal', 'vol', 'lx', 'ly', 'lz', 'pxx', 'pyy', 'pzz'].map((prop) => (
-                      <span key={prop} className="rounded border border-[var(--surface-border)] bg-[var(--surface-bg)] px-2 py-0.5 font-mono text-[9px] text-[var(--surface-muted)]">
+                      <span key={prop} className="rounded border border-[var(--surface-border)] bg-[var(--surface-bg)] px-2 py-0.5 font-mono text-[length:var(--text-caption)] text-[var(--surface-muted)]">
                         {prop}
                       </span>
                     ))}
                   </div>
-                  <span className="mt-2 block text-[10px] font-semibold text-[var(--surface-text)]">Trajectory atom attributes:</span>
+                  <span className="mt-2 block text-[length:var(--text-caption)] font-semibold text-[var(--surface-text)]">Trajectory atom attributes:</span>
                   <div className="flex flex-wrap gap-1.5">
                     {['id', 'type', 'x', 'y', 'z', 'vx', 'vy', 'vz'].map((col) => (
-                      <span key={col} className="rounded border border-[var(--surface-border)] bg-[var(--surface-bg)] px-2 py-0.5 font-mono text-[9px] text-[#58a6ff]">
+                      <span key={col} className="rounded border border-[var(--surface-border)] bg-[var(--surface-bg)] px-2 py-0.5 font-mono text-[length:var(--text-caption)] text-[#58a6ff]">
                         {col}
                       </span>
                     ))}
-                    <span className="rounded border border-[var(--surface-border)] bg-[var(--surface-bg)] px-2 py-0.5 font-mono text-[9px] text-[#3fb950]">
+                    <span className="rounded border border-[var(--surface-border)] bg-[var(--surface-bg)] px-2 py-0.5 font-mono text-[length:var(--text-caption)] text-[#3fb950]">
                       sort id first yes
                     </span>
                   </div>
@@ -787,11 +714,11 @@ function AdvancedConfiguration({
 
               <ConfigSection title="Custom Directives" code="in.lammps" detail="Safe appended workflow">
                 <div className="col-span-full flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-[10px] text-[var(--surface-muted)]">
+                  <p className="text-[length:var(--text-caption)] text-[var(--surface-muted)]">
                     Add extra custom LAMMPS fixes, computes, or variables appended safely to this step.
                   </p>
                   <span className={cn(
-                    'inline-flex items-center rounded-full px-2 py-0.5 font-mono text-[9px] font-semibold',
+                    'inline-flex items-center rounded-full px-2 py-0.5 font-mono text-[length:var(--text-caption)] font-semibold',
                     isOverridden ? 'border border-[var(--line-strong)] bg-[var(--surface-subtle)] text-[var(--surface-text,var(--ink))]' : 'border border-[var(--surface-border)] bg-[var(--surface-bg)] text-[var(--surface-muted)]'
                   )}>
                     {isOverridden ? 'Custom Directives Active' : 'Default Managed'}
@@ -803,7 +730,7 @@ function AdvancedConfiguration({
                     <button
                       key={s.label}
                       type="button"
-                      className="rounded border border-[var(--surface-border)] bg-[var(--surface-bg)] px-2 py-1 text-[9px] font-medium text-[var(--surface-text)] transition-colors hover:border-[var(--line-strong)] hover:text-[var(--surface-text,var(--ink))]"
+                      className="rounded border border-[var(--surface-border)] bg-[var(--surface-bg)] px-2 py-1 text-[length:var(--text-caption)] font-medium text-[var(--surface-text)] transition-colors hover:border-[var(--line-strong)] hover:text-[var(--surface-text,var(--ink))]"
                       onClick={() => appendDirective(s.code)}
                     >
                       + {s.label}
@@ -818,18 +745,18 @@ function AdvancedConfiguration({
                     value={config.manualBody ?? ''}
                     onChange={(e) => onChange({ manualBody: e.target.value })}
                     placeholder="e.g. fix my_thermo all nvt temp 300 300 0.1&#10;run 10000"
-                    className="h-32 w-full rounded-[6px] border border-[var(--surface-border)] bg-[var(--surface-bg)] p-2.5 font-mono text-[10px] text-[var(--surface-text)] outline-none focus:border-[var(--field-focus-border)]"
+                    className="h-32 w-full rounded-[6px] border border-[var(--surface-border)] bg-[var(--surface-bg)] p-2.5 font-mono text-[length:var(--text-caption)] text-[var(--surface-text)] outline-none focus:border-[var(--field-focus-border)]"
                   />
                 </div>
 
                 <div className="col-span-full flex flex-wrap items-center justify-between gap-2">
                   {manualValidation ? (
-                    <p className="flex items-center gap-1.5 text-[10px] text-[var(--danger)]">
+                    <p className="flex items-center gap-1.5 text-[length:var(--text-caption)] text-[var(--danger)]">
                       <AlertCircle size={13} className="shrink-0" />
                       <span>{manualValidation}</span>
                     </p>
                   ) : (
-                    <p className="flex items-center gap-1.5 text-[10px] text-[var(--success)]">
+                    <p className="flex items-center gap-1.5 text-[length:var(--text-caption)] text-[var(--success)]">
                       <ShieldCheck size={13} className="shrink-0" />
                       <span>Directives pass syntax safety check.</span>
                     </p>
@@ -837,7 +764,7 @@ function AdvancedConfiguration({
                   {isOverridden && (
                     <button
                       type="button"
-                      className="lab-secondary-button h-7 px-2 text-[9px]"
+                      className="lab-secondary-button h-7 px-2 text-[length:var(--text-caption)]"
                       onClick={() => onChange({ manualBody: '' })}
                     >
                       Clear custom directives
@@ -846,7 +773,7 @@ function AdvancedConfiguration({
                 </div>
 
                 {isDockerIssue && (
-                  <div className="col-span-full flex items-center gap-1.5 text-[10px] text-[var(--panel-accent)]">
+                  <div className="col-span-full flex items-center gap-1.5 text-[length:var(--text-caption)] text-[var(--panel-accent)]">
                     <AlertCircle size={13} className="shrink-0" />
                     <span>Manual directives require personal-compute Docker runtime.</span>
                   </div>
@@ -1134,6 +1061,7 @@ export function MdSimulationConfigDrawer(props: {
     onRunSimulation,
     onClose,
   } = props;
+  const { t } = useLocale();
   const [portalTarget, setPortalTarget] = useState<Element | null>(null);
   const [showInspector, setShowInspector] = useState(false);
 
@@ -1168,8 +1096,8 @@ export function MdSimulationConfigDrawer(props: {
         title={config.name}
         mode={mode}
         modes={[
-          { id: 'guided', label: 'Simple' },
-          { id: 'manual', label: 'Advanced' },
+          { id: 'guided', label: t('Simple', 'Sederhana'), description: t('Guided controls for this simulation step.', 'Kontrol terpandu untuk langkah simulasi ini.') },
+          { id: 'manual', label: t('Advanced', 'Lanjutan'), description: t('Edit LAMMPS directive blocks. Inspect the generated script before running.', 'Edit blok perintah LAMMPS. Periksa skrip yang dihasilkan sebelum menjalankan.') },
         ]}
         onModeChange={(nextMode: MdSimulationMode) => onChange({
           mode: nextMode,

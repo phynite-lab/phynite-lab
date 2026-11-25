@@ -18,7 +18,7 @@
 .lab-page button, .lab-page a[href] { cursor: pointer; }
 .lab-page button:disabled { opacity: .5; cursor: not-allowed; }
 .lab-page :is(a,button):focus-visible { outline: 2px solid var(--lab-accent); outline-offset: 3px; }
-.lab-page :is(input:not([type='checkbox']):not([type='radio']):not([type='range']),textarea,select):focus-visible { border-color: var(--field-focus-border); outline: 0; box-shadow: none; }
+.lab-page :where(input:not([type='checkbox']):not([type='radio']):not([type='range']),textarea,select):focus-visible { border-color: var(--field-focus-border); outline: 0; box-shadow: none; }
 .lab-page :is(section,[id]) { scroll-margin-top: 88px; }
 .lab-header { position: sticky; z-index: 60; top: 0; display: flex; align-items: center; min-height: 62px; gap: 24px; padding: 10px 24px; background: var(--lab-surface); border-bottom: 1px solid var(--lab-border); }
 .lab-header .workspace-identity { flex: none; }
@@ -30,10 +30,6 @@
 .lab-avatar { display: grid; place-items: center; width: 30px; height: 30px; overflow: hidden; border: 1px solid var(--lab-border); border-radius: 50%; background: var(--lab-soft); color: var(--lab-accent); font-size: var(--text-caption); font-weight: var(--weight-semibold); flex: none; }
 .lab-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .lab-avatar-large { width: 76px; height: 76px; font-size: 22px; }
-.lab-page .lab-button { display: inline-flex; min-height: var(--control-height); justify-content: center; align-items: center; gap: 8px; padding: 8px 13px; border: 1px solid var(--lab-border); border-radius: var(--control-radius); background: var(--lab-surface); color: var(--lab-text); font-size: var(--text-label); font-weight: var(--weight-medium); line-height: 1.45; text-decoration: none; }
-.lab-page .lab-button:hover:not(:disabled) { background: var(--lab-subtle); border-color: var(--lab-muted); }
-.lab-page .lab-button-primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
-.lab-page .lab-button-primary:hover:not(:disabled) { background: var(--accent-strong); border-color: var(--accent-strong); }
 .lab-page .lab-button-quiet { background: transparent; border-color: transparent; color: var(--lab-muted); }
 .lab-page .lab-button-danger { color: var(--lab-danger); }
 .lab-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }

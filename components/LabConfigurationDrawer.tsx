@@ -1,14 +1,13 @@
 'use client';
 
 import { X } from 'lucide-react';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/app/locale-provider';
+import { ConfigurationModeControl, type ConfigurationMode } from './ConfigurationModeControl';
 import '@/app/lab-configuration-drawer.css';
 
-export type LabConfigurationDrawerMode<T extends string = string> = {
-  id: T;
-  label: string;
-};
+export type LabConfigurationDrawerMode<T extends string = string> = ConfigurationMode<T>;
 
 export function LabConfigurationDrawer<T extends string>({
   ariaLabel,
@@ -39,6 +38,9 @@ export function LabConfigurationDrawer<T extends string>({
   onClose: () => void;
   className?: string;
 }) {
+  const { t } = useLocale();
+  const descriptionId = useId();
+  const selectedMode = modes.find(item => item.id === mode);
   const dialogRef = useRef<HTMLElement>(null);
   const commitFocusedField = () => {
     const focused = document.activeElement;
@@ -89,7 +91,7 @@ export function LabConfigurationDrawer<T extends string>({
     };
   }, [embedded]);
   return <div className={embedded ? 'workflow-embedded-config' : 'lab-config-drawer-layer'}>
-    {!embedded && <button type="button" className="lab-config-drawer-backdrop" aria-label="Close configuration" onPointerDown={commitFocusedField} onClick={onClose} />}
+    {!embedded && <button type="button" className="lab-config-drawer-backdrop" aria-label={t('Close configuration', 'Tutup konfigurasi')} onPointerDown={commitFocusedField} onClick={onClose} />}
     <section
       ref={dialogRef}
       tabIndex={-1}
@@ -104,11 +106,10 @@ export function LabConfigurationDrawer<T extends string>({
           <span className="lab-config-drawer-title"><strong>{title}</strong>{subtitle && <small>{subtitle}</small>}</span>
         </div>
         <div className="lab-config-drawer-actions">{actions}</div>
-        <div className="lab-config-drawer-modes" role="tablist" aria-label="Configuration mode">
-          {modes.map((item) => <button key={item.id} type="button" role="tab" aria-selected={mode === item.id} onClick={() => onModeChange(item.id)}>{item.label}</button>)}
-        </div>
-        <button type="button" className="lab-icon-button lab-config-drawer-close" onPointerDown={commitFocusedField} onClick={onClose} aria-label="Close configuration"><X size={16} /></button>
+        <ConfigurationModeControl className="lab-config-drawer-modes" label={t('Configuration mode', 'Mode konfigurasi')} value={mode} options={modes} onChange={onModeChange} descriptionId={selectedMode?.description ? descriptionId : undefined} />
+        <button type="button" className="lab-icon-button lab-config-drawer-close" onPointerDown={commitFocusedField} onClick={onClose} aria-label={t('Close configuration', 'Tutup konfigurasi')}><X size={16} /></button>
       </header>
+      {selectedMode?.description && <p id={descriptionId} className="configuration-mode-description"><strong>{selectedMode.label}</strong> · {selectedMode.description}</p>}
       <div className="lab-config-drawer-body">{children}</div>
       {footer && <footer className="lab-config-drawer-footer">{footer}</footer>}
     </section>

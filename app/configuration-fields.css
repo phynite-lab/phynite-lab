@@ -1,0 +1,23 @@
+.configuration-field { display: grid; align-content: start; gap: 6px; min-width: 0; color: var(--panel-muted, var(--muted-ink)); font: 400 var(--text-caption)/var(--leading-ui) var(--font-ui); }
+.configuration-field-label { overflow-wrap: anywhere; }
+.configuration-field-control, .configuration-text-input { display: flex; align-items: center; min-width: 0; height: var(--control-height); min-height: var(--control-height); border: 1px solid var(--panel-border, var(--line)); border-radius: var(--radius-control); background: var(--panel-raised, var(--surface)); color: var(--panel-text, var(--ink)); }
+.configuration-field-control > input { flex: 1; width: 100%; min-width: 0; align-self: stretch; min-height: 0; padding: 0 12px; border: 0; background: transparent; color: inherit; font: 400 var(--text-code)/var(--leading-ui) var(--font-code); font-variant-numeric: tabular-nums; outline: none; }
+.configuration-field .configuration-field-control > input:focus-visible { outline: none; }
+.configuration-field-unit { flex: none; padding-right: 12px; color: var(--panel-muted, var(--muted-ink)); font: 400 var(--text-caption)/var(--leading-ui) var(--font-code); }
+.configuration-text-input { width: 100%; padding: 0 12px; font: 400 var(--text-label)/var(--leading-ui) var(--font-ui); }
+.configuration-text-input.is-mono { font-family: var(--font-code); font-size: var(--text-code); }
+.configuration-field-control:focus-within, .configuration-text-input:focus-visible { border-color: var(--focus-ring); outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.configuration-section-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 16px; }
+.configuration-section-heading > div { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; min-width: 0; }
+.configuration-section-heading h3 { margin: 0; color: var(--panel-text, var(--ink)); font: 600 var(--text-label)/var(--leading-ui) var(--font-ui); }
+.configuration-section-heading span, .configuration-section-heading code { color: var(--panel-muted, var(--muted-ink)); font-size: var(--text-caption); overflow-wrap: anywhere; }
+
+.configuration-field-control > input[type='number'] { appearance: textfield; -moz-appearance: textfield; }
+.configuration-field-control > input::-webkit-inner-spin-button, .configuration-field-control > input::-webkit-outer-spin-button { appearance: none; -webkit-appearance: none; margin: 0; }
+.lab-config-drawer .md-potential-picker .configuration-picker-trigger { display: flex; justify-content: space-between; gap: 12px; width: 100%; height: auto; min-height: 56px; margin-top: 6px; padding: 8px 12px; border: 1px solid var(--panel-border); border-radius: var(--radius-control); background: var(--panel-raised); text-align: left; }
+.lab-config-drawer .md-potential-picker .configuration-picker-trigger:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+@media (max-width: 960px) {
+  /* Keep the mobile zoom floor while honouring a larger code preference. */
+  .research-app-shell .configuration-field .configuration-field-control > input,
+  .research-app-shell .configuration-field .configuration-text-input.is-mono { font-size: max(16px, var(--text-code)); }
+}

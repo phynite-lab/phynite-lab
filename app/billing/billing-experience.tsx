@@ -3,7 +3,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { ArrowUpRight, FileText, RefreshCw } from 'lucide-react';
-import { useSettingsAnchor } from '../use-settings-anchor';
 import { useAccountUsage } from '../use-account-usage';
 import { SettingsPage } from '@/components/SettingsPage';
 import { useSession } from '../use-session';
@@ -29,7 +28,6 @@ export function BillingExperience() {
   const { usage, error: usageError, loading, stale: usageStale, refresh: refreshUsage } = useAccountUsage(session?.user.id, true);
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
-  useSettingsAnchor(Boolean(session && ready));
   useEffect(() => {
     if (!session) return;
     const destination = computeReturnPath(new URL(window.location.href).searchParams.get('returnTo'));

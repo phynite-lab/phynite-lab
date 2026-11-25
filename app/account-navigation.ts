@@ -3,7 +3,7 @@ export const settingsSections = [
   { id: 'appearance', href: '/account/appearance', group: 'device', en: 'Appearance & language', idn: 'Tampilan & bahasa', keywords: 'theme light dark language tema terang gelap bahasa' },
   { id: 'keyboard', href: '/account/keyboard', group: 'device', en: 'Keyboard shortcuts', idn: 'Pintasan keyboard', keywords: 'keyboard shortcut hotkey keys pintasan tombol' },
   { id: 'notifications', href: '/account/notifications', group: 'device', en: 'Notifications', idn: 'Notifikasi', keywords: 'email results jobs inbox notifications hasil pemberitahuan' },
-  { id: 'compute', href: '/account/compute', group: 'research', en: 'Compute', idn: 'Komputasi', keywords: 'computer core cpu ram gpu vram resources cloud hardware duration komputer memori durasi sumber daya' },
+  { id: 'compute', href: '/account/compute', group: 'research', en: 'Compute', idn: 'Komputasi', keywords: 'computer core cpu ram gpu vram resources cloud hardware duration runtime solver install quantum espresso lammps pseudopotentials komputer memori durasi sumber daya pasang' },
   { id: 'ai-providers', href: '/account/ai-providers', group: 'ai', en: 'AI provider accounts', idn: 'Akun provider AI', keywords: 'ai provider account codex antigravity claude gemini token quota limit reset akun model' },
   { id: 'account', href: '/account/account', group: 'ai', en: 'Account', idn: 'Akun', keywords: 'account cloud login logout identity plan akun cloud masuk keluar identitas paket' },
   { id: 'usage', href: '/account/usage', group: 'research', en: 'Usage', idn: 'Pemakaian', keywords: 'hours time runs receipts charge refund history jam waktu kalkulasi biaya riwayat' },
@@ -25,7 +25,8 @@ export const settingsControls = [
   { section: 'compute', anchor: 'compute-defaults', en: 'CPU, RAM & duration', idn: 'CPU, RAM & durasi', keywords: 'cpu core ram gpu vram cloud resource funding duration minutes hours dft memori inti menit jam perkiraan' },
   { section: 'compute', anchor: 'compute-defaults', query: '?workload=md-simulation', en: 'MD simulation resources', idn: 'Resource simulasi MD', keywords: 'lammps cpu ram local simulasi lokal' },
   { section: 'compute', anchor: 'compute-defaults', query: '?workload=md-analysis', en: 'MD analysis resources', idn: 'Resource analisis MD', keywords: 'ovito analysis cpu ram local analisis lokal' },
-  { section: 'compute', anchor: 'your-computer', en: 'Worker connection', idn: 'Koneksi worker', keywords: 'computer connect pair install komputer hubungkan pemasangan' },
+  { section: 'compute', anchor: 'your-computer', hostedOnly: true, en: 'Worker connection', idn: 'Koneksi worker', keywords: 'computer connect pair install komputer hubungkan pemasangan' },
+  { section: 'compute', anchor: 'your-computer', localOnly: true, en: 'Scientific runtime', idn: 'Runtime ilmiah', keywords: 'runtime solver worker computer install download dft qe quantum espresso lammps ovito md pasang unduh komputer' },
   { section: 'compute', anchor: 'pseudopotentials', localOnly: true, en: 'DFT pseudopotentials', idn: 'Pseudopotential DFT', keywords: 'sssp pbe upf pseudopotential dft qe library pustaka' },
   { section: 'compute', anchor: 'materials-project', localOnly: true, en: 'Materials Project API key', idn: 'API key Materials Project', keywords: 'api key kunci materials project crystal database kristal struktur' },
   { section: 'compute', anchor: 'hpc-clusters', en: 'HPC Clusters', idn: 'Kluster HPC', keywords: 'hpc supercomputer slurm pbs cluster remote ssh brin mahameru node queue partition scratch' },
@@ -42,11 +43,12 @@ export const settingsControls = [
 export function searchSettingsControls(query: string, mode: 'local' | 'hosted' = 'hosted') {
   const terms = query.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
   if (!terms.length) return [];
-  return settingsControls.filter(control => (mode === 'local' || !('localOnly' in control && control.localOnly)) && terms.every(term => `${control.en} ${control.idn} ${control.keywords}`.toLocaleLowerCase().includes(term))).map(control => {
+  return settingsControls.filter(control => (mode === 'local' || !('localOnly' in control && control.localOnly)) && (mode !== 'local' || !('hostedOnly' in control && control.hostedOnly)) && terms.every(term => `${control.en} ${control.idn} ${control.keywords}`.toLocaleLowerCase().includes(term))).map(control => {
     const anchor = mode === 'local' && control.anchor === 'cloud-storage' ? 'local-storage' : mode === 'local' && control.anchor === 'sign-in-details' ? 'account-identity' : control.anchor;
     const en = mode === 'local' && control.anchor === 'cloud-storage' ? 'Local storage & archives' : mode === 'local' && control.section === 'notifications' ? 'Device notifications' : control.en;
     const idn = mode === 'local' && control.anchor === 'cloud-storage' ? 'Penyimpanan lokal & arsip' : mode === 'local' && control.section === 'notifications' ? 'Notifikasi perangkat' : control.idn;
-    return { ...control, en, idn, href: `${settingsSections.find(section => section.id === (mode === 'local' && control.anchor === 'sign-in-details' ? 'account' : control.section))!.href}${mode !== 'local' && 'query' in control ? control.query : ''}#${anchor}` };
+    const parent = settingsSections.find(section => section.id === (mode === 'local' && control.anchor === 'sign-in-details' ? 'account' : control.section))!;
+    return { ...control, en, idn, sectionEn: parent.en, sectionIdn: parent.idn, href: `${parent.href}${mode !== 'local' && 'query' in control ? control.query : ''}#${anchor}` };
   });
 }
 export const accountLinks = [...settingsSections, { id: 'pricing', href: '/pricing', en: 'Pricing', idn: 'Harga' }, { id: 'guide', href: '/guide#account', en: 'Account guide', idn: 'Panduan akun' }] as const;

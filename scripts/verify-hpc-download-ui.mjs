@@ -54,7 +54,7 @@ export async function verifyHpcDownloadUi(page, origin, output, viewport = { wid
     await expect(editor.locator('.workflow-result')).toHaveCount(0);
     await expect(editor.locator('.workflow-editor-notice')).toHaveCount(0);
     await expect(toolbar.locator('.workflow-config-input')).toHaveCount(0);
-    const mode = toolbar.getByRole('group', { name: 'Configuration mode', exact: true });
+    const mode = toolbar.getByRole('radiogroup', { name: 'Configuration mode', exact: true });
     const run = toolbar.getByRole('button', { name: 'Run', exact: true });
     const [downloadBox, modeBox, runBox] = await Promise.all([download.boundingBox(), mode.boundingBox(), run.boundingBox()]);
     assert.ok(downloadBox && modeBox && runBox);
