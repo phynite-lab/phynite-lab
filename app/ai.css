@@ -43,6 +43,22 @@
 .ai-message header small { font-size: var(--text-caption); font-weight: 400; color: var(--panel-muted); }
 .ai-message-user { margin-left: auto; max-width: 85%; background: var(--panel-raised); padding: 15px 18px; border: 1px solid var(--panel-border); border-radius: var(--radius-panel); }
 .ai-response-text { min-width: 0; }
+.ai-selection-actions { position: fixed; z-index: 10000; display: flex; gap: 2px; padding: 4px; border: 1px solid var(--panel-border); border-radius: 8px; background: var(--panel-raised); color: var(--panel-text); box-shadow: 0 4px 16px #0002; }
+.ai-selection-actions button { display: inline-flex; flex: 1; align-items: center; justify-content: center; gap: 6px; min-width: 0; min-height: 32px; padding: 6px 8px; border-radius: 4px; font-size: 12px; line-height: 18px; }
+.ai-selection-actions button svg { flex-shrink: 0; }
+.ai-selection-actions button:hover { background: var(--panel-hover); }
+.ai-selection-actions button:focus-visible { outline: 2px solid var(--panel-text); outline-offset: 1px; }
+.ai-context-chips > .ai-quote-preview { flex: 1 1 100%; }
+.ai-quote-preview { display: flex; align-items: flex-start; gap: 8px; min-width: 0; padding: 8px 12px; border: 1px solid var(--panel-border); border-radius: 8px; background: var(--panel-raised); color: var(--panel-text); }
+.ai-quote-preview details { flex: 1; min-width: 0; }
+.ai-quote-preview summary { display: flex; align-items: center; gap: 6px; cursor: pointer; list-style: none; font-size: var(--text-caption); }
+.ai-quote-preview summary strong { flex-shrink: 0; font-weight: 500; }
+.ai-quote-preview summary::-webkit-details-marker { display: none; }
+.ai-quote-preview summary > svg { flex-shrink: 0; }
+.ai-quote-preview summary > span { color: var(--panel-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-quote-preview blockquote { max-height: 160px; overflow: auto; margin: 8px 0 0; padding: 0 0 0 12px; border-left: 2px solid var(--panel-border); font-size: var(--text-caption); }
+.ai-quote-preview .ai-quote-source, .ai-quote-preview .ai-quote-remove { flex-shrink: 0; min-height: 24px; padding: 2px 4px; font-size: var(--text-caption); color: var(--panel-muted); }
+.ai-quote-preview .ai-quote-source:hover, .ai-quote-preview .ai-quote-remove:hover { color: var(--panel-text); }
 .ai-response-text a { text-decoration: underline; text-underline-offset: 3px; }
 /* Neutral review ledger: state is communicated with text and icons. */
 .ai-action { border: 1px solid var(--panel-border); border-radius: var(--radius-panel); margin: 16px 0 28px; padding: 0; min-width: 0; overflow: hidden; }

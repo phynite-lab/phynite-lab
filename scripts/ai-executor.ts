@@ -9,6 +9,7 @@ import { compactObservation } from '../lib/ai-observation.ts';
 import { streamClaude, AiError, type AiProviderConfig } from '../lib/ai-provider.ts';
 import type { AiDetail, AiEvent, AiMessage } from '../lib/ai-contract.ts';
 import type { AiBackend } from '../lib/ai-tools.ts';
+import { createAiEventWriter } from '../lib/ai-event-writer.ts';
 
 export type AgentTask = { id: string; index: number; goal: string; dependencies: number[]; status: string; generation: number; providerCalls: number; toolCalls: number; messages: Array<{role: string; text: string}>; result?: { text: string; evidenceRefs: unknown[] }; error?: string };
 type Parent = { id: string; conversationId: string; generation: number; strategy: 'auto' | 'solo' | 'team'; teamQualified: boolean; modelId: string; controlRevision: number; planReady: boolean; checkpoint: unknown };
@@ -40,8 +41,13 @@ export async function executeParent(job: Job, core: Core, config: AiProviderConf
     return heartbeatPending;
   };
   const heartbeat = setInterval(() => { void refreshHeartbeat().catch(error => abort.abort(error)); }, options.heartbeatMs ?? 5000);
-  let eventTail = Promise.resolve(), eventSequence = 0;
-  const send = (event: AiEvent) => { const eventId = `${job.parent.generation}_${++eventSequence}`; eventTail = eventTail.then(() => call<void>('event', { event, eventId })); eventTail.catch(error => abort.abort(error)); };
+  let eventSequence = 0;
+  const events = createAiEventWriter(async (event: AiEvent) => {
+    const eventId = `${job.parent.generation}_${++eventSequence}`;
+    try { await call<void>('event', { event, eventId }); }
+    catch (error) { abort.abort(error); throw error; }
+  });
+  const send = events.send;
   const inference = options.infer, pollMs = options.pollMs ?? 200;
   const infer = (task?: AgentTask, inferenceSignal = combined): typeof streamClaude => async options => {
     await checkIdentity();
@@ -97,8 +103,8 @@ export async function executeParent(job: Job, core: Core, config: AiProviderConf
     const detail = structuredClone(job.detail);
     detail.run!.mode = detail.run!.mode === 'full' ? 'approval' : detail.run!.mode;
     if (results.length) detail.messages.push({ id: 'specialist_results', runId: job.parent.id, role: 'tool', text: compactObservation({ untrusted: true, specialistResults: results, instruction: 'Synthesize once, cite evidence, name failed or unverified parts. Proposals require researcher review. Summaries may be truncated; full records remain in Tasks.' }, 30000), modelId: job.parent.modelId, createdAt: new Date().toISOString() } as AiMessage);
-    await runAiAgent({ detail, backend: backend(), config, send, signal: combined, infer: infer(), flush: () => eventTail, maxRounds: 30, maxSteps: 40, toolBudget: 40, extraInstruction: 'Coordinator: synthesize specialist evidence once. Only this coordinator may propose changes, through the existing approval pipeline. Preserve failed-task limits. Stop AI never cancels scientific jobs.' });
-    await eventTail;
+    await runAiAgent({ detail, backend: backend(), config, send, signal: combined, infer: infer(), flush: events.flush, maxRounds: 30, maxSteps: 40, toolBudget: 40, extraInstruction: 'Coordinator: synthesize specialist evidence once. Only this coordinator may propose changes, through the existing approval pipeline. Preserve failed-task limits. Stop AI never cancels scientific jobs.' });
+    await events.flush();
     await call('end');
   } catch (error) {
     if (combined.aborted) {
@@ -110,7 +116,7 @@ export async function executeParent(job: Job, core: Core, config: AiProviderConf
       await call('end', { reason }).catch(() => {});
     }
     throw error;
-  } finally { clearInterval(heartbeat); abort.abort(); for (const controller of children.values()) controller.abort(); }
+  } finally { events.dispose(); clearInterval(heartbeat); abort.abort(); for (const controller of children.values()) controller.abort(); }
 }
 
 export async function runExecutor(environment = process.env) {
